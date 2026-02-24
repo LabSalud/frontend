@@ -21,6 +21,7 @@ import type {
   SendMethod,
   CreateProtocolInput,
   PaginatedResponse,
+  Protocol,
 } from "../../types"
 
 export default function IngresoPage() {
@@ -45,7 +46,7 @@ export default function IngresoPage() {
   const [showCreateMedico, setShowCreateMedico] = useState(false)
   const [showCreateObraSocial, setShowCreateObraSocial] = useState(false)
   const [successData, setSuccessData] = useState<{
-    protocol: any
+    protocol: Protocol
     patient: Patient
     doctor: Doctor
     insurance: Insurance
@@ -55,7 +56,7 @@ export default function IngresoPage() {
   const [progress, setProgress] = useState(0)
   const [animationResult, setAnimationResult] = useState<"success" | "error" | null>(null)
   const [pendingSuccessData, setPendingSuccessData] = useState<{
-    protocol: any
+    protocol: Protocol
     patient: Patient
     doctor: Doctor
     insurance: Insurance

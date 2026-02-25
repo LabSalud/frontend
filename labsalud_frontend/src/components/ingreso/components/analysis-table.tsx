@@ -149,37 +149,37 @@ export function AnalysisTable({
               </div>
 
               {/* Desktop: Table layout */}
-              <div className="hidden md:block">
-                <Table className="table-fixed w-full">
+              <div className="hidden md:block overflow-x-hidden">
+                <Table className="w-full">
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="text-xs sm:text-sm w-[40%]">Análisis</TableHead>
-                      <TableHead className="text-xs sm:text-sm text-center w-[10%]">Código</TableHead>
-                      <TableHead className="text-xs sm:text-sm text-center w-[8%]">UB</TableHead>
+                      <TableHead className="text-xs lg:text-sm">Análisis</TableHead>
+                      <TableHead className="text-xs lg:text-sm text-center whitespace-nowrap w-20 lg:w-24">Código</TableHead>
+                      <TableHead className="text-xs lg:text-sm text-center w-12 lg:w-16">UB</TableHead>
                       {!isPrivateInsurance && (
-                        <TableHead className="text-xs sm:text-sm text-center w-[12%]">Autorizado</TableHead>
+                        <TableHead className="text-xs lg:text-sm text-center w-16 lg:w-24">Autoriz.</TableHead>
                       )}
                       {selectedInsurance && (
-                        <TableHead className="text-xs sm:text-sm text-right w-[12%]">Precio</TableHead>
+                        <TableHead className="text-xs lg:text-sm text-right w-16 lg:w-24">Precio</TableHead>
                       )}
-                      <TableHead className="text-xs sm:text-sm text-center w-[10%]">Urgente</TableHead>
-                      <TableHead className="w-[8%]"></TableHead>
+                      <TableHead className="text-xs lg:text-sm text-center w-14 lg:w-20">Urg.</TableHead>
+                      <TableHead className="w-10"></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {selectedAnalyses.map((analysis) => (
                       <TableRow key={analysis.id}>
-                        <TableCell className="font-medium text-xs sm:text-sm p-2 align-top">
-                          <div className="leading-tight break-words whitespace-normal overflow-hidden">
+                        <TableCell className="font-medium text-xs lg:text-sm p-2 align-top">
+                          <div className="leading-tight break-words whitespace-normal">
                             {analysis.name}
                           </div>
                         </TableCell>
                         <TableCell className="text-center p-2 align-top">
-                          <Badge variant="outline" className="font-mono text-xs">
+                          <Badge variant="outline" className="font-mono text-[10px] lg:text-xs">
                             {analysis.code || "N/A"}
                           </Badge>
                         </TableCell>
-                        <TableCell className="text-center text-xs sm:text-sm p-2 align-top">
+                        <TableCell className="text-center text-xs lg:text-sm p-2 align-top">
                           {analysis.bio_unit}
                         </TableCell>
                         {!isPrivateInsurance && (
@@ -187,14 +187,14 @@ export function AnalysisTable({
                             <Switch
                               checked={analysis.is_authorized}
                               onCheckedChange={() => handleToggleAuthorization(analysis.id)}
-                              className="data-[state=checked]:bg-green-500"
+                              className="data-[state=checked]:bg-green-500 scale-90"
                             />
                           </TableCell>
                         )}
                         {selectedInsurance && (
                           <TableCell className="text-right p-2 align-top">
                             <span
-                              className={`text-xs sm:text-sm font-medium ${
+                              className={`text-xs lg:text-sm font-medium ${
                                 !isPrivateInsurance && analysis.is_authorized ? "text-green-600" : "text-orange-600"
                               }`}
                             >
@@ -204,23 +204,23 @@ export function AnalysisTable({
                         )}
                         <TableCell className="text-center p-2 align-top">
                           {analysis.is_urgent ? (
-                            <Badge variant="destructive" className="text-xs">
+                            <Badge variant="destructive" className="text-[10px] lg:text-xs px-1.5">
                               Sí
                             </Badge>
                           ) : (
-                            <Badge variant="secondary" className="text-xs">
+                            <Badge variant="secondary" className="text-[10px] lg:text-xs px-1.5">
                               No
                             </Badge>
                           )}
                         </TableCell>
-                        <TableCell className="p-2 align-top">
+                        <TableCell className="p-1 align-top">
                           <Button
                             variant="ghost"
                             size="sm"
                             onClick={() => handleRemoveAnalysis(analysis.id)}
-                            className="text-red-600 hover:text-red-700 hover:bg-red-50 h-6 w-6 sm:h-8 sm:w-8 p-0"
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50 h-7 w-7 p-0"
                           >
-                            <X className="h-3 w-3 sm:h-4 sm:w-4" />
+                            <X className="h-3.5 w-3.5" />
                           </Button>
                         </TableCell>
                       </TableRow>

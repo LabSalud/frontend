@@ -42,7 +42,6 @@ export const CreateDeterminationDialog: React.FC<CreateDeterminationDialogProps>
 }) => {
   const { apiRequest } = useApi()
   const toastActions = useToast()
-  const [code, setCode] = useState("")
   const [name, setName] = useState("")
   const [measureUnit, setMeasureUnit] = useState("")
   const [formula, setFormula] = useState("")
@@ -62,7 +61,6 @@ export const CreateDeterminationDialog: React.FC<CreateDeterminationDialogProps>
 
   useEffect(() => {
     if (isDialogOpen) {
-      setCode("")
       setName("")
       setMeasureUnit("")
       setFormula("")
@@ -73,7 +71,6 @@ export const CreateDeterminationDialog: React.FC<CreateDeterminationDialogProps>
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {}
-    if (!code.trim()) newErrors.code = "El código es requerido."
     if (!name.trim()) newErrors.name = "El nombre es requerido."
     if (!measureUnit.trim()) newErrors.measureUnit = "La unidad de medida es requerida."
 
@@ -87,7 +84,6 @@ export const CreateDeterminationDialog: React.FC<CreateDeterminationDialogProps>
     setIsLoading(true)
     try {
       const determinationData = {
-        code,
         analysis: finalAnalysisId,
         name,
         measure_unit: measureUnit,
@@ -150,20 +146,6 @@ export const CreateDeterminationDialog: React.FC<CreateDeterminationDialogProps>
               {errors.form}
             </div>
           )}
-
-          <div className="space-y-2">
-            <Label htmlFor="determination-code" className="text-sm">
-              Código *
-            </Label>
-            <Input
-              id="determination-code"
-              value={code}
-              onChange={(e) => setCode(e.target.value)}
-              placeholder="Ingrese el código de la determinación"
-              className="text-sm"
-            />
-            {errors.code && <p className="text-xs md:text-sm text-red-500">{errors.code}</p>}
-          </div>
 
           <div className="space-y-2">
             <Label htmlFor="determination-name" className="text-sm">

@@ -70,23 +70,26 @@ export default function PatientsPage() {
     return patients
       .filter((patient) => {
         // Búsqueda por DNI (exacta y parcial)
-        if (patient.dni.includes(searchTerm)) {
+        if (patient.dni && patient.dni.includes(searchTerm)) {
           return true
         }
 
         // Búsqueda por nombre completo
-        const fullName = `${patient.first_name} ${patient.last_name}`.toLowerCase()
+        const fullName = `${patient.first_name || ""} ${patient.last_name || ""}`.toLowerCase()
         if (fullName.includes(searchLower)) {
           return true
         }
 
         // Búsqueda por email
-        if (patient.email.toLowerCase().includes(searchLower)) {
+        if (patient.email && patient.email.toLowerCase().includes(searchLower)) {
           return true
         }
 
         // Búsqueda por teléfonos
-        if (patient.phone_mobile.includes(searchTerm) || patient.alt_phone.includes(searchTerm)) {
+        if (
+          (patient.phone_mobile && patient.phone_mobile.includes(searchTerm)) ||
+          (patient.alt_phone && patient.alt_phone.includes(searchTerm))
+        ) {
           return true
         }
 
@@ -94,10 +97,12 @@ export default function PatientsPage() {
       })
       .sort((a, b) => {
         // Ordenar resultados: DNI exacto primero, luego DNI parcial, luego otros
-        const aExactDni = a.dni === searchTerm
-        const bExactDni = b.dni === searchTerm
-        const aPartialDni = a.dni.includes(searchTerm)
-        const bPartialDni = b.dni.includes(searchTerm)
+        const aDni = a.dni || ""
+        const bDni = b.dni || ""
+        const aExactDni = aDni === searchTerm
+        const bExactDni = bDni === searchTerm
+        const aPartialDni = aDni.includes(searchTerm)
+        const bPartialDni = bDni.includes(searchTerm)
 
         if (aExactDni && !bExactDni) return -1
         if (!aExactDni && bExactDni) return 1

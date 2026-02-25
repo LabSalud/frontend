@@ -105,6 +105,7 @@ export interface User {
   last_name: string
   photo?: string
   roles?: Role[] | undefined
+  groups?: Group[]
   permissions: Permission[]
   temporary_permissions?: number
   is_active?: boolean
@@ -319,20 +320,21 @@ export interface Protocol {
     id: number
     name: string
   }
-  // New payment fields
-  insurance_total_to_pay: string
-  private_total_to_pay: string
-  estimated_total_to_earn: string
-  total_earned: string
+  // Payment fields from API documentation
+  total_ub_authorized: string
+  total_ub_private: string
+  patient_paid: string
+  amount_to_return: string
   value_paid: string
   payment_status: PaymentStatus
-  patient_to_lab_amount: string
-  lab_to_patient_amount: string
-  insurance_ub_value: string
-  private_ub_value: string
+  // Additional fields returned on update
+  insurance_ub_value?: string
+  private_ub_value?: string
   is_printed: boolean
   is_active: boolean
   details: ProtocolDetail[]
+  creation?: CreationAudit
+  last_change?: LastChangeAudit
   history?: HistoryEntry[]
   total_changes?: number
 }

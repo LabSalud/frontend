@@ -58,7 +58,7 @@ export function EditUserDialog({
 
   useEffect(() => {
     if (open && user) {
-      const userGroups = user.roles || []
+      const userGroups = user.groups || user.roles || []
       setUserData({
         username: user.username,
         email: user.email || "",
@@ -113,7 +113,7 @@ export function EditUserDialog({
 
       const updatedUser = await response.json()
 
-      const currentRoles = (user.roles || []).map((r: Group) => r.id)
+      const currentRoles = (user.groups || user.roles || []).map((r: Group) => r.id)
       const rolesChanged =
         selectedRoles.length !== currentRoles.length || selectedRoles.some((id) => !currentRoles.includes(id))
 

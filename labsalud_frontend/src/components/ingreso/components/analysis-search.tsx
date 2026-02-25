@@ -147,13 +147,6 @@ export function AnalysisSearch({ selectedAnalyses, onAnalysisChange }: AnalysisS
 
     const analysisCode = typeof analysis.code === "string" ? Number.parseInt(analysis.code, 10) : Number(analysis.code)
 
-    console.log("[v0] === INICIO handleAddAnalysis ===")
-    console.log("[v0] Análisis agregado:", analysis.name, "| Código:", analysis.code, "| Tipo:", typeof analysis.code)
-    console.log("[v0] analysisCode (convertido):", analysisCode, "| Tipo:", typeof analysisCode)
-    console.log("[v0] THRESHOLD_CODE:", THRESHOLD_CODE)
-    console.log("[v0] BIOCHEMICAL_ACT_CODE:", BIOCHEMICAL_ACT_CODE)
-    console.log("[v0] SPECIAL_BIOCHEMICAL_ACT_CODE:", SPECIAL_BIOCHEMICAL_ACT_CODE)
-
     if (analysisCode === BIOCHEMICAL_ACT_CODE || analysisCode === SPECIAL_BIOCHEMICAL_ACT_CODE) {
       toast.info("El acto bioquímico se agrega automáticamente según los análisis seleccionados")
       setSearchTerm("")
@@ -164,11 +157,6 @@ export function AnalysisSearch({ selectedAnalyses, onAnalysisChange }: AnalysisS
     const needsNormalAct = analysisCode < THRESHOLD_CODE
     const needsSpecialAct = analysisCode > THRESHOLD_CODE
 
-    console.log("[v0] analysisCode < THRESHOLD_CODE:", analysisCode, "<", THRESHOLD_CODE, "=", needsNormalAct)
-    console.log("[v0] analysisCode > THRESHOLD_CODE:", analysisCode, ">", THRESHOLD_CODE, "=", needsSpecialAct)
-    console.log("[v0] needsNormalAct:", needsNormalAct)
-    console.log("[v0] needsSpecialAct:", needsSpecialAct)
-
     const hasNormalAct = selectedAnalyses.some((a) => {
       const code = typeof a.code === "string" ? Number.parseInt(a.code, 10) : Number(a.code)
       return code === BIOCHEMICAL_ACT_CODE
@@ -178,18 +166,10 @@ export function AnalysisSearch({ selectedAnalyses, onAnalysisChange }: AnalysisS
       return code === SPECIAL_BIOCHEMICAL_ACT_CODE
     })
 
-    console.log("[v0] hasNormalAct (ya existe 660001):", hasNormalAct)
-    console.log("[v0] hasSpecialAct (ya existe 661001):", hasSpecialAct)
-    console.log(
-      "[v0] selectedAnalyses actual:",
-      selectedAnalyses.map((a) => ({ name: a.name, code: a.code })),
-    )
-
     let newAnalyses = [...selectedAnalyses]
     const actsToAdd: SelectedAnalysis[] = []
 
     if (needsNormalAct && !hasNormalAct) {
-      console.log("[v0] -> Agregando acto bioquímico NORMAL (660001)")
       const normalAct = await fetchBiochemicalAct(BIOCHEMICAL_ACT_CODE)
       if (normalAct) {
         actsToAdd.push({
@@ -197,15 +177,10 @@ export function AnalysisSearch({ selectedAnalyses, onAnalysisChange }: AnalysisS
           is_authorized: false,
         })
         toast.success(`Acto bioquímico (${BIOCHEMICAL_ACT_CODE}) agregado automáticamente`)
-      } else {
-        console.log("[v0] -> ERROR: No se pudo obtener el acto bioquímico normal")
       }
-    } else {
-      console.log("[v0] -> NO se agrega acto normal. needsNormalAct:", needsNormalAct, "hasNormalAct:", hasNormalAct)
     }
 
     if (needsSpecialAct && !hasSpecialAct) {
-      console.log("[v0] -> Agregando acto bioquímico ESPECIAL (661001)")
       const specialAct = await fetchBiochemicalAct(SPECIAL_BIOCHEMICAL_ACT_CODE)
       if (specialAct) {
         actsToAdd.push({
@@ -213,22 +188,8 @@ export function AnalysisSearch({ selectedAnalyses, onAnalysisChange }: AnalysisS
           is_authorized: false,
         })
         toast.success(`Acto bioquímico especial (${SPECIAL_BIOCHEMICAL_ACT_CODE}) agregado automáticamente`)
-      } else {
-        console.log("[v0] -> ERROR: No se pudo obtener el acto bioquímico especial")
       }
-    } else {
-      console.log(
-        "[v0] -> NO se agrega acto especial. needsSpecialAct:",
-        needsSpecialAct,
-        "hasSpecialAct:",
-        hasSpecialAct,
-      )
     }
-
-    console.log(
-      "[v0] actsToAdd:",
-      actsToAdd.map((a) => ({ name: a.name, code: a.code })),
-    )
 
     const existingWithoutBioActs = newAnalyses.filter((a) => {
       const code = typeof a.code === "string" ? Number.parseInt(a.code, 10) : Number(a.code)
@@ -238,15 +199,6 @@ export function AnalysisSearch({ selectedAnalyses, onAnalysisChange }: AnalysisS
       const code = typeof a.code === "string" ? Number.parseInt(a.code, 10) : Number(a.code)
       return code === BIOCHEMICAL_ACT_CODE || code === SPECIAL_BIOCHEMICAL_ACT_CODE
     })
-
-    console.log(
-      "[v0] existingBioActs:",
-      existingBioActs.map((a) => ({ name: a.name, code: a.code })),
-    )
-    console.log(
-      "[v0] existingWithoutBioActs:",
-      existingWithoutBioActs.map((a) => ({ name: a.name, code: a.code })),
-    )
 
     const allBioActs = [...existingBioActs, ...actsToAdd]
     const uniqueBioActs = allBioActs.reduce((acc, act) => {
@@ -267,23 +219,12 @@ export function AnalysisSearch({ selectedAnalyses, onAnalysisChange }: AnalysisS
       return codeA - codeB
     })
 
-    console.log(
-      "[v0] uniqueBioActs (final):",
-      uniqueBioActs.map((a) => ({ name: a.name, code: a.code })),
-    )
-
     const selectedAnalysis: SelectedAnalysis = {
       ...analysis,
       is_authorized: false,
     }
 
     newAnalyses = [...uniqueBioActs, ...existingWithoutBioActs, selectedAnalysis]
-
-    console.log(
-      "[v0] newAnalyses (resultado final):",
-      newAnalyses.map((a) => ({ name: a.name, code: a.code })),
-    )
-    console.log("[v0] === FIN handleAddAnalysis ===")
 
     onAnalysisChange(newAnalyses)
     toast.success(`Análisis "${analysis.name}" agregado`)

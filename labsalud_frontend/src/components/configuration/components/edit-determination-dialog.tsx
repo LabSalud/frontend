@@ -44,7 +44,6 @@ export const EditDeterminationDialog: React.FC<EditDeterminationDialogProps> = (
   const [name, setName] = useState("")
   const [measureUnit, setMeasureUnit] = useState("")
   const [formula, setFormula] = useState("")
-  const [code, setCode] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
 
@@ -59,7 +58,6 @@ export const EditDeterminationDialog: React.FC<EditDeterminationDialogProps> = (
 
   useEffect(() => {
     if (determination && isDialogOpen) {
-      setCode(determination.code || "")
       setName(determination.name)
       setMeasureUnit(determination.measure_unit)
       setFormula(determination.formula || "")
@@ -70,7 +68,6 @@ export const EditDeterminationDialog: React.FC<EditDeterminationDialogProps> = (
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {}
-    if (!code.trim()) newErrors.code = "El código es requerido."
     if (!name.trim()) newErrors.name = "El nombre es requerido."
     if (!measureUnit.trim()) newErrors.measureUnit = "La unidad de medida es requerida."
 
@@ -85,7 +82,6 @@ export const EditDeterminationDialog: React.FC<EditDeterminationDialogProps> = (
     try {
       const determinationUpdateData: Partial<Determination> = {}
 
-      if (code !== (determination.code || "")) determinationUpdateData.code = code
       if (name !== determination.name) determinationUpdateData.name = name
       if (measureUnit !== determination.measure_unit) determinationUpdateData.measure_unit = measureUnit
       if (formula !== (determination.formula || "")) {
@@ -155,20 +151,6 @@ export const EditDeterminationDialog: React.FC<EditDeterminationDialogProps> = (
               {errors.form}
             </div>
           )}
-
-          <div className="space-y-2">
-            <Label htmlFor="edit-determination-code" className="text-sm">
-              Código *
-            </Label>
-            <Input
-              id="edit-determination-code"
-              value={code}
-              onChange={(e) => setCode(e.target.value)}
-              placeholder="Ingrese el código de la determinación"
-              className="text-sm"
-            />
-            {errors.code && <p className="text-xs md:text-sm text-red-500">{errors.code}</p>}
-          </div>
 
           <div className="space-y-2">
             <Label htmlFor="edit-determination-name" className="text-sm">

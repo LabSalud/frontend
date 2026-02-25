@@ -26,6 +26,7 @@ import {
   ChevronDown,
   ChevronUp,
   ShieldCheck,
+  AlertTriangle,
 } from "lucide-react"
 import { useApi } from "../../../hooks/use-api"
 import { RESULTS_ENDPOINTS } from "../../../config/api"
@@ -124,6 +125,8 @@ const getStatusColor = (statusId: number): string => {
       return "bg-green-100 text-green-800 border-green-300"
     case 6:
       return "bg-purple-100 text-purple-800 border-purple-300"
+    case 7:
+      return "bg-rose-100 text-rose-800 border-rose-300"
     default:
       return "bg-gray-100 text-gray-800 border-gray-300"
   }
@@ -240,7 +243,7 @@ export function AnalysisAccordionView() {
               params.append("status__in", statusesWithoutCancelled.join(","))
             }
           } else {
-            params.append("status__in", "1,2,3,5")
+            params.append("status__in", "1,2,3,5,7")
           }
           if (params.toString()) {
             url += `?${params.toString()}`
@@ -672,6 +675,16 @@ export function AnalysisAccordionView() {
               <CheckCircle className="h-3 w-3 mr-1" />
               <span className="hidden sm:inline">Completado</span>
               <span className="sm:hidden">Compl.</span>
+            </Button>
+            <Button
+              variant={selectedStatuses.includes(7) ? "default" : "outline"}
+              size="sm"
+              onClick={() => toggleStatus(7)}
+              className={`text-xs ${selectedStatuses.includes(7) ? "bg-rose-600 hover:bg-rose-700" : ""}`}
+            >
+              <AlertTriangle className="h-3 w-3 mr-1" />
+              <span className="hidden sm:inline">Envio Fallido</span>
+              <span className="sm:hidden">Fallido</span>
             </Button>
             {selectedStatuses.length > 0 && (
               <Button

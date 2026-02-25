@@ -83,83 +83,151 @@ export function AnalysisTable({
             </div>
           ) : (
             <div>
-              <Table className="table-fixed w-full">
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="text-xs sm:text-sm w-[180px]">Análisis</TableHead>
-                    <TableHead className="text-xs sm:text-sm text-center w-[80px]">Código</TableHead>
-                    <TableHead className="text-xs sm:text-sm text-center w-[60px]">UB</TableHead>
-                    {!isPrivateInsurance && (
-                      <TableHead className="text-xs sm:text-sm text-center w-[90px]">Autorizado</TableHead>
-                    )}
-                    {selectedInsurance && (
-                      <TableHead className="text-xs sm:text-sm text-right w-[80px]">Precio</TableHead>
-                    )}
-                    <TableHead className="text-xs sm:text-sm text-center w-[70px]">Urgente</TableHead>
-                    <TableHead className="w-[40px]"></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {selectedAnalyses.map((analysis) => (
-                    <TableRow key={analysis.id}>
-                      <TableCell className="font-medium text-xs sm:text-sm p-2 align-top">
-                        <div className="leading-tight break-words whitespace-normal overflow-hidden">
+              {/* Mobile: Card layout */}
+              <div className="md:hidden space-y-3">
+                {selectedAnalyses.map((analysis) => (
+                  <div
+                    key={analysis.id}
+                    className="border rounded-lg p-3 bg-gray-50/50 relative"
+                  >
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium leading-tight break-words">
                           {analysis.name}
+                        </p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <Badge variant="outline" className="font-mono text-xs">
+                            {analysis.code || "N/A"}
+                          </Badge>
+                          {analysis.is_urgent ? (
+                            <Badge variant="destructive" className="text-xs">
+                              Urgente
+                            </Badge>
+                          ) : null}
                         </div>
-                      </TableCell>
-                      <TableCell className="text-center p-2 align-top">
-                        <Badge variant="outline" className="font-mono text-xs">
-                          {analysis.code || "N/A"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-center text-xs sm:text-sm p-2 align-top">
-                        {analysis.bio_unit}
-                      </TableCell>
-                      {!isPrivateInsurance && (
-                        <TableCell className="text-center p-2 align-top">
-                          <Switch
-                            checked={analysis.is_authorized}
-                            onCheckedChange={() => handleToggleAuthorization(analysis.id)}
-                            className="data-[state=checked]:bg-green-500"
-                          />
-                        </TableCell>
-                      )}
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleRemoveAnalysis(analysis.id)}
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50 h-7 w-7 p-0 flex-shrink-0"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-600">
+                      <span>UB: <strong>{analysis.bio_unit}</strong></span>
                       {selectedInsurance && (
-                        <TableCell className="text-right p-2 align-top">
-                          <span
-                            className={`text-xs sm:text-sm font-medium ${
-                              !isPrivateInsurance && analysis.is_authorized ? "text-green-600" : "text-orange-600"
-                            }`}
+                        <span>
+                          Precio:{" "}
+                          <strong
+                            className={
+                              !isPrivateInsurance && analysis.is_authorized
+                                ? "text-green-600"
+                                : "text-orange-600"
+                            }
                           >
                             ${calculatePrice(analysis).toFixed(2)}
-                          </span>
-                        </TableCell>
+                          </strong>
+                        </span>
                       )}
-                      <TableCell className="text-center p-2 align-top">
-                        {analysis.is_urgent ? (
-                          <Badge variant="destructive" className="text-xs">
-                            Sí
-                          </Badge>
-                        ) : (
-                          <Badge variant="secondary" className="text-xs">
-                            No
-                          </Badge>
-                        )}
-                      </TableCell>
-                      <TableCell className="p-2 align-top">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleRemoveAnalysis(analysis.id)}
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50 h-6 w-6 sm:h-8 sm:w-8 p-0"
-                        >
-                          <X className="h-3 w-3 sm:h-4 sm:w-4" />
-                        </Button>
-                      </TableCell>
+                      {!isPrivateInsurance && (
+                        <div className="flex items-center gap-1.5">
+                          <span>Autorizado:</span>
+                          <Switch
+                            checked={analysis.is_authorized}
+                            onCheckedChange={() =>
+                              handleToggleAuthorization(analysis.id)
+                            }
+                            className="data-[state=checked]:bg-green-500 scale-75"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Desktop: Table layout */}
+              <div className="hidden md:block overflow-x-hidden">
+                <Table className="w-full">
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="text-xs lg:text-sm">Análisis</TableHead>
+                      <TableHead className="text-xs lg:text-sm text-center whitespace-nowrap w-20 lg:w-24">Código</TableHead>
+                      <TableHead className="text-xs lg:text-sm text-center w-12 lg:w-16">UB</TableHead>
+                      {!isPrivateInsurance && (
+                        <TableHead className="text-xs lg:text-sm text-center w-16 lg:w-24">Autoriz.</TableHead>
+                      )}
+                      {selectedInsurance && (
+                        <TableHead className="text-xs lg:text-sm text-right w-16 lg:w-24">Precio</TableHead>
+                      )}
+                      <TableHead className="text-xs lg:text-sm text-center w-14 lg:w-20">Urg.</TableHead>
+                      <TableHead className="w-10"></TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {selectedAnalyses.map((analysis) => (
+                      <TableRow key={analysis.id}>
+                        <TableCell className="font-medium text-xs lg:text-sm p-2 align-top">
+                          <div className="leading-tight break-words whitespace-normal">
+                            {analysis.name}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-center p-2 align-top">
+                          <Badge variant="outline" className="font-mono text-[10px] lg:text-xs">
+                            {analysis.code || "N/A"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-center text-xs lg:text-sm p-2 align-top">
+                          {analysis.bio_unit}
+                        </TableCell>
+                        {!isPrivateInsurance && (
+                          <TableCell className="text-center p-2 align-top">
+                            <Switch
+                              checked={analysis.is_authorized}
+                              onCheckedChange={() => handleToggleAuthorization(analysis.id)}
+                              className="data-[state=checked]:bg-green-500 scale-90"
+                            />
+                          </TableCell>
+                        )}
+                        {selectedInsurance && (
+                          <TableCell className="text-right p-2 align-top">
+                            <span
+                              className={`text-xs lg:text-sm font-medium ${
+                                !isPrivateInsurance && analysis.is_authorized ? "text-green-600" : "text-orange-600"
+                              }`}
+                            >
+                              ${calculatePrice(analysis).toFixed(2)}
+                            </span>
+                          </TableCell>
+                        )}
+                        <TableCell className="text-center p-2 align-top">
+                          {analysis.is_urgent ? (
+                            <Badge variant="destructive" className="text-[10px] lg:text-xs px-1.5">
+                              Sí
+                            </Badge>
+                          ) : (
+                            <Badge variant="secondary" className="text-[10px] lg:text-xs px-1.5">
+                              No
+                            </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell className="p-1 align-top">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleRemoveAnalysis(analysis.id)}
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50 h-7 w-7 p-0"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
 
               <div className="mt-4 pt-4 border-t flex justify-between items-center text-sm">
                 <span className="text-gray-600">

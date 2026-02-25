@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useCallback } from "react"
+import { useState, useCallback, useEffect, useRef } from "react"
 import { Link, useLocation } from "react-router-dom"
 import { Menu, X } from "lucide-react"
 import useAuth from "@/contexts/auth-context"
@@ -42,6 +42,8 @@ export const Navbar: React.FC = () => {
   const location = useLocation()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false)
+  const mobileMenuRef = useRef<HTMLDivElement>(null)
+  const hamburgerRef = useRef<HTMLButtonElement>(null)
 
   const toggleMobileMenu = () => {
     setIsMobileMenuOpen(!isMobileMenuOpen)
@@ -49,6 +51,29 @@ export const Navbar: React.FC = () => {
       setIsUserMenuOpen(false)
     }
   }
+
+  // Close mobile menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        isMobileMenuOpen &&
+        mobileMenuRef.current &&
+        !mobileMenuRef.current.contains(event.target as Node) &&
+        hamburgerRef.current &&
+        !hamburgerRef.current.contains(event.target as Node)
+      ) {
+        setIsMobileMenuOpen(false)
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => document.removeEventListener("mousedown", handleClickOutside)
+  }, [isMobileMenuOpen])
+
+  // Close mobile menu on route change
+  useEffect(() => {
+    setIsMobileMenuOpen(false)
+  }, [location.pathname])
 
   const handleUserMenuToggle = useCallback((isOpen: boolean) => {
     setIsUserMenuOpen(isOpen)
@@ -148,7 +173,7 @@ export const Navbar: React.FC = () => {
         </div>
 
         {/* Mobile/Tablet Navbar */}
-        <div className="lg:hidden">
+        <div className="lg:hidden relative">
           <div
             className={`
               bg-white shadow-lg px-4 py-3 w-full transition-all duration-200
@@ -178,6 +203,7 @@ export const Navbar: React.FC = () => {
 
               {/* Right - Hamburger Menu */}
               <button
+                ref={hamburgerRef}
                 onClick={toggleMobileMenu}
                 className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
                 aria-label="Toggle menu"
@@ -187,16 +213,26 @@ export const Navbar: React.FC = () => {
             </div>
           </div>
 
-          {/* Mobile Menu Dropdown - Ocupa todo el ancho */}
+          {/* Backdrop overlay - closes menu when tapping outside */}
+          {isMobileMenuOpen && (
+            <div
+              className="fixed inset-0 z-30"
+              onClick={() => setIsMobileMenuOpen(false)}
+              aria-hidden="true"
+            />
+          )}
+
+          {/* Mobile Menu Dropdown - Absolute, pegado a la navbar */}
           <div
+            ref={mobileMenuRef}
             className={`
-              fixed left-0 top-[3.5rem] w-full bg-white shadow-lg z-40 overflow-hidden rounded-b-lg
+              absolute left-0 w-full bg-white shadow-lg z-40 overflow-hidden rounded-b-lg
               transition-all duration-200 ease-in-out
-              ${isMobileMenuOpen ? "opacity-100 max-h-96" : "opacity-0 max-h-0 pointer-events-none"}
+              ${isMobileMenuOpen ? "opacity-100 max-h-[70vh]" : "opacity-0 max-h-0 pointer-events-none"}
             `}
           >
-            <div className="px-4 py-6">
-              <div className="flex flex-col items-center space-y-4">
+            <div className="px-4 py-4">
+              <div className="flex flex-col items-center space-y-2">
                 {leftNavItems.map((item) => (
                   <NavLink
                     key={item.path}
@@ -204,7 +240,7 @@ export const Navbar: React.FC = () => {
                     isActive={location.pathname === item.path}
                     onClick={toggleMobileMenu}
                   >
-                    <div className="block px-3 py-3 text-base">{item.label}</div>
+                    <div className="block px-3 py-2 text-base">{item.label}</div>
                   </NavLink>
                 ))}
                 {rightNavItems
@@ -216,7 +252,7 @@ export const Navbar: React.FC = () => {
                       isActive={location.pathname === item.path}
                       onClick={toggleMobileMenu}
                     >
-                      <div className="block px-3 py-3 text-base">{item.label}</div>
+                      <div className="block px-3 py-2 text-base">{item.label}</div>
                     </NavLink>
                   ))}
               </div>

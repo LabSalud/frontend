@@ -69,7 +69,7 @@ export const AnalysisList: React.FC<AnalysisListProps> = ({ analysis, showInacti
 
   const buildAnalysesUrl = useCallback(
     (offset = 0, search = "") => {
-      let url = `${CATALOG_ENDPOINTS.DETERMINATIONS}?analysis=${analysis.id}&limit=${PAGE_LIMIT}&offset=${offset}`
+      let url = `${CATALOG_ENDPOINTS.DETERMINATIONS}?analysis=${analysis.id}&limit=${PAGE_LIMIT}&offset=${offset}&is_active=true`
       if (search) url += `&search=${encodeURIComponent(search)}`
       return url
     },

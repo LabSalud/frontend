@@ -94,40 +94,43 @@ export function AnalysisDialog({
 
             {/* Desktop view - table */}
             <div className="hidden sm:block border rounded-lg overflow-hidden">
-              <table className="w-full">
+              <table className="w-full table-fixed">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Código</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Análisis</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">UB</th>
+                    <th className="px-2 lg:px-3 py-2.5 text-left text-xs font-medium text-gray-500 uppercase w-16 lg:w-20">Código</th>
+                    <th className="px-2 lg:px-3 py-2.5 text-left text-xs font-medium text-gray-500 uppercase">Análisis</th>
+                    <th className="px-2 lg:px-3 py-2.5 text-left text-xs font-medium text-gray-500 uppercase w-12 lg:w-14">UB</th>
                     {!isParticular && (
-                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Autorizado</th>
+                      <th className="px-2 lg:px-3 py-2.5 text-center text-xs font-medium text-gray-500 uppercase w-20 lg:w-24">Autoriz.</th>
                     )}
-                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Urgente</th>
+                    <th className="px-2 lg:px-3 py-2.5 text-center text-xs font-medium text-gray-500 uppercase w-16 lg:w-20">Urg.</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
                   {details.map((detail) => (
                     <tr key={detail.id} className={!detail.is_active ? "bg-gray-100 opacity-60" : ""}>
-                      <td className="px-4 py-3 text-sm font-mono">{detail.code}</td>
-                      <td className="px-4 py-3 text-sm">{detail.name}</td>
-                      <td className="px-4 py-3 text-sm">{detail.ub}</td>
+                      <td className="px-2 lg:px-3 py-2.5 text-xs lg:text-sm font-mono truncate">{detail.code}</td>
+                      <td className="px-2 lg:px-3 py-2.5 text-xs lg:text-sm">
+                        <div className="break-words leading-tight">{detail.name}</div>
+                      </td>
+                      <td className="px-2 lg:px-3 py-2.5 text-xs lg:text-sm">{detail.ub}</td>
                       {!isParticular && (
-                        <td className="px-4 py-3 text-center">
-                          <div className="flex items-center justify-center gap-2">
+                        <td className="px-2 lg:px-3 py-2.5 text-center">
+                          <div className="flex items-center justify-center gap-1">
                             <Switch
                               checked={detail.is_authorized}
                               onCheckedChange={() => onToggleAuthorization(detail)}
                               disabled={!isEditable || updatingDetailId === detail.id || !detail.is_active}
+                              className="scale-90"
                             />
-                            {updatingDetailId === detail.id && <Loader2 className="h-4 w-4 animate-spin" />}
+                            {updatingDetailId === detail.id && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
                           </div>
                         </td>
                       )}
-                      <td className="px-4 py-3 text-center">
+                      <td className="px-2 lg:px-3 py-2.5 text-center">
                         {detail.is_urgent && (
-                          <Badge variant="destructive" className="text-xs">
-                            Urgente
+                          <Badge variant="destructive" className="text-[10px] lg:text-xs px-1.5">
+                            Urg.
                           </Badge>
                         )}
                       </td>

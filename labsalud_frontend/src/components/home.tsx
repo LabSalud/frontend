@@ -189,7 +189,7 @@ export default function Home() {
             {loading ? (
               <div className="animate-pulse bg-emerald-200 h-8 w-16 rounded"></div>
             ) : (
-              `${Number(stats.protocolsCompletedGrowthPercent) >= 0 ? "+" : ""}${stats.protocolsCompletedGrowthPercent}%`
+              `${Number(stats.protocolsCompletedGrowthPercent) >= 0 ? "+" : ""}${stats.protocolsCompletedGrowthPercent}${String(stats.protocolsCompletedGrowthPercent).includes("%") ? "" : "%"}`
             )}
           </h3>
           <p className="text-emerald-600 text-sm">vs. mes anterior</p>

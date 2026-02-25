@@ -50,7 +50,7 @@ export function UserTable({
   }
 
   const getActiveRoles = (user: User): Group[] => {
-    return user.roles || []
+    return user.groups || user.roles || []
   }
 
   if (users.length === 0) {

@@ -105,6 +105,7 @@ export interface User {
   last_name: string
   photo?: string
   roles?: Role[] | undefined
+  groups?: Group[]
   permissions: Permission[]
   temporary_permissions?: number
   is_active?: boolean

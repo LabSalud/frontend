@@ -54,7 +54,7 @@ export function RoleAssignDialog({
     if (!user || !roles || !Array.isArray(roles)) {
       return []
     }
-    const userGroups = user.roles || []
+    const userGroups = user.groups || user.roles || []
     const userRoleIds = userGroups.map((group: Group) => group.id)
     return roles.filter((role) => !userRoleIds.includes(role.id))
   }, [user, roles])
@@ -105,7 +105,7 @@ export function RoleAssignDialog({
     setIsSubmitting(true)
 
     try {
-      const currentRoleIds = (user.roles || []).map((group: Group) => group.id)
+      const currentRoleIds = (user.groups || user.roles || []).map((group: Group) => group.id)
       const newRoleId = Number.parseInt(roleData.role_id)
       const allRoleIds = [...currentRoleIds, newRoleId]
 
@@ -121,7 +121,7 @@ export function RoleAssignDialog({
         const data = await response.json()
         const updatedUser = {
           ...user,
-          groups: [...(user.roles || []), ...data.assigned_roles],
+          groups: data.assigned_roles || [],
         }
         setUsers((prev) => prev.map((u) => (u.id === updatedUser.id ? updatedUser : u)))
         if (refreshData) {

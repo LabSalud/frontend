@@ -54,7 +54,7 @@ export function RoleRemoveDialog({
     if (!user || !roles || !Array.isArray(roles)) {
       return []
     }
-    const userGroups = user.roles || []
+    const userGroups = user.groups || user.roles || []
     const userRoleIds = userGroups.map((group: Group) => group.id)
     return roles.filter((role) => userRoleIds.includes(role.id))
   }, [user, roles])
@@ -105,7 +105,7 @@ export function RoleRemoveDialog({
     setIsSubmitting(true)
 
     try {
-      const currentGroups = user.roles || []
+      const currentGroups = user.groups || user.roles || []
       const remainingRoleIds = currentGroups
         .filter((g: Group) => g.id !== Number.parseInt(roleData.role_id))
         .map((g: Group) => g.id)

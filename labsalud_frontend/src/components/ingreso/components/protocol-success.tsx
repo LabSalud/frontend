@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState, useCallback } from "react"
-import { CheckIcon, X, User, FileText, Stethoscope, Building, Send, DollarSign, CreditCard, TestTube } from "lucide-react"
+import { CheckIcon, X, User, FileText, Stethoscope, Building, Send, DollarSign, TestTube } from "lucide-react"
 import { Button } from "../../ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "../../ui/card"
 import { Badge } from "../../ui/badge"

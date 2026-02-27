@@ -1,16 +1,17 @@
 "use client"
 
-import { ChevronDown, User, CreditCard, Printer, DollarSign, RefreshCw } from "lucide-react"
+import { ChevronDown, User, CreditCard, Printer, DollarSign, RefreshCw, FileText } from "lucide-react"
 import { Badge } from "../../ui/badge"
 import { Button } from "../../ui/button"
 import { AuditAvatars } from "@/components/common/audit-avatars"
-import type { PaymentStatus, CreationAudit, LastChangeAudit, ProtocolStatus } from "@/types"
+import type { PaymentStatus, CreationAudit, LastChangeAudit, ProtocolStatus, BillingStatus } from "@/types"
 
 interface ProtocolHeaderProps {
   protocolId: number
   status: ProtocolStatus
   patientName: string
   paymentStatus?: PaymentStatus | null
+  billingStatus?: BillingStatus | null
   balance: number
   isPrinted?: boolean
   canRegisterPayment: boolean
@@ -53,11 +54,29 @@ const getPaymentStatusInfo = (paymentStatus?: PaymentStatus | null) => {
   }
 }
 
+const getBillingStatusInfo = (billingStatus?: BillingStatus | null) => {
+  if (!billingStatus) {
+    return { color: "text-gray-600", bgColor: "bg-gray-100", label: "Sin estado", icon: FileText }
+  }
+
+  switch (billingStatus.id) {
+    case 1:
+      return { color: "text-gray-600", bgColor: "bg-gray-100", label: billingStatus.name, icon: FileText }
+    case 2:
+      return { color: "text-amber-600", bgColor: "bg-amber-100", label: billingStatus.name, icon: FileText }
+    case 3:
+      return { color: "text-emerald-600", bgColor: "bg-emerald-100", label: billingStatus.name, icon: FileText }
+    default:
+      return { color: "text-gray-600", bgColor: "bg-gray-100", label: billingStatus.name, icon: FileText }
+  }
+}
+
 export function ProtocolHeader({
   protocolId,
   status,
   patientName,
   paymentStatus,
+  billingStatus,
   balance,
   isPrinted,
   canRegisterPayment,
@@ -69,6 +88,7 @@ export function ProtocolHeader({
   onSettleDebt,
 }: ProtocolHeaderProps) {
   const paymentStatusInfo = getPaymentStatusInfo(paymentStatus)
+  const billingStatusInfo = getBillingStatusInfo(billingStatus)
   const paymentStatusId = paymentStatus?.id ?? 0
   const statusId = status?.id ?? 0
   const statusName = status?.name ?? "Desconocido"
@@ -131,6 +151,13 @@ export function ProtocolHeader({
                   <Badge variant="outline" className="text-xs">
                     <Printer className="h-3 w-3 mr-1" />
                     <span className="hidden sm:inline">Impreso / </span>Enviado
+                  </Badge>
+                )}
+                {billingStatus && billingStatus.id !== 1 && (
+                  <Badge className={`${billingStatusInfo.bgColor} ${billingStatusInfo.color} text-xs`} variant="secondary">
+                    <FileText className="h-3 w-3 mr-1" />
+                    <span className="hidden sm:inline">{billingStatusInfo.label}</span>
+                    <span className="sm:hidden">{billingStatus.id === 2 ? "Pend. Fact." : "Facturado"}</span>
                   </Badge>
                 )}
               </div>
@@ -202,4 +229,4 @@ export function ProtocolHeader({
   )
 }
 
-export { getStateColor, getPaymentStatusInfo }
+export { getStateColor, getPaymentStatusInfo, getBillingStatusInfo }

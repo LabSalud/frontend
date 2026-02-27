@@ -116,6 +116,17 @@ export const REPORTING_ENDPOINTS = {
     buildApiUrl(`/reports/protocols/${id}/send-whatsapp/?type=${type}`),
 } as const
 
+// Billing endpoints
+export const BILLING_ENDPOINTS = {
+  INVOICES: buildApiUrl("/billing/invoices/"),
+  INVOICE_DETAIL: (id: number) => buildApiUrl(`/billing/invoices/${id}/`),
+  CREATE_FOR_PROTOCOL: (protocolId: number) => buildApiUrl(`/billing/invoices/create-for-protocol/${protocolId}/`),
+  BY_INSURANCE: (insuranceId: number) => buildApiUrl(`/billing/invoices/by-insurance/${insuranceId}/`),
+  PROTOCOLS_TO_BILL: buildApiUrl("/billing/invoices/protocols-to-bill/"),
+  SUMMARY: buildApiUrl("/billing/invoices/summary/"),
+  PROTOCOLS_STATUS: buildApiUrl("/billing/invoices/protocols-status/"),
+} as const
+
 // Core endpoints
 export const CORE_ENDPOINTS = {
   API_ROOT: `${API_CONFIG.BASE_URL}/`,
@@ -201,6 +212,7 @@ export const API_ENDPOINTS = {
   ANALYTICS: ANALYTICS_ENDPOINTS,
   RESULTS: RESULTS_ENDPOINTS,
   REPORTING: REPORTING_ENDPOINTS,
+  BILLING: BILLING_ENDPOINTS,
   CORE: CORE_ENDPOINTS,
 } as const
 

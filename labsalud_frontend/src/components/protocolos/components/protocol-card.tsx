@@ -13,6 +13,7 @@ import type {
   HistoryEntry,
   PaymentStatus,
   ProtocolStatus,
+  BillingStatus,
 } from "@/types"
 
 // Componentes modulares
@@ -47,14 +48,13 @@ interface ProtocolDetailResponse {
     name: string
   }
   // New payment fields
-  insurance_total_to_pay: string
-  private_total_to_pay: string
-  estimated_total_to_earn: string
-  total_earned: string
+  amount_due: string
+  amount_pending: string
+  patient_paid: string
+  amount_to_return: string
   value_paid: string
   payment_status: PaymentStatus
-  patient_to_lab_amount: string
-  lab_to_patient_amount: string
+  billing_status: BillingStatus
   insurance_ub_value: string
   private_ub_value: string
   is_printed: boolean
@@ -227,7 +227,7 @@ export function ProtocolCard({ protocol, onUpdate, sendMethods = [] }: ProtocolC
 
   const handleProcessPayment = async () => {
     const amount = Number.parseFloat(paymentAmount)
-    const patientDebt = protocolDetail ? Number.parseFloat(protocolDetail.patient_to_lab_amount) : 0
+    const patientDebt = protocolDetail ? Number.parseFloat(protocolDetail.amount_due) : 0
 
     if (isNaN(amount) || amount <= 0) {
       toast.error("Ingrese un monto válido", { duration: TOAST_DURATION })
@@ -277,7 +277,7 @@ export function ProtocolCard({ protocol, onUpdate, sendMethods = [] }: ProtocolC
 
     setIsProcessingPayment(true)
     try {
-      const privateTotalToPay = protocolDetail ? Number.parseFloat(protocolDetail.private_total_to_pay) : 0
+      const privateTotalToPay = protocolDetail ? Number.parseFloat(protocolDetail.amount_pending) : 0
 
       const response = await apiRequest(PROTOCOL_ENDPOINTS.PROTOCOL_DETAIL(protocol.id), {
         method: "PATCH",
@@ -285,7 +285,7 @@ export function ProtocolCard({ protocol, onUpdate, sendMethods = [] }: ProtocolC
       })
 
       if (response.ok) {
-        const labOwes = protocolDetail ? Number.parseFloat(protocolDetail.lab_to_patient_amount) : 0
+        const labOwes = protocolDetail ? Number.parseFloat(protocolDetail.amount_to_return) : 0
         toast.success(`Reembolso completado. Se devolvieron $${labOwes.toFixed(2)} al paciente`, {
           duration: TOAST_DURATION,
         })
@@ -505,8 +505,8 @@ export function ProtocolCard({ protocol, onUpdate, sendMethods = [] }: ProtocolC
   const isEditable = statusId !== 4 && statusId !== 5 && statusId !== 7
   const showReports = statusId !== 4
 
-  const patientDebt = protocolDetail ? Number.parseFloat(protocolDetail.patient_to_lab_amount) : 0
-  const labDebt = protocolDetail ? Number.parseFloat(protocolDetail.lab_to_patient_amount) : 0
+  const patientDebt = protocolDetail ? Number.parseFloat(protocolDetail.amount_due) : 0
+  const labDebt = protocolDetail ? Number.parseFloat(protocolDetail.amount_to_return) : 0
   const balance = Number.parseFloat(protocol.balance || "0")
   const hasPatientDebt = patientDebt > 0
   const labOwesPatient = labDebt > 0
@@ -538,6 +538,7 @@ export function ProtocolCard({ protocol, onUpdate, sendMethods = [] }: ProtocolC
             status={protocol.status}
             patientName={getPatientName()}
             paymentStatus={protocol.payment_status}
+            billingStatus={protocol.billing_status}
             balance={balance}
             isPrinted={protocol.is_printed}
             canRegisterPayment={hasPatientDebt && canBeCancelled}
@@ -566,16 +567,16 @@ export function ProtocolCard({ protocol, onUpdate, sendMethods = [] }: ProtocolC
                   sendMethodName={getSendMethodName()}
                   valuePaid={protocolDetail?.value_paid || "0"}
                   paymentStatus={protocol.payment_status}
+                  billingStatus={protocolDetail?.billing_status}
                   balance={balance}
                   insuranceUbValue={protocolDetail?.insurance_ub_value}
                   privateUbValue={protocolDetail?.private_ub_value}
                   isPrinted={protocolDetail?.is_printed}
                   onOpenHistoryDialog={() => setHistoryDialogOpen(true)}
-                  // New payment fields
-                  insuranceTotalToPay={protocolDetail?.insurance_total_to_pay}
-                  privateTotalToPay={protocolDetail?.private_total_to_pay}
-                  patientToLabAmount={protocolDetail?.patient_to_lab_amount}
-                  labToPatientAmount={protocolDetail?.lab_to_patient_amount}
+                  amountDue={protocolDetail?.amount_due}
+                  amountPending={protocolDetail?.amount_pending}
+                  patientPaid={protocolDetail?.patient_paid}
+                  amountToReturn={protocolDetail?.amount_to_return}
                 />
                 <ProtocolActions
                   protocolId={protocol.id}

@@ -78,6 +78,7 @@ export default function ProtocolosPage() {
     }
   })
   const [paymentStatusFilter, setPaymentStatusFilter] = useState<string>("all")
+  const [billingStatusFilter, setBillingStatusFilter] = useState<string>("all")
   const [isPrintedFilter, setIsPrintedFilter] = useState<string>("all")
   const [hasMore, setHasMore] = useState(true)
   const [nextUrl, setNextUrl] = useState<string | null>(null)
@@ -165,13 +166,17 @@ export default function ProtocolosPage() {
         params.append("payment_status", paymentStatusFilter)
       }
 
+      if (billingStatusFilter !== "all") {
+        params.append("billing_status", billingStatusFilter)
+      }
+
       if (isPrintedFilter !== "all") {
         params.append("is_printed", isPrintedFilter)
       }
 
       return `${baseEndpoint}?${params.toString()}`
     },
-    [selectedStatuses, paymentStatusFilter, isPrintedFilter],
+    [selectedStatuses, paymentStatusFilter, billingStatusFilter, isPrintedFilter],
   )
 
   // Función para cargar protocolos desde la API
@@ -250,7 +255,7 @@ export default function ProtocolosPage() {
     setNextUrl(null)
     setHasMore(true)
     fetchProtocolsFromAPI()
-  }, [selectedStatuses, paymentStatusFilter, isPrintedFilter])
+  }, [selectedStatuses, paymentStatusFilter, billingStatusFilter, isPrintedFilter])
 
   useEffect(() => {
     if (debouncedSearchTerm !== searchTerm) return

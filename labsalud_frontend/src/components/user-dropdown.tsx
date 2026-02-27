@@ -20,7 +20,10 @@ export const UserDropdown: React.FC<UserDropdownProps> = ({ isMobile = false, on
 
   const canAccessManagement = hasPermission(PERMISSIONS.MANAGE_USERS.id)
 
+  // Only handle click-outside for desktop dropdown
   useEffect(() => {
+    if (isMobile) return
+
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsOpen(false)
@@ -29,7 +32,7 @@ export const UserDropdown: React.FC<UserDropdownProps> = ({ isMobile = false, on
 
     document.addEventListener("mousedown", handleClickOutside)
     return () => document.removeEventListener("mousedown", handleClickOutside)
-  }, [])
+  }, [isMobile])
 
   useEffect(() => {
     onMenuToggle?.(isOpen)
@@ -39,6 +42,10 @@ export const UserDropdown: React.FC<UserDropdownProps> = ({ isMobile = false, on
     setIsOpen(!isOpen)
   }
 
+  const closeMenu = () => {
+    setIsOpen(false)
+  }
+
   const handleLogout = () => {
     logout(true)
     setIsOpen(false)
@@ -46,6 +53,30 @@ export const UserDropdown: React.FC<UserDropdownProps> = ({ isMobile = false, on
 
   if (!user) return null
 
+  // Mobile: only render the avatar button. The dropdown panel is rendered by the Navbar.
+  // In mobile, onMenuToggle is called directly as a toggle function from the Navbar.
+  if (isMobile) {
+    return (
+      <button
+        onClick={() => onMenuToggle?.(true)}
+        className="flex items-center hover:bg-gray-100 rounded-lg p-2 transition-colors"
+      >
+        {user.photo ? (
+          <img
+            src={user.photo || "/placeholder.svg"}
+            alt={`${user.username} avatar`}
+            className="w-8 h-8 rounded-full object-cover border border-gray-300"
+          />
+        ) : (
+          <div className="w-8 h-8 rounded-full bg-[#204983] flex items-center justify-center">
+            <User className="w-5 h-5 text-white" />
+          </div>
+        )}
+      </button>
+    )
+  }
+
+  // Desktop: avatar + inline dropdown
   return (
     <div className="relative" ref={dropdownRef}>
       {/* Avatar Button */}
@@ -64,49 +95,35 @@ export const UserDropdown: React.FC<UserDropdownProps> = ({ isMobile = false, on
             <User className="w-5 h-5 text-white" />
           </div>
         )}
-        {!isMobile && <span className="text-sm font-medium text-gray-700 hidden sm:block">{user.username}</span>}
+        <span className="text-sm font-medium text-gray-700 hidden sm:block">{user.username}</span>
       </button>
 
-      {/* Dropdown Menu */}
+      {/* Desktop Dropdown Menu */}
       <div
         ref={menuRef}
         className={`
           absolute z-50 bg-white shadow-lg overflow-hidden transition-all duration-200 ease-in-out
-          ${isMobile ? "left-0 w-full fixed top-[3.5rem] rounded-b-lg" : "right-0 mt-0 w-48 rounded-b-lg"}
+          right-0 mt-0 w-48 rounded-b-lg
           ${isOpen ? "opacity-100 max-h-96" : "opacity-0 max-h-0 pointer-events-none"}
         `}
-        style={
-          !isMobile
-            ? {
-                right: "-2rem",
-                marginTop: "0px",
-              }
-            : {}
-        }
+        style={{
+          right: "-2rem",
+          marginTop: "0px",
+        }}
       >
         {/* User Info */}
         <div className="px-4 py-4 border-b border-gray-100">
-          {isMobile && (
-            <div className="mb-3">
-              <p className="text-lg font-medium text-gray-900">
-                {user.first_name} {user.last_name}
-              </p>
-              <p className="text-sm text-gray-500">{user.username}</p>
-            </div>
-          )}
-          {!isMobile && (
-            <p className="text-sm font-medium text-gray-900">
-              {user.first_name} {user.last_name}
-            </p>
-          )}
+          <p className="text-sm font-medium text-gray-900">
+            {user.first_name} {user.last_name}
+          </p>
         </div>
 
         {/* Menu Items */}
-        <div className={isMobile ? "p-4" : ""}>
+        <div>
           <Link
             to="/profile"
             className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-2 transition-colors duration-150"
-            onClick={() => setIsOpen(false)}
+            onClick={closeMenu}
           >
             <UserCircle className="w-5 h-5" />
             <span>Mi Perfil</span>
@@ -116,20 +133,20 @@ export const UserDropdown: React.FC<UserDropdownProps> = ({ isMobile = false, on
             <Link
               to="/management"
               className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-2 transition-colors duration-150"
-              onClick={() => setIsOpen(false)}
+              onClick={closeMenu}
             >
               <Shield className="w-5 h-5" />
-              <span>Gestión de Usuarios</span>
+              <span>Gestion de Usuarios</span>
             </Link>
           )}
 
           <Link
             to="/configuracion"
             className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-2 transition-colors duration-150"
-            onClick={() => setIsOpen(false)}
+            onClick={closeMenu}
           >
             <Settings className="w-5 h-5" />
-            <span>Configuración</span>
+            <span>Configuracion</span>
           </Link>
 
           <hr className="my-2" />
@@ -139,7 +156,7 @@ export const UserDropdown: React.FC<UserDropdownProps> = ({ isMobile = false, on
             className="w-full text-left px-4 py-3 text-sm text-red-600 hover:bg-red-50 flex items-center space-x-2 transition-colors duration-150"
           >
             <LogOut className="w-5 h-5" />
-            <span>Cerrar Sesión</span>
+            <span>Cerrar Sesion</span>
           </button>
         </div>
       </div>

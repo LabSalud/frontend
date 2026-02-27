@@ -82,6 +82,7 @@ export const PROTOCOL_ENDPOINTS = {
     buildApiUrl(`/protocols/protocols/${protocolId}/details/${detailId}/`),
   SEND_METHODS: buildApiUrl("/protocols/send-methods/"),
   REPORT_BATCH: buildApiUrl("/protocols/protocols/report-batch/"),
+  REGULARIZE_BALANCE: (id: number) => buildApiUrl(`/protocols/protocols/${id}/regularize-balance/`),
 } as const
 
 // Audit system endpoints

@@ -4,6 +4,7 @@ import useAuth from "@/contexts/auth-context"
 import { useApi } from "@/hooks/use-api"
 import { useToast } from "@/hooks/use-toast"
 import { ANALYTICS_ENDPOINTS } from "@/config/api"
+import { PERMISSIONS } from "@/config/permissions"
 import type { Permission } from "@/types"
 import {
   User,
@@ -100,6 +101,7 @@ export default function Home() {
   }, [])
 
   const canSeeValidationStats = hasPermission("validar_resultados") || hasPermission(4)
+  const canAccessBilling = hasPermission(PERMISSIONS.MANAGE_BILLING.id)
 
   return (
     <div className="max-w-7xl mx-auto py-6">
@@ -149,9 +151,9 @@ export default function Home() {
       )}
 
       {/* Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+      <div className="flex flex-wrap justify-center gap-6 mb-6">
         {/* Análisis de Hoy */}
-        <div className="bg-blue-50/80 backdrop-blur-sm p-6 rounded-lg border border-blue-200">
+        <div className="bg-blue-50/80 backdrop-blur-sm p-6 rounded-lg border border-blue-200 w-full md:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
           <div className="flex items-center justify-between mb-4">
             <div className="p-2 bg-blue-100 rounded-lg">
               <TestTube className="w-6 h-6 text-blue-600" />
@@ -169,7 +171,7 @@ export default function Home() {
         </div>
 
         {/* Pacientes de Hoy */}
-        <div className="bg-green-50/80 backdrop-blur-sm p-6 rounded-lg border border-green-200">
+        <div className="bg-green-50/80 backdrop-blur-sm p-6 rounded-lg border border-green-200 w-full md:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
           <div className="flex items-center justify-between mb-4">
             <div className="p-2 bg-green-100 rounded-lg">
               <Users className="w-6 h-6 text-green-600" />
@@ -187,7 +189,7 @@ export default function Home() {
         </div>
 
         {/* Protocolos Completados (Mes) */}
-        <div className="bg-purple-50/80 backdrop-blur-sm p-6 rounded-lg border border-purple-200">
+        <div className="bg-purple-50/80 backdrop-blur-sm p-6 rounded-lg border border-purple-200 w-full md:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
           <div className="flex items-center justify-between mb-4">
             <div className="p-2 bg-purple-100 rounded-lg">
               <CheckCircle className="w-6 h-6 text-purple-600" />
@@ -205,7 +207,7 @@ export default function Home() {
         </div>
 
         {/* Crecimiento Mensual */}
-        <div className="bg-emerald-50/80 backdrop-blur-sm p-6 rounded-lg border border-emerald-200">
+        <div className="bg-emerald-50/80 backdrop-blur-sm p-6 rounded-lg border border-emerald-200 w-full md:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
           <div className="flex items-center justify-between mb-4">
             <div className="p-2 bg-emerald-100 rounded-lg">
               <TrendingUp className="w-6 h-6 text-emerald-600" />
@@ -223,7 +225,7 @@ export default function Home() {
         </div>
 
         {/* Tiempo Promedio */}
-        <div className="bg-indigo-50/80 backdrop-blur-sm p-6 rounded-lg border border-indigo-200">
+        <div className="bg-indigo-50/80 backdrop-blur-sm p-6 rounded-lg border border-indigo-200 w-full md:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
           <div className="flex items-center justify-between mb-4">
             <div className="p-2 bg-indigo-100 rounded-lg">
               <Clock className="w-6 h-6 text-indigo-600" />
@@ -241,7 +243,7 @@ export default function Home() {
         </div>
 
         {/* Resultados por Cargar */}
-        <div className="bg-amber-50/80 backdrop-blur-sm p-6 rounded-lg border border-amber-200">
+        <div className="bg-amber-50/80 backdrop-blur-sm p-6 rounded-lg border border-amber-200 w-full md:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
           <div className="flex items-center justify-between mb-4">
             <div className="p-2 bg-amber-100 rounded-lg">
               <AlertCircle className="w-6 h-6 text-amber-600" />
@@ -260,7 +262,7 @@ export default function Home() {
 
         {/* Resultados Pendientes - Only visible with validation permission */}
         {canSeeValidationStats && (
-          <div className="bg-orange-50/80 backdrop-blur-sm p-6 rounded-lg border border-orange-200">
+          <div className="bg-orange-50/80 backdrop-blur-sm p-6 rounded-lg border border-orange-200 w-full md:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
             <div className="flex items-center justify-between mb-4">
               <div className="p-2 bg-orange-100 rounded-lg">
                 <Clock className="w-6 h-6 text-orange-600" />
@@ -278,39 +280,44 @@ export default function Home() {
           </div>
         )}
 
-        <div className="bg-red-50/80 backdrop-blur-sm p-6 rounded-lg border border-red-200">
-          <div className="flex items-center justify-between mb-4">
-            <div className="p-2 bg-red-100 rounded-lg">
-              <Printer className="w-6 h-6 text-red-600" />
+        {/* Billing cards - Only visible with billing permission */}
+        {canAccessBilling && (
+          <>
+            <div className="bg-red-50/80 backdrop-blur-sm p-6 rounded-lg border border-red-200 w-full md:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
+              <div className="flex items-center justify-between mb-4">
+                <div className="p-2 bg-red-100 rounded-lg">
+                  <Printer className="w-6 h-6 text-red-600" />
+                </div>
+                <span className="text-xs text-red-500 font-medium">PAGO PENDIENTE</span>
+              </div>
+              <h3 className="text-2xl font-bold text-red-800 mb-1">
+                {loading ? (
+                  <div className="animate-pulse bg-red-200 h-8 w-16 rounded"></div>
+                ) : (
+                  stats.printedIncompletePayment.toLocaleString()
+                )}
+              </h3>
+              <p className="text-red-600 text-sm">Protocolos impresos sin pago completo</p>
             </div>
-            <span className="text-xs text-red-500 font-medium">PAGO PENDIENTE</span>
-          </div>
-          <h3 className="text-2xl font-bold text-red-800 mb-1">
-            {loading ? (
-              <div className="animate-pulse bg-red-200 h-8 w-16 rounded"></div>
-            ) : (
-              stats.printedIncompletePayment.toLocaleString()
-            )}
-          </h3>
-          <p className="text-red-600 text-sm">Protocolos impresos sin pago completo</p>
-        </div>
 
-        <div className="bg-teal-50/80 backdrop-blur-sm p-6 rounded-lg border border-teal-200">
-          <div className="flex items-center justify-between mb-4">
-            <div className="p-2 bg-teal-100 rounded-lg">
-              <Receipt className="w-6 h-6 text-teal-600" />
+            <div className="bg-teal-50/80 backdrop-blur-sm p-6 rounded-lg border border-teal-200 w-full md:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
+              <div className="flex items-center justify-between mb-4">
+                <div className="p-2 bg-teal-100 rounded-lg">
+                  <Receipt className="w-6 h-6 text-teal-600" />
+                </div>
+                <span className="text-xs text-teal-500 font-medium">PENDIENTE</span>
+              </div>
+              <h3 className="text-2xl font-bold text-teal-800 mb-1">
+                {loading ? (
+                  <div className="animate-pulse bg-teal-200 h-8 w-16 rounded"></div>
+                ) : (
+                  stats.pendingBilling.toLocaleString()
+                )}
+              </h3>
+              <p className="text-teal-600 text-sm">Protocolos pend. facturacion</p>
             </div>
-            <span className="text-xs text-teal-500 font-medium">PENDIENTE</span>
-          </div>
-          <h3 className="text-2xl font-bold text-teal-800 mb-1">
-            {loading ? (
-              <div className="animate-pulse bg-teal-200 h-8 w-16 rounded"></div>
-            ) : (
-              stats.pendingBilling.toLocaleString()
-            )}
-          </h3>
-          <p className="text-teal-600 text-sm">Protocolos pend. facturacion</p>
-        </div>
+          </>
+        )}
       </div>
     </div>
   )

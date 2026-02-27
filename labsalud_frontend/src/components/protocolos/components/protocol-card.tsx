@@ -46,17 +46,17 @@ interface ProtocolDetailResponse {
     id: number
     name: string
   }
-  // New payment fields
-  insurance_total_to_pay: string
-  private_total_to_pay: string
-  estimated_total_to_earn: string
-  total_earned: string
-  value_paid: string
-  payment_status: PaymentStatus
-  patient_to_lab_amount: string
-  lab_to_patient_amount: string
+  // UB fields
+  total_ub_authorized: string
+  total_ub_private: string
   insurance_ub_value: string
   private_ub_value: string
+  // Payment fields (new API format)
+  amount_due: string
+  amount_pending: string
+  patient_paid: string
+  amount_to_return: string
+  payment_status: PaymentStatus
   is_printed: boolean
   is_active: boolean
   details: ProtocolDetailType[]
@@ -91,7 +91,6 @@ export function ProtocolCard({
 
   // Dialog states
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false)
-  const [paymentAmount, setPaymentAmount] = useState("")
   const [isProcessingPayment, setIsProcessingPayment] = useState(false)
 
   const [analysisDialogOpen, setAnalysisDialogOpen] = useState(false)
@@ -235,84 +234,32 @@ export function ProtocolCard({
     if (!protocolDetail) {
       await fetchProtocolDetail()
     }
-    setPaymentAmount("")
     setPaymentDialogOpen(true)
   }
 
-  const handleProcessPayment = async () => {
-    const amount = Number.parseFloat(paymentAmount)
-    const patientDebt = protocolDetail ? Number.parseFloat(protocolDetail.patient_to_lab_amount) : 0
-
-    if (isNaN(amount) || amount <= 0) {
-      toast.error("Ingrese un monto válido", { duration: TOAST_DURATION })
-      return
-    }
-
-    if (amount > patientDebt) {
-      toast.error(`El monto no puede superar la deuda pendiente ($${patientDebt.toFixed(2)})`, {
-        duration: TOAST_DURATION,
-      })
-      return
-    }
-
+  const handleRegularizeBalance = async (amount: number, type: "payment" | "refund", notes: string): Promise<boolean> => {
     setIsProcessingPayment(true)
     try {
-      const currentValuePaid = protocolDetail ? Number.parseFloat(protocolDetail.value_paid) : 0
-      const newValuePaid = currentValuePaid + amount
-
-      const response = await apiRequest(PROTOCOL_ENDPOINTS.PROTOCOL_DETAIL(protocol.id), {
-        method: "PATCH",
-        body: { value_paid: newValuePaid.toFixed(2) },
+      const response = await apiRequest(PROTOCOL_ENDPOINTS.REGULARIZE_BALANCE(protocol.id), {
+        method: "POST",
+        body: { amount, type, ...(notes ? { notes } : {}) },
       })
 
       if (response.ok) {
-        toast.success(`Pago de $${amount.toFixed(2)} registrado exitosamente`, { duration: TOAST_DURATION })
-        setPaymentDialogOpen(false)
-        setPaymentAmount("")
+        const label = type === "payment" ? "Pago" : "Devolucion"
+        toast.success(`${label} de $${amount.toFixed(2)} registrado exitosamente`, { duration: TOAST_DURATION })
         await refreshProtocolDetail()
         onUpdate()
+        return true
       } else {
         const errorData = await response.json().catch(() => ({}))
-        throw new Error(extractErrorMessage(errorData, "Error processing payment"))
+        throw new Error(extractErrorMessage(errorData, `Error al registrar ${type === "payment" ? "pago" : "devolucion"}`))
       }
     } catch (error) {
-      console.error("Error processing payment:", error)
-      const message = error instanceof Error ? error.message : "Error al procesar el pago"
+      console.error("Error regularize balance:", error)
+      const message = error instanceof Error ? error.message : "Error al procesar la operacion"
       toast.error(message, { duration: TOAST_DURATION })
-    } finally {
-      setIsProcessingPayment(false)
-    }
-  }
-
-  const handleSettleDebt = async () => {
-    if (!protocolDetail) {
-      await fetchProtocolDetail()
-    }
-
-    setIsProcessingPayment(true)
-    try {
-      const privateTotalToPay = protocolDetail ? Number.parseFloat(protocolDetail.private_total_to_pay) : 0
-
-      const response = await apiRequest(PROTOCOL_ENDPOINTS.PROTOCOL_DETAIL(protocol.id), {
-        method: "PATCH",
-        body: { value_paid: privateTotalToPay.toFixed(2) },
-      })
-
-      if (response.ok) {
-        const labOwes = protocolDetail ? Number.parseFloat(protocolDetail.lab_to_patient_amount) : 0
-        toast.success(`Reembolso completado. Se devolvieron $${labOwes.toFixed(2)} al paciente`, {
-          duration: TOAST_DURATION,
-        })
-        await refreshProtocolDetail()
-        onUpdate()
-      } else {
-        const errorData = await response.json().catch(() => ({}))
-        throw new Error(extractErrorMessage(errorData, "Error settling debt"))
-      }
-    } catch (error) {
-      console.error("Error settling debt:", error)
-      const message = error instanceof Error ? error.message : "Error al realizar el reembolso"
-      toast.error(message, { duration: TOAST_DURATION })
+      return false
     } finally {
       setIsProcessingPayment(false)
     }
@@ -519,11 +466,11 @@ export function ProtocolCard({
   const isEditable = statusId !== 4 && statusId !== 5 && statusId !== 7
   const showReports = statusId !== 4
 
-  const patientDebt = protocolDetail ? Number.parseFloat(protocolDetail.patient_to_lab_amount) : 0
-  const labDebt = protocolDetail ? Number.parseFloat(protocolDetail.lab_to_patient_amount) : 0
+  const amountPending = protocolDetail ? Number.parseFloat(protocolDetail.amount_pending || "0") : 0
+  const amountToReturn = protocolDetail ? Number.parseFloat(protocolDetail.amount_to_return || "0") : 0
   const balance = Number.parseFloat(protocol.balance || "0")
-  const hasPatientDebt = patientDebt > 0
-  const labOwesPatient = labDebt > 0
+  const hasPatientDebt = amountPending > 0
+  const labOwesPatient = amountToReturn > 0
 
   const getBorderColor = (statusId: number): string => {
     const borderColors: Record<number, string> = {
@@ -587,7 +534,6 @@ export function ProtocolCard({
             creation={protocol.creation}
             lastChange={protocol.last_change}
             onRegisterPayment={handleOpenPaymentDialog}
-            onSettleDebt={handleSettleDebt}
           />
         </CardContent>
 
@@ -605,18 +551,16 @@ export function ProtocolCard({
                   insuranceName={getInsuranceName()}
                   affiliateNumber={protocolDetail?.affiliate_number}
                   sendMethodName={getSendMethodName()}
-                  valuePaid={protocolDetail?.value_paid || "0"}
                   paymentStatus={protocol.payment_status}
                   balance={balance}
+                  amountDue={protocolDetail?.amount_due || "0"}
+                  amountPending={protocolDetail?.amount_pending || "0"}
+                  patientPaid={protocolDetail?.patient_paid || "0"}
+                  amountToReturn={protocolDetail?.amount_to_return || "0"}
                   insuranceUbValue={protocolDetail?.insurance_ub_value}
                   privateUbValue={protocolDetail?.private_ub_value}
                   isPrinted={protocolDetail?.is_printed}
                   onOpenHistoryDialog={() => setHistoryDialogOpen(true)}
-                  // New payment fields
-                  insuranceTotalToPay={protocolDetail?.insurance_total_to_pay}
-                  privateTotalToPay={protocolDetail?.private_total_to_pay}
-                  patientToLabAmount={protocolDetail?.patient_to_lab_amount}
-                  labToPatientAmount={protocolDetail?.lab_to_patient_amount}
                 />
                 <ProtocolActions
                   protocolId={protocol.id}
@@ -640,11 +584,12 @@ export function ProtocolCard({
         open={paymentDialogOpen}
         onOpenChange={setPaymentDialogOpen}
         protocolId={protocol.id}
-        balance={patientDebt}
-        valuePaid={protocolDetail?.value_paid || "0"}
-        paymentAmount={paymentAmount}
-        onPaymentAmountChange={setPaymentAmount}
-        onConfirm={handleProcessPayment}
+        amountDue={protocolDetail?.amount_due || "0"}
+        amountPending={protocolDetail?.amount_pending || "0"}
+        patientPaid={protocolDetail?.patient_paid || "0"}
+        amountToReturn={protocolDetail?.amount_to_return || "0"}
+        paymentStatusName={protocolDetail?.payment_status?.name || protocol.payment_status?.name || ""}
+        onRegularize={handleRegularizeBalance}
         isProcessing={isProcessingPayment}
       />
 

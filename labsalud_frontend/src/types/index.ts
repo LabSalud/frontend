@@ -320,16 +320,17 @@ export interface Protocol {
     id: number
     name: string
   }
-  // Payment fields from API documentation
+  // UB fields
   total_ub_authorized: string
   total_ub_private: string
-  patient_paid: string
-  amount_to_return: string
-  value_paid: string
-  payment_status: PaymentStatus
-  // Additional fields returned on update
   insurance_ub_value?: string
   private_ub_value?: string
+  // Payment fields (new API format)
+  amount_due: string
+  amount_pending: string
+  patient_paid: string
+  amount_to_return: string
+  payment_status: PaymentStatus
   is_printed: boolean
   is_active: boolean
   details: ProtocolDetail[]

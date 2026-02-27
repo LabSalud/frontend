@@ -15,6 +15,12 @@ import {
   Clock,
   Ban,
   AlertTriangle,
+  Receipt,
+  CheckSquare,
+  Square,
+  Download,
+  Mail,
+  MessageCircle,
 } from "lucide-react"
 import { Input } from "../ui/input"
 import { Button } from "../ui/button"
@@ -25,7 +31,8 @@ import { useApi } from "../../hooks/use-api"
 import { useInfiniteScroll } from "../../hooks/use-infinite-scroll"
 import { useDebounce } from "../../hooks/use-debounce"
 import { useNavigate } from "react-router-dom"
-import { PROTOCOL_ENDPOINTS, ANALYTICS_ENDPOINTS } from "@/config/api"
+import { toast } from "sonner"
+import { PROTOCOL_ENDPOINTS, ANALYTICS_ENDPOINTS, TOAST_DURATION } from "@/config/api"
 import type { ProtocolListItem, SendMethod } from "@/types"
 
 interface PaginatedResponse {
@@ -52,6 +59,7 @@ const STATUS_ID_MAP: Record<number, string> = {
   5: "completed",
   6: "pendingRetiro",
   7: "sendFailed",
+  8: "pendingBilling",
 }
 
 const STATUS_FILTER_KEY = "labsalud_protocol_status_filters"
@@ -83,6 +91,12 @@ export default function ProtocolosPage() {
   const [nextUrl, setNextUrl] = useState<string | null>(null)
   const [totalCount, setTotalCount] = useState(0)
 
+  // Estados para seleccion batch
+  const [isSelectionMode, setIsSelectionMode] = useState(false)
+  const [selectedProtocols, setSelectedProtocols] = useState<Set<number>>(new Set())
+  const [batchReportType, setBatchReportType] = useState<"full" | "summary">("full")
+  const [isBatchProcessing, setIsBatchProcessing] = useState(false)
+
   // Estados para estadísticas
   const [stats, setStats] = useState({
     total: 0,
@@ -92,7 +106,8 @@ export default function ProtocolosPage() {
     pendingValidation: 0,
     completed: 0,
     cancelled: 0,
-    sendFailed: 0, // Added new status for failed send
+    sendFailed: 0,
+    pendingBilling: 0,
   })
 
   // Debounce para la búsqueda
@@ -114,7 +129,8 @@ export default function ProtocolosPage() {
           pendingValidation: 0,
           completed: 0,
           cancelled: 0,
-          sendFailed: 0, // Added new status for failed send
+          sendFailed: 0,
+          pendingBilling: 0,
         }
 
         // Solo asignar los que vienen en la respuesta (los que tienen 1 o más)
@@ -287,6 +303,90 @@ export default function ProtocolosPage() {
     )
   }
 
+  const toggleSelectionMode = () => {
+    setIsSelectionMode((prev) => {
+      if (prev) setSelectedProtocols(new Set())
+      return !prev
+    })
+  }
+
+  const toggleProtocolSelection = useCallback((id: number) => {
+    setSelectedProtocols((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.add(id)
+      }
+      return next
+    })
+  }, [])
+
+  const selectAll = () => {
+    setSelectedProtocols(new Set(allProtocols.map((p) => p.id)))
+  }
+
+  const deselectAll = () => {
+    setSelectedProtocols(new Set())
+  }
+
+  const handleBatchAction = async (action: "download" | "email" | "whatsapp") => {
+    if (selectedProtocols.size === 0) return
+
+    setIsBatchProcessing(true)
+    try {
+      const response = await apiRequest(PROTOCOL_ENDPOINTS.REPORT_BATCH, {
+        method: "POST",
+        body: {
+          protocol_ids: Array.from(selectedProtocols),
+          action,
+          type: batchReportType,
+        },
+      })
+
+      if (response.ok) {
+        if (action === "download") {
+          const blob = await response.blob()
+          const url = window.URL.createObjectURL(blob)
+          const a = document.createElement("a")
+          a.href = url
+          a.download = `reportes_${new Date().toISOString().slice(0, 10)}.zip`
+          document.body.appendChild(a)
+          a.click()
+          document.body.removeChild(a)
+          window.URL.revokeObjectURL(url)
+          toast.success("Reportes descargados exitosamente", { duration: TOAST_DURATION })
+        } else {
+          const data = await response.json()
+          const successCount = data.successes?.length || 0
+          const errorCount = data.errors?.length || 0
+          if (errorCount > 0) {
+            toast.warning(
+              `${successCount} enviados, ${errorCount} con error`,
+              { duration: TOAST_DURATION },
+            )
+          } else {
+            toast.success(
+              `${successCount} reportes enviados por ${action === "email" ? "email" : "WhatsApp"}`,
+              { duration: TOAST_DURATION },
+            )
+          }
+        }
+        setSelectedProtocols(new Set())
+        setIsSelectionMode(false)
+      } else {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.detail || errorData.error || "Error al procesar los reportes")
+      }
+    } catch (error) {
+      console.error("Error batch action:", error)
+      const message = error instanceof Error ? error.message : "Error al procesar los reportes"
+      toast.error(message, { duration: TOAST_DURATION })
+    } finally {
+      setIsBatchProcessing(false)
+    }
+  }
+
   if (isInitialLoading) {
     return (
       <div className="w-full max-w-7xl mx-auto py-4 px-4">
@@ -331,16 +431,26 @@ export default function ProtocolosPage() {
               {searchTerm && ` • ${allProtocols.length} resultados`}
             </p>
           </div>
-          <Button onClick={handleNewProtocol} className="bg-[#204983] w-full sm:w-auto">
-            <Plus className="mr-2 h-4 w-4" />
-            Nuevo Protocolo
-          </Button>
+          <div className="flex gap-2 w-full sm:w-auto">
+            <Button
+              variant={isSelectionMode ? "default" : "outline"}
+              onClick={toggleSelectionMode}
+              className={`flex-1 sm:flex-initial ${isSelectionMode ? "bg-[#204983]" : ""}`}
+            >
+              {isSelectionMode ? <CheckSquare className="mr-2 h-4 w-4" /> : <Square className="mr-2 h-4 w-4" />}
+              {isSelectionMode ? "Cancelar" : "Seleccionar"}
+            </Button>
+            <Button onClick={handleNewProtocol} className="bg-[#204983] flex-1 sm:flex-initial">
+              <Plus className="mr-2 h-4 w-4" />
+              Nuevo Protocolo
+            </Button>
+          </div>
         </div>
       </div>
 
       {/* Stats Cards */}
       <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-md p-4 md:p-6 mb-4 md:mb-6">
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-8 gap-3 sm:gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-9 gap-3 sm:gap-4">
           <Card>
             <CardContent className="p-3 sm:p-4">
               <div className="flex items-center justify-between">
@@ -433,6 +543,18 @@ export default function ProtocolosPage() {
                   <p className="text-lg sm:text-2xl font-bold text-red-600">{stats.sendFailed}</p>
                 </div>
                 <AlertTriangle className="h-6 w-6 sm:h-8 sm:w-8 text-red-400" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-teal-50">
+            <CardContent className="p-3 sm:p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs sm:text-sm font-medium text-teal-700">Pend. Facturación</p>
+                  <p className="text-lg sm:text-2xl font-bold text-teal-600">{stats.pendingBilling}</p>
+                </div>
+                <Receipt className="h-6 w-6 sm:h-8 sm:w-8 text-teal-400" />
               </div>
             </CardContent>
           </Card>
@@ -533,6 +655,15 @@ export default function ProtocolosPage() {
                 <AlertTriangle className="h-3 w-3 mr-1" />
                 Envío Fallido
               </Button>
+              <Button
+                variant={selectedStatuses.includes(8) ? "default" : "outline"}
+                size="sm"
+                onClick={() => toggleStatus(8)}
+                className={selectedStatuses.includes(8) ? "bg-teal-500 hover:bg-teal-600" : ""}
+              >
+                <Receipt className="h-3 w-3 mr-1" />
+                Pend. Facturación
+              </Button>
               {selectedStatuses.length > 0 && (
                 <Button variant="ghost" size="sm" onClick={() => setSelectedStatuses([])} className="text-gray-500">
                   <X className="h-3 w-3 mr-1" />
@@ -612,6 +743,9 @@ export default function ProtocolosPage() {
                   protocol={protocol}
                   onUpdate={refreshProtocols}
                   sendMethods={sendMethods}
+                  isSelectionMode={isSelectionMode}
+                  isSelected={selectedProtocols.has(protocol.id)}
+                  onToggleSelection={toggleProtocolSelection}
                 />
               ))}
             </div>
@@ -637,6 +771,74 @@ export default function ProtocolosPage() {
           </div>
         )}
       </div>
+
+      {/* Floating Batch Action Bar */}
+      {isSelectionMode && (
+        <div className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 shadow-lg px-4 py-3">
+          <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center gap-3">
+            {/* Selection info + select/deselect all */}
+            <div className="flex items-center gap-3 w-full sm:w-auto">
+              <span className="text-sm font-medium text-gray-700">
+                {selectedProtocols.size} seleccionado{selectedProtocols.size !== 1 ? "s" : ""}
+              </span>
+              <Button variant="ghost" size="sm" onClick={selectAll} className="text-xs">
+                Todos
+              </Button>
+              <Button variant="ghost" size="sm" onClick={deselectAll} className="text-xs">
+                Ninguno
+              </Button>
+            </div>
+
+            {/* Report type selector */}
+            <Select value={batchReportType} onValueChange={(v: "full" | "summary") => setBatchReportType(v)}>
+              <SelectTrigger className="w-full sm:w-[160px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="full">Reporte completo</SelectItem>
+                <SelectItem value="summary">Resumen</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {/* Action buttons */}
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <Button
+                size="sm"
+                disabled={selectedProtocols.size === 0 || isBatchProcessing}
+                onClick={() => handleBatchAction("download")}
+                className="bg-[#204983] flex-1 sm:flex-initial"
+              >
+                {isBatchProcessing ? (
+                  <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                ) : (
+                  <Download className="h-4 w-4 mr-1" />
+                )}
+                Descargar
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={selectedProtocols.size === 0 || isBatchProcessing}
+                onClick={() => handleBatchAction("email")}
+                className="flex-1 sm:flex-initial"
+              >
+                <Mail className="h-4 w-4 mr-1" />
+                Email
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={selectedProtocols.size === 0 || isBatchProcessing}
+                onClick={() => handleBatchAction("whatsapp")}
+                className="flex-1 sm:flex-initial"
+              >
+                <MessageCircle className="h-4 w-4 mr-1" />
+                WhatsApp
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -22,7 +22,7 @@ interface ProtocolHeaderProps {
   onSettleDebt: () => void
 }
 
-// Status IDs: 1=Pendiente de carga, 2=Pendiente de validación, 3=Pago incompleto, 4=Cancelado, 5=Completado, 6=Pendiente de Retiro, 7=Envío fallido
+// Status IDs: 1=Pendiente de carga, 2=Pendiente de validación, 3=Pago incompleto, 4=Cancelado, 5=Completado, 6=Pendiente de Retiro, 7=Envío fallido, 8=Pendiente de Facturación
 const getStateColor = (statusId: number) => {
   const stateColors: Record<number, string> = {
     1: "bg-yellow-100 text-yellow-800", // Pendiente de carga
@@ -32,6 +32,7 @@ const getStateColor = (statusId: number) => {
     5: "bg-green-100 text-green-800", // Completado
     6: "bg-purple-100 text-purple-800", // Pendiente de Retiro
     7: "bg-rose-100 text-rose-800", // Envío fallido
+    8: "bg-teal-100 text-teal-800", // Pendiente de Facturación
   }
   return stateColors[statusId] || "bg-gray-100 text-gray-800"
 }

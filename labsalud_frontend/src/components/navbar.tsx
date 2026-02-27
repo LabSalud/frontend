@@ -3,7 +3,7 @@
 import type React from "react"
 import { useState, useCallback, useEffect, useRef } from "react"
 import { Link, useLocation } from "react-router-dom"
-import { Menu, X, UserCircle, Shield, Settings, LogOut } from "lucide-react"
+import { Menu, X, UserCircle, Shield, Settings, LogOut, Receipt } from "lucide-react"
 import useAuth from "@/contexts/auth-context"
 import { UserDropdown } from "./user-dropdown"
 import { PERMISSIONS } from "@/config/permissions"
@@ -48,6 +48,7 @@ export const Navbar: React.FC = () => {
   const userAvatarRef = useRef<HTMLDivElement>(null)
 
   const canAccessManagement = hasPermission(PERMISSIONS.MANAGE_USERS.id)
+  const canAccessBilling = hasPermission(PERMISSIONS.MANAGE_BILLING.id)
 
   const toggleMobileMenu = () => {
     setIsMobileMenuOpen((prev) => {
@@ -321,6 +322,17 @@ export const Navbar: React.FC = () => {
                   >
                     <Shield className="w-5 h-5" />
                     <span>Gestion de Usuarios</span>
+                  </Link>
+                )}
+
+                {canAccessBilling && (
+                  <Link
+                    to="/facturacion"
+                    className="w-full text-left px-3 py-3 text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-3 rounded-lg transition-colors duration-150"
+                    onClick={closeAllMenus}
+                  >
+                    <Receipt className="w-5 h-5" />
+                    <span>Facturacion</span>
                   </Link>
                 )}
 

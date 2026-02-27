@@ -5,7 +5,18 @@ import { useApi } from "@/hooks/use-api"
 import { useToast } from "@/hooks/use-toast"
 import { ANALYTICS_ENDPOINTS } from "@/config/api"
 import type { Permission } from "@/types"
-import { User, Shield, Clock, TestTube, Users, TrendingUp, CheckCircle, AlertCircle, Printer } from "lucide-react"
+import {
+  User,
+  Shield,
+  Clock,
+  TestTube,
+  Users,
+  TrendingUp,
+  CheckCircle,
+  AlertCircle,
+  Printer,
+  Receipt,
+} from "lucide-react"
 
 interface Stats {
   analysisToday: number
@@ -16,6 +27,7 @@ interface Stats {
   protocolsCompletedGrowthPercent: string
   avgResultLoadTimeHuman: string
   printedIncompletePayment: number
+  pendingBilling: number
 }
 
 export default function Home() {
@@ -32,6 +44,7 @@ export default function Home() {
     protocolsCompletedGrowthPercent: "0.0",
     avgResultLoadTimeHuman: "0 min",
     printedIncompletePayment: 0,
+    pendingBilling: 0,
   })
   const [loading, setLoading] = useState(true)
 
@@ -47,8 +60,21 @@ export default function Home() {
     try {
       setLoading(true)
 
-      const response = await apiRequest(ANALYTICS_ENDPOINTS.DASHBOARD)
-      const data = await response.json()
+      const [dashboardResponse, statusResponse] = await Promise.all([
+        apiRequest(ANALYTICS_ENDPOINTS.DASHBOARD),
+        apiRequest(ANALYTICS_ENDPOINTS.PROTOCOLS_BY_STATUS),
+      ])
+
+      const data = await dashboardResponse.json()
+
+      let pendingBillingCount = 0
+      if (statusResponse.ok) {
+        const statusData = await statusResponse.json()
+        const billingState = statusData.states?.find(
+          (s: { status_id: number; count: number }) => s.status_id === 8,
+        )
+        pendingBillingCount = billingState?.count || 0
+      }
 
       setStats({
         analysisToday: data.analysis_today || 0,
@@ -59,6 +85,7 @@ export default function Home() {
         pendingResultsLoad: data.pending_results_load || 0,
         pendingResultsValidation: data.pending_results_validation || 0,
         printedIncompletePayment: data.printed_with_incomplete_payment || 0,
+        pendingBilling: pendingBillingCount,
       })
     } catch (error) {
       console.error("Error fetching stats:", error)
@@ -266,6 +293,23 @@ export default function Home() {
             )}
           </h3>
           <p className="text-red-600 text-sm">Protocolos impresos sin pago completo</p>
+        </div>
+
+        <div className="bg-teal-50/80 backdrop-blur-sm p-6 rounded-lg border border-teal-200">
+          <div className="flex items-center justify-between mb-4">
+            <div className="p-2 bg-teal-100 rounded-lg">
+              <Receipt className="w-6 h-6 text-teal-600" />
+            </div>
+            <span className="text-xs text-teal-500 font-medium">PENDIENTE</span>
+          </div>
+          <h3 className="text-2xl font-bold text-teal-800 mb-1">
+            {loading ? (
+              <div className="animate-pulse bg-teal-200 h-8 w-16 rounded"></div>
+            ) : (
+              stats.pendingBilling.toLocaleString()
+            )}
+          </h3>
+          <p className="text-teal-600 text-sm">Protocolos pend. facturacion</p>
         </div>
       </div>
     </div>

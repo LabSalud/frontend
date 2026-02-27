@@ -68,9 +68,19 @@ interface ProtocolCardProps {
   protocol: ProtocolListItem
   onUpdate: () => void
   sendMethods?: SendMethod[]
+  isSelectionMode?: boolean
+  isSelected?: boolean
+  onToggleSelection?: (id: number) => void
 }
 
-export function ProtocolCard({ protocol, onUpdate, sendMethods = [] }: ProtocolCardProps) {
+export function ProtocolCard({
+  protocol,
+  onUpdate,
+  sendMethods = [],
+  isSelectionMode = false,
+  isSelected = false,
+  onToggleSelection,
+}: ProtocolCardProps) {
   const { apiRequest } = useApi()
   const [isExpanded, setIsExpanded] = useState(false)
   const [protocolDetail, setProtocolDetail] = useState<ProtocolDetailResponse | null>(null)
@@ -164,6 +174,10 @@ export function ProtocolCard({ protocol, onUpdate, sendMethods = [] }: ProtocolC
 
   const handleCardClick = (e: React.MouseEvent) => {
     if ((e.target as HTMLElement).closest("[data-no-expand]")) {
+      return
+    }
+    if (isSelectionMode) {
+      onToggleSelection?.(protocol.id)
       return
     }
     handleExpand()
@@ -520,6 +534,7 @@ export function ProtocolCard({ protocol, onUpdate, sendMethods = [] }: ProtocolC
       5: "border-l-green-500", // Completado
       6: "border-l-purple-500", // Pendiente de Retiro
       7: "border-l-rose-500", // Envío fallido
+      8: "border-l-teal-500", // Pendiente de Facturación
     }
     return borderColors[statusId] || "border-l-gray-500"
   }
@@ -529,10 +544,36 @@ export function ProtocolCard({ protocol, onUpdate, sendMethods = [] }: ProtocolC
       <Card
         className={`transition-all duration-300 shadow-sm hover:shadow-lg cursor-pointer bg-white ${
           isExpanded ? "ring-2 ring-[#204983] ring-opacity-20" : ""
-        } border-l-4 ${getBorderColor(statusId)}`}
+        } ${isSelected ? "ring-2 ring-[#204983]" : ""} border-l-4 ${getBorderColor(statusId)}`}
         onClick={handleCardClick}
       >
         <CardContent className="p-4 pb-3">
+          {isSelectionMode && (
+            <div className="flex items-center mb-2" data-no-expand>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onToggleSelection?.(protocol.id)
+                }}
+                className="flex items-center gap-2 text-sm text-gray-600"
+              >
+                <div
+                  className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
+                    isSelected
+                      ? "bg-[#204983] border-[#204983]"
+                      : "border-gray-300 hover:border-[#204983]"
+                  }`}
+                >
+                  {isSelected && (
+                    <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                  )}
+                </div>
+                <span>Protocolo #{protocol.id}</span>
+              </button>
+            </div>
+          )}
           <ProtocolHeader
             protocolId={protocol.id}
             status={protocol.status}

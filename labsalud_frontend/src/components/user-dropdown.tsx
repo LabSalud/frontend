@@ -2,7 +2,7 @@
 
 import type React from "react"
 import { useState, useRef, useEffect } from "react"
-import { User, LogOut, Settings, UserCircle, Shield } from "lucide-react"
+import { User, LogOut, Settings, UserCircle, Shield, Receipt } from "lucide-react"
 import useAuth from "@/contexts/auth-context"
 import { Link } from "react-router-dom"
 import { PERMISSIONS } from "@/config/permissions"
@@ -19,6 +19,7 @@ export const UserDropdown: React.FC<UserDropdownProps> = ({ isMobile = false, on
   const { user, logout, hasPermission } = useAuth()
 
   const canAccessManagement = hasPermission(PERMISSIONS.MANAGE_USERS.id)
+  const canAccessBilling = hasPermission(PERMISSIONS.MANAGE_BILLING.id)
 
   // Only handle click-outside for desktop dropdown
   useEffect(() => {
@@ -137,6 +138,17 @@ export const UserDropdown: React.FC<UserDropdownProps> = ({ isMobile = false, on
             >
               <Shield className="w-5 h-5" />
               <span>Gestion de Usuarios</span>
+            </Link>
+          )}
+
+          {canAccessBilling && (
+            <Link
+              to="/facturacion"
+              className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-2 transition-colors duration-150"
+              onClick={closeMenu}
+            >
+              <Receipt className="w-5 h-5" />
+              <span>Facturacion</span>
             </Link>
           )}
 

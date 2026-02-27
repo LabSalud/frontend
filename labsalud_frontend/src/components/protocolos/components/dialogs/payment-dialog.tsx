@@ -1,14 +1,13 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Loader2, DollarSign, ArrowDownLeft, ArrowUpRight } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "../../../ui/dialog"
 import { Button } from "../../../ui/button"
 import { Input } from "../../../ui/input"
 import { Label } from "../../../ui/label"
-import { Textarea } from "../../../ui/textarea"
 
-type ActionType = "payment" | "refund"
+type OperationType = "patient_paid" | "refunded_to_patient"
 
 interface PaymentDialogProps {
   open: boolean
@@ -19,7 +18,7 @@ interface PaymentDialogProps {
   patientPaid: string
   amountToReturn: string
   paymentStatusName: string
-  onRegularize: (amount: number, type: ActionType, notes: string) => Promise<boolean>
+  onRegularize: (amount: number, operation: OperationType) => Promise<boolean>
   isProcessing: boolean
 }
 
@@ -35,25 +34,35 @@ export function PaymentDialog({
   onRegularize,
   isProcessing,
 }: PaymentDialogProps) {
-  const [actionType, setActionType] = useState<ActionType>("payment")
+  const [operation, setOperation] = useState<OperationType>("patient_paid")
   const [amount, setAmount] = useState("")
-  const [notes, setNotes] = useState("")
 
   const pending = Number.parseFloat(amountPending || "0")
   const toReturn = Number.parseFloat(amountToReturn || "0")
   const due = Number.parseFloat(amountDue || "0")
   const paid = Number.parseFloat(patientPaid || "0")
 
-  const maxAmount = actionType === "payment" ? pending : toReturn
+  const maxAmount = operation === "patient_paid" ? pending : toReturn
+
+  // Auto-select operation based on what makes sense
+  useEffect(() => {
+    if (open) {
+      setAmount("")
+      if (toReturn > 0 && pending <= 0) {
+        setOperation("refunded_to_patient")
+      } else {
+        setOperation("patient_paid")
+      }
+    }
+  }, [open, pending, toReturn])
 
   const handleConfirm = async () => {
     const value = Number.parseFloat(amount)
     if (isNaN(value) || value <= 0) return
 
-    const success = await onRegularize(value, actionType, notes)
+    const success = await onRegularize(value, operation)
     if (success) {
       setAmount("")
-      setNotes("")
       onOpenChange(false)
     }
   }
@@ -61,10 +70,14 @@ export function PaymentDialog({
   const handleClose = (isOpen: boolean) => {
     if (!isOpen) {
       setAmount("")
-      setNotes("")
-      setActionType("payment")
     }
     onOpenChange(isOpen)
+  }
+
+  const handleSetMax = () => {
+    if (maxAmount > 0) {
+      setAmount(maxAmount.toFixed(2))
+    }
   }
 
   const getStatusBadgeColor = (status: string) => {
@@ -115,14 +128,14 @@ export function PaymentDialog({
             </div>
           </div>
 
-          {/* Action Type Tabs */}
+          {/* Operation Type Tabs */}
           <div className="flex gap-2">
             <Button
-              variant={actionType === "payment" ? "default" : "outline"}
+              variant={operation === "patient_paid" ? "default" : "outline"}
               size="sm"
-              className={`flex-1 ${actionType === "payment" ? "bg-green-600 hover:bg-green-700" : ""}`}
+              className={`flex-1 ${operation === "patient_paid" ? "bg-green-600 hover:bg-green-700" : ""}`}
               onClick={() => {
-                setActionType("payment")
+                setOperation("patient_paid")
                 setAmount("")
               }}
               disabled={pending <= 0}
@@ -131,11 +144,11 @@ export function PaymentDialog({
               Registrar Pago
             </Button>
             <Button
-              variant={actionType === "refund" ? "default" : "outline"}
+              variant={operation === "refunded_to_patient" ? "default" : "outline"}
               size="sm"
-              className={`flex-1 ${actionType === "refund" ? "bg-blue-600 hover:bg-blue-700" : ""}`}
+              className={`flex-1 ${operation === "refunded_to_patient" ? "bg-blue-600 hover:bg-blue-700" : ""}`}
               onClick={() => {
-                setActionType("refund")
+                setOperation("refunded_to_patient")
                 setAmount("")
               }}
               disabled={toReturn <= 0}
@@ -145,22 +158,35 @@ export function PaymentDialog({
             </Button>
           </div>
 
-          {/* Amount Input */}
+          {/* Amount Input with Total button */}
           <div className="space-y-2">
             <Label htmlFor="regularize-amount">
-              {actionType === "payment" ? "Monto a cobrar" : "Monto a devolver"}
+              {operation === "patient_paid" ? "Monto a cobrar" : "Monto a devolver"}
             </Label>
-            <Input
-              id="regularize-amount"
-              type="number"
-              step="0.01"
-              min="0.01"
-              max={maxAmount}
-              placeholder={`Maximo: $${maxAmount.toFixed(2)}`}
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              disabled={maxAmount <= 0}
-            />
+            <div className="flex gap-2">
+              <Input
+                id="regularize-amount"
+                type="number"
+                step="0.01"
+                min="0.01"
+                max={maxAmount}
+                placeholder={`Maximo: $${maxAmount.toFixed(2)}`}
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                disabled={maxAmount <= 0}
+                className="flex-1"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleSetMax}
+                disabled={maxAmount <= 0}
+                className="shrink-0 px-3 font-medium text-xs"
+              >
+                Total
+              </Button>
+            </div>
             {maxAmount > 0 && (
               <p className="text-xs text-gray-500">
                 Ingrese un monto entre $0.01 y ${maxAmount.toFixed(2)}
@@ -168,24 +194,11 @@ export function PaymentDialog({
             )}
             {maxAmount <= 0 && (
               <p className="text-xs text-amber-600">
-                {actionType === "payment"
+                {operation === "patient_paid"
                   ? "No hay saldo pendiente de cobro"
                   : "No hay monto pendiente de devolucion"}
               </p>
             )}
-          </div>
-
-          {/* Notes */}
-          <div className="space-y-2">
-            <Label htmlFor="regularize-notes">Notas (opcional)</Label>
-            <Textarea
-              id="regularize-notes"
-              placeholder="Detalle del pago o devolucion..."
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              rows={2}
-              className="resize-none"
-            />
           </div>
         </div>
 
@@ -197,7 +210,7 @@ export function PaymentDialog({
             onClick={handleConfirm}
             disabled={isProcessing || !amount || Number.parseFloat(amount) <= 0 || Number.parseFloat(amount) > maxAmount}
             className={`w-full sm:w-auto ${
-              actionType === "payment"
+              operation === "patient_paid"
                 ? "bg-green-600 hover:bg-green-700"
                 : "bg-blue-600 hover:bg-blue-700"
             }`}
@@ -210,7 +223,7 @@ export function PaymentDialog({
             ) : (
               <>
                 <DollarSign className="mr-2 h-4 w-4" />
-                {actionType === "payment" ? "Confirmar Pago" : "Confirmar Devolucion"}
+                {operation === "patient_paid" ? "Confirmar Pago" : "Confirmar Devolucion"}
               </>
             )}
           </Button>

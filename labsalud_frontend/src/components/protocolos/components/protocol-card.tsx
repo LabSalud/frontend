@@ -237,23 +237,23 @@ export function ProtocolCard({
     setPaymentDialogOpen(true)
   }
 
-  const handleRegularizeBalance = async (amount: number, type: "payment" | "refund", notes: string): Promise<boolean> => {
+  const handleRegularizeBalance = async (amount: number, operation: "patient_paid" | "refunded_to_patient"): Promise<boolean> => {
     setIsProcessingPayment(true)
     try {
       const response = await apiRequest(PROTOCOL_ENDPOINTS.REGULARIZE_BALANCE(protocol.id), {
         method: "POST",
-        body: { amount, type, ...(notes ? { notes } : {}) },
+        body: { operation, amount: amount.toFixed(2) },
       })
 
       if (response.ok) {
-        const label = type === "payment" ? "Pago" : "Devolucion"
+        const label = operation === "patient_paid" ? "Pago" : "Devolucion"
         toast.success(`${label} de $${amount.toFixed(2)} registrado exitosamente`, { duration: TOAST_DURATION })
         await refreshProtocolDetail()
         onUpdate()
         return true
       } else {
         const errorData = await response.json().catch(() => ({}))
-        throw new Error(extractErrorMessage(errorData, `Error al registrar ${type === "payment" ? "pago" : "devolucion"}`))
+        throw new Error(extractErrorMessage(errorData, `Error al registrar ${operation === "patient_paid" ? "pago" : "devolucion"}`))
       }
     } catch (error) {
       console.error("Error regularize balance:", error)

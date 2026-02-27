@@ -1,6 +1,6 @@
 "use client"
 
-import { ChevronDown, User, CreditCard, Printer, DollarSign, RefreshCw } from "lucide-react"
+import { ChevronDown, User, CreditCard, Printer, DollarSign } from "lucide-react"
 import { Badge } from "../../ui/badge"
 import { Button } from "../../ui/button"
 import { AuditAvatars } from "@/components/common/audit-avatars"
@@ -19,10 +19,9 @@ interface ProtocolHeaderProps {
   creation?: CreationAudit
   lastChange?: LastChangeAudit
   onRegisterPayment: () => void
-  onSettleDebt: () => void
 }
 
-// Status IDs: 1=Pendiente de carga, 2=Pendiente de validación, 3=Pago incompleto, 4=Cancelado, 5=Completado, 6=Pendiente de Retiro, 7=Envío fallido
+// Status IDs: 1=Pendiente de carga, 2=Pendiente de validación, 3=Pago incompleto, 4=Cancelado, 5=Completado, 6=Pendiente de Retiro, 7=Envío fallido, 8=Pendiente de Facturación
 const getStateColor = (statusId: number) => {
   const stateColors: Record<number, string> = {
     1: "bg-yellow-100 text-yellow-800", // Pendiente de carga
@@ -32,6 +31,7 @@ const getStateColor = (statusId: number) => {
     5: "bg-green-100 text-green-800", // Completado
     6: "bg-purple-100 text-purple-800", // Pendiente de Retiro
     7: "bg-rose-100 text-rose-800", // Envío fallido
+    8: "bg-teal-100 text-teal-800", // Pendiente de Facturación
   }
   return stateColors[statusId] || "bg-gray-100 text-gray-800"
 }
@@ -66,7 +66,6 @@ export function ProtocolHeader({
   creation,
   lastChange,
   onRegisterPayment,
-  onSettleDebt,
 }: ProtocolHeaderProps) {
   const paymentStatusInfo = getPaymentStatusInfo(paymentStatus)
   const paymentStatusId = paymentStatus?.id ?? 0
@@ -93,7 +92,7 @@ export function ProtocolHeader({
                 </h3>
                 {/* // Responsive button layout */}
                 <div className="flex flex-wrap gap-1">
-                  {canRegisterPayment && (
+                  {(canRegisterPayment || labOwesPatient) && (
                     <Button
                       size="sm"
                       onClick={(e) => {
@@ -104,21 +103,7 @@ export function ProtocolHeader({
                       data-no-expand
                     >
                       <DollarSign className="h-3 w-3 mr-1" />
-                      <span className="hidden xs:inline">Registrar</span> Pago
-                    </Button>
-                  )}
-                  {labOwesPatient && (
-                    <Button
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        onSettleDebt()
-                      }}
-                      className="bg-orange-500 hover:bg-orange-600 text-white text-xs px-2 py-1 h-6"
-                      data-no-expand
-                    >
-                      <RefreshCw className="h-3 w-3 mr-1" />
-                      <span className="hidden xs:inline">Saldar</span> Deuda
+                      Pagos
                     </Button>
                   )}
                 </div>

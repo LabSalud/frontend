@@ -30,6 +30,13 @@ export const PERMISSIONS = {
     codename: "validar_resultados",
     name: "Puede validar resultados",
   },
+
+  // ID: 6 - Gestión de facturación
+  MANAGE_BILLING: {
+    id: "5",
+    codename: "administrar_facturacion",
+    name: "Puede administrar facturacion",
+  },
 } as const
 
 // Helper functions para verificar permisos

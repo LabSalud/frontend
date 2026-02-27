@@ -3,7 +3,7 @@
 import type React from "react"
 import { useState, useCallback, useEffect, useRef } from "react"
 import { Link, useLocation } from "react-router-dom"
-import { Menu, X } from "lucide-react"
+import { Menu, X, UserCircle, Shield, Settings, LogOut, Receipt } from "lucide-react"
 import useAuth from "@/contexts/auth-context"
 import { UserDropdown } from "./user-dropdown"
 import { PERMISSIONS } from "@/config/permissions"
@@ -38,49 +38,75 @@ const NavLink: React.FC<NavLinkProps> = ({ to, children, isActive, onClick }) =>
 }
 
 export const Navbar: React.FC = () => {
-  const { user, hasPermission } = useAuth()
+  const { user, hasPermission, logout } = useAuth()
   const location = useLocation()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false)
   const mobileMenuRef = useRef<HTMLDivElement>(null)
+  const userMenuRef = useRef<HTMLDivElement>(null)
   const hamburgerRef = useRef<HTMLButtonElement>(null)
+  const userAvatarRef = useRef<HTMLDivElement>(null)
+
+  const canAccessManagement = hasPermission(PERMISSIONS.MANAGE_USERS.id)
+  const canAccessBilling = hasPermission(PERMISSIONS.MANAGE_BILLING.id)
 
   const toggleMobileMenu = () => {
-    setIsMobileMenuOpen(!isMobileMenuOpen)
-    if (!isMobileMenuOpen) {
-      setIsUserMenuOpen(false)
-    }
+    setIsMobileMenuOpen((prev) => {
+      if (!prev) setIsUserMenuOpen(false) // close user menu when opening hamburger
+      return !prev
+    })
   }
 
-  // Close mobile menu when clicking outside
+  const toggleUserMenu = () => {
+    setIsUserMenuOpen((prev) => {
+      if (!prev) setIsMobileMenuOpen(false) // close hamburger when opening user menu
+      return !prev
+    })
+  }
+
+  const closeAllMenus = () => {
+    setIsMobileMenuOpen(false)
+    setIsUserMenuOpen(false)
+  }
+
+  // Close menus when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node
+
       if (
         isMobileMenuOpen &&
         mobileMenuRef.current &&
-        !mobileMenuRef.current.contains(event.target as Node) &&
+        !mobileMenuRef.current.contains(target) &&
         hamburgerRef.current &&
-        !hamburgerRef.current.contains(event.target as Node)
+        !hamburgerRef.current.contains(target)
       ) {
         setIsMobileMenuOpen(false)
+      }
+
+      if (
+        isUserMenuOpen &&
+        userMenuRef.current &&
+        !userMenuRef.current.contains(target) &&
+        userAvatarRef.current &&
+        !userAvatarRef.current.contains(target)
+      ) {
+        setIsUserMenuOpen(false)
       }
     }
 
     document.addEventListener("mousedown", handleClickOutside)
     return () => document.removeEventListener("mousedown", handleClickOutside)
-  }, [isMobileMenuOpen])
+  }, [isMobileMenuOpen, isUserMenuOpen])
 
-  // Close mobile menu on route change
+  // Close all menus on route change
   useEffect(() => {
-    setIsMobileMenuOpen(false)
+    closeAllMenus()
   }, [location.pathname])
 
+  // Desktop-only: forward user menu state from UserDropdown
   const handleUserMenuToggle = useCallback((isOpen: boolean) => {
     setIsUserMenuOpen(isOpen)
-    // Close mobile menu when opening user menu
-    if (isOpen) {
-      setIsMobileMenuOpen(false)
-    }
   }, [])
 
   if (!user) return null
@@ -181,14 +207,14 @@ export const Navbar: React.FC = () => {
             `}
           >
             <div className="flex items-center justify-between">
-              {/* Left - User Avatar */}
-              <div className="flex-shrink-0">
-                <UserDropdown isMobile={true} onMenuToggle={handleUserMenuToggle} />
+              {/* Left - User Avatar (toggles user menu panel) */}
+              <div className="flex-shrink-0" ref={userAvatarRef}>
+                <UserDropdown isMobile={true} onMenuToggle={() => toggleUserMenu()} />
               </div>
 
               {/* Center - Logo */}
               <div className="flex-shrink-0">
-                <Link to="/" className="flex items-center">
+                <Link to="/" onClick={closeAllMenus} className="flex items-center">
                   <img
                     src="/logo_icono.svg"
                     alt="Logo"
@@ -213,16 +239,16 @@ export const Navbar: React.FC = () => {
             </div>
           </div>
 
-          {/* Backdrop overlay - closes menu when tapping outside */}
-          {isMobileMenuOpen && (
+          {/* Backdrop overlay - closes any open menu when tapping outside */}
+          {(isMobileMenuOpen || isUserMenuOpen) && (
             <div
               className="fixed inset-0 z-30"
-              onClick={() => setIsMobileMenuOpen(false)}
+              onClick={closeAllMenus}
               aria-hidden="true"
             />
           )}
 
-          {/* Mobile Menu Dropdown - Absolute, pegado a la navbar */}
+          {/* Mobile Navigation Menu (hamburger) */}
           <div
             ref={mobileMenuRef}
             className={`
@@ -238,7 +264,7 @@ export const Navbar: React.FC = () => {
                     key={item.path}
                     to={item.path}
                     isActive={location.pathname === item.path}
-                    onClick={toggleMobileMenu}
+                    onClick={closeAllMenus}
                   >
                     <div className="block px-3 py-2 text-base">{item.label}</div>
                   </NavLink>
@@ -250,11 +276,87 @@ export const Navbar: React.FC = () => {
                       key={item.path}
                       to={item.path}
                       isActive={location.pathname === item.path}
-                      onClick={toggleMobileMenu}
+                      onClick={closeAllMenus}
                     >
                       <div className="block px-3 py-2 text-base">{item.label}</div>
                     </NavLink>
                   ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Mobile User Menu (same pattern as hamburger menu) */}
+          <div
+            ref={userMenuRef}
+            className={`
+              absolute left-0 w-full bg-white shadow-lg z-40 overflow-hidden rounded-b-lg
+              transition-all duration-200 ease-in-out
+              ${isUserMenuOpen ? "opacity-100 max-h-[70vh]" : "opacity-0 max-h-0 pointer-events-none"}
+            `}
+          >
+            <div className="px-4 py-4">
+              {/* User Info */}
+              <div className="pb-3 mb-3 border-b border-gray-100">
+                <p className="text-lg font-medium text-gray-900">
+                  {user?.first_name} {user?.last_name}
+                </p>
+                <p className="text-sm text-gray-500">{user?.username}</p>
+              </div>
+
+              {/* Menu Items */}
+              <div className="flex flex-col items-center space-y-1">
+                <Link
+                  to="/profile"
+                  className="w-full text-left px-3 py-3 text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-3 rounded-lg transition-colors duration-150"
+                  onClick={closeAllMenus}
+                >
+                  <UserCircle className="w-5 h-5" />
+                  <span>Mi Perfil</span>
+                </Link>
+
+                {canAccessManagement && (
+                  <Link
+                    to="/management"
+                    className="w-full text-left px-3 py-3 text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-3 rounded-lg transition-colors duration-150"
+                    onClick={closeAllMenus}
+                  >
+                    <Shield className="w-5 h-5" />
+                    <span>Gestion de Usuarios</span>
+                  </Link>
+                )}
+
+                {canAccessBilling && (
+                  <Link
+                    to="/facturacion"
+                    className="w-full text-left px-3 py-3 text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-3 rounded-lg transition-colors duration-150"
+                    onClick={closeAllMenus}
+                  >
+                    <Receipt className="w-5 h-5" />
+                    <span>Facturacion</span>
+                  </Link>
+                )}
+
+                <Link
+                  to="/configuracion"
+                  className="w-full text-left px-3 py-3 text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-3 rounded-lg transition-colors duration-150"
+                  onClick={closeAllMenus}
+                >
+                  <Settings className="w-5 h-5" />
+                  <span>Configuracion</span>
+                </Link>
+
+                <hr className="w-full my-2" />
+
+                <button
+                  onClick={() => {
+                    logout(true)
+                    closeAllMenus()
+                  }}
+                  className="w-full text-left px-3 py-3 text-sm text-red-600 hover:bg-red-50 flex items-center space-x-3 rounded-lg transition-colors duration-150"
+                >
+                  <LogOut className="w-5 h-5" />
+                  <span>Cerrar Sesion</span>
+                </button>
               </div>
             </div>
           </div>

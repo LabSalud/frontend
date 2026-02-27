@@ -133,6 +133,8 @@ const getStatusColor = (statusId: number): string => {
       return "bg-purple-100 text-purple-800 border-purple-300"
     case 7:
       return "bg-rose-100 text-rose-800 border-rose-300"
+    case 8:
+      return "bg-teal-100 text-teal-800 border-teal-300"
     default:
       return "bg-gray-100 text-gray-800 border-gray-300"
   }

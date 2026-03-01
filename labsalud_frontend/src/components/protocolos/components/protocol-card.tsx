@@ -12,6 +12,7 @@ import type {
   SendMethod,
   HistoryEntry,
   PaymentStatus,
+  BillingStatus,
   ProtocolStatus,
 } from "@/types"
 
@@ -46,9 +47,6 @@ interface ProtocolDetailResponse {
     id: number
     name: string
   }
-  // UB fields
-  total_ub_authorized: string
-  total_ub_private: string
   insurance_ub_value: string
   private_ub_value: string
   // Payment fields (new API format)
@@ -57,6 +55,7 @@ interface ProtocolDetailResponse {
   patient_paid: string
   amount_to_return: string
   payment_status: PaymentStatus
+  billing_status?: BillingStatus
   is_printed: boolean
   is_active: boolean
   details: ProtocolDetailType[]

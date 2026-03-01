@@ -275,6 +275,11 @@ export interface PaymentStatus {
   name: string
 }
 
+export interface BillingStatus {
+  id: number
+  name: string
+}
+
 export interface ProtocolStatus {
   id: number
   name: string
@@ -320,17 +325,17 @@ export interface Protocol {
     id: number
     name: string
   }
-  // UB fields
-  total_ub_authorized: string
-  total_ub_private: string
   insurance_ub_value?: string
   private_ub_value?: string
   // Payment fields (new API format)
-  amount_due: string
-  amount_pending: string
-  patient_paid: string
-  amount_to_return: string
+  amount_due?: string
+  amount_pending?: string
+  patient_paid?: string
+  amount_to_return?: string
+  // Returned by protocol create response
+  value_paid?: string
   payment_status: PaymentStatus
+  billing_status?: BillingStatus
   is_printed: boolean
   is_active: boolean
   details: ProtocolDetail[]
@@ -350,6 +355,7 @@ export interface ProtocolListItem {
   status: ProtocolStatus
   balance: string
   payment_status: PaymentStatus
+  billing_status?: BillingStatus
   is_printed: boolean
   creation?: CreationAudit
   last_change?: LastChangeAudit

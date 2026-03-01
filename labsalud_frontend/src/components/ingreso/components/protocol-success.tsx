@@ -20,6 +20,25 @@ interface ProtocolSuccessProps {
 export function ProtocolSuccess({ protocol, patient, doctor, insurance, sendMethod, onClose }: ProtocolSuccessProps) {
   const [animationPhase, setAnimationPhase] = useState<"initial" | "expand" | "moveUp" | "showSummary">("initial")
 
+  const toNumber = (...values: Array<string | number | undefined | null>) => {
+    for (const value of values) {
+      if (value === undefined || value === null || value === "") continue
+      const parsed = typeof value === "number" ? value : Number.parseFloat(value)
+      if (!Number.isNaN(parsed)) return parsed
+    }
+    return 0
+  }
+
+  const totalUbAuthorized = toNumber(
+    protocol.details?.filter((detail) => detail.is_authorized).reduce((acc, detail) => acc + toNumber(detail.ub), 0),
+  )
+
+  const totalUbPrivate = toNumber(
+    protocol.details?.filter((detail) => !detail.is_authorized).reduce((acc, detail) => acc + toNumber(detail.ub), 0),
+  )
+
+  const patientPaid = toNumber(protocol.patient_paid, protocol.value_paid)
+
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -193,15 +212,15 @@ export function ProtocolSuccess({ protocol, patient, doctor, insurance, sendMeth
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pl-6">
                   <div className="space-y-1">
                     <div className="text-xs text-gray-500">Total UB Autorizado</div>
-                    <div className="font-medium text-gray-800">{protocol.total_ub_authorized || "0.00"} UB</div>
+                    <div className="font-medium text-gray-800">{totalUbAuthorized.toFixed(2)} UB</div>
                   </div>
                   <div className="space-y-1">
                     <div className="text-xs text-gray-500">Total UB Particular</div>
-                    <div className="font-medium text-gray-800">{protocol.total_ub_private || "0.00"} UB</div>
+                    <div className="font-medium text-gray-800">{totalUbPrivate.toFixed(2)} UB</div>
                   </div>
                   <div className="space-y-1">
                     <div className="text-xs text-gray-500">Monto Pagado</div>
-                    <div className="font-medium text-green-600">${protocol.value_paid || "0.00"}</div>
+                    <div className="font-medium text-green-600">${patientPaid.toFixed(2)}</div>
                   </div>
                   <div className="space-y-1">
                     <div className="text-xs text-gray-500">Estado de Pago</div>

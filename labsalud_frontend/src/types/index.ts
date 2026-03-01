@@ -275,6 +275,11 @@ export interface PaymentStatus {
   name: string
 }
 
+export interface BillingStatus {
+  id: number
+  name: string
+}
+
 export interface ProtocolStatus {
   id: number
   name: string
@@ -320,16 +325,17 @@ export interface Protocol {
     id: number
     name: string
   }
-  // Payment fields from API documentation
-  total_ub_authorized: string
-  total_ub_private: string
-  patient_paid: string
-  amount_to_return: string
-  value_paid: string
-  payment_status: PaymentStatus
-  // Additional fields returned on update
   insurance_ub_value?: string
   private_ub_value?: string
+  // Payment fields (new API format)
+  amount_due?: string
+  amount_pending?: string
+  patient_paid?: string
+  amount_to_return?: string
+  // Returned by protocol create response
+  value_paid?: string
+  payment_status: PaymentStatus
+  billing_status?: BillingStatus
   is_printed: boolean
   is_active: boolean
   details: ProtocolDetail[]
@@ -349,6 +355,7 @@ export interface ProtocolListItem {
   status: ProtocolStatus
   balance: string
   payment_status: PaymentStatus
+  billing_status?: BillingStatus
   is_printed: boolean
   creation?: CreationAudit
   last_change?: LastChangeAudit
@@ -461,6 +468,62 @@ export interface ProtocolWithLoadedResults {
     id: number
     name: string
   }
+}
+
+// ============================================================================
+// FACTURACION
+// ============================================================================
+
+export interface Invoice {
+  id: number
+  protocol_id: number
+  insurance_name: string
+  ub_value_at_billing: string
+  total_ub_billed: string
+  total_amount: string
+  invoice_number: string | null
+  is_paid: boolean
+  paid_date: string | null
+  notes: string
+  is_active: boolean
+  created_at: string
+}
+
+export interface ProtocolToBill {
+  protocol_id: number
+  status: string
+  patient: {
+    id: number
+    first_name: string
+    last_name: string
+  }
+  insurance: {
+    id: number
+    name: string
+    ub_value_current: string
+  }
+  total_ub_authorized: string
+  estimated_amount: string
+}
+
+export interface BillingSummary {
+  adeudado_total: number
+  dinero_facturado_ooss: number
+  dinero_facturado_particular: number
+  ooss_top_facturacion: Array<{
+    insurance_name: string
+    total: number
+  }>
+  protocolos_por_facturar: number
+}
+
+export interface ProtocolBillingStatus {
+  protocol_id: number
+  is_billed: boolean
+  billed_at: string | null
+  status: string
+  insurance: string
+  patient: string
 }
 
 // ============================================================================

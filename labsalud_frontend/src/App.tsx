@@ -14,6 +14,7 @@ import { Toaster } from "sonner"
 import ProtocolosPage from "./components/protocolos/protocolos-page"
 import ResultadosPage from "./components/results/results-page"
 import ValidacionPage from "./components/validacion/validacion-page"
+import FacturacionPage from "./components/facturacion/facturacion-page"
 import { PERMISSIONS } from "./config/permissions"
 import NotFound from "./components/not-found"
 
@@ -113,6 +114,16 @@ function App() {
             }
           >
             <Route index element={<ValidacionPage />} />
+          </Route>
+          <Route
+            path="/facturacion"
+            element={
+              <ProtectedRoute requiredPermission={PERMISSIONS.MANAGE_BILLING.id}>
+                <Layout />
+              </ProtectedRoute>
+            }
+          >
+            <Route index element={<FacturacionPage />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>

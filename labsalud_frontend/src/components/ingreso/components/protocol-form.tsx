@@ -32,7 +32,7 @@ interface ProtocolFormProps {
   selectedDoctor: Doctor | null
   selectedInsurance: Insurance | null
   selectedSendMethod: SendMethod | null
-  valuePaid: string
+  patientPaid: string
   affiliateNumber: string
   isRefund: boolean
   isPrivateInsurance: boolean
@@ -46,7 +46,7 @@ interface ProtocolFormProps {
   onReset: () => void
   onShowCreateMedico: () => void
   onShowCreateObraSocial: () => void
-  onValuePaidChange: (value: string) => void
+  onPatientPaidChange: (value: string) => void
   onAffiliateNumberChange: (number: string) => void
   onRefundChange: (isRefund: boolean) => void
 }
@@ -59,7 +59,7 @@ export function ProtocolForm({
   selectedDoctor,
   selectedInsurance,
   selectedSendMethod,
-  valuePaid,
+  patientPaid,
   affiliateNumber,
   isRefund,
   isPrivateInsurance,
@@ -73,19 +73,19 @@ export function ProtocolForm({
   onReset,
   onShowCreateMedico,
   onShowCreateObraSocial,
-  onValuePaidChange,
+  onPatientPaidChange,
   onAffiliateNumberChange,
   onRefundChange,
 }: ProtocolFormProps) {
-  const patientPaid = Number.parseFloat(valuePaid) || 0
-  const remaining = Math.max(0, totals.patientOwes - patientPaid)
+  const paidAmount = Number.parseFloat(patientPaid) || 0
+  const remaining = Math.max(0, totals.patientOwes - paidAmount)
 
-  const handleValuePaidChange = (value: string) => {
-    onValuePaidChange(value)
+  const handlePatientPaidChange = (value: string) => {
+    onPatientPaidChange(value)
   }
 
   const handleFillTotal = () => {
-    onValuePaidChange(totals.patientOwes.toFixed(2))
+    onPatientPaidChange(totals.patientOwes.toFixed(2))
   }
 
   return (
@@ -261,18 +261,18 @@ export function ProtocolForm({
                 {/* Payment input */}
                 <div className="flex flex-col sm:flex-row gap-3 items-end">
                   <div className="flex-grow">
-                    <Label htmlFor="valuePaid" className="text-sm text-gray-600 mb-1 block">
+                    <Label htmlFor="patientPaid" className="text-sm text-gray-600 mb-1 block">
                       Monto pagado por el paciente
                     </Label>
                     <div className="flex gap-2">
                       <Input
-                        id="valuePaid"
+                        id="patientPaid"
                         type="number"
                         step="0.01"
                         min="0"
                         placeholder="0.00"
-                        value={valuePaid}
-                        onChange={(e) => handleValuePaidChange(e.target.value)}
+                        value={patientPaid}
+                        onChange={(e) => handlePatientPaidChange(e.target.value)}
                         className="h-10"
                       />
                       <Button

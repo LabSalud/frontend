@@ -18,6 +18,7 @@
 - ✅ arreglar que al crear un protocolo no se haga un resultado de los analisis 660001 y 661001 (que son los de facturacion), pero si se debe agregar como analisis porque es necesario para la facturacion
 - ✅ arreglar estado de envio fallido poner que se evalue
 - ✅ arreglar que el estado del protocolo pueda cambiar de envio fallido a completado cuando se reenvia. de igual manera que se marque el campo de is_printed
+- ⭕️ hacer endpoint para enviar/descargar varios reportes de protocolos de una sola vez 
 
 ##### AUDIT
 - ⭕️ arreglar las frases de auditoria
@@ -35,6 +36,7 @@
 
 ##### NAVBAR
 - ✅ agrreglar hambutton de navbar en telefono
+- ✅ arreglar menu de usuario en mobile, de la manera que esta funcionando, tiene que terminar funcionando como el menu de hambutton
 
 ##### INGRESO
 - ✅ arreglar tabla de analisis para que no aparezca el scroll horizontal en desktop y mobile
@@ -48,15 +50,22 @@
 
 ##### PROTOCOLOS
 - ✅ arreglar dialog de analisis para que no haya barra horizontal
+- ⭕️ usar endpoint nuevo de enviar/desagargar varios reportes de protocolos de una sola vez haciendo los endpoints sleeccionables tocando un cuadradito de tick y seleccionar los protocolos 
+- ⭕️ agregar color nuevo para el estado nuevo que es Pendiente de Facturacion con el id 8 armar conteo en las estadisticas de la pagina y ademas agregar toogle de filtro
 
 ##### PACIENTES
 - ✅ arreglar la busqueda de pacientes por endpoint
 
 ##### GESTION DE USUARIOS
 - ✅ arreglar que no aparecen los roles de los usuarios en la lista
+- arreglar usuarios que no aparecen en la lista de usuarios
 
 ##### RESULTADOS
 - ✅ agregar estado de envio fallido en los toogles de filtro
+
+##### FACTURACION
+- ⭕️ hacer una pagina nueva de facturacion
+
 
 
 # ACTUALIZACIONES

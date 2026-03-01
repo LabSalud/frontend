@@ -12,17 +12,16 @@ interface ProtocolDetailsSectionProps {
   insuranceName: string
   affiliateNumber?: string
   sendMethodName: string
-  valuePaid: string
   paymentStatus?: PaymentStatus | null
   balance: number
+  amountDue: string
+  amountPending: string
+  patientPaid: string
+  amountToReturn: string
   insuranceUbValue?: string
   privateUbValue?: string
   isPrinted?: boolean
   onOpenHistoryDialog: () => void
-  insuranceTotalToPay?: string
-  privateTotalToPay?: string
-  patientToLabAmount?: string
-  labToPatientAmount?: string
 }
 
 export function ProtocolDetailsSection({
@@ -31,23 +30,22 @@ export function ProtocolDetailsSection({
   insuranceName,
   affiliateNumber,
   sendMethodName,
-  valuePaid,
   paymentStatus,
   insuranceUbValue,
   privateUbValue,
   isPrinted,
   onOpenHistoryDialog,
-  insuranceTotalToPay,
-  privateTotalToPay,
-  patientToLabAmount,
-  labToPatientAmount,
+  amountDue,
+  amountPending,
+  patientPaid,
+  amountToReturn,
 }: ProtocolDetailsSectionProps) {
   const paymentStatusInfo = getPaymentStatusInfo(paymentStatus)
 
-  const patientDebt = Number.parseFloat(patientToLabAmount || "0")
-  const labDebt = Number.parseFloat(labToPatientAmount || "0")
-  const insuranceTotal = Number.parseFloat(insuranceTotalToPay || "0")
-  const privateTotal = Number.parseFloat(privateTotalToPay || "0")
+  const due = Number.parseFloat(amountDue || "0")
+  const pending = Number.parseFloat(amountPending || "0")
+  const paid = Number.parseFloat(patientPaid || "0")
+  const toReturn = Number.parseFloat(amountToReturn || "0")
 
   return (
     <div className="space-y-4 mt-4">
@@ -85,39 +83,31 @@ export function ProtocolDetailsSection({
           <span className="font-medium">{sendMethodName}</span>
         </div>
 
-        {insuranceTotal > 0 && (
-          <div className="flex items-center gap-3 text-sm">
-            <DollarSign className="h-4 w-4 text-gray-400 flex-shrink-0" />
-            <span className="text-gray-600 w-28 flex-shrink-0">Paga O.Social:</span>
-            <span className="font-medium text-blue-600">${insuranceTotal.toFixed(2)}</span>
-          </div>
-        )}
-
         <div className="flex items-center gap-3 text-sm">
           <DollarSign className="h-4 w-4 text-gray-400 flex-shrink-0" />
-          <span className="text-gray-600 w-28 flex-shrink-0">A Pagar:</span>
-          <span className="font-medium">${privateTotal.toFixed(2)}</span>
+          <span className="text-gray-600 w-28 flex-shrink-0">Total a pagar:</span>
+          <span className="font-medium">${due.toFixed(2)}</span>
         </div>
 
         <div className="flex items-center gap-3 text-sm">
           <DollarSign className="h-4 w-4 text-gray-400 flex-shrink-0" />
           <span className="text-gray-600 w-28 flex-shrink-0">Pagado:</span>
-          <span className="font-medium text-green-600">${Number.parseFloat(valuePaid || "0").toFixed(2)}</span>
+          <span className="font-medium text-green-600">${paid.toFixed(2)}</span>
         </div>
 
-        {patientDebt > 0 && (
+        {pending > 0 && (
           <div className="flex items-center gap-3 text-sm">
             <DollarSign className="h-4 w-4 text-yellow-500 flex-shrink-0" />
-            <span className="text-gray-600 w-28 flex-shrink-0">Debe Paciente:</span>
-            <span className="font-medium text-yellow-600">${patientDebt.toFixed(2)}</span>
+            <span className="text-gray-600 w-28 flex-shrink-0">Pendiente:</span>
+            <span className="font-medium text-yellow-600">${pending.toFixed(2)}</span>
           </div>
         )}
 
-        {labDebt > 0 && (
+        {toReturn > 0 && (
           <div className="flex items-center gap-3 text-sm">
-            <DollarSign className="h-4 w-4 text-red-500 flex-shrink-0" />
-            <span className="text-gray-600 w-28 flex-shrink-0">A Devolver:</span>
-            <span className="font-medium text-red-600">${labDebt.toFixed(2)}</span>
+            <DollarSign className="h-4 w-4 text-blue-500 flex-shrink-0" />
+            <span className="text-gray-600 w-28 flex-shrink-0">A devolver:</span>
+            <span className="font-medium text-blue-600">${toReturn.toFixed(2)}</span>
           </div>
         )}
 

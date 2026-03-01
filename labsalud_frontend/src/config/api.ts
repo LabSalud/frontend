@@ -81,6 +81,8 @@ export const PROTOCOL_ENDPOINTS = {
   PROTOCOL_DETAIL_UPDATE: (protocolId: number, detailId: number) =>
     buildApiUrl(`/protocols/protocols/${protocolId}/details/${detailId}/`),
   SEND_METHODS: buildApiUrl("/protocols/send-methods/"),
+  REPORT_BATCH: buildApiUrl("/protocols/protocols/report-batch/"),
+  REGULARIZE_BALANCE: (id: number) => buildApiUrl(`/protocols/protocols/${id}/regularize-balance/`),
 } as const
 
 // Audit system endpoints
@@ -114,6 +116,19 @@ export const REPORTING_ENDPOINTS = {
     buildApiUrl(`/reports/protocols/${id}/send-email/?type=${type}`),
   SEND_WHATSAPP: (id: number, type: "full" | "summary") =>
     buildApiUrl(`/reports/protocols/${id}/send-whatsapp/?type=${type}`),
+} as const
+
+// Billing endpoints
+export const BILLING_ENDPOINTS = {
+  INVOICES: buildApiUrl("/billing/invoices/"),
+  INVOICE_DETAIL: (id: number) => buildApiUrl(`/billing/invoices/${id}/`),
+  CREATE_FOR_PROTOCOL: (protocolId: number) =>
+    buildApiUrl(`/billing/invoices/create-for-protocol/${protocolId}/`),
+  BY_INSURANCE: (insuranceId: number) =>
+    buildApiUrl(`/billing/invoices/by-insurance/${insuranceId}/`),
+  PROTOCOLS_TO_BILL: buildApiUrl("/billing/invoices/protocols-to-bill/"),
+  SUMMARY: buildApiUrl("/billing/invoices/summary/"),
+  PROTOCOLS_STATUS: buildApiUrl("/billing/invoices/protocols-status/"),
 } as const
 
 // Core endpoints
@@ -201,6 +216,7 @@ export const API_ENDPOINTS = {
   ANALYTICS: ANALYTICS_ENDPOINTS,
   RESULTS: RESULTS_ENDPOINTS,
   REPORTING: REPORTING_ENDPOINTS,
+  BILLING: BILLING_ENDPOINTS,
   CORE: CORE_ENDPOINTS,
 } as const
 

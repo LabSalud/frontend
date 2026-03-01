@@ -35,7 +35,7 @@ export default function IngresoPage() {
   const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null)
   const [selectedInsurance, setSelectedInsurance] = useState<Insurance | null>(null)
   const [showEditPatient, setShowEditPatient] = useState(false)
-  const [valuePaid, setValuePaid] = useState("")
+  const [patientPaid, setPatientPaid] = useState("")
   const [selectedSendMethod, setSelectedSendMethod] = useState<SendMethod | null>(null)
   const [affiliateNumber, setAffiliateNumber] = useState("")
   const [isRefund, setIsRefund] = useState(false)
@@ -258,7 +258,7 @@ export default function IngresoPage() {
     setSelectedInsurance(null)
     setShowCreateMedico(false)
     setShowCreateObraSocial(false)
-    setValuePaid("")
+    setPatientPaid("")
     setSelectedSendMethod(sendMethods[0] || null)
     setAffiliateNumber("")
     setIsRefund(false)
@@ -303,8 +303,8 @@ export default function IngresoPage() {
     const sendMethodForSuccess = selectedSendMethod
 
     try {
-      const patientPaid = Number.parseFloat(valuePaid) || 0
-      const totalValuePaid = patientPaid
+      const currentPatientPaid = Number.parseFloat(patientPaid) || 0
+      const totalValuePaid = currentPatientPaid
 
       const protocolData: CreateProtocolInput = {
         patient: currentPatient.id,
@@ -400,7 +400,7 @@ export default function IngresoPage() {
               selectedDoctor={selectedDoctor}
               selectedInsurance={selectedInsurance}
               selectedSendMethod={selectedSendMethod}
-              valuePaid={valuePaid}
+              patientPaid={patientPaid}
               affiliateNumber={affiliateNumber}
               isRefund={isRefund}
               isPrivateInsurance={isPrivateInsurance}
@@ -414,7 +414,7 @@ export default function IngresoPage() {
               onReset={handleReset}
               onShowCreateMedico={() => setShowCreateMedico(true)}
               onShowCreateObraSocial={() => setShowCreateObraSocial(true)}
-              onValuePaidChange={setValuePaid}
+              onPatientPaidChange={setPatientPaid}
               onAffiliateNumberChange={setAffiliateNumber}
               onRefundChange={setIsRefund}
             />

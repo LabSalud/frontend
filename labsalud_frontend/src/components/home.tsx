@@ -3,7 +3,7 @@ import { useState, useEffect } from "react"
 import useAuth from "@/contexts/auth-context"
 import { useApi } from "@/hooks/use-api"
 import { useToast } from "@/hooks/use-toast"
-import { ANALYTICS_ENDPOINTS } from "@/config/api"
+import { ANALYTICS_ENDPOINTS, BILLING_ENDPOINTS } from "@/config/api"
 import { PERMISSIONS } from "@/config/permissions"
 import type { Permission } from "@/types"
 import {
@@ -61,20 +61,18 @@ export default function Home() {
     try {
       setLoading(true)
 
-      const [dashboardResponse, statusResponse] = await Promise.all([
+      const [dashboardResponse, billingSummaryResponse] = await Promise.all([
         apiRequest(ANALYTICS_ENDPOINTS.DASHBOARD),
-        apiRequest(ANALYTICS_ENDPOINTS.PROTOCOLS_BY_STATUS),
+        apiRequest(BILLING_ENDPOINTS.SUMMARY),
       ])
 
       const data = await dashboardResponse.json()
 
       let pendingBillingCount = 0
-      if (statusResponse.ok) {
-        const statusData = await statusResponse.json()
-        const billingState = statusData.states?.find(
-          (s: { status_id: number; count: number }) => s.status_id === 8,
-        )
-        pendingBillingCount = billingState?.count || 0
+
+      if (billingSummaryResponse.ok) {
+        const billingData = await billingSummaryResponse.json()
+        pendingBillingCount = Number(billingData.protocolos_por_facturar || 0)
       }
 
       setStats({

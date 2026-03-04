@@ -32,7 +32,7 @@ import { useInfiniteScroll } from "../../hooks/use-infinite-scroll"
 import { useDebounce } from "../../hooks/use-debounce"
 import { useNavigate } from "react-router-dom"
 import { toast } from "sonner"
-import { PROTOCOL_ENDPOINTS, ANALYTICS_ENDPOINTS, TOAST_DURATION } from "@/config/api"
+import { PROTOCOL_ENDPOINTS, ANALYTICS_ENDPOINTS, BILLING_ENDPOINTS, TOAST_DURATION } from "@/config/api"
 import type { ProtocolListItem, SendMethod } from "@/types"
 
 interface PaginatedResponse {
@@ -59,10 +59,10 @@ const STATUS_ID_MAP: Record<number, string> = {
   5: "completed",
   6: "pendingRetiro",
   7: "sendFailed",
-  8: "pendingBilling",
 }
 
 const STATUS_FILTER_KEY = "labsalud_protocol_status_filters"
+const ALLOWED_STATUS_FILTERS = [1, 2, 3, 4, 5, 6, 7]
 
 export default function ProtocolosPage() {
   const { apiRequest } = useApi()
@@ -80,7 +80,8 @@ export default function ProtocolosPage() {
   const [selectedStatuses, setSelectedStatuses] = useState<number[]>(() => {
     try {
       const saved = localStorage.getItem(STATUS_FILTER_KEY)
-      return saved ? JSON.parse(saved) : []
+      const parsed = saved ? JSON.parse(saved) : []
+      return Array.isArray(parsed) ? parsed.filter((status) => ALLOWED_STATUS_FILTERS.includes(status)) : []
     } catch {
       return []
     }
@@ -115,10 +116,13 @@ export default function ProtocolosPage() {
 
   const fetchStateStats = useCallback(async () => {
     try {
-      const response = await apiRequest(ANALYTICS_ENDPOINTS.PROTOCOLS_BY_STATUS)
+      const [statusResponse, billingSummaryResponse] = await Promise.all([
+        apiRequest(ANALYTICS_ENDPOINTS.PROTOCOLS_BY_STATUS),
+        apiRequest(BILLING_ENDPOINTS.SUMMARY),
+      ])
 
-      if (response.ok) {
-        const data: ProtocolsByStatusResponse = await response.json()
+      if (statusResponse.ok) {
+        const data: ProtocolsByStatusResponse = await statusResponse.json()
 
         // Inicializar stats con todos en 0
         const newStats = {
@@ -140,6 +144,11 @@ export default function ProtocolosPage() {
             ;(newStats as Record<string, number>)[key] = state.count
           }
         })
+
+        if (billingSummaryResponse.ok) {
+          const billingData = await billingSummaryResponse.json()
+          newStats.pendingBilling = Number(billingData.protocolos_por_facturar || 0)
+        }
 
         setStats(newStats)
       }
@@ -298,6 +307,7 @@ export default function ProtocolosPage() {
   }, [fetchProtocolsFromAPI, debouncedSearchTerm, fetchStateStats])
 
   const toggleStatus = (statusId: number) => {
+    if (!ALLOWED_STATUS_FILTERS.includes(statusId)) return
     setSelectedStatuses((prev) =>
       prev.includes(statusId) ? prev.filter((id) => id !== statusId) : [...prev, statusId],
     )
@@ -654,15 +664,6 @@ export default function ProtocolosPage() {
               >
                 <AlertTriangle className="h-3 w-3 mr-1" />
                 Envío Fallido
-              </Button>
-              <Button
-                variant={selectedStatuses.includes(8) ? "default" : "outline"}
-                size="sm"
-                onClick={() => toggleStatus(8)}
-                className={selectedStatuses.includes(8) ? "bg-teal-500 hover:bg-teal-600" : ""}
-              >
-                <Receipt className="h-3 w-3 mr-1" />
-                Pend. Facturación
               </Button>
               {selectedStatuses.length > 0 && (
                 <Button variant="ghost" size="sm" onClick={() => setSelectedStatuses([])} className="text-gray-500">

@@ -42,8 +42,6 @@
 ##### CONFIGURACIONES
 
 ##### PROTOCOLOS
-- ⭕️ arreglar estado de pago incompleto
-- ⭕️ arreglar el tema de envio
 
 ##### PACIENTES
 

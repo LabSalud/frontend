@@ -320,6 +320,16 @@ export function ProtocolCard({
 
   const handleGenerateReport = async () => {
     setIsGeneratingReport(true)
+    const printWindow = window.open("", "_blank")
+
+    if (!printWindow) {
+      toast.error("El navegador bloqueó la ventana de impresión. Habilitá los popups para este sitio.", {
+        duration: TOAST_DURATION,
+      })
+      setIsGeneratingReport(false)
+      return
+    }
+
     try {
       const response = await apiRequest(REPORTING_ENDPOINTS.PRINT(protocol.id, reportType), {
         method: "POST",
@@ -328,18 +338,20 @@ export function ProtocolCard({
       if (response.ok) {
         const blob = await response.blob()
         const url = window.URL.createObjectURL(blob)
-        const printWindow = window.open(url, "_blank")
-        if (printWindow) {
-          printWindow.addEventListener("load", () => {
-            printWindow.print()
-          })
-        }
+        printWindow.location.href = url
+        printWindow.addEventListener("load", () => {
+          printWindow.print()
+          setTimeout(() => {
+            window.URL.revokeObjectURL(url)
+          }, 5000)
+        })
         toast.success("Reporte generado exitosamente", { duration: TOAST_DURATION })
       } else {
         const errorData = await response.json().catch(() => ({}))
         throw new Error(extractErrorMessage(errorData, "Error generating report"))
       }
     } catch (error) {
+      printWindow.close()
       console.error("Error generating report:", error)
       const message = error instanceof Error ? error.message : "Error al generar el reporte"
       toast.error(message, { duration: TOAST_DURATION })

@@ -11,6 +11,7 @@ export default function Login() {
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isPageLoaded, setIsPageLoaded] = useState(false)
   const { login, isLoading, user } = useAuth()
   const navigate = useNavigate()
 
@@ -26,6 +27,14 @@ export default function Login() {
     if (lastUsername && !username) {
       setUsername(lastUsername)
     }
+  }, [])
+
+  useEffect(() => {
+    const entranceTimeout = setTimeout(() => {
+      setIsPageLoaded(true)
+    }, 0)
+
+    return () => clearTimeout(entranceTimeout)
   }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -72,10 +81,31 @@ export default function Login() {
 
   return (
     <div className="min-h-screen bg-[#adadad] relative overflow-hidden">
+      {/* Background Logo */}
+      <div className="fixed inset-0 flex items-center justify-center pointer-events-none z-0 overflow-hidden">
+        <img
+          src="/logo.svg"
+          alt="Background Logo"
+          className="w-[100vw] h-[100vh] max-w-[1300px] max-h-[1200px] object-contain opacity-65 blur-lg"
+          onError={(e) => {
+            const target = e.target as HTMLImageElement
+            target.src = "/placeholder.svg?height=800&width=800&text=LOGO&bg=f3f4f6&color=9ca3af"
+            target.style.opacity = "0.9"
+          }}
+        />
+      </div>
+
       {/* Notch Container */}
-      <div className="relative w-full flex justify-center">
+      <div className="relative z-10 w-full flex justify-center">
         {/* Notch */}
-        <div className="bg-white rounded-b-3xl shadow-2xl w-full max-w-md transition-all duration-700 ease-out">
+        <div
+          className={`
+            bg-white rounded-b-3xl shadow-2xl w-full max-w-md
+            origin-top transform-gpu will-change-transform
+            transition-all duration-[2000ms] ease-[cubic-bezier(0.16,1,0.3,1)]
+            ${isPageLoaded ? "translate-y-0 opacity-100 scale-y-100" : "-translate-y-[110vh] opacity-0 scale-y-75"}
+          `}
+        >
           {/* Login Form */}
           <div className="px-8 py-8">
             <div className="text-center mb-8">

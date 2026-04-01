@@ -1,13 +1,31 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
 import { Home, ArrowLeft, FlaskConical } from "lucide-react"
 
 export default function NotFound() {
+  const [isPageLoaded, setIsPageLoaded] = useState(false)
+
+  useEffect(() => {
+    const entranceTimeout = setTimeout(() => {
+      setIsPageLoaded(true)
+    }, 70)
+
+    return () => clearTimeout(entranceTimeout)
+  }, [])
+
   return (
-    <div className="min-h-screen bg-[#adadad] relative overflow-hidden flex items-center justify-center">
-      <div className="relative w-full flex justify-center px-4">
-        <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg transition-all duration-700 ease-out">
+    <div className="min-h-screen relative overflow-hidden">
+      <div className="relative z-10 w-full flex justify-center px-4">
+        <div
+          className={`
+            bg-white rounded-b-3xl shadow-2xl w-full max-w-lg
+            origin-top transform-gpu will-change-transform
+            transition-all duration-[2000ms] ease-[cubic-bezier(0.16,1,0.3,1)]
+            ${isPageLoaded ? "translate-y-0 opacity-100 scale-y-100" : "-translate-y-[110vh] opacity-0 scale-y-75"}
+          `}
+        >
           <div className="px-8 py-12">
             {/* Icon */}
             <div className="flex justify-center mb-6">

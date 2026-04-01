@@ -21,114 +21,131 @@ import NotFound from "./components/not-found"
 function App() {
   return (
     <AuthProvider>
-      <Router>
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/forgot-password" element={<ForgotPassword />} />
-          <Route
-            path="/"
-            element={
-              <ProtectedRoute>
-                <Layout />
-              </ProtectedRoute>
-            }
-          >
-            <Route index element={<Home />} />
-          </Route>
-          <Route
-            path="/profile"
-            element={
-              <ProtectedRoute>
-                <Layout />
-              </ProtectedRoute>
-            }
-          >
-            <Route index element={<ProfilePage />} />
-          </Route>
-          <Route
-            path="/management"
-            element={
-              <ProtectedRoute requiredPermission={PERMISSIONS.MANAGE_USERS.id}>
-                <Layout />
-              </ProtectedRoute>
-            }
-          >
-            <Route index element={<ManagementPage />} />
-          </Route>
-          <Route
-            path="/pacientes"
-            element={
-              <ProtectedRoute>
-                <Layout />
-              </ProtectedRoute>
-            }
-          >
-            <Route index element={<PatientsPage />} />
-          </Route>
-          <Route
-            path="/configuracion"
-            element={
-              <ProtectedRoute>
-                <Layout />
-              </ProtectedRoute>
-            }
-          >
-            <Route index element={<ConfigurationPage />} />
-          </Route>
-          <Route
-            path="/ingreso"
-            element={
-              <ProtectedRoute>
-                <Layout />
-              </ProtectedRoute>
-            }
-          >
-            <Route index element={<IngresoPage />} />
-          </Route>
-          <Route
-            path="/protocolos"
-            element={
-              <ProtectedRoute>
-                <Layout />
-              </ProtectedRoute>
-            }
-          >
-            <Route index element={<ProtocolosPage />} />
-          </Route>
-          <Route
-            path="/resultados"
-            element={
-              <ProtectedRoute>
-                <Layout />
-              </ProtectedRoute>
-            }
-          >
-            <Route index element={<ResultadosPage />} />
-          </Route>
-          <Route
-            path="/validacion"
-            element={
-              <ProtectedRoute requiredPermission={PERMISSIONS.VALIDATE_RESULTS.id}>
-                <Layout />
-              </ProtectedRoute>
-            }
-          >
-            <Route index element={<ValidacionPage />} />
-          </Route>
-          <Route
-            path="/facturacion"
-            element={
-              <ProtectedRoute requiredPermission={PERMISSIONS.MANAGE_BILLING.id}>
-                <Layout />
-              </ProtectedRoute>
-            }
-          >
-            <Route index element={<FacturacionPage />} />
-          </Route>
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </Router>
-      <Toaster position="bottom-right" richColors />
+      <div className="min-h-screen bg-[#adadad] relative">
+        <div className="fixed inset-0 flex items-center justify-center pointer-events-none z-0 overflow-hidden">
+          <img
+            src="/logo.svg"
+            alt="Background Logo"
+            className="w-[100vw] h-[100vh] max-w-[1300px] max-h-[1200px] object-contain opacity-65 blur-lg"
+            onError={(e) => {
+              const target = e.target as HTMLImageElement
+              target.src = "/placeholder.svg?height=800&width=800&text=LOGO&bg=f3f4f6&color=9ca3af"
+              target.style.opacity = "0.9"
+            }}
+          />
+        </div>
+
+        <div className="relative z-10">
+          <Router>
+            <Routes>
+              <Route path="/login" element={<Login />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route
+                path="/"
+                element={
+                  <ProtectedRoute>
+                    <Layout />
+                  </ProtectedRoute>
+                }
+              >
+                <Route index element={<Home />} />
+              </Route>
+              <Route
+                path="/profile"
+                element={
+                  <ProtectedRoute>
+                    <Layout />
+                  </ProtectedRoute>
+                }
+              >
+                <Route index element={<ProfilePage />} />
+              </Route>
+              <Route
+                path="/management"
+                element={
+                  <ProtectedRoute requiredPermission={PERMISSIONS.MANAGE_USERS.id}>
+                    <Layout />
+                  </ProtectedRoute>
+                }
+              >
+                <Route index element={<ManagementPage />} />
+              </Route>
+              <Route
+                path="/pacientes"
+                element={
+                  <ProtectedRoute>
+                    <Layout />
+                  </ProtectedRoute>
+                }
+              >
+                <Route index element={<PatientsPage />} />
+              </Route>
+              <Route
+                path="/configuracion"
+                element={
+                  <ProtectedRoute>
+                    <Layout />
+                  </ProtectedRoute>
+                }
+              >
+                <Route index element={<ConfigurationPage />} />
+              </Route>
+              <Route
+                path="/ingreso"
+                element={
+                  <ProtectedRoute>
+                    <Layout />
+                  </ProtectedRoute>
+                }
+              >
+                <Route index element={<IngresoPage />} />
+              </Route>
+              <Route
+                path="/protocolos"
+                element={
+                  <ProtectedRoute>
+                    <Layout />
+                  </ProtectedRoute>
+                }
+              >
+                <Route index element={<ProtocolosPage />} />
+              </Route>
+              <Route
+                path="/resultados"
+                element={
+                  <ProtectedRoute>
+                    <Layout />
+                  </ProtectedRoute>
+                }
+              >
+                <Route index element={<ResultadosPage />} />
+              </Route>
+              <Route
+                path="/validacion"
+                element={
+                  <ProtectedRoute requiredPermission={PERMISSIONS.VALIDATE_RESULTS.id}>
+                    <Layout />
+                  </ProtectedRoute>
+                }
+              >
+                <Route index element={<ValidacionPage />} />
+              </Route>
+              <Route
+                path="/facturacion"
+                element={
+                  <ProtectedRoute requiredPermission={PERMISSIONS.MANAGE_BILLING.id}>
+                    <Layout />
+                  </ProtectedRoute>
+                }
+              >
+                <Route index element={<FacturacionPage />} />
+              </Route>
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </Router>
+          <Toaster position="bottom-right" richColors />
+        </div>
+      </div>
     </AuthProvider>
   )
 }

@@ -10,21 +10,7 @@ interface LayoutProps {
 
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
   return (
-    <div className="min-h-screen bg-[#adadad] relative">
-      {/* Background Logo */}
-      <div className="fixed inset-0 flex items-center justify-center pointer-events-none z-0 overflow-hidden">
-        <img
-          src="/logo.svg"
-          alt="Background Logo"
-          className="w-[100vw] h-[100vh] max-w-[1300px] max-h-[1200px] object-contain opacity-65 blur-lg"
-          onError={(e) => {
-            const target = e.target as HTMLImageElement
-            target.src = "/placeholder.svg?height=800&width=800&text=LOGO&bg=f3f4f6&color=9ca3af"
-            target.style.opacity = "0.9"
-          }}
-        />
-      </div>
-
+    <div className="min-h-screen relative">
       {/* Content */}
       <div className="relative z-10">
         <Navbar />

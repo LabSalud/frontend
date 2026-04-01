@@ -463,108 +463,108 @@ export default function ProtocolosPage() {
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-9 gap-3 sm:gap-4">
           <Card>
             <CardContent className="p-3 sm:p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs sm:text-sm font-medium text-gray-600">Total</p>
+              <div className="space-y-1">
+                <div className="flex items-center justify-center gap-2">
+                  <FileText className="h-5 w-5 sm:h-6 sm:w-6 text-gray-400" />
                   <p className="text-lg sm:text-2xl font-bold text-gray-900">{stats.total}</p>
                 </div>
-                <FileText className="h-6 w-6 sm:h-8 sm:w-8 text-gray-400" />
+                <p className="text-xs sm:text-sm font-medium text-gray-600 text-center">Total</p>
               </div>
             </CardContent>
           </Card>
 
           <Card className="bg-yellow-50">
             <CardContent className="p-3 sm:p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs sm:text-sm font-medium text-yellow-700">Pend. Carga</p>
+              <div className="space-y-1">
+                <div className="flex items-center justify-center gap-2">
+                  <Clock className="h-5 w-5 sm:h-6 sm:w-6 text-yellow-400" />
                   <p className="text-lg sm:text-2xl font-bold text-yellow-600">{stats.pendingEntry}</p>
                 </div>
-                <Clock className="h-6 w-6 sm:h-8 sm:w-8 text-yellow-400" />
+                <p className="text-xs sm:text-sm font-medium text-yellow-700 text-center">Pend. Carga</p>
               </div>
             </CardContent>
           </Card>
 
           <Card className="bg-purple-50">
             <CardContent className="p-3 sm:p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs sm:text-sm font-medium text-purple-700">Pend. Retiro</p>
+              <div className="space-y-1">
+                <div className="flex items-center justify-center gap-2">
+                  <User className="h-5 w-5 sm:h-6 sm:w-6 text-purple-400" />
                   <p className="text-lg sm:text-2xl font-bold text-purple-600">{stats.pendingRetiro}</p>
                 </div>
-                <User className="h-6 w-6 sm:h-8 sm:w-8 text-purple-400" />
+                <p className="text-xs sm:text-sm font-medium text-purple-700 text-center">Pend. Retiro</p>
               </div>
             </CardContent>
           </Card>
 
           <Card className="bg-orange-50">
             <CardContent className="p-3 sm:p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs sm:text-sm font-medium text-orange-700">Pago Incompleto</p>
+              <div className="space-y-1">
+                <div className="flex items-center justify-center gap-2">
+                  <Calendar className="h-5 w-5 sm:h-6 sm:w-6 text-orange-400" />
                   <p className="text-lg sm:text-2xl font-bold text-orange-600">{stats.incompletePayment}</p>
                 </div>
-                <Calendar className="h-6 w-6 sm:h-8 sm:w-8 text-orange-400" />
+                <p className="text-xs sm:text-sm font-medium text-orange-700 text-center">Pago Incompleto</p>
               </div>
             </CardContent>
           </Card>
 
           <Card className="bg-blue-50">
             <CardContent className="p-3 sm:p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs sm:text-sm font-medium text-blue-700">Pend. Validación</p>
+              <div className="space-y-1">
+                <div className="flex items-center justify-center gap-2">
+                  <Filter className="h-5 w-5 sm:h-6 sm:w-6 text-blue-400" />
                   <p className="text-lg sm:text-2xl font-bold text-blue-600">{stats.pendingValidation}</p>
                 </div>
-                <Filter className="h-6 w-6 sm:h-8 sm:w-8 text-blue-400" />
+                <p className="text-xs sm:text-sm font-medium text-blue-700 text-center">Pend. Validación</p>
               </div>
             </CardContent>
           </Card>
 
           <Card className="bg-green-50">
             <CardContent className="p-3 sm:p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs sm:text-sm font-medium text-green-700">Completados</p>
+              <div className="space-y-1">
+                <div className="flex items-center justify-center gap-2">
+                  <CheckCircle className="h-5 w-5 sm:h-6 sm:w-6 text-green-400" />
                   <p className="text-lg sm:text-2xl font-bold text-green-600">{stats.completed}</p>
                 </div>
-                <CheckCircle className="h-6 w-6 sm:h-8 sm:w-8 text-green-400" />
+                <p className="text-xs sm:text-sm font-medium text-green-700 text-center">Completados</p>
               </div>
             </CardContent>
           </Card>
 
           <Card className="bg-red-50">
             <CardContent className="p-3 sm:p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs sm:text-sm font-medium text-red-700">Cancelados</p>
+              <div className="space-y-1">
+                <div className="flex items-center justify-center gap-2">
+                  <Ban className="h-5 w-5 sm:h-6 sm:w-6 text-red-400" />
                   <p className="text-lg sm:text-2xl font-bold text-red-600">{stats.cancelled}</p>
                 </div>
-                <Ban className="h-6 w-6 sm:h-8 sm:w-8 text-red-400" />
+                <p className="text-xs sm:text-sm font-medium text-red-700 text-center">Cancelados</p>
               </div>
             </CardContent>
           </Card>
 
           <Card className="bg-red-50">
             <CardContent className="p-3 sm:p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs sm:text-sm font-medium text-red-700">Envío Fallido</p>
+              <div className="space-y-1">
+                <div className="flex items-center justify-center gap-2">
+                  <AlertTriangle className="h-5 w-5 sm:h-6 sm:w-6 text-red-400" />
                   <p className="text-lg sm:text-2xl font-bold text-red-600">{stats.sendFailed}</p>
                 </div>
-                <AlertTriangle className="h-6 w-6 sm:h-8 sm:w-8 text-red-400" />
+                <p className="text-xs sm:text-sm font-medium text-red-700 text-center">Envío Fallido</p>
               </div>
             </CardContent>
           </Card>
 
           <Card className="bg-teal-50">
             <CardContent className="p-3 sm:p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs sm:text-sm font-medium text-teal-700">Pend. Facturación</p>
+              <div className="space-y-1">
+                <div className="flex items-center justify-center gap-2">
+                  <Receipt className="h-5 w-5 sm:h-6 sm:w-6 text-teal-400" />
                   <p className="text-lg sm:text-2xl font-bold text-teal-600">{stats.pendingBilling}</p>
                 </div>
-                <Receipt className="h-6 w-6 sm:h-8 sm:w-8 text-teal-400" />
+                <p className="text-xs sm:text-sm font-medium text-teal-700 text-center">Pend. Facturación</p>
               </div>
             </CardContent>
           </Card>

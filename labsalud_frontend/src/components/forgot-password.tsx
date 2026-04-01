@@ -62,7 +62,7 @@ export default function ForgotPassword() {
 
   if (isSuccess) {
     return (
-      <div className="min-h-screen bg-[#adadad] relative overflow-hidden">
+      <div className="min-h-screen relative overflow-hidden">
         <div className="relative w-full flex justify-center">
           <div className="bg-white rounded-b-3xl shadow-2xl w-full max-w-md transition-all duration-700 ease-out">
             <div className="px-8 py-8">
@@ -109,7 +109,7 @@ export default function ForgotPassword() {
   }
 
   return (
-    <div className="min-h-screen bg-[#adadad] relative overflow-hidden">
+    <div className="min-h-screen relative overflow-hidden">
       <div className="relative w-full flex justify-center">
         <div className="bg-white rounded-b-3xl shadow-2xl w-full max-w-md transition-all duration-700 ease-out">
           <div className="px-8 py-8">

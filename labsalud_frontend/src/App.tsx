@@ -1,5 +1,6 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom"
 import { AuthProvider } from "./contexts/auth-context"
+import { RouteChangeListener } from "./components/route-change-listener"
 import Login from "./components/login"
 import Home from "./components/home"
 import { Layout } from "./components/layout"
@@ -37,6 +38,7 @@ function App() {
 
         <div className="relative z-10">
           <Router>
+            <RouteChangeListener />
             <Routes>
               <Route path="/login" element={<Login />} />
               <Route path="/forgot-password" element={<ForgotPassword />} />

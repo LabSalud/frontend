@@ -30,9 +30,11 @@ import { ProtocolCard } from "./components/protocol-card"
 import { useApi } from "../../hooks/use-api"
 import { useInfiniteScroll } from "../../hooks/use-infinite-scroll"
 import { useDebounce } from "../../hooks/use-debounce"
+import { useAuth } from "@/contexts/auth-context"
 import { useNavigate } from "react-router-dom"
 import { toast } from "sonner"
 import { PROTOCOL_ENDPOINTS, ANALYTICS_ENDPOINTS, BILLING_ENDPOINTS, TOAST_DURATION } from "@/config/api"
+import { PERMISSIONS } from "@/config/permissions"
 import type { ProtocolListItem, SendMethod } from "@/types"
 
 interface PaginatedResponse {
@@ -66,8 +68,10 @@ const ALLOWED_STATUS_FILTERS = [1, 2, 3, 4, 5, 6, 7]
 
 export default function ProtocolosPage() {
   const { apiRequest } = useApi()
+  const { hasPermission } = useAuth()
   const navigate = useNavigate()
   const searchInputRef = useRef<HTMLInputElement>(null)
+  const canAccessBilling = hasPermission(PERMISSIONS.MANAGE_BILLING.id)
 
   // Estados principales
   const [allProtocols, setAllProtocols] = useState<ProtocolListItem[]>([])
@@ -557,17 +561,19 @@ export default function ProtocolosPage() {
             </CardContent>
           </Card>
 
-          <Card className="bg-teal-50">
-            <CardContent className="p-3 sm:p-4">
-              <div className="space-y-1">
-                <div className="flex items-center justify-center gap-2">
-                  <Receipt className="h-5 w-5 sm:h-6 sm:w-6 text-teal-400" />
-                  <p className="text-lg sm:text-2xl font-bold text-teal-600">{stats.pendingBilling}</p>
+          {canAccessBilling && (
+            <Card className="bg-teal-50">
+              <CardContent className="p-3 sm:p-4">
+                <div className="space-y-1">
+                  <div className="flex items-center justify-center gap-2">
+                    <Receipt className="h-5 w-5 sm:h-6 sm:w-6 text-teal-400" />
+                    <p className="text-lg sm:text-2xl font-bold text-teal-600">{stats.pendingBilling}</p>
+                  </div>
+                  <p className="text-xs sm:text-sm font-medium text-teal-700 text-center">Pend. Facturación</p>
                 </div>
-                <p className="text-xs sm:text-sm font-medium text-teal-700 text-center">Pend. Facturación</p>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
 

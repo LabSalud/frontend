@@ -28,7 +28,7 @@ export const useApi = () => {
   const { setLoading } = useLoading()
 
   const refreshToken = useCallback(async (): Promise<boolean> => {
-    const refreshTokenValue = localStorage.getItem("refresh_token")
+    const refreshTokenValue = sessionStorage.getItem("refresh_token")
     if (!refreshTokenValue) return false
 
     try {
@@ -44,9 +44,9 @@ export const useApi = () => {
       if (!response.ok) return false
 
       const data = await response.json()
-      localStorage.setItem("access_token", data.access)
+      sessionStorage.setItem("access_token", data.access)
       if (data.refresh) {
-        localStorage.setItem("refresh_token", data.refresh)
+        sessionStorage.setItem("refresh_token", data.refresh)
       }
       return true
     } catch (error) {
@@ -83,9 +83,9 @@ export const useApi = () => {
 
     const reloginBtn = modal.querySelector("#relogin-btn")
     reloginBtn?.addEventListener("click", () => {
-      localStorage.removeItem("access_token")
-      localStorage.removeItem("refresh_token")
-      localStorage.removeItem("user")
+      sessionStorage.removeItem("access_token")
+      sessionStorage.removeItem("refresh_token")
+      sessionStorage.removeItem("user")
       window.location.reload()
     })
   }, [])
@@ -107,7 +107,7 @@ export const useApi = () => {
           requestHeaders["Content-Type"] = "application/json"
         }
 
-        const token = localStorage.getItem("access_token")
+        const token = sessionStorage.getItem("access_token")
         if (token) {
           requestHeaders.Authorization = `Bearer ${token}`
         }

@@ -203,8 +203,8 @@ export default function ProfilePage() {
           const updatedProfile: ProfileData = await response.json()
           setProfileData(updatedProfile)
 
-          // Obtener el usuario actual del localStorage
-          const currentUserData = localStorage.getItem("user")
+          // Obtener el usuario actual de sessionStorage
+          const currentUserData = sessionStorage.getItem("user")
           if (currentUserData) {
             const currentUser = JSON.parse(currentUserData)
 
@@ -216,7 +216,7 @@ export default function ProfilePage() {
             }
 
             // Guardar el objeto usuario actualizado
-            localStorage.setItem("user", JSON.stringify(updatedUserData))
+            sessionStorage.setItem("user", JSON.stringify(updatedUserData))
           }
 
           toast.success("Perfil actualizado correctamente", {

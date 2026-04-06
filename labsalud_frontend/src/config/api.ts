@@ -36,6 +36,7 @@ export const USER_ENDPOINTS = {
   USERS: buildApiUrl("/users/users/"),
   USER_DETAIL: (id: number) => buildApiUrl(`/users/users/${id}/`),
   ME: buildApiUrl("/users/me/"),
+  ME_CONTEXT: buildApiUrl("/users/me/context/"),
   PASSWORD_RESET: buildApiUrl("/users/password-reset/"),
 } as const
 

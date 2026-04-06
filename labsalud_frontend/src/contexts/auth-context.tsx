@@ -4,7 +4,7 @@ import { createContext, useContext, useState, useEffect, useCallback, useRef, ty
 import { useToast } from "@/hooks/use-toast"
 import { IdleWarningModal } from "@/components/idle-warning-modal"
 import useIdleTimeout from "@/hooks/use-idle-timeout"
-import { AUTH_ENDPOINTS } from "@/config/api"
+import { AUTH_ENDPOINTS, USER_ENDPOINTS } from "@/config/api"
 import type { User } from "@/types"
 
 export interface TokenRefreshResponse {
@@ -54,9 +54,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const logout = useCallback(
     (showToast = true) => {
-      localStorage.removeItem("access_token")
-      localStorage.removeItem("refresh_token")
-      localStorage.removeItem("user")
+      sessionStorage.removeItem("access_token")
+      sessionStorage.removeItem("refresh_token")
+      sessionStorage.removeItem("user")
       setToken(null)
       setUser(null)
       setIsAuthenticated(false)
@@ -98,7 +98,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   )
 
   const refreshToken = useCallback(async (): Promise<boolean> => {
-    const refreshTokenValue = localStorage.getItem("refresh_token")
+    const refreshTokenValue = sessionStorage.getItem("refresh_token")
     if (!refreshTokenValue) return false
 
     try {
@@ -114,9 +114,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
       const data: TokenRefreshResponse = await response.json()
 
-      localStorage.setItem("access_token", data.access)
+      sessionStorage.setItem("access_token", data.access)
       if (data.refresh) {
-        localStorage.setItem("refresh_token", data.refresh)
+        sessionStorage.setItem("refresh_token", data.refresh)
       }
       setToken(data.access)
       return true
@@ -152,9 +152,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
         const data: AuthResponse = await response.json()
         console.log("[v0] Login successful, user:", data.user.username)
 
-        localStorage.setItem("access_token", data.access)
-        localStorage.setItem("refresh_token", data.refresh)
-        localStorage.setItem("user", JSON.stringify(data.user))
+        sessionStorage.setItem("access_token", data.access)
+        sessionStorage.setItem("refresh_token", data.refresh)
+        sessionStorage.setItem("user", JSON.stringify(data.user))
         localStorage.setItem("last_username", username)
 
         setToken(data.access)
@@ -185,20 +185,37 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const refreshUser = useCallback(async () => {
     if (initializationRef.current) return
 
-    const tokenValue = localStorage.getItem("access_token")
-    const savedUser = localStorage.getItem("user")
+    const tokenValue = sessionStorage.getItem("access_token")
 
-    if (!tokenValue || !savedUser) {
+    if (!tokenValue) {
       setIsInitialized(true)
       return
     }
 
     try {
       setToken(tokenValue)
-      const parsedUser = JSON.parse(savedUser)
-      setUser(parsedUser)
+      
+      // Fetch user context from backend to ensure data is always fresh on page reload
+      const contextResponse = await fetch(USER_ENDPOINTS.ME_CONTEXT, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${tokenValue}`,
+        },
+      })
+
+      if (!contextResponse.ok) {
+        logout(false)
+        setIsInitialized(true)
+        return
+      }
+
+      const contextData = await contextResponse.json()
+      sessionStorage.setItem("user", JSON.stringify(contextData))
+      setUser(contextData as User)
       setIsAuthenticated(true)
-    } catch {
+    } catch (error) {
+      console.error("[v0] Error refreshing user context:", error)
       logout(false)
     } finally {
       initializationRef.current = true

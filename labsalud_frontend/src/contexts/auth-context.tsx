@@ -4,7 +4,7 @@ import { createContext, useContext, useState, useEffect, useCallback, useRef, ty
 import { useToast } from "@/hooks/use-toast"
 import { IdleWarningModal } from "@/components/idle-warning-modal"
 import useIdleTimeout from "@/hooks/use-idle-timeout"
-import { AUTH_ENDPOINTS, USER_ENDPOINTS } from "@/config/api"
+import { AUTH_ENDPOINTS } from "@/config/api"
 import type { User } from "@/types"
 
 export interface TokenRefreshResponse {
@@ -186,36 +186,19 @@ export function AuthProvider({ children }: AuthProviderProps) {
     if (initializationRef.current) return
 
     const tokenValue = sessionStorage.getItem("access_token")
+    const savedUser = sessionStorage.getItem("user")
 
-    if (!tokenValue) {
+    if (!tokenValue || !savedUser) {
       setIsInitialized(true)
       return
     }
 
     try {
       setToken(tokenValue)
-      
-      // Fetch user context from backend to ensure data is always fresh on page reload
-      const contextResponse = await fetch(USER_ENDPOINTS.ME_CONTEXT, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${tokenValue}`,
-        },
-      })
-
-      if (!contextResponse.ok) {
-        logout(false)
-        setIsInitialized(true)
-        return
-      }
-
-      const contextData = await contextResponse.json()
-      sessionStorage.setItem("user", JSON.stringify(contextData))
-      setUser(contextData as User)
+      const parsedUser = JSON.parse(savedUser)
+      setUser(parsedUser)
       setIsAuthenticated(true)
-    } catch (error) {
-      console.error("[v0] Error refreshing user context:", error)
+    } catch {
       logout(false)
     } finally {
       initializationRef.current = true

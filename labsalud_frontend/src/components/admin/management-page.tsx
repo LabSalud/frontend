@@ -6,10 +6,11 @@ import { useApi } from "@/hooks/use-api"
 import { USER_ENDPOINTS, AC_ENDPOINTS } from "@/config/api"
 import { PERMISSIONS } from "@/config/permissions"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Skeleton } from "@/components/ui/skeleton"
 import { UserManagement } from "./user-management"
 import { RoleManagement } from "./role-management"
 import { PermissionManagement } from "./permission-management"
-import { Loader2, AlertCircle } from "lucide-react"
+import { AlertCircle } from "lucide-react"
 import type { User, Role, Permission } from "@/types"
 
 export default function ManagementPage() {
@@ -83,10 +84,40 @@ export default function ManagementPage() {
   if (isLoading) {
     return (
       <div className="max-w-6xl mx-auto py-4 sm:py-6 px-3 sm:px-4">
-        <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-md p-4 sm:p-6 flex justify-center items-center min-h-[300px]">
-          <div className="flex flex-col items-center">
-            <Loader2 className="h-8 w-8 text-[#204983] animate-spin mb-2" />
-            <p className="text-gray-600 text-sm sm:text-base">Cargando datos...</p>
+        <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-md p-4 sm:p-6">
+          {/* Header skeleton */}
+          <Skeleton className="h-8 w-80 rounded mb-6" />
+
+          {/* Tabs skeleton */}
+          <Skeleton className="h-10 w-64 rounded mb-6" />
+
+          {/* Toolbar skeleton */}
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6">
+            <Skeleton className="h-6 w-48 rounded" />
+            <Skeleton className="h-10 w-full sm:w-36 rounded" />
+          </div>
+
+          {/* Table skeleton */}
+          <div className="border border-gray-200 rounded-lg overflow-hidden">
+            <div className="bg-gray-50 p-3 border-b border-gray-200">
+              <div className="flex gap-4">
+                <Skeleton className="h-4 w-32 rounded" />
+                <Skeleton className="h-4 w-48 rounded" />
+                <Skeleton className="h-4 w-24 rounded" />
+                <Skeleton className="h-4 w-20 rounded" />
+              </div>
+            </div>
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className="p-3 border-b border-gray-100 last:border-b-0">
+                <div className="flex gap-4 items-center">
+                  <Skeleton className="h-10 w-10 rounded-full" />
+                  <Skeleton className="h-4 w-32 rounded" />
+                  <Skeleton className="h-4 w-48 rounded" />
+                  <Skeleton className="h-6 w-20 rounded-full" />
+                  <Skeleton className="h-8 w-24 rounded" />
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </div>

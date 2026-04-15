@@ -6,6 +6,7 @@ import { useApi } from "@/hooks/use-api"
 import { MEDICAL_ENDPOINTS } from "@/config/api"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Skeleton } from "@/components/ui/skeleton"
 import { Loader2, Search, ShieldCheckIcon, Plus } from "lucide-react"
 import type { ObraSocial } from "@/types"
 import { CreateObraSocialDialog } from "./components/create-obra-social-dialog"
@@ -210,7 +211,23 @@ export const ObrasSocialesManagement: React.FC<ObrasSocialesManagementProps> = (
         </div>
       </div>
 
-      {obrasSociales.length === 0 && !isLoadingInitial && !errorState ? (
+      {isLoadingInitial ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 items-start">
+          {[...Array(6)].map((_, i) => (
+            <div key={i} className="border border-gray-200 rounded-lg p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <Skeleton className="h-5 w-32 rounded" />
+                <Skeleton className="h-6 w-12 rounded-full" />
+              </div>
+              <Skeleton className="h-4 w-48 rounded" />
+              <div className="flex gap-2">
+                <Skeleton className="h-8 w-16 rounded" />
+                <Skeleton className="h-8 w-16 rounded" />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : obrasSociales.length === 0 && !errorState ? (
         <div className="text-center py-8 md:py-12">
           <ShieldCheckIcon className="mx-auto h-10 w-10 md:h-12 md:w-12 text-gray-400 mb-3" />
           <h3 className="text-base md:text-lg font-medium text-gray-900">No se encontraron Obras Sociales</h3>

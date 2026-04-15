@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Loader2 } from "lucide-react"
+import { Skeleton } from "@/components/ui/skeleton"
 import { MedicosManagement } from "./medicos-management"
 import { ObrasSocialesManagement } from "./obras-sociales-management"
 import { AnalysisManagement } from "./analysis-management"
@@ -31,11 +31,41 @@ export default function ConfigurationPage() {
 
   if (isLoading) {
     return (
-      <div className="max-w-6xl mx-auto py-6">
-        <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-md p-6 flex justify-center items-center min-h-[300px]">
-          <div className="flex flex-col items-center">
-            <Loader2 className="h-8 w-8 text-[#204983] animate-spin mb-2" />
-            <p className="text-gray-600">Cargando configuración...</p>
+      <div className="max-w-6xl mx-auto py-6 px-3 sm:px-4">
+        <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-md p-4 sm:p-6">
+          {/* Header skeleton */}
+          <Skeleton className="h-8 w-64 rounded mb-6" />
+
+          {/* Tabs skeleton */}
+          <Skeleton className="h-10 w-full max-w-md rounded mb-6" />
+
+          {/* Content area skeleton */}
+          <div className="space-y-6">
+            {/* Section header */}
+            <div>
+              <Skeleton className="h-6 w-48 rounded mb-2" />
+              <Skeleton className="h-4 w-64 rounded" />
+            </div>
+
+            {/* Search and button */}
+            <div className="flex flex-col sm:flex-row gap-4">
+              <Skeleton className="h-10 flex-1 max-w-md rounded" />
+              <Skeleton className="h-10 w-full sm:w-36 rounded" />
+            </div>
+
+            {/* Cards grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {[...Array(6)].map((_, i) => (
+                <div key={i} className="border border-gray-200 rounded-lg p-4">
+                  <Skeleton className="h-5 w-32 rounded mb-2" />
+                  <Skeleton className="h-4 w-48 rounded mb-3" />
+                  <div className="flex gap-2">
+                    <Skeleton className="h-8 w-16 rounded" />
+                    <Skeleton className="h-8 w-16 rounded" />
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </div>

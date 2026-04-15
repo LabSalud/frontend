@@ -6,6 +6,7 @@ import { AUDIT_ENDPOINTS } from "@/config/api"
 import { useInfiniteScroll } from "@/hooks/use-infinite-scroll"
 import { Loader2, Search } from "lucide-react"
 import { Input } from "@/components/ui/input"
+import { Skeleton } from "@/components/ui/skeleton"
 import { useDebounce } from "@/hooks/use-debounce"
 import type { AuditEntry } from "@/types"
 import { AuditCard } from "./components/audit-card"
@@ -79,8 +80,28 @@ export function AuditManagement() {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center py-12">
-        <Loader2 className="h-8 w-8 text-[#204983] animate-spin" />
+      <div className="space-y-4">
+        {/* Search skeleton */}
+        <Skeleton className="h-10 w-full rounded" />
+
+        {/* Audit cards skeleton */}
+        <div className="space-y-2">
+          {[...Array(6)].map((_, i) => (
+            <div key={i} className="border border-gray-200 rounded-lg p-4">
+              <div className="flex items-start gap-3">
+                <Skeleton className="h-10 w-10 rounded-full flex-shrink-0" />
+                <div className="flex-1 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Skeleton className="h-4 w-24 rounded" />
+                    <Skeleton className="h-5 w-16 rounded-full" />
+                  </div>
+                  <Skeleton className="h-4 w-full max-w-md rounded" />
+                  <Skeleton className="h-3 w-32 rounded" />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     )
   }

@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Skeleton } from "@/components/ui/skeleton"
 import { User, Mail, Lock, Camera, AlertCircle, CheckCircle, Eye, EyeOff, Clock, Shield, History } from "lucide-react"
 import { toast } from "sonner"
 import { USER_ENDPOINTS, TOAST_DURATION } from "@/config/api"
@@ -269,10 +270,52 @@ export default function ProfilePage() {
 
   if (!user || isLoadingProfile) {
     return (
-      <div className="w-full max-w-4xl mx-auto py-4 px-2 sm:px-4">
+      <div className="w-full max-w-4xl mx-auto py-4 px-2 sm:px-4 space-y-4 sm:space-y-6">
+        {/* Header skeleton */}
         <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-md p-4 sm:p-6">
-          <p className="text-gray-600">Cargando perfil...</p>
+          <Skeleton className="h-8 w-64 rounded mb-2" />
+          <Skeleton className="h-4 w-96 rounded" />
         </div>
+
+        {/* Form card skeleton */}
+        <Card>
+          <CardHeader className="p-4 sm:p-6">
+            <Skeleton className="h-6 w-48 rounded" />
+          </CardHeader>
+          <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0 space-y-4">
+            {/* Avatar skeleton */}
+            <div className="flex flex-col sm:flex-row items-center gap-4">
+              <Skeleton className="w-16 h-16 sm:w-20 sm:h-20 rounded-full flex-shrink-0" />
+              <div className="flex-1 space-y-2">
+                <Skeleton className="h-4 w-32 rounded" />
+                <Skeleton className="h-3 w-48 rounded" />
+              </div>
+            </div>
+
+            {/* Form fields skeleton */}
+            <div className="grid grid-cols-1 gap-4">
+              <Skeleton className="h-12 w-full rounded" />
+              <Skeleton className="h-12 w-full rounded" />
+              <Skeleton className="h-12 w-full rounded" />
+              <Skeleton className="h-12 w-full rounded" />
+            </div>
+
+            {/* Submit button skeleton */}
+            <Skeleton className="h-10 w-full rounded" />
+          </CardContent>
+        </Card>
+
+        {/* Permissions card skeleton */}
+        <Card>
+          <CardHeader className="p-4 sm:p-6">
+            <Skeleton className="h-6 w-48 rounded" />
+          </CardHeader>
+          <CardContent className="p-4 sm:p-6 pt-0 space-y-3">
+            {[...Array(2)].map((_, i) => (
+              <Skeleton key={i} className="h-20 w-full rounded" />
+            ))}
+          </CardContent>
+        </Card>
       </div>
     )
   }

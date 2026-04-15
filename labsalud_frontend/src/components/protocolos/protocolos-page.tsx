@@ -25,6 +25,7 @@ import {
 import { Input } from "../ui/input"
 import { Button } from "../ui/button"
 import { Card, CardContent } from "../ui/card"
+import { Skeleton } from "../ui/skeleton"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
 import { ProtocolCard } from "./components/protocol-card"
 import { useApi } from "../../hooks/use-api"
@@ -403,12 +404,45 @@ export default function ProtocolosPage() {
 
   if (isInitialLoading) {
     return (
-      <div className="w-full max-w-7xl mx-auto py-4 px-4">
-        <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-md p-6 flex justify-center items-center min-h-[300px]">
-          <div className="flex flex-col items-center">
-            <Loader2 className="h-8 w-8 text-[#204983] animate-spin mb-2" />
-            <p className="text-gray-600">Cargando protocolos...</p>
+      <div className="w-full max-w-full mx-auto py-4 px-4">
+        {/* Header skeleton */}
+        <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-md p-4 md:p-6 mb-4 md:mb-6">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+            <div className="flex-1">
+              <Skeleton className="h-8 w-64 rounded mb-2" />
+              <Skeleton className="h-4 w-96 rounded" />
+            </div>
+            <div className="flex gap-2 w-full sm:w-auto">
+              <Skeleton className="h-10 flex-1 sm:flex-initial rounded" />
+              <Skeleton className="h-10 flex-1 sm:flex-initial rounded" />
+            </div>
           </div>
+        </div>
+
+        {/* Stats cards skeleton */}
+        <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-md p-4 md:p-6 mb-4 md:mb-6">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-9 gap-3 sm:gap-4">
+            {[...Array(9)].map((_, i) => (
+              <Skeleton key={i} className="h-24 rounded-lg" />
+            ))}
+          </div>
+        </div>
+
+        {/* Search and filters skeleton */}
+        <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-md p-4 md:p-6 mb-4 md:mb-6">
+          <Skeleton className="h-12 w-full rounded mb-4" />
+          <div className="flex flex-wrap gap-2">
+            {[...Array(8)].map((_, i) => (
+              <Skeleton key={i} className="h-10 w-32 rounded" />
+            ))}
+          </div>
+        </div>
+
+        {/* Protocol cards skeleton */}
+        <div className="space-y-3">
+          {[...Array(5)].map((_, i) => (
+            <Skeleton key={i} className="h-32 w-full rounded-lg" />
+          ))}
         </div>
       </div>
     )

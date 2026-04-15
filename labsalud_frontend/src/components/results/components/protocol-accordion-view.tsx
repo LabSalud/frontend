@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "../../ui/input"
 import { Textarea } from "../../ui/textarea"
 import { Button } from "../../ui/button"
+import { Skeleton } from "../../ui/skeleton"
 import {
   Loader2,
   FileText,
@@ -544,10 +545,34 @@ export function ProtocolAccordionView() {
 
   if (loadingProtocols && protocols.length === 0) {
     return (
-      <div className="flex justify-center py-12">
-        <div className="flex flex-col items-center gap-3">
-          <Loader2 className="h-8 w-8 animate-spin text-[#204983]" />
-          <p className="text-gray-600">Cargando protocolos...</p>
+      <div className="space-y-4">
+        {/* Filters skeleton */}
+        <div className="p-3 sm:p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
+          <Skeleton className="h-10 w-full rounded mb-3" />
+          <div className="space-y-2">
+            <Skeleton className="h-4 w-32 rounded" />
+            <div className="flex flex-wrap gap-1.5 sm:gap-2">
+              {[...Array(6)].map((_, i) => (
+                <Skeleton key={i} className="h-8 w-24 rounded" />
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Protocol cards skeleton */}
+        <div className="space-y-2">
+          {[...Array(5)].map((_, i) => (
+            <div
+              key={i}
+              className="border border-gray-200 rounded-lg overflow-hidden bg-white shadow-sm p-3 sm:p-4"
+            >
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+                <Skeleton className="h-5 w-16 rounded" />
+                <Skeleton className="h-5 w-48 rounded" />
+                <Skeleton className="h-5 w-32 rounded" />
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     )

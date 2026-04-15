@@ -6,6 +6,7 @@ import { useInfiniteScroll } from "@/hooks/use-infinite-scroll"
 import { useDebounce } from "@/hooks/use-debounce"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Skeleton } from "@/components/ui/skeleton"
 import { Plus, Search, Loader2, AlertCircle, X } from "lucide-react"
 import { PatientGrid } from "./components/patient-grid"
 import { CreatePatientDialog } from "./components/create-patient-dialog"
@@ -254,12 +255,28 @@ export default function PatientsPage() {
   // Estados de carga y error
   if (isInitialLoading) {
     return (
-      <div className="w-full max-w-7xl mx-auto py-4 px-4">
-        <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-md p-6 flex justify-center items-center min-h-[300px]">
-          <div className="flex flex-col items-center">
-            <Loader2 className="h-8 w-8 text-[#204983] animate-spin mb-2" />
-            <p className="text-gray-600">Cargando pacientes...</p>
+      <div className="w-full max-w-full mx-auto py-4 px-4">
+        {/* Header skeleton */}
+        <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-md p-4 md:p-6 mb-4 md:mb-6">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+            <div className="flex-1">
+              <Skeleton className="h-8 w-64 rounded mb-2" />
+              <Skeleton className="h-4 w-96 rounded" />
+            </div>
+            <Skeleton className="h-10 w-full sm:w-auto rounded" />
           </div>
+        </div>
+
+        {/* Search and filters skeleton */}
+        <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-md p-4 md:p-6 mb-4 md:mb-6">
+          <Skeleton className="h-12 w-full rounded mb-4" />
+        </div>
+
+        {/* Patient grid skeleton */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+          {[...Array(6)].map((_, i) => (
+            <Skeleton key={i} className="h-48 rounded-lg" />
+          ))}
         </div>
       </div>
     )

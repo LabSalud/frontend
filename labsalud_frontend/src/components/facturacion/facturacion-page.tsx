@@ -19,6 +19,7 @@ import {
 import { Input } from "../ui/input"
 import { Button } from "../ui/button"
 import { Card, CardContent } from "../ui/card"
+import { Skeleton } from "../ui/skeleton"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
 import {
   Dialog,
@@ -285,77 +286,78 @@ export default function FacturacionPage() {
       {/* Stats Cards */}
       <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-md p-4 md:p-6 mb-4 md:mb-6">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-          <Card className="bg-red-50">
-            <CardContent className="p-3 sm:p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs sm:text-sm font-medium text-red-700">Adeudado Total</p>
-                  <p className="text-lg sm:text-2xl font-bold text-red-600">
-                    {loadingSummary ? (
-                      <span className="animate-pulse bg-red-200 h-6 w-20 rounded inline-block" />
-                    ) : (
-                      formatCurrency(summary?.adeudado_total || 0)
-                    )}
-                  </p>
-                </div>
-                <DollarSign className="h-6 w-6 sm:h-8 sm:w-8 text-red-400" />
-              </div>
-            </CardContent>
-          </Card>
+          {loadingSummary ? (
+            <>
+              {[...Array(4)].map((_, i) => (
+                <Card key={i} className="bg-gray-50">
+                  <CardContent className="p-3 sm:p-4">
+                    <div className="space-y-2">
+                      <Skeleton className="h-3 w-24 rounded" />
+                      <Skeleton className="h-6 w-32 rounded" />
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </>
+          ) : (
+            <>
+              <Card className="bg-red-50">
+                <CardContent className="p-3 sm:p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs sm:text-sm font-medium text-red-700">Adeudado Total</p>
+                      <p className="text-lg sm:text-2xl font-bold text-red-600">
+                        {formatCurrency(summary?.adeudado_total || 0)}
+                      </p>
+                    </div>
+                    <DollarSign className="h-6 w-6 sm:h-8 sm:w-8 text-red-400" />
+                  </div>
+                </CardContent>
+              </Card>
 
-          <Card className="bg-blue-50">
-            <CardContent className="p-3 sm:p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs sm:text-sm font-medium text-blue-700">Facturado OOSS</p>
-                  <p className="text-lg sm:text-2xl font-bold text-blue-600">
-                    {loadingSummary ? (
-                      <span className="animate-pulse bg-blue-200 h-6 w-20 rounded inline-block" />
-                    ) : (
-                      formatCurrency(summary?.dinero_facturado_ooss || 0)
-                    )}
-                  </p>
-                </div>
-                <Building2 className="h-6 w-6 sm:h-8 sm:w-8 text-blue-400" />
-              </div>
-            </CardContent>
-          </Card>
+              <Card className="bg-blue-50">
+                <CardContent className="p-3 sm:p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs sm:text-sm font-medium text-blue-700">Facturado OOSS</p>
+                      <p className="text-lg sm:text-2xl font-bold text-blue-600">
+                        {formatCurrency(summary?.dinero_facturado_ooss || 0)}
+                      </p>
+                    </div>
+                    <Building2 className="h-6 w-6 sm:h-8 sm:w-8 text-blue-400" />
+                  </div>
+                </CardContent>
+              </Card>
 
-          <Card className="bg-green-50">
-            <CardContent className="p-3 sm:p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs sm:text-sm font-medium text-green-700">Facturado Particular</p>
-                  <p className="text-lg sm:text-2xl font-bold text-green-600">
-                    {loadingSummary ? (
-                      <span className="animate-pulse bg-green-200 h-6 w-20 rounded inline-block" />
-                    ) : (
-                      formatCurrency(summary?.dinero_facturado_particular || 0)
-                    )}
-                  </p>
-                </div>
-                <TrendingUp className="h-6 w-6 sm:h-8 sm:w-8 text-green-400" />
-              </div>
-            </CardContent>
-          </Card>
+              <Card className="bg-green-50">
+                <CardContent className="p-3 sm:p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs sm:text-sm font-medium text-green-700">Facturado Particular</p>
+                      <p className="text-lg sm:text-2xl font-bold text-green-600">
+                        {formatCurrency(summary?.dinero_facturado_particular || 0)}
+                      </p>
+                    </div>
+                    <TrendingUp className="h-6 w-6 sm:h-8 sm:w-8 text-green-400" />
+                  </div>
+                </CardContent>
+              </Card>
 
-          <Card className="bg-teal-50">
-            <CardContent className="p-3 sm:p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs sm:text-sm font-medium text-teal-700">Por Facturar</p>
-                  <p className="text-lg sm:text-2xl font-bold text-teal-600">
-                    {loadingSummary ? (
-                      <span className="animate-pulse bg-teal-200 h-6 w-20 rounded inline-block" />
-                    ) : (
-                      summary?.protocolos_por_facturar || 0
-                    )}
-                  </p>
-                </div>
-                <Receipt className="h-6 w-6 sm:h-8 sm:w-8 text-teal-400" />
-              </div>
-            </CardContent>
-          </Card>
+              <Card className="bg-teal-50">
+                <CardContent className="p-3 sm:p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs sm:text-sm font-medium text-teal-700">Por Facturar</p>
+                      <p className="text-lg sm:text-2xl font-bold text-teal-600">
+                        {summary?.protocolos_por_facturar || 0}
+                      </p>
+                    </div>
+                    <Receipt className="h-6 w-6 sm:h-8 sm:w-8 text-teal-400" />
+                  </div>
+                </CardContent>
+              </Card>
+            </>
+          )}
         </div>
 
         {/* Top OOSS */}
@@ -405,8 +407,20 @@ export default function FacturacionPage() {
           {activeTab === "to-bill" && (
             <div>
               {loadingProtocols ? (
-                <div className="flex justify-center py-12">
-                  <Loader2 className="h-8 w-8 text-[#204983] animate-spin" />
+                <div className="space-y-3">
+                  {[...Array(5)].map((_, i) => (
+                    <div
+                      key={i}
+                      className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-lg border border-gray-200 gap-3"
+                    >
+                      <div className="flex-1 space-y-2">
+                        <Skeleton className="h-5 w-32 rounded" />
+                        <Skeleton className="h-4 w-96 rounded" />
+                        <Skeleton className="h-4 w-48 rounded" />
+                      </div>
+                      <Skeleton className="h-10 w-full sm:w-auto rounded" />
+                    </div>
+                  ))}
                 </div>
               ) : protocolsToBill.length === 0 ? (
                 <div className="text-center py-12">
@@ -502,8 +516,22 @@ export default function FacturacionPage() {
               </div>
 
               {loadingInvoices ? (
-                <div className="flex justify-center py-12">
-                  <Loader2 className="h-8 w-8 text-[#204983] animate-spin" />
+                <div className="space-y-3">
+                  {[...Array(5)].map((_, i) => (
+                    <div
+                      key={i}
+                      className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-lg border border-gray-200 gap-3"
+                    >
+                      <div className="flex-1 space-y-2">
+                        <Skeleton className="h-5 w-32 rounded" />
+                        <Skeleton className="h-4 w-96 rounded" />
+                      </div>
+                      <div className="flex gap-2 w-full sm:w-auto">
+                        <Skeleton className="h-9 flex-1 sm:flex-initial w-20 rounded" />
+                        <Skeleton className="h-9 flex-1 sm:flex-initial w-20 rounded" />
+                      </div>
+                    </div>
+                  ))}
                 </div>
               ) : filteredInvoices.length === 0 ? (
                 <div className="text-center py-12">

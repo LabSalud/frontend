@@ -6,6 +6,7 @@ import { useApi } from "@/hooks/use-api"
 import { RESULTS_ENDPOINTS } from "@/config/api"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
+import { Skeleton } from "@/components/ui/skeleton"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { ValidationProtocolCard } from "./validation-protocol-card"
 import type { ProtocolWithLoadedResults } from "@/types"
@@ -205,10 +206,26 @@ export function ValidationProtocolList() {
 
   if (isLoading) {
     return (
-      <div className="flex justify-center py-12">
-        <div className="flex flex-col items-center gap-3">
-          <Loader2 className="h-8 w-8 animate-spin text-[#204983]" />
-          <p className="text-gray-600 text-sm sm:text-base">Cargando protocolos pendientes...</p>
+      <div className="space-y-4">
+        {/* Search skeleton */}
+        <div className="p-3 sm:p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
+          <Skeleton className="h-10 w-full rounded" />
+        </div>
+
+        {/* Protocol cards skeleton */}
+        <div className="space-y-2">
+          {[...Array(5)].map((_, i) => (
+            <div
+              key={i}
+              className="border border-gray-200 rounded-lg overflow-hidden bg-white shadow-sm p-3 sm:p-4"
+            >
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+                <Skeleton className="h-5 w-16 rounded" />
+                <Skeleton className="h-5 w-48 rounded" />
+                <Skeleton className="h-5 w-32 rounded" />
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     )

@@ -3,7 +3,8 @@
 import { useState, useEffect, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Search, Plus, Eye, Pencil, Trash } from "lucide-react"
+import { Skeleton } from "@/components/ui/skeleton"
+import { Search, Plus, Eye, Pencil, Trash, Loader2 } from "lucide-react"
 import { useApi } from "@/hooks/use-api"
 import { useDebounce } from "@/hooks/use-debounce"
 import { useInfiniteScroll } from "@/hooks/use-infinite-scroll"
@@ -172,7 +173,38 @@ export function MedicosManagement() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {medicos.map((medicoItem, index) => (
+              {isLoading && medicos.length === 0 ? (
+                [...Array(5)].map((_, i) => (
+                  <tr key={i}>
+                    <td className="px-4 md:px-6 py-4">
+                      <Skeleton className="h-5 w-40 rounded" />
+                    </td>
+                    <td className="px-4 md:px-6 py-4 hidden sm:table-cell">
+                      <Skeleton className="h-5 w-20 rounded" />
+                    </td>
+                    <td className="px-4 md:px-6 py-4 hidden md:table-cell">
+                      <div className="flex -space-x-1">
+                        <Skeleton className="h-6 w-6 rounded-full" />
+                        <Skeleton className="h-6 w-6 rounded-full" />
+                      </div>
+                    </td>
+                    <td className="px-4 md:px-6 py-4">
+                      <div className="flex space-x-1 md:space-x-2">
+                        <Skeleton className="h-8 w-8 rounded" />
+                        <Skeleton className="h-8 w-8 rounded" />
+                        <Skeleton className="h-8 w-8 rounded" />
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              ) : medicos.length === 0 ? (
+                <tr>
+                  <td colSpan={4} className="px-4 md:px-6 py-8 text-center text-gray-500">
+                    No se encontraron médicos
+                  </td>
+                </tr>
+              ) : (
+              medicos.map((medicoItem, index) => (
                 <tr
                   key={medicoItem.id}
                   ref={index === medicos.length - 1 ? lastElementRef : null}
@@ -228,20 +260,15 @@ export function MedicosManagement() {
                     </div>
                   </td>
                 </tr>
-              ))}
+              ))
+              )}
             </tbody>
           </table>
         </div>
 
-        {isLoading && (
+        {isLoading && medicos.length > 0 && (
           <div className="flex justify-center py-4">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#204983]"></div>
-          </div>
-        )}
-
-        {!isLoading && medicos.length === 0 && (
-          <div className="text-center py-8">
-            <p className="text-gray-500">No se encontraron médicos</p>
+            <Loader2 className="h-6 w-6 animate-spin text-[#204983]" />
           </div>
         )}
       </div>
@@ -289,3 +316,4 @@ export function MedicosManagement() {
     </div>
   )
 }
+q

@@ -8,6 +8,7 @@ import { Badge } from "../../ui/badge"
 import { Input } from "../../ui/input"
 import { Textarea } from "../../ui/textarea"
 import { Button } from "../../ui/button"
+import { Skeleton } from "../../ui/skeleton"
 import {
   Loader2,
   FileText,
@@ -529,10 +530,28 @@ export function AnalysisAccordionView() {
 
   if (loadingAnalysis) {
     return (
-      <div className="flex justify-center py-12">
-        <div className="flex flex-col items-center gap-3">
-          <Loader2 className="h-8 w-8 animate-spin text-[#204983]" />
-          <p className="text-gray-600">Cargando análisis disponibles...</p>
+      <div className="space-y-4">
+        {/* Info banner skeleton */}
+        <Skeleton className="h-14 w-full rounded-lg" />
+
+        {/* Search skeleton */}
+        <Skeleton className="h-10 w-full rounded" />
+
+        {/* Analysis grid skeleton */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+          {[...Array(6)].map((_, i) => (
+            <div key={i} className="p-4 sm:p-6 bg-white border border-gray-200 rounded-lg shadow-sm">
+              <div className="flex items-start gap-2 sm:gap-3 mb-2">
+                <Skeleton className="h-6 w-6 rounded flex-shrink-0" />
+                <Skeleton className="h-6 w-full rounded" />
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <Skeleton className="h-5 w-20 rounded" />
+                <Skeleton className="h-5 w-16 rounded" />
+              </div>
+              <Skeleton className="h-4 w-24 rounded mt-2" />
+            </div>
+          ))}
         </div>
       </div>
     )

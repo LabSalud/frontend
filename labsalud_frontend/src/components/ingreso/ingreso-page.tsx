@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react"
 import { FileText } from "lucide-react"
 import { Button } from "../ui/button"
+import { Skeleton } from "../ui/skeleton"
 import { toast } from "sonner"
 import { ProtocolForm } from "./components/protocol-form"
 import { PatientInfo } from "./components/patient-info"
@@ -357,8 +358,31 @@ export default function IngresoPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#204983]" />
+      <div className="min-h-screen p-2 sm:p-4 lg:p-6">
+        <div className="max-w-7xl mx-auto">
+          {/* Header skeleton */}
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6 mb-4 sm:mb-6 lg:mb-8">
+            <div className="text-center">
+              <Skeleton className="h-10 w-64 rounded mx-auto mb-3" />
+              <Skeleton className="h-5 w-96 rounded mx-auto" />
+            </div>
+          </div>
+
+          {/* Form and sidebar skeleton */}
+          <div className="flex flex-col lg:flex-row gap-4 sm:gap-6 justify-center">
+            <div className="w-full lg:flex-1 lg:max-w-2xl">
+              <Skeleton className="h-96 w-full rounded-lg" />
+            </div>
+            <div className="w-full lg:w-96 lg:flex-shrink-0">
+              <Skeleton className="h-96 w-full rounded-lg" />
+            </div>
+          </div>
+
+          {/* Button skeleton */}
+          <div className="mt-4 sm:mt-6 flex justify-center px-2 sm:px-0">
+            <Skeleton className="h-12 sm:h-14 lg:h-16 w-full max-w-4xl rounded-lg" />
+          </div>
+        </div>
       </div>
     )
   }

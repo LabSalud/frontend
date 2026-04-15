@@ -3,6 +3,7 @@
 import type React from "react"
 import { useState, useCallback } from "react"
 import { Card, CardContent } from "../../ui/card"
+import { Skeleton } from "../../ui/skeleton"
 import { useApi } from "../../../hooks/use-api"
 import { toast } from "sonner"
 import { PROTOCOL_ENDPOINTS, REPORTING_ENDPOINTS, TOAST_DURATION } from "@/config/api"
@@ -599,8 +600,21 @@ export function ProtocolCard({
         {isExpanded && (
           <CardContent className="px-4 pb-4 pt-0 border-t border-gray-100">
             {loadingDetail ? (
-              <div className="flex items-center justify-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#204983]"></div>
+              <div className="space-y-4 py-4">
+                <div className="grid grid-cols-2 gap-3">
+                  {[...Array(4)].map((_, i) => (
+                    <div key={i} className="space-y-1">
+                      <Skeleton className="h-3 w-20 rounded" />
+                      <Skeleton className="h-5 w-full rounded" />
+                    </div>
+                  ))}
+                </div>
+                <Skeleton className="h-px w-full" />
+                <div className="space-y-2">
+                  {[...Array(3)].map((_, i) => (
+                    <Skeleton key={i} className="h-8 w-full rounded" />
+                  ))}
+                </div>
               </div>
             ) : (
               <>

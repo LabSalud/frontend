@@ -4,6 +4,7 @@ import type React from "react"
 
 import { useState, useEffect, useCallback } from "react"
 import { Loader2, CheckCircle, AlertTriangle, History, Beaker, XCircle } from "lucide-react"
+import { Skeleton } from "@/components/ui/skeleton"
 import { useApi } from "@/hooks/use-api"
 import { RESULTS_ENDPOINTS } from "@/config/api"
 import { toast } from "sonner"
@@ -331,8 +332,18 @@ export function ValidationProtocolCard({ protocol, onProtocolValidated, isExpand
 
   if (isLoading) {
     return (
-      <div className="flex justify-center py-8">
-        <Loader2 className="h-8 w-8 animate-spin text-[#204983]" />
+      <div className="space-y-3 py-4">
+        {[...Array(4)].map((_, i) => (
+          <div key={i} className="border border-gray-100 rounded-lg p-3">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex-1 space-y-2">
+                <Skeleton className="h-4 w-40 rounded" />
+                <Skeleton className="h-4 w-24 rounded" />
+              </div>
+              <Skeleton className="h-8 w-24 rounded" />
+            </div>
+          </div>
+        ))}
       </div>
     )
   }

@@ -724,11 +724,16 @@ export function AnalysisAccordionView() {
       </div>
 
       {loadingProtocols && protocolsWithResults.length === 0 ? (
-        <div className="flex justify-center py-12">
-          <div className="flex flex-col items-center gap-3">
-            <Loader2 className="h-8 w-8 animate-spin text-[#204983]" />
-            <p className="text-gray-600">Cargando protocolos...</p>
-          </div>
+        <div className="space-y-2">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="border border-gray-200 rounded-lg p-3 sm:p-4">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+                <Skeleton className="h-5 w-16 rounded" />
+                <Skeleton className="h-5 w-48 rounded" />
+                <Skeleton className="h-5 w-32 rounded" />
+              </div>
+            </div>
+          ))}
         </div>
       ) : filteredProtocols.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-12 text-gray-500">
@@ -921,9 +926,16 @@ export function AnalysisAccordionView() {
                                 Resultados Previos del Paciente
                               </h4>
                               {isLoadingHistory ? (
-                                <div className="flex items-center gap-2 text-gray-500">
-                                  <Loader2 className="h-6 w-6 animate-spin text-[#204983]" />
-                                  <span className="text-sm">Cargando historial...</span>
+                                <div className="space-y-2">
+                                  {[...Array(3)].map((_, i) => (
+                                    <div key={i} className="flex items-center justify-between p-2 bg-white border border-gray-100 rounded">
+                                      <div className="flex items-center gap-3">
+                                        <Skeleton className="h-5 w-12 rounded" />
+                                        <Skeleton className="h-4 w-20 rounded" />
+                                      </div>
+                                      <Skeleton className="h-5 w-16 rounded-full" />
+                                    </div>
+                                  ))}
                                 </div>
                               ) : prevResults.length === 0 ? (
                                 <p className="text-sm text-gray-500">
@@ -973,10 +985,18 @@ export function AnalysisAccordionView() {
             ))}
           </Accordion>
 
-          <div ref={loadMoreRef} className="py-4">
+          <div ref={loadMoreRef} className="py-2">
             {isLoadingMore && (
-              <div className="flex justify-center">
-                <Loader2 className="h-6 w-6 animate-spin text-[#204983]" />
+              <div className="space-y-2">
+                {[...Array(2)].map((_, i) => (
+                  <div key={i} className="border border-gray-200 rounded-lg p-3 sm:p-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+                      <Skeleton className="h-5 w-16 rounded" />
+                      <Skeleton className="h-5 w-48 rounded" />
+                      <Skeleton className="h-5 w-32 rounded" />
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
             {!hasMore && protocolsWithResults.length > 0 && (

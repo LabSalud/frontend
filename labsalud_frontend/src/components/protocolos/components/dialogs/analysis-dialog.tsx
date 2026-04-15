@@ -1,4 +1,5 @@
 import { Loader2, TestTube } from "lucide-react"
+import { Skeleton } from "@/components/ui/skeleton"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "../../../ui/dialog"
 import { Badge } from "../../../ui/badge"
 import { Switch } from "../../../ui/switch"
@@ -50,8 +51,16 @@ export function AnalysisDialog({
         </DialogHeader>
 
         {isLoading ? (
-          <div className="flex justify-center items-center py-8">
-            <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+          <div className="space-y-3 py-2">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="flex items-center justify-between p-3 border border-gray-100 rounded-lg">
+                <div className="space-y-1.5">
+                  <Skeleton className="h-4 w-40 rounded" />
+                  <Skeleton className="h-3 w-24 rounded" />
+                </div>
+                <Skeleton className="h-6 w-16 rounded-full" />
+              </div>
+            ))}
           </div>
         ) : details.length > 0 ? (
           <div className="space-y-4">

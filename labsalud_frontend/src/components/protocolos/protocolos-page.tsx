@@ -634,7 +634,7 @@ export default function ProtocolosPage() {
             )}
             {isSearching && (
               <div className="absolute right-10 top-1/2 transform -translate-y-1/2">
-                <Loader2 className="h-4 w-4 text-[#204983] animate-spin" />
+                <Skeleton className="h-4 w-4 rounded-full" />
               </div>
             )}
           </div>
@@ -769,11 +769,10 @@ export default function ProtocolosPage() {
         ) : (
           <>
             {isSearching && (
-              <div className="flex justify-center py-4">
-                <div className="flex items-center">
-                  <Loader2 className="h-5 w-5 text-[#204983] animate-spin mr-2" />
-                  <span className="text-gray-600">Buscando protocolos...</span>
-                </div>
+              <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
+                {[...Array(3)].map((_, i) => (
+                  <Skeleton key={i} className="h-32 w-full rounded-lg" />
+                ))}
               </div>
             )}
 
@@ -795,11 +794,12 @@ export default function ProtocolosPage() {
 
         {/* Infinite Scroll Sentinel */}
         {hasMore && !isSearching && !isInitialLoading && allProtocols.length > 0 && (
-          <div ref={sentinelRef} className="flex justify-center py-4">
+          <div ref={sentinelRef} className="py-2">
             {isLoadingMore && (
-              <div className="flex items-center">
-                <Loader2 className="h-6 w-6 text-[#204983] animate-spin mr-2" />
-                <span className="text-gray-600">Cargando más protocolos...</span>
+              <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
+                {[...Array(3)].map((_, i) => (
+                  <Skeleton key={i} className="h-32 w-full rounded-lg" />
+                ))}
               </div>
             )}
           </div>

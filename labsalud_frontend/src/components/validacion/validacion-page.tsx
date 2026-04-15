@@ -1,50 +1,14 @@
 "use client"
 
-import { useState, useEffect } from "react"
 import { CheckCircle, AlertCircle } from "lucide-react"
 import useAuth from "@/contexts/auth-context"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs"
-import { Skeleton } from "../ui/skeleton"
 import { ValidationProtocolList } from "./components/validation-protocol-list"
 import { PERMISSIONS } from "@/config/permissions"
 
 export default function ValidacionPage() {
   const { hasPermission } = useAuth()
-  const [isLoading, setIsLoading] = useState(true)
-
   const canValidateResults = hasPermission(Number(PERMISSIONS.VALIDATE_RESULTS.id))
-
-  useEffect(() => {
-    const timer = setTimeout(() => setIsLoading(false), 300)
-    return () => clearTimeout(timer)
-  }, [])
-
-  if (isLoading) {
-    return (
-      <div className="w-full max-w-7xl mx-auto py-3 sm:py-4 px-3 sm:px-4">
-        {/* Header skeleton */}
-        <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-md p-3 sm:p-4 md:p-6 mb-3 sm:mb-4 md:mb-6">
-          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 sm:gap-4">
-            <div>
-              <Skeleton className="h-8 w-64 rounded mb-2" />
-              <Skeleton className="h-4 w-96 rounded" />
-            </div>
-          </div>
-        </div>
-
-        {/* Content skeleton */}
-        <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-md p-3 sm:p-4 md:p-6">
-          <Skeleton className="h-10 w-48 rounded mb-4" />
-          <Skeleton className="h-12 w-full rounded mb-4" />
-          <div className="space-y-3">
-            {[...Array(5)].map((_, i) => (
-              <Skeleton key={i} className="h-20 w-full rounded-lg" />
-            ))}
-          </div>
-        </div>
-      </div>
-    )
-  }
 
   if (!canValidateResults) {
     return (

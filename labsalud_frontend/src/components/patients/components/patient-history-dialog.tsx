@@ -2,7 +2,7 @@
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { HistoryList } from "@/components/common/history-list"
-import { Loader2 } from "lucide-react"
+import { Skeleton } from "@/components/ui/skeleton"
 import { useEffect, useState } from "react"
 import { useApi } from "@/hooks/use-api"
 import { PATIENT_ENDPOINTS } from "@/config/api"
@@ -51,8 +51,16 @@ export function PatientHistoryDialog({ open, onOpenChange, patientId, patientNam
         </DialogHeader>
         <div className="mt-4">
           {loading ? (
-            <div className="flex justify-center items-center py-8">
-              <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+            <div className="space-y-3">
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="flex items-start gap-3 p-3 border border-gray-100 rounded-lg">
+                  <Skeleton className="h-8 w-8 rounded-full flex-shrink-0" />
+                  <div className="flex-1 space-y-2">
+                    <Skeleton className="h-4 w-48 rounded" />
+                    <Skeleton className="h-3 w-32 rounded" />
+                  </div>
+                </div>
+              ))}
             </div>
           ) : (
             <HistoryList history={history} />

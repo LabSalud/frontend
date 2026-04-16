@@ -336,6 +336,19 @@ export interface Protocol {
   value_paid?: string
   payment_status: PaymentStatus
   billing_status?: BillingStatus
+  is_arca_billed?: boolean
+  arca_billing_status?: "pendiente" | "emitida" | "error" | "anulada" | string
+  arca_billed_at?: string | null
+  arca_reference?: string
+  arca_bill_to?: "patient" | "third_party"
+  arca_receiver_doc_type?: string
+  arca_receiver_doc_number?: string
+  arca_receiver_name?: string
+  arca_receiver_address?: string
+  arca_cbte_tipo?: number | null
+  arca_cbte_number?: number | null
+  arca_cae?: string
+  arca_cae_due_date?: string
   is_printed: boolean
   is_active: boolean
   details: ProtocolDetail[]
@@ -477,10 +490,13 @@ export interface ProtocolWithLoadedResults {
 export interface Invoice {
   id: number
   protocol_id: number
+  presentation_id?: number | null
   insurance_name: string
   ub_value_at_billing: string
   total_ub_billed: string
   total_amount: string
+  amount_paid?: string
+  difference_amount?: string
   invoice_number: string | null
   is_paid: boolean
   paid_date: string | null
@@ -492,29 +508,119 @@ export interface Invoice {
 export interface ProtocolToBill {
   protocol_id: number
   status: string
+  billing_status?: string
   patient: {
     id: number
     first_name: string
     last_name: string
-  }
+  } | null
   insurance: {
     id: number
     name: string
-    ub_value_current: string
-  }
+    ub_value_at_protocol_creation?: string
+    ub_value_current?: string
+  } | null
   total_ub_authorized: string
-  estimated_amount: string
+  estimated_amount?: string
+  expected_amount?: string
 }
 
 export interface BillingSummary {
-  adeudado_total: number
-  dinero_facturado_ooss: number
-  dinero_facturado_particular: number
+  adeudado_total: number | string
+  dinero_facturado_ooss: number | string
+  dinero_cobrado_ooss?: number | string
+  dinero_facturado_particular: number | string
+  facturado_por_particular?: number | string
   ooss_top_facturacion: Array<{
+    insurance_id?: number
     insurance_name: string
-    total: number
+    total?: number | string
+    total_facturado?: number | string
   }>
   protocolos_por_facturar: number
+}
+
+export interface BillingPresentation {
+  id: number
+  reference: string
+  name: string
+  period_start: string
+  period_end: string
+  invoice_count: number
+  expected_amount: string
+  expected_by_ooss?: Array<{
+    insurance_id: number
+    insurance_name: string
+    protocol_count: number
+    expected_amount: string
+    collected_amount?: string
+    difference_amount?: string
+  }>
+  protocols?: Array<{
+    protocol_id: number
+    invoice_id: number
+    invoice_number: string
+    expected_amount: string
+    paid_amount?: string
+    difference_amount?: string
+  }>
+  collected_amount?: string
+  difference_amount?: string
+  balance_state?: "equilibrada" | "sobrecobro" | "subcobro"
+  status: "cerrada" | "cobrada"
+  collected_at?: string | null
+  notes: string
+  is_active: boolean
+  created_by_id: number | null
+  created_at: string
+}
+
+export interface BillingPresentationSummaryResponse {
+  count: number
+  results: BillingPresentation[]
+  chart: Array<{
+    id: number
+    reference: string
+    period_start: string
+    period_end: string
+    expected_amount: string
+    collected_amount: string
+    difference_amount: string
+    balance_state: "equilibrada" | "sobrecobro" | "subcobro"
+  }>
+}
+
+export interface BillingPresentationDetailResponse {
+  count: number
+  presentation: BillingPresentation & {
+    expected_by_ooss?: Array<{
+      insurance_id: number
+      insurance_name: string
+      expected_amount: string
+      collected_amount: string
+      difference_amount: string
+    }>
+    protocols?: Array<{
+      protocol_id: number
+      patient_name?: string
+      insurance_name?: string
+      expected_amount?: string
+      paid_amount?: string
+    }>
+  }
+  results: Array<{
+    id: number
+    protocol_id: number
+    presentation_id?: number | null
+    insurance_name: string
+    invoice_number: string | null
+    total_amount: string
+    amount_paid: string
+    is_paid: boolean
+    paid_date: string | null
+    notes: string
+    created_at: string
+  }>
 }
 
 export interface ProtocolBillingStatus {
@@ -522,8 +628,45 @@ export interface ProtocolBillingStatus {
   is_billed: boolean
   billed_at: string | null
   status: string
-  insurance: string
-  patient: string
+  billing_status?: string
+  insurance: {
+    id: number
+    name: string
+  }
+  patient: {
+    id: number
+    first_name: string
+    last_name: string
+  }
+}
+
+export interface BillingOossControlItem {
+  invoice_id: number
+  protocol_id: number
+  date: string
+  insurance: {
+    id: number
+    name: string
+  }
+  patient: {
+    id: number
+    first_name: string
+    last_name: string
+  } | null
+  total_facturado: string
+  total_cobrado: string
+  diferencia: string
+  is_paid: boolean
+  paid_date: string | null
+}
+
+export interface BillingOossControlResponse {
+  count: number
+  total_facturado_ooss: string
+  total_cobrado_ooss: string
+  diferencia_total_ooss: string
+  facturado_por_particular: string
+  results: BillingOossControlItem[]
 }
 
 // ============================================================================

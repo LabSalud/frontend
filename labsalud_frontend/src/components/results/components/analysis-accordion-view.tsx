@@ -28,6 +28,7 @@ import {
   ChevronUp,
   ShieldCheck,
   AlertTriangle,
+  Mail,
 } from "lucide-react"
 import { useApi } from "../../../hooks/use-api"
 import { RESULTS_ENDPOINTS } from "../../../config/api"
@@ -117,7 +118,7 @@ const getStatusColor = (statusId: number): string => {
     case 1:
       return "bg-yellow-100 text-yellow-800 border-yellow-300"
     case 2:
-      return "bg-blue-100 text-blue-800 border-blue-300"
+      return "bg-sky-100 text-sky-800 border-sky-300"
     case 3:
       return "bg-orange-100 text-orange-800 border-orange-300"
     case 4:
@@ -127,9 +128,11 @@ const getStatusColor = (statusId: number): string => {
     case 6:
       return "bg-purple-100 text-purple-800 border-purple-300"
     case 7:
-      return "bg-rose-100 text-rose-800 border-rose-300"
+      return "bg-pink-100 text-pink-800 border-pink-300"
     case 8:
       return "bg-teal-100 text-teal-800 border-teal-300"
+    case 10:
+      return "bg-indigo-100 text-indigo-800 border-indigo-300"
     default:
       return "bg-gray-100 text-gray-800 border-gray-300"
   }
@@ -723,7 +726,7 @@ export function AnalysisAccordionView() {
               variant={selectedStatuses.includes(2) ? "default" : "outline"}
               size="sm"
               onClick={() => toggleStatus(2)}
-              className={`text-xs ${selectedStatuses.includes(2) ? "bg-blue-500 hover:bg-blue-600" : ""}`}
+              className={`text-xs ${selectedStatuses.includes(2) ? "bg-sky-500 hover:bg-sky-600" : ""}`}
             >
               <Filter className="h-3 w-3 mr-1" />
               <span className="hidden sm:inline">Pend.</span> Valid.
@@ -760,11 +763,20 @@ export function AnalysisAccordionView() {
               variant={selectedStatuses.includes(7) ? "default" : "outline"}
               size="sm"
               onClick={() => toggleStatus(7)}
-              className={`text-xs ${selectedStatuses.includes(7) ? "bg-rose-600 hover:bg-rose-700" : ""}`}
+              className={`text-xs ${selectedStatuses.includes(7) ? "bg-pink-500 hover:bg-pink-600" : ""}`}
             >
               <AlertTriangle className="h-3 w-3 mr-1" />
               <span className="hidden sm:inline">Envio Fallido</span>
               <span className="sm:hidden">Fallido</span>
+            </Button>
+            <Button
+              variant={selectedStatuses.includes(10) ? "default" : "outline"}
+              size="sm"
+              onClick={() => toggleStatus(10)}
+              className={`text-xs ${selectedStatuses.includes(10) ? "bg-indigo-500 hover:bg-indigo-600" : ""}`}
+            >
+              <Mail className="h-3 w-3 mr-1" />
+              <span className="hidden sm:inline">Pend.</span> Envío
             </Button>
             {selectedStatuses.length > 0 && (
               <Button

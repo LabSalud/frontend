@@ -21,17 +21,18 @@ interface ProtocolHeaderProps {
   onRegisterPayment: () => void
 }
 
-// Status IDs: 1=Pendiente de carga, 2=Pendiente de validación, 3=Pago incompleto, 4=Cancelado, 5=Completado, 6=Pendiente de Retiro, 7=Envío fallido, 8=Pendiente de Facturación
+// Status IDs: 1=Pendiente de carga, 2=Pendiente de validación, 3=Pago incompleto, 4=Cancelado, 5=Completado, 6=Pendiente de Retiro, 7=Envío fallido, 8=Pendiente de Facturación, 10=Pendiente de envío
 const getStateColor = (statusId: number) => {
   const stateColors: Record<number, string> = {
     1: "bg-yellow-100 text-yellow-800", // Pendiente de carga
-    2: "bg-blue-100 text-blue-800", // Pendiente de validación
+    2: "bg-sky-100 text-sky-800", // Pendiente de validación
     3: "bg-orange-100 text-orange-800", // Pago incompleto
     4: "bg-red-100 text-red-800", // Cancelado
     5: "bg-green-100 text-green-800", // Completado
     6: "bg-purple-100 text-purple-800", // Pendiente de Retiro
-    7: "bg-rose-100 text-rose-800", // Envío fallido
+    7: "bg-pink-100 text-pink-800", // Envío fallido
     8: "bg-teal-100 text-teal-800", // Pendiente de Facturación
+    10: "bg-indigo-100 text-indigo-800", // Pendiente de envío
   }
   return stateColors[statusId] || "bg-gray-100 text-gray-800"
 }
@@ -79,14 +80,14 @@ export function ProtocolHeader({
       <div className="flex justify-between items-start">
         <div className="flex-1 min-w-0">
           {/* // Improved responsive layout */}
-          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
-            <div className={`flex-shrink-0 p-2 rounded-full ${isCancelled ? "bg-red-500" : "bg-[#204983]"} self-start`}>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-2">
+            <div className={`flex-shrink-0 p-1.5 rounded-full ${isCancelled ? "bg-red-500" : "bg-[#204983]"} self-start`}>
               <div className="h-5 w-5 bg-white rounded-sm flex items-center justify-center">
                 <span className={`text-xs font-bold ${isCancelled ? "text-red-500" : "text-[#204983]"}`}>P</span>
               </div>
             </div>
             <div className="flex-1 min-w-0">
-              <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-1">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-1 mb-0.5">
                 <h3 className="text-base font-semibold truncate text-gray-800" title={`Protocolo #${protocolId}`}>
                   Protocolo #{protocolId}
                 </h3>
@@ -131,11 +132,11 @@ export function ProtocolHeader({
 
       {/* Info cuando está cerrada */}
       {!isExpanded && (
-        <div className="mt-3 pt-3 border-t border-gray-100">
+        <div className="mt-2 pt-2 border-t border-gray-100">
           {/* // Improved responsive layout for collapsed view */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
-            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 flex-1 min-w-0">
-              <div className="flex items-center gap-2 min-w-0">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5 mb-2">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-3 flex-1 min-w-0">
+              <div className="flex items-center gap-1.5 min-w-0">
                 <User className="h-4 w-4 text-gray-400 flex-shrink-0" />
                 <span className="text-sm text-gray-600 truncate" title={patientName}>
                   {patientName}

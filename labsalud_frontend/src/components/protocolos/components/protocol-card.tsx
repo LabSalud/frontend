@@ -88,6 +88,7 @@ export function ProtocolCard({
   const [loadingDetail, setLoadingDetail] = useState(false)
   const [loadingAnalyses, setLoadingAnalyses] = useState(false)
   const [isCancelling, setIsCancelling] = useState(false)
+  const [isArcaBilling, setIsArcaBilling] = useState(false)
 
   // Dialog states
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false)
@@ -228,6 +229,32 @@ export function ProtocolCard({
       toast.error(message, { duration: TOAST_DURATION })
     } finally {
       setIsCancelling(false)
+    }
+  }
+
+  const handleArcaBilling = async () => {
+    setIsArcaBilling(true)
+    try {
+      const response = await apiRequest(PROTOCOL_ENDPOINTS.ARCA_BILLING(protocol.id), {
+        method: "POST",
+        body: { bill_to: "patient" },
+      })
+
+      if (response.ok) {
+        const data = await response.json().catch(() => ({}))
+        toast.success(data.detail || "Facturación ARCA generada exitosamente", { duration: TOAST_DURATION })
+        await refreshProtocolDetail()
+        onUpdate()
+      } else {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(extractErrorMessage(errorData, "No se pudo facturar a ARCA"))
+      }
+    } catch (error) {
+      console.error("Error ARCA billing:", error)
+      const message = error instanceof Error ? error.message : "Error al emitir facturación ARCA"
+      toast.error(message, { duration: TOAST_DURATION })
+    } finally {
+      setIsArcaBilling(false)
     }
   }
 
@@ -522,8 +549,8 @@ export function ProtocolCard({
   }
 
   const statusId = protocol.status?.id ?? 0
-  const canBeCancelled = statusId !== 4 && statusId !== 5 && statusId !== 7
-  const isEditable = statusId !== 4 && statusId !== 5 && statusId !== 7
+  const canBeCancelled = statusId !== 4 && statusId !== 5 && statusId !== 7 && statusId !== 10
+  const isEditable = statusId !== 4 && statusId !== 5 && statusId !== 7 && statusId !== 10
   const showReports = statusId !== 4
 
   const amountPending = protocolDetail ? Number.parseFloat(protocolDetail.amount_pending || "0") : 0
@@ -535,13 +562,14 @@ export function ProtocolCard({
   const getBorderColor = (statusId: number): string => {
     const borderColors: Record<number, string> = {
       1: "border-l-yellow-500", // Pendiente de carga
-      2: "border-l-blue-500", // Pendiente de validación
+      2: "border-l-sky-500", // Pendiente de validación
       3: "border-l-orange-500", // Pago incompleto
       4: "border-l-red-500", // Cancelado
       5: "border-l-green-500", // Completado
       6: "border-l-purple-500", // Pendiente de Retiro
-      7: "border-l-rose-500", // Envío fallido
+      7: "border-l-pink-500", // Envío fallido
       8: "border-l-teal-500", // Pendiente de Facturación
+      10: "border-l-indigo-500", // Pendiente de envío
     }
     return borderColors[statusId] || "border-l-gray-500"
   }
@@ -554,7 +582,7 @@ export function ProtocolCard({
         } ${isSelected ? "ring-2 ring-[#204983]" : ""} border-l-4 ${getBorderColor(statusId)}`}
         onClick={handleCardClick}
       >
-        <CardContent className="p-4 pb-3">
+        <CardContent className="px-4 py-2.5 sm:py-3">
           {isSelectionMode && (
             <div className="flex items-center mb-2" data-no-expand>
               <button
@@ -641,10 +669,12 @@ export function ProtocolCard({
                   isEditable={isEditable}
                   showReports={showReports}
                   isCancelling={isCancelling}
+                  isArcaBilling={isArcaBilling}
                   onViewAnalysis={handleAnalysisDialog}
                   onEdit={handleOpenEditDialog}
                   onReports={() => setReportDialogOpen(true)}
                   onCancel={handleCancelProtocol}
+                  onArcaBilling={handleArcaBilling}
                 />
               </>
             )}

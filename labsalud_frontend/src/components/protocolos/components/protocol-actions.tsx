@@ -1,6 +1,6 @@
 "use client"
 
-import { Loader2, TestTube, Edit, X, AlertTriangle, FileText } from "lucide-react"
+import { Loader2, TestTube, Edit, X, AlertTriangle, FileText, Landmark } from "lucide-react"
 import { Button } from "../../ui/button"
 import {
   AlertDialog,
@@ -20,10 +20,12 @@ interface ProtocolActionsProps {
   isEditable?: boolean
   showReports?: boolean
   isCancelling: boolean
+  isArcaBilling?: boolean
   onViewAnalysis: () => void
   onEdit: () => void
   onReports: () => void
   onCancel: () => void
+  onArcaBilling: () => void
 }
 
 export function ProtocolActions({
@@ -32,10 +34,12 @@ export function ProtocolActions({
   isEditable = true,
   showReports = true,
   isCancelling,
+  isArcaBilling = false,
   onViewAnalysis,
   onEdit,
   onReports,
   onCancel,
+  onArcaBilling,
 }: ProtocolActionsProps) {
   return (
     <div className="pt-4 border-t border-gray-100" data-no-expand>
@@ -81,6 +85,19 @@ export function ProtocolActions({
             Reportes
           </Button>
         )}
+        <Button
+          size="sm"
+          variant="outline"
+          className="text-amber-700 border-amber-500 hover:bg-amber-600 hover:text-white bg-transparent"
+          onClick={(e) => {
+            e.stopPropagation()
+            onArcaBilling()
+          }}
+          disabled={isArcaBilling}
+        >
+          {isArcaBilling ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Landmark className="h-4 w-4 mr-1" />}
+          Facturar ARCA
+        </Button>
         {canBeCancelled && (
           <AlertDialog>
             <AlertDialogTrigger asChild>

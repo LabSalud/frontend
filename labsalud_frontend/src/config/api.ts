@@ -78,6 +78,7 @@ export const CATALOG_ENDPOINTS = {
 export const PROTOCOL_ENDPOINTS = {
   PROTOCOLS: buildApiUrl("/protocols/protocols/"),
   PROTOCOL_DETAIL: (id: number) => buildApiUrl(`/protocols/protocols/${id}/`),
+  ARCA_BILLING: (id: number) => buildApiUrl(`/protocols/protocols/${id}/arca-billing/`),
   PROTOCOL_DETAILS: (id: number) => buildApiUrl(`/protocols/protocols/${id}/details/`),
   PROTOCOL_DETAIL_UPDATE: (protocolId: number, detailId: number) =>
     buildApiUrl(`/protocols/protocols/${protocolId}/details/${detailId}/`),
@@ -128,8 +129,18 @@ export const BILLING_ENDPOINTS = {
   BY_INSURANCE: (insuranceId: number) =>
     buildApiUrl(`/billing/invoices/by-insurance/${insuranceId}/`),
   PROTOCOLS_TO_BILL: buildApiUrl("/billing/invoices/protocols-to-bill/"),
+  FACTURADOS: buildApiUrl("/billing/invoices/facturados/"),
+  CURRENT_TOTAL: buildApiUrl("/billing/invoices/current-total/"),
   SUMMARY: buildApiUrl("/billing/invoices/summary/"),
+  OOSS_CONTROL: buildApiUrl("/billing/invoices/ooss-control/"),
   PROTOCOLS_STATUS: buildApiUrl("/billing/invoices/protocols-status/"),
+  PRESENTATIONS: buildApiUrl("/billing/presentations/"),
+  CLOSED_PRESENTATIONS: buildApiUrl("/billing/presentations/closed/"),
+  CLOSE_PRESENTATION: buildApiUrl("/billing/presentations/close-period/"),
+  REGISTER_PRESENTATION_COLLECTION: (id: number) => buildApiUrl(`/billing/presentations/${id}/register-collection/`),
+  PRESENTATION_INVOICES: (id: number) => buildApiUrl(`/billing/presentations/${id}/invoices/`),
+  PRESENTATION_PROTOCOLS: (id: number) => buildApiUrl(`/billing/presentations/${id}/protocols/`),
+  PRESENTATIONS_SUMMARY: buildApiUrl("/billing/presentations/summary/"),
 } as const
 
 // Core endpoints

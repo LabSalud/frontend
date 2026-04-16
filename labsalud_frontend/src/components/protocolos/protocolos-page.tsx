@@ -62,10 +62,11 @@ const STATUS_ID_MAP: Record<number, string> = {
   5: "completed",
   6: "pendingRetiro",
   7: "sendFailed",
+  10: "pendingDelivery",
 }
 
 const STATUS_FILTER_KEY = "labsalud_protocol_status_filters"
-const ALLOWED_STATUS_FILTERS = [1, 2, 3, 4, 5, 6, 7]
+const ALLOWED_STATUS_FILTERS = [1, 2, 3, 4, 5, 6, 7, 10]
 
 export default function ProtocolosPage() {
   const { apiRequest } = useApi()
@@ -113,6 +114,7 @@ export default function ProtocolosPage() {
     completed: 0,
     cancelled: 0,
     sendFailed: 0,
+    pendingDelivery: 0,
     pendingBilling: 0,
   })
 
@@ -139,6 +141,7 @@ export default function ProtocolosPage() {
           completed: 0,
           cancelled: 0,
           sendFailed: 0,
+          pendingDelivery: 0,
           pendingBilling: 0,
         }
 
@@ -498,112 +501,124 @@ export default function ProtocolosPage() {
 
       {/* Stats Cards */}
       <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-md p-4 md:p-6 mb-4 md:mb-6">
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-9 gap-3 sm:gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-3">
           <Card>
-            <CardContent className="p-3 sm:p-4">
-              <div className="space-y-1">
-                <div className="flex items-center justify-center gap-2">
-                  <FileText className="h-5 w-5 sm:h-6 sm:w-6 text-gray-400" />
+            <CardContent className="px-2 py-1 sm:px-2.5 sm:py-1.5">
+              <div className="space-y-0.5">
+                <div className="flex items-center justify-center gap-1">
+                  <FileText className="h-5 w-5 sm:h-6 sm:w-6 text-gray-400 flex-shrink-0" />
                   <p className="text-lg sm:text-2xl font-bold text-gray-900">{stats.total}</p>
                 </div>
-                <p className="text-xs sm:text-sm font-medium text-gray-600 text-center">Total</p>
+                <p className="text-xs sm:text-sm font-medium text-gray-600 text-center break-words">Total</p>
               </div>
             </CardContent>
           </Card>
 
           <Card className="bg-yellow-50">
-            <CardContent className="p-3 sm:p-4">
-              <div className="space-y-1">
-                <div className="flex items-center justify-center gap-2">
-                  <Clock className="h-5 w-5 sm:h-6 sm:w-6 text-yellow-400" />
+            <CardContent className="px-2 py-1 sm:px-2.5 sm:py-1.5">
+              <div className="space-y-0.5">
+                <div className="flex items-center justify-center gap-1">
+                  <Clock className="h-5 w-5 sm:h-6 sm:w-6 text-yellow-400 flex-shrink-0" />
                   <p className="text-lg sm:text-2xl font-bold text-yellow-600">{stats.pendingEntry}</p>
                 </div>
-                <p className="text-xs sm:text-sm font-medium text-yellow-700 text-center">Pend. Carga</p>
+                <p className="text-xs sm:text-sm font-medium text-yellow-700 text-center break-words">Pend. Carga</p>
               </div>
             </CardContent>
           </Card>
 
           <Card className="bg-purple-50">
-            <CardContent className="p-3 sm:p-4">
-              <div className="space-y-1">
-                <div className="flex items-center justify-center gap-2">
-                  <User className="h-5 w-5 sm:h-6 sm:w-6 text-purple-400" />
+            <CardContent className="px-2 py-1 sm:px-2.5 sm:py-1.5">
+              <div className="space-y-0.5">
+                <div className="flex items-center justify-center gap-1">
+                  <User className="h-5 w-5 sm:h-6 sm:w-6 text-purple-400 flex-shrink-0" />
                   <p className="text-lg sm:text-2xl font-bold text-purple-600">{stats.pendingRetiro}</p>
                 </div>
-                <p className="text-xs sm:text-sm font-medium text-purple-700 text-center">Pend. Retiro</p>
+                <p className="text-xs sm:text-sm font-medium text-purple-700 text-center break-words">Pend. Retiro</p>
               </div>
             </CardContent>
           </Card>
 
           <Card className="bg-orange-50">
-            <CardContent className="p-3 sm:p-4">
-              <div className="space-y-1">
-                <div className="flex items-center justify-center gap-2">
-                  <Calendar className="h-5 w-5 sm:h-6 sm:w-6 text-orange-400" />
+            <CardContent className="px-2 py-1 sm:px-2.5 sm:py-1.5">
+              <div className="space-y-0.5">
+                <div className="flex items-center justify-center gap-1">
+                  <Calendar className="h-5 w-5 sm:h-6 sm:w-6 text-orange-400 flex-shrink-0" />
                   <p className="text-lg sm:text-2xl font-bold text-orange-600">{stats.incompletePayment}</p>
                 </div>
-                <p className="text-xs sm:text-sm font-medium text-orange-700 text-center">Pago Incompleto</p>
+                <p className="text-xs sm:text-sm font-medium text-orange-700 text-center break-words">Pago Incompleto</p>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-blue-50">
-            <CardContent className="p-3 sm:p-4">
-              <div className="space-y-1">
-                <div className="flex items-center justify-center gap-2">
-                  <Filter className="h-5 w-5 sm:h-6 sm:w-6 text-blue-400" />
-                  <p className="text-lg sm:text-2xl font-bold text-blue-600">{stats.pendingValidation}</p>
+          <Card className="bg-sky-50">
+            <CardContent className="px-2 py-1 sm:px-2.5 sm:py-1.5">
+              <div className="space-y-0.5">
+                <div className="flex items-center justify-center gap-1">
+                  <Filter className="h-5 w-5 sm:h-6 sm:w-6 text-sky-400 flex-shrink-0" />
+                  <p className="text-lg sm:text-2xl font-bold text-sky-600">{stats.pendingValidation}</p>
                 </div>
-                <p className="text-xs sm:text-sm font-medium text-blue-700 text-center">Pend. Validación</p>
+                <p className="text-xs sm:text-sm font-medium text-sky-700 text-center break-words">Pend. Validación</p>
               </div>
             </CardContent>
           </Card>
 
           <Card className="bg-green-50">
-            <CardContent className="p-3 sm:p-4">
-              <div className="space-y-1">
-                <div className="flex items-center justify-center gap-2">
-                  <CheckCircle className="h-5 w-5 sm:h-6 sm:w-6 text-green-400" />
+            <CardContent className="px-2 py-1 sm:px-2.5 sm:py-1.5">
+              <div className="space-y-0.5">
+                <div className="flex items-center justify-center gap-1">
+                  <CheckCircle className="h-5 w-5 sm:h-6 sm:w-6 text-green-400 flex-shrink-0" />
                   <p className="text-lg sm:text-2xl font-bold text-green-600">{stats.completed}</p>
                 </div>
-                <p className="text-xs sm:text-sm font-medium text-green-700 text-center">Completados</p>
+                <p className="text-xs sm:text-sm font-medium text-green-700 text-center break-words">Completados</p>
               </div>
             </CardContent>
           </Card>
 
           <Card className="bg-red-50">
-            <CardContent className="p-3 sm:p-4">
-              <div className="space-y-1">
-                <div className="flex items-center justify-center gap-2">
-                  <Ban className="h-5 w-5 sm:h-6 sm:w-6 text-red-400" />
+            <CardContent className="px-2 py-1 sm:px-2.5 sm:py-1.5">
+              <div className="space-y-0.5">
+                <div className="flex items-center justify-center gap-1">
+                  <Ban className="h-5 w-5 sm:h-6 sm:w-6 text-red-400 flex-shrink-0" />
                   <p className="text-lg sm:text-2xl font-bold text-red-600">{stats.cancelled}</p>
                 </div>
-                <p className="text-xs sm:text-sm font-medium text-red-700 text-center">Cancelados</p>
+                <p className="text-xs sm:text-sm font-medium text-red-700 text-center break-words">Cancelados</p>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-red-50">
-            <CardContent className="p-3 sm:p-4">
-              <div className="space-y-1">
-                <div className="flex items-center justify-center gap-2">
-                  <AlertTriangle className="h-5 w-5 sm:h-6 sm:w-6 text-red-400" />
-                  <p className="text-lg sm:text-2xl font-bold text-red-600">{stats.sendFailed}</p>
+          <Card className="bg-pink-50">
+            <CardContent className="px-2 py-1 sm:px-2.5 sm:py-1.5">
+              <div className="space-y-0.5">
+                <div className="flex items-center justify-center gap-1">
+                  <AlertTriangle className="h-5 w-5 sm:h-6 sm:w-6 text-pink-400 flex-shrink-0" />
+                  <p className="text-lg sm:text-2xl font-bold text-pink-600">{stats.sendFailed}</p>
                 </div>
-                <p className="text-xs sm:text-sm font-medium text-red-700 text-center">Envío Fallido</p>
+                <p className="text-xs sm:text-sm font-medium text-pink-700 text-center break-words">Envío Fallido</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-indigo-50">
+            <CardContent className="px-2 py-1 sm:px-2.5 sm:py-1.5">
+              <div className="space-y-0.5">
+                <div className="flex items-center justify-center gap-1">
+                  <Mail className="h-5 w-5 sm:h-6 sm:w-6 text-indigo-400 flex-shrink-0" />
+                  <p className="text-lg sm:text-2xl font-bold text-indigo-600">{stats.pendingDelivery}</p>
+                </div>
+                <p className="text-xs sm:text-sm font-medium text-indigo-700 text-center break-words">Pend. Envío</p>
               </div>
             </CardContent>
           </Card>
 
           {canAccessBilling && (
             <Card className="bg-teal-50">
-              <CardContent className="p-3 sm:p-4">
-                <div className="space-y-1">
-                  <div className="flex items-center justify-center gap-2">
-                    <Receipt className="h-5 w-5 sm:h-6 sm:w-6 text-teal-400" />
+              <CardContent className="px-2 py-1 sm:px-2.5 sm:py-1.5">
+                <div className="space-y-0.5">
+                  <div className="flex items-center justify-center gap-1">
+                    <Receipt className="h-5 w-5 sm:h-6 sm:w-6 text-teal-400 flex-shrink-0" />
                     <p className="text-lg sm:text-2xl font-bold text-teal-600">{stats.pendingBilling}</p>
                   </div>
-                  <p className="text-xs sm:text-sm font-medium text-teal-700 text-center">Pend. Facturación</p>
+                  <p className="text-xs sm:text-sm font-medium text-teal-700 text-center break-words">Pend. Facturación</p>
                 </div>
               </CardContent>
             </Card>
@@ -655,7 +670,7 @@ export default function ProtocolosPage() {
                 variant={selectedStatuses.includes(2) ? "default" : "outline"}
                 size="sm"
                 onClick={() => toggleStatus(2)}
-                className={selectedStatuses.includes(2) ? "bg-blue-500 hover:bg-blue-600" : ""}
+                className={selectedStatuses.includes(2) ? "bg-sky-500 hover:bg-sky-600" : ""}
               >
                 <Filter className="h-3 w-3 mr-1" />
                 Pend. Validación
@@ -700,10 +715,19 @@ export default function ProtocolosPage() {
                 variant={selectedStatuses.includes(7) ? "default" : "outline"}
                 size="sm"
                 onClick={() => toggleStatus(7)}
-                className={selectedStatuses.includes(7) ? "bg-rose-600 hover:bg-rose-700" : ""}
+                className={selectedStatuses.includes(7) ? "bg-pink-500 hover:bg-pink-600" : ""}
               >
                 <AlertTriangle className="h-3 w-3 mr-1" />
                 Envío Fallido
+              </Button>
+              <Button
+                variant={selectedStatuses.includes(10) ? "default" : "outline"}
+                size="sm"
+                onClick={() => toggleStatus(10)}
+                className={selectedStatuses.includes(10) ? "bg-indigo-500 hover:bg-indigo-600" : ""}
+              >
+                <Mail className="h-3 w-3 mr-1" />
+                Pend. Envío
               </Button>
               {selectedStatuses.length > 0 && (
                 <Button variant="ghost" size="sm" onClick={() => setSelectedStatuses([])} className="text-gray-500">

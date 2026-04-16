@@ -92,13 +92,17 @@ const getValidationStatus = (result: Result) => {
   return "pending"
 }
 
+const mergeUpdatedResultPreservingNotes = (previous: Result, updated: Result): Result => ({
+  ...updated,
+  notes: updated.notes?.trim() ? updated.notes : previous.notes,
+})
+
 export function ValidationProtocolCard({ protocol, onProtocolValidated, isExpanded }: ValidationProtocolCardProps) {
   const { apiRequest } = useApi()
   const [results, setResults] = useState<Result[]>([])
   const [groupedResults, setGroupedResults] = useState<GroupedAnalysis[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [expandedAnalysis, setExpandedAnalysis] = useState<string[]>([])
-  const [validationNotes, setValidationNotes] = useState<Record<number, string>>({})
   const [validatingIds, setValidatingIds] = useState<Set<number>>(new Set())
   const [rejectingIds, setRejectingIds] = useState<Set<number>>(new Set())
   const [togglingIds, setTogglingIds] = useState<Set<number>>(new Set())
@@ -211,7 +215,7 @@ export function ValidationProtocolCard({ protocol, onProtocolValidated, isExpand
 
       const response = await apiRequest(RESULTS_ENDPOINTS.VALIDATE(resultId), {
         method: "POST",
-        body: { is_valid: true, notes: validationNotes[resultId] || "" },
+        body: { is_valid: true },
       })
 
       if (!response.ok) {
@@ -221,11 +225,13 @@ export function ValidationProtocolCard({ protocol, onProtocolValidated, isExpand
 
       const updatedResult: Result = await response.json()
 
-      setResults((prev) => prev.map((r) => (r.id === resultId ? updatedResult : r)))
+      setResults((prev) => prev.map((r) => (r.id === resultId ? mergeUpdatedResultPreservingNotes(r, updatedResult) : r)))
       setGroupedResults((prev) =>
         prev.map((group) => ({
           ...group,
-          results: group.results.map((r) => (r.id === resultId ? updatedResult : r)),
+          results: group.results.map((r) =>
+            r.id === resultId ? mergeUpdatedResultPreservingNotes(r, updatedResult) : r,
+          ),
         })),
       )
 
@@ -252,7 +258,7 @@ export function ValidationProtocolCard({ protocol, onProtocolValidated, isExpand
 
       const response = await apiRequest(RESULTS_ENDPOINTS.VALIDATE(resultId), {
         method: "POST",
-        body: { is_valid: false, notes: validationNotes[resultId] || "" },
+        body: { is_valid: false },
       })
 
       if (!response.ok) {
@@ -262,11 +268,13 @@ export function ValidationProtocolCard({ protocol, onProtocolValidated, isExpand
 
       const updatedResult: Result = await response.json()
 
-      setResults((prev) => prev.map((r) => (r.id === resultId ? updatedResult : r)))
+      setResults((prev) => prev.map((r) => (r.id === resultId ? mergeUpdatedResultPreservingNotes(r, updatedResult) : r)))
       setGroupedResults((prev) =>
         prev.map((group) => ({
           ...group,
-          results: group.results.map((r) => (r.id === resultId ? updatedResult : r)),
+          results: group.results.map((r) =>
+            r.id === resultId ? mergeUpdatedResultPreservingNotes(r, updatedResult) : r,
+          ),
         })),
       )
 
@@ -299,11 +307,13 @@ export function ValidationProtocolCard({ protocol, onProtocolValidated, isExpand
 
       const updatedResult: Result = await response.json()
 
-      setResults((prev) => prev.map((r) => (r.id === resultId ? updatedResult : r)))
+      setResults((prev) => prev.map((r) => (r.id === resultId ? mergeUpdatedResultPreservingNotes(r, updatedResult) : r)))
       setGroupedResults((prev) =>
         prev.map((group) => ({
           ...group,
-          results: group.results.map((r) => (r.id === resultId ? updatedResult : r)),
+          results: group.results.map((r) =>
+            r.id === resultId ? mergeUpdatedResultPreservingNotes(r, updatedResult) : r,
+          ),
         })),
       )
 
@@ -384,13 +394,12 @@ export function ValidationProtocolCard({ protocol, onProtocolValidated, isExpand
                   return (
                     <div
                       key={result.id}
-                      className={`relative border rounded-lg shadow-sm overflow-hidden ${
-                        validationStatus === "wrong"
+                      className={`relative border rounded-lg shadow-sm overflow-hidden ${validationStatus === "wrong"
                           ? "border-red-300 bg-red-50"
                           : validationStatus === "valid"
                             ? "border-green-300 bg-green-50"
                             : "border-blue-300 bg-white"
-                      }`}
+                        }`}
                     >
                       <div className="flex flex-col sm:flex-row">
                         {/* Contenido principal */}
@@ -424,139 +433,174 @@ export function ValidationProtocolCard({ protocol, onProtocolValidated, isExpand
                             {result.value || "Sin valor"} {result.determination.measure_unit}
                           </p>
 
+                          <div className="mt-2">
+                            <p className="text-[11px] uppercase tracking-wide text-gray-500 mb-1">Observaciones</p>
+                            <Textarea
+                              readOnly
+                              placeholder="Sin observaciones cargadas"
+                              className="min-h-[52px] resize-none w-full border-0 bg-gray-50/80 px-3 py-2 text-sm font-serif text-gray-700 shadow-none focus-visible:ring-0"
+                              rows={2}
+                              value={result.notes || ""}
+                            />
+                          </div>
+
                           {/* Validado por */}
                           {validationStatus === "valid" && result.validated_by && (
                             <div className="text-xs text-gray-500">
                               Validado por: {result.validated_by.first_name} {result.validated_by.last_name}
                             </div>
                           )}
-
-                          {/* Notas - solo para pendientes y en móvil */}
-                          {validationStatus === "pending" && (
-                            <div className="mt-2 sm:hidden">
-                              <Textarea
-                                placeholder="Notas (opcional)"
-                                className="text-sm resize-none w-full"
-                                rows={2}
-                                value={validationNotes[result.id] || ""}
-                                onChange={(e) =>
-                                  setValidationNotes((prev) => ({ ...prev, [result.id]: e.target.value }))
-                                }
-                              />
-                            </div>
-                          )}
                         </div>
 
-                        <div
-                          className="relative flex flex-col bg-gray-50 border-t sm:border-t-0 sm:border-l border-gray-200 p-3 sm:p-4 sm:w-64 md:w-72"
-                          onMouseEnter={() => handleButtonZoneEnter(result.id, result.determination.id)}
-                          onMouseLeave={(e) => handleButtonZoneLeave(e, result.id)}
-                        >
-                          {/* Botones de acción */}
-                          <div className="flex flex-row sm:flex-col gap-2">
-                            {validationStatus === "pending" ? (
-                              <>
-                                <Button
-                                  size="sm"
-                                  className="bg-green-600 hover:bg-green-700 text-white flex-1"
-                                  onClick={() => handleValidateResult(result.id)}
-                                  disabled={isValidating || isRejecting || isToggling}
-                                >
-                                  {isValidating ? (
-                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                  ) : (
-                                    <>
-                                      <CheckCircle className="h-4 w-4 mr-1" />
-                                      Validar
-                                    </>
-                                  )}
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="border-red-300 text-red-700 hover:bg-red-50 bg-white flex-1"
-                                  onClick={() => handleRejectResult(result.id)}
-                                  disabled={isValidating || isRejecting || isToggling}
-                                >
-                                  {isRejecting ? (
-                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                  ) : (
-                                    <>
-                                      <XCircle className="h-4 w-4 mr-1" />
-                                      Rechazar
-                                    </>
-                                  )}
-                                </Button>
-                                {/* Notas - solo en desktop */}
-                                <Textarea
-                                  placeholder="Notas (opcional)"
-                                  className="text-sm resize-none w-full hidden sm:block"
-                                  rows={2}
-                                  value={validationNotes[result.id] || ""}
-                                  onChange={(e) =>
-                                    setValidationNotes((prev) => ({ ...prev, [result.id]: e.target.value }))
-                                  }
-                                />
-                              </>
-                            ) : (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="border-gray-300 text-gray-700 hover:bg-gray-100 bg-white w-full"
-                                onClick={() => handleToggleValidation(result.id, result.is_valid)}
-                                disabled={isToggling}
-                              >
-                                {isToggling ? <Loader2 className="h-4 w-4 animate-spin" /> : "Cambiar estado"}
-                              </Button>
-                            )}
-                          </div>
-
-                          {/* Botón de historial manual para móvil */}
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-xs text-gray-500 hover:text-[#204983] sm:hidden mt-2"
-                            onClick={() => {
-                              toggleHistory(result.id)
-                              if (!previousResults[result.id]) {
-                                loadPreviousResults(result.id, result.determination.id)
-                              }
+                        {/* Panel de resultados previos en desktop: columna lateral de alto completo */}
+                        {validationStatus === "pending" && (
+                          <div
+                            style={{
+                              maxWidth: isHistoryExpanded ? "176px" : "0px",
+                              opacity: isHistoryExpanded ? 1 : 0,
                             }}
+                            className="hidden sm:flex flex-col overflow-hidden transition-[max-width,opacity] duration-300 ease-out border-l border-gray-200 bg-gray-50"
+                            onMouseEnter={() => handleButtonZoneEnter(result.id, result.determination.id)}
+                            onMouseLeave={(e) => handleButtonZoneLeave(e, result.id)}
                           >
-                            <History className="h-3 w-3 mr-1" />
-                            {isHistoryExpanded ? "Ocultar historial" : "Ver historial"}
-                          </Button>
-
-                          {/* Panel de historial */}
-                          {isHistoryExpanded && (
-                            <div className="mt-3 pt-3 border-t border-gray-200">
-                              <div className="flex items-center gap-1 text-xs text-gray-500 mb-2">
-                                <History className="h-3 w-3" />
+                            <div className="w-44 h-[190px] p-3 flex flex-col">
+                              <div className="flex items-center gap-1 text-xs font-medium text-gray-500 mb-2 whitespace-nowrap">
+                                <History className="h-3 w-3 flex-shrink-0" />
                                 Resultados previos
                               </div>
                               {isLoadingHistory ? (
-                                <div className="flex justify-center py-2">
-                                  <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
+                                <div className="space-y-1 overflow-y-auto">
+                                  {[...Array(3)].map((_, i) => (
+                                    <Skeleton key={i} className="h-6 w-full rounded" />
+                                  ))}
                                 </div>
                               ) : prevResults.length > 0 ? (
-                                <div className="space-y-1 max-h-32 overflow-y-auto">
-                                  {prevResults.slice(0, 5).map((prev, idx) => (
-                                    <div
-                                      key={idx}
-                                      className="flex justify-between text-xs p-1.5 bg-white rounded border"
-                                    >
-                                      <span className="font-medium text-[#204983]">
+                                <div className="space-y-1 flex-1 overflow-y-auto pr-1">
+                                  {prevResults.map((prev, idx) => (
+                                    <div key={idx} className="flex justify-between text-xs p-1.5 bg-white rounded border">
+                                      <span className="font-medium text-[#204983] truncate">
                                         {prev.value} {prev.determination?.measure_unit}
                                       </span>
-                                      <span className="text-gray-400">#{prev.id}</span>
+                                      <span className="text-gray-400 ml-1 flex-shrink-0">#{prev.id}</span>
                                     </div>
                                   ))}
                                 </div>
                               ) : (
-                                <p className="text-xs text-gray-400 italic">Sin resultados previos</p>
+                                <p className="text-xs text-gray-400 italic whitespace-nowrap">Sin resultados previos</p>
                               )}
                             </div>
-                          )}
+                          </div>
+                        )}
+
+                        {/* Zona de botones */}
+                        <div
+                          className="flex flex-col border-t sm:border-t-0 sm:border-l border-gray-200 bg-gray-50"
+                          onMouseEnter={() => handleButtonZoneEnter(result.id, result.determination.id)}
+                          onMouseLeave={(e) => handleButtonZoneLeave(e, result.id)}
+                          onFocus={() => handleButtonZoneEnter(result.id, result.determination.id)}
+                          onBlur={(e) => {
+                            if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                              handleButtonZoneLeave(e as unknown as React.MouseEvent, result.id)
+                            }
+                          }}
+                        >
+                          {/* Botones de acción */}
+                          <div className="flex flex-col p-3 sm:p-4 w-full sm:w-48 md:w-56 flex-shrink-0 h-full">
+                            <div className="flex flex-col gap-3 h-full">
+                              {validationStatus === "pending" ? (
+                                <>
+                                  <Button
+                                    size="default"
+                                    className="bg-green-600 hover:bg-green-700 text-white w-full font-semibold min-h-[50px] flex-1"
+                                    onClick={() => handleValidateResult(result.id)}
+                                    disabled={isValidating || isRejecting || isToggling}
+                                  >
+                                    {isValidating ? (
+                                      <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                      <>
+                                        <CheckCircle className="h-4 w-4 mr-2" />
+                                        Validar Resultado
+                                      </>
+                                    )}
+                                  </Button>
+
+                                  <div className="pt-2 border-t border-red-200/70 flex-1 min-h-[50px]">
+                                    <Button
+                                      size="default"
+                                      variant="outline"
+                                      className="h-full border-red-300 text-red-700 hover:bg-red-50 bg-white w-full font-semibold"
+                                      onClick={() => handleRejectResult(result.id)}
+                                      disabled={isValidating || isRejecting || isToggling}
+                                    >
+                                      {isRejecting ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                      ) : (
+                                        <>
+                                          <XCircle className="h-4 w-4 mr-2" />
+                                          Rechazar Resultado
+                                        </>
+                                      )}
+                                    </Button>
+                                  </div>
+                                </>
+                              ) : (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="border-gray-300 text-gray-700 hover:bg-gray-100 bg-white w-full h-full min-h-[50px]"
+                                  onClick={() => handleToggleValidation(result.id, result.is_valid)}
+                                  disabled={isToggling}
+                                >
+                                  {isToggling ? <Loader2 className="h-4 w-4 animate-spin" /> : "Cambiar estado"}
+                                </Button>
+                              )}
+                            </div>
+
+                            {/* Botón y panel de resultados previos — solo móvil */}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-xs text-gray-500 hover:text-[#204983] sm:hidden mt-2"
+                              onClick={() => {
+                                toggleHistory(result.id)
+                                if (!previousResults[result.id]) {
+                                  loadPreviousResults(result.id, result.determination.id)
+                                }
+                              }}
+                            >
+                              <History className="h-3 w-3 mr-1" />
+                              {isHistoryExpanded ? "Ocultar resultados previos" : "Ver resultados previos"}
+                            </Button>
+                            {isHistoryExpanded && (
+                              <div className="mt-3 pt-3 border-t border-gray-200 sm:hidden">
+                                <div className="flex items-center gap-1 text-xs text-gray-500 mb-2">
+                                  <History className="h-3 w-3" />
+                                  Resultados previos
+                                </div>
+                                {isLoadingHistory ? (
+                                  <div className="space-y-1">
+                                    {[...Array(3)].map((_, i) => (
+                                      <Skeleton key={i} className="h-6 w-full rounded" />
+                                    ))}
+                                  </div>
+                                ) : prevResults.length > 0 ? (
+                                  <div className="space-y-1 max-h-32 overflow-y-auto">
+                                    {prevResults.slice(0, 5).map((prev, idx) => (
+                                      <div key={idx} className="flex justify-between text-xs p-1.5 bg-white rounded border">
+                                        <span className="font-medium text-[#204983]">
+                                          {prev.value} {prev.determination?.measure_unit}
+                                        </span>
+                                        <span className="text-gray-400">#{prev.id}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <p className="text-xs text-gray-400 italic">Sin resultados previos</p>
+                                )}
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>

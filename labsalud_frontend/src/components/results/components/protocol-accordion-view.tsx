@@ -197,9 +197,10 @@ export function ProtocolAccordionView() {
   const [previousResults, setPreviousResults] = useState<Record<number, PreviousResultData[]>>({})
   const [loadingPrevious, setLoadingPrevious] = useState<Set<number>>(new Set())
   const [expandedHistory, setExpandedHistory] = useState<Set<number>>(new Set())
-  const [, setFocusedInput] = useState<number | null>(null)
+  const [focusedInput, setFocusedInput] = useState<number | null>(null)
 
   const inputRefs = useRef<Record<number, HTMLInputElement | null>>({})
+  const textareaRefs = useRef<Record<number, HTMLTextAreaElement | null>>({})
 
   useEffect(() => {
     localStorage.setItem(RESULTS_PROTOCOL_STATUS_FILTER_KEY, JSON.stringify(selectedStatuses))
@@ -412,26 +413,76 @@ export function ProtocolAccordionView() {
 
   const handleKeyDown = useCallback(
     async (e: React.KeyboardEvent<HTMLInputElement>, resultId: number, protocolId: number) => {
+      const orderedIds = getOrderedResultIds(protocolId)
+      const currentIndex = orderedIds.indexOf(resultId)
+
       if (e.key === "Enter") {
         e.preventDefault()
-
-        // Save the current result
         await handleSaveResult(resultId, protocolId)
-
-        // Find the next input and focus it (across all analysis groups)
-        const orderedIds = getOrderedResultIds(protocolId)
-        const currentIndex = orderedIds.indexOf(resultId)
         if (currentIndex !== -1 && currentIndex < orderedIds.length - 1) {
-          const nextResultId = orderedIds[currentIndex + 1]
-          const nextInput = inputRefs.current[nextResultId]
-          if (nextInput) {
+          const nextInput = inputRefs.current[orderedIds[currentIndex + 1]]
+          if (nextInput && !nextInput.disabled) {
             nextInput.focus()
             nextInput.select()
           }
         }
+      } else if (e.key === "ArrowDown") {
+        e.preventDefault()
+        if (currentIndex !== -1 && currentIndex < orderedIds.length - 1) {
+          const nextInput = inputRefs.current[orderedIds[currentIndex + 1]]
+          if (nextInput && !nextInput.disabled) {
+            nextInput.focus()
+            nextInput.select()
+          }
+        }
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault()
+        if (currentIndex > 0) {
+          const prevInput = inputRefs.current[orderedIds[currentIndex - 1]]
+          if (prevInput && !prevInput.disabled) {
+            prevInput.focus()
+            prevInput.select()
+          }
+        }
+      } else if (e.key === "ArrowRight") {
+        const textarea = textareaRefs.current[resultId]
+        if (textarea && !textarea.disabled) {
+          e.preventDefault()
+          textarea.focus()
+        }
       }
     },
     [handleSaveResult, getOrderedResultIds],
+  )
+
+  const handleTextareaKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLTextAreaElement>, resultId: number, protocolId: number) => {
+      if (e.key === "ArrowLeft" && e.currentTarget.selectionStart === 0) {
+        const input = inputRefs.current[resultId]
+        if (input && !input.disabled) {
+          e.preventDefault()
+          input.focus()
+          input.select()
+        }
+      } else if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+        const orderedIds = getOrderedResultIds(protocolId)
+        const currentIndex = orderedIds.indexOf(resultId)
+        if (e.key === "ArrowUp" && currentIndex > 0) {
+          const prevTextarea = textareaRefs.current[orderedIds[currentIndex - 1]]
+          if (prevTextarea && !prevTextarea.disabled) {
+            e.preventDefault()
+            prevTextarea.focus()
+          }
+        } else if (e.key === "ArrowDown" && currentIndex < orderedIds.length - 1) {
+          const nextTextarea = textareaRefs.current[orderedIds[currentIndex + 1]]
+          if (nextTextarea && !nextTextarea.disabled) {
+            e.preventDefault()
+            nextTextarea.focus()
+          }
+        }
+      }
+    },
+    [getOrderedResultIds],
   )
 
   // Group results by analysis
@@ -860,6 +911,11 @@ export function ProtocolAccordionView() {
                                                     : "bg-white"
                                             }`}
                                           />
+                                          {focusedInput === result.id && !(isValidated && !isWrong) && (
+                                            <p className="mt-1 text-[10px] text-gray-400 leading-tight">
+                                              ↑↓ navegar &nbsp;·&nbsp; → notas &nbsp;·&nbsp; Enter guardar
+                                            </p>
+                                          )}
                                           <Button
                                             variant="ghost"
                                             size="sm"
@@ -891,9 +947,13 @@ export function ProtocolAccordionView() {
                                             Notas (opcional)
                                           </label>
                                           <Textarea
+                                            ref={(el) => {
+                                              textareaRefs.current[result.id] = el
+                                            }}
                                             placeholder="Notas..."
                                             value={currentValue.notes}
                                             onChange={(e) => handleValueChange(result.id, "notes", e.target.value)}
+                                            onKeyDown={(e) => handleTextareaKeyDown(e, result.id, protocol.id)}
                                             disabled={isValidated && !isWrong}
                                             className={`min-h-[60px] text-xs ${
                                               isWrong

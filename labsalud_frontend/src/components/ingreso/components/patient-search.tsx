@@ -21,6 +21,7 @@ export function PatientSearch({ onPatientFound, onPatientNotFound, onReset }: Pa
   const { apiRequest } = useApi()
   const [searchDni, setSearchDni] = useState("")
   const [isSearching, setIsSearching] = useState(false)
+  const [showLetterWarning, setShowLetterWarning] = useState(false)
 
   const handleSearch = async () => {
     if (!searchDni.trim()) {
@@ -65,8 +66,13 @@ export function PatientSearch({ onPatientFound, onPatientNotFound, onReset }: Pa
   }
 
   const handleDniChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value.replace(/\D/g, "")
-    setSearchDni(value)
+    const raw = e.target.value
+    const hasLetters = /[a-zA-Z]/.test(raw)
+    if (hasLetters) {
+      setShowLetterWarning(true)
+      setTimeout(() => setShowLetterWarning(false), 2000)
+    }
+    setSearchDni(raw.replace(/\D/g, ""))
   }
 
   return (
@@ -81,7 +87,15 @@ export function PatientSearch({ onPatientFound, onPatientNotFound, onReset }: Pa
             onKeyPress={handleKeyPress}
             className="pl-10 font-mono text-lg border-gray-300 focus:border-[#204983] focus:ring-[#204983]"
             maxLength={8}
+            inputMode="numeric"
+            pattern="[0-9]*"
+            autoComplete="off"
           />
+          {showLetterWarning && (
+            <p className="absolute left-0 -bottom-6 text-xs text-amber-600 font-medium flex items-center gap-1">
+              Solo se permiten numeros
+            </p>
+          )}
         </div>
         <Button
           onClick={handleSearch}

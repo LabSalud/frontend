@@ -192,7 +192,9 @@ export function AnalysisAccordionView() {
   const [expandedHistory, setExpandedHistory] = useState<Set<number>>(new Set())
 
   const inputRefs = useRef<Record<number, HTMLInputElement | null>>({})
+  const textareaRefs = useRef<Record<number, HTMLTextAreaElement | null>>({})
   const orderedResultIds = useRef<number[]>([])
+  const [focusedInput, setFocusedInput] = useState<number | null>(null)
 
   useEffect(() => {
     localStorage.setItem(RESULTS_ANALYSIS_STATUS_FILTER_KEY, JSON.stringify(selectedStatuses))
@@ -418,23 +420,75 @@ export function AnalysisAccordionView() {
 
   const handleKeyDown = useCallback(
     async (e: React.KeyboardEvent<HTMLInputElement>, resultId: number, protocolId: number) => {
+      const ids = orderedResultIds.current
+      const currentIndex = ids.indexOf(resultId)
+
       if (e.key === "Enter") {
         e.preventDefault()
-
         await handleSaveResult(resultId, protocolId)
-
-        const currentIndex = orderedResultIds.current.indexOf(resultId)
-        if (currentIndex !== -1 && currentIndex < orderedResultIds.current.length - 1) {
-          const nextResultId = orderedResultIds.current[currentIndex + 1]
-          const nextInput = inputRefs.current[nextResultId]
-          if (nextInput) {
+        if (currentIndex !== -1 && currentIndex < ids.length - 1) {
+          const nextInput = inputRefs.current[ids[currentIndex + 1]]
+          if (nextInput && !nextInput.disabled) {
             nextInput.focus()
             nextInput.select()
           }
         }
+      } else if (e.key === "ArrowDown") {
+        e.preventDefault()
+        if (currentIndex !== -1 && currentIndex < ids.length - 1) {
+          const nextInput = inputRefs.current[ids[currentIndex + 1]]
+          if (nextInput && !nextInput.disabled) {
+            nextInput.focus()
+            nextInput.select()
+          }
+        }
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault()
+        if (currentIndex > 0) {
+          const prevInput = inputRefs.current[ids[currentIndex - 1]]
+          if (prevInput && !prevInput.disabled) {
+            prevInput.focus()
+            prevInput.select()
+          }
+        }
+      } else if (e.key === "ArrowRight") {
+        const textarea = textareaRefs.current[resultId]
+        if (textarea && !textarea.disabled) {
+          e.preventDefault()
+          textarea.focus()
+        }
       }
     },
     [handleSaveResult],
+  )
+
+  const handleTextareaKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLTextAreaElement>, resultId: number) => {
+      const ids = orderedResultIds.current
+      const currentIndex = ids.indexOf(resultId)
+
+      if (e.key === "ArrowLeft" && e.currentTarget.selectionStart === 0) {
+        const input = inputRefs.current[resultId]
+        if (input && !input.disabled) {
+          e.preventDefault()
+          input.focus()
+          input.select()
+        }
+      } else if (e.key === "ArrowUp" && currentIndex > 0) {
+        const prevTextarea = textareaRefs.current[ids[currentIndex - 1]]
+        if (prevTextarea && !prevTextarea.disabled) {
+          e.preventDefault()
+          prevTextarea.focus()
+        }
+      } else if (e.key === "ArrowDown" && currentIndex < ids.length - 1) {
+        const nextTextarea = textareaRefs.current[ids[currentIndex + 1]]
+        if (nextTextarea && !nextTextarea.disabled) {
+          e.preventDefault()
+          nextTextarea.focus()
+        }
+      }
+    },
+    [],
   )
 
   const loadPreviousResults = useCallback(
@@ -479,6 +533,7 @@ export function AnalysisAccordionView() {
 
   const handleInputFocus = useCallback(
     (resultId: number, patientId: number, determinationId: number) => {
+      setFocusedInput(resultId)
       loadPreviousResults(resultId, patientId, determinationId)
       setExpandedHistory((prev) => new Set(prev).add(resultId))
       const input = inputRefs.current[resultId]
@@ -486,6 +541,10 @@ export function AnalysisAccordionView() {
     },
     [loadPreviousResults],
   )
+
+  const handleInputBlur = useCallback(() => {
+    setTimeout(() => setFocusedInput(null), 200)
+  }, [])
 
   const toggleHistory = useCallback((resultId: number) => {
     setExpandedHistory((prev) => {
@@ -849,6 +908,7 @@ export function AnalysisAccordionView() {
                                 onFocus={() =>
                                   handleInputFocus(result.id, protocol.patient.id, result.determination.id)
                                 }
+                                onBlur={handleInputBlur}
                                 disabled={isValidated && !isWrong}
                                 className={`${
                                   isWrong
@@ -860,6 +920,11 @@ export function AnalysisAccordionView() {
                                         : "bg-white"
                                 }`}
                               />
+                              {focusedInput === result.id && !(isValidated && !isWrong) && (
+                                <p className="mt-1 text-[10px] text-gray-400 leading-tight">
+                                  ↑↓ navegar &nbsp;·&nbsp; → notas &nbsp;·&nbsp; Enter guardar
+                                </p>
+                              )}
                               <Button
                                 variant="ghost"
                                 size="sm"
@@ -884,9 +949,13 @@ export function AnalysisAccordionView() {
                             <div className="lg:w-1/3">
                               <label className="text-xs font-medium text-gray-700 block mb-1">Notas (opcional)</label>
                               <Textarea
+                                ref={(el) => {
+                                  textareaRefs.current[result.id] = el
+                                }}
                                 placeholder="Notas..."
                                 value={currentValue.notes}
                                 onChange={(e) => handleValueChange(result.id, "notes", e.target.value)}
+                                onKeyDown={(e) => handleTextareaKeyDown(e, result.id)}
                                 disabled={isValidated && !isWrong}
                                 className={`min-h-[60px] text-xs ${
                                   isWrong

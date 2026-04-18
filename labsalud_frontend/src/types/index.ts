@@ -289,6 +289,7 @@ export interface ProtocolDetail {
   id: number
   analysis: number
   is_authorized: boolean
+  is_valid?: boolean
   code: number
   name: string
   ub: string

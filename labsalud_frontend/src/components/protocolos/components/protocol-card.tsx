@@ -7,6 +7,16 @@ import { Skeleton } from "../../ui/skeleton"
 import { useApi } from "../../../hooks/use-api"
 import { toast } from "sonner"
 import { PROTOCOL_ENDPOINTS, REPORTING_ENDPOINTS, TOAST_DURATION } from "@/config/api"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "../../ui/alert-dialog"
 import type {
   ProtocolListItem,
   ProtocolDetail as ProtocolDetailType,
@@ -64,6 +74,21 @@ interface ProtocolDetailResponse {
   total_changes?: number
 }
 
+type ReportProtocolDetail = ProtocolDetailType & {
+  is_sent?: boolean
+  is_valid?: boolean
+}
+
+const EXCLUDED_REPORT_ANALYSIS_CODE = 660001
+
+const isSelectableForReport = (analysis: ReportProtocolDetail) => {
+  return analysis.code !== EXCLUDED_REPORT_ANALYSIS_CODE && analysis.is_valid !== false
+}
+
+const isReportableAnalysis = (analysis: ReportProtocolDetail) => {
+  return analysis.code !== EXCLUDED_REPORT_ANALYSIS_CODE
+}
+
 interface ProtocolCardProps {
   protocol: ProtocolListItem
   onUpdate: () => void
@@ -84,7 +109,7 @@ export function ProtocolCard({
   const { apiRequest } = useApi()
   const [isExpanded, setIsExpanded] = useState(false)
   const [protocolDetail, setProtocolDetail] = useState<ProtocolDetailResponse | null>(null)
-  const [protocolDetails, setProtocolDetails] = useState<ProtocolDetailType[]>([])
+  const [protocolDetails, setProtocolDetails] = useState<ReportProtocolDetail[]>([])
   const [loadingDetail, setLoadingDetail] = useState(false)
   const [loadingAnalyses, setLoadingAnalyses] = useState(false)
   const [isCancelling, setIsCancelling] = useState(false)
@@ -108,11 +133,26 @@ export function ProtocolCard({
 
   const [reportDialogOpen, setReportDialogOpen] = useState(false)
   const [reportType, setReportType] = useState<"full" | "summary">("full")
+  const [reportDate, setReportDate] = useState("")
+  const [reportTime, setReportTime] = useState("")
+  const [reportCustomizationOpen, setReportCustomizationOpen] = useState(false)
+  const [selectedReportAnalysisIds, setSelectedReportAnalysisIds] = useState<number[]>([])
   const [isGeneratingReport, setIsGeneratingReport] = useState(false)
   const [isDownloadingReport, setIsDownloadingReport] = useState(false)
   const [isSendingEmail, setIsSendingEmail] = useState(false)
   const [isSendingWhatsApp, setIsSendingWhatsApp] = useState(false)
+  const [sendConfirmationOpen, setSendConfirmationOpen] = useState(false)
+  const [pendingSendMethod, setPendingSendMethod] = useState<"email" | "whatsapp" | null>(null)
   const [historyDialogOpen, setHistoryDialogOpen] = useState(false)
+
+  const handleReportDateChange = (newDate: string) => {
+    setReportDate(newDate)
+  }
+
+  const handleClearReportDateTime = () => {
+    setReportDate("")
+    setReportTime("")
+  }
 
   // Helper function to extract error messages from backend responses
   const extractErrorMessage = (error: unknown, defaultMessage: string): string => {
@@ -130,6 +170,66 @@ export function ProtocolCard({
     }
     return defaultMessage
   }
+
+  const getReportRequestOptions = () => {
+    const date = reportDate.trim()
+    const time = reportTime.trim()
+    const reportableAnalyses = protocolDetails.filter(isReportableAnalysis)
+    const includedAnalysisIds = selectedReportAnalysisIds.filter((analysisId) =>
+      reportableAnalyses.some((analysis) => analysis.id === analysisId),
+    )
+    const excludedAnalysisIds = reportableAnalyses
+      .filter((analysis) => !includedAnalysisIds.includes(analysis.id))
+      .map((analysis) => analysis.id)
+
+    if (!date && !time) {
+      return {
+        method: "POST" as const,
+        body: {
+          analysis_ids: includedAnalysisIds,
+          exclude_analysis_ids: excludedAnalysisIds,
+        },
+      }
+    }
+
+    const body: Record<string, unknown> = {}
+    if (date) body.protocol_date = date
+    if (time) body.protocol_time = time
+    body.analysis_ids = includedAnalysisIds
+    body.exclude_analysis_ids = excludedAnalysisIds
+
+    return {
+      method: "POST" as const,
+      body,
+    }
+  }
+
+  const loadProtocolAnalyses = useCallback(async (): Promise<ReportProtocolDetail[] | null> => {
+    if (protocolDetails.length > 0) {
+      return protocolDetails
+    }
+
+    setLoadingAnalyses(true)
+    try {
+      const response = await apiRequest(PROTOCOL_ENDPOINTS.PROTOCOL_DETAILS(protocol.id))
+
+      if (response.ok) {
+        const data: ReportProtocolDetail[] = await response.json()
+        setProtocolDetails(data)
+        return data
+      }
+
+      const errorData = await response.json().catch(() => ({}))
+      throw new Error(extractErrorMessage(errorData, "Error fetching protocol details"))
+    } catch (error) {
+      console.error("Error fetching protocol details:", error)
+      const message = error instanceof Error ? error.message : "Error al cargar los análisis del protocolo"
+      toast.error(message, { duration: TOAST_DURATION })
+      return null
+    } finally {
+      setLoadingAnalyses(false)
+    }
+  }, [apiRequest, protocol.id, protocolDetails])
 
   const refreshProtocolDetail = useCallback(async () => {
     try {
@@ -185,28 +285,40 @@ export function ProtocolCard({
   }
 
   const handleAnalysisDialog = async () => {
-    if (protocolDetails.length === 0) {
-      setLoadingAnalyses(true)
-      try {
-        const response = await apiRequest(PROTOCOL_ENDPOINTS.PROTOCOL_DETAILS(protocol.id))
-
-        if (response.ok) {
-          const data: ProtocolDetailType[] = await response.json()
-          setProtocolDetails(data)
-        } else {
-          const errorData = await response.json().catch(() => ({}))
-          throw new Error(extractErrorMessage(errorData, "Error fetching protocol details"))
-        }
-      } catch (error) {
-        console.error("Error fetching protocol details:", error)
-        const message = error instanceof Error ? error.message : "Error al cargar los análisis del protocolo"
-        toast.error(message, { duration: TOAST_DURATION })
-        return
-      } finally {
-        setLoadingAnalyses(false)
-      }
+    const analyses = await loadProtocolAnalyses()
+    if (!analyses) {
+      return
     }
     setAnalysisDialogOpen(true)
+  }
+
+  const handleOpenReportDialog = async () => {
+    const analyses = await loadProtocolAnalyses()
+    if (!analyses) {
+      return
+    }
+
+    setSelectedReportAnalysisIds(analyses.filter(isSelectableForReport).map((analysis) => analysis.id))
+    setReportCustomizationOpen(false)
+    setReportDialogOpen(true)
+  }
+
+  const handleToggleReportAnalysis = (analysisId: number) => {
+    const analysis = protocolDetails.find((item) => item.id === analysisId)
+    if (!analysis || !isSelectableForReport(analysis)) {
+      return
+    }
+
+    setSelectedReportAnalysisIds((prev) =>
+      prev.includes(analysisId) ? prev.filter((id) => id !== analysisId) : [...prev, analysisId],
+    )
+  }
+
+  const handleReportDialogOpenChange = (open: boolean) => {
+    setReportDialogOpen(open)
+    if (!open) {
+      setReportCustomizationOpen(false)
+    }
   }
 
   const handleCancelProtocol = async () => {
@@ -351,37 +463,24 @@ export function ProtocolCard({
     setIsGeneratingReport(true)
 
     try {
-      const response = await apiRequest(REPORTING_ENDPOINTS.PRINT(protocol.id, reportType), {
-        method: "POST",
-      })
+      const response = await apiRequest(REPORTING_ENDPOINTS.PRINT(protocol.id, reportType), getReportRequestOptions())
 
       if (response.ok) {
         const blob = await response.blob()
         const url = window.URL.createObjectURL(blob)
 
-        // Crear iframe oculto para imprimir usando el diálogo nativo del navegador
-        const printFrame = document.createElement("iframe")
-        printFrame.style.position = "fixed"
-        printFrame.style.right = "0"
-        printFrame.style.bottom = "0"
-        printFrame.style.width = "0"
-        printFrame.style.height = "0"
-        printFrame.style.border = "0"
-        printFrame.src = url
-        document.body.appendChild(printFrame)
+        const previewLink = document.createElement("a")
+        previewLink.href = url
+        previewLink.target = "_blank"
+        previewLink.rel = "noopener noreferrer"
+        document.body.appendChild(previewLink)
+        previewLink.click()
+        previewLink.remove()
 
-        printFrame.onload = () => {
-          const frameWindow = printFrame.contentWindow
-          if (frameWindow) {
-            frameWindow.focus()
-            frameWindow.print()
-          }
-          // Limpiar después de un tiempo para dar tiempo al diálogo de impresión
-          setTimeout(() => {
-            printFrame.remove()
-            window.URL.revokeObjectURL(url)
-          }, 1500)
-        }
+        // Liberar el blob URL después de darle tiempo a que cargue la vista previa.
+        setTimeout(() => {
+          window.URL.revokeObjectURL(url)
+        }, 30000)
 
         toast.success("Reporte listo para imprimir", { duration: TOAST_DURATION })
         setReportDialogOpen(false)
@@ -402,9 +501,7 @@ export function ProtocolCard({
     setIsDownloadingReport(true)
 
     try {
-      const response = await apiRequest(REPORTING_ENDPOINTS.PRINT(protocol.id, reportType), {
-        method: "POST",
-      })
+      const response = await apiRequest(REPORTING_ENDPOINTS.PRINT(protocol.id, reportType), getReportRequestOptions())
 
       if (response.ok) {
         const blob = await response.blob()
@@ -436,12 +533,10 @@ export function ProtocolCard({
     }
   }
 
-  const handleSendEmail = async () => {
+  const executeSendEmail = async () => {
     setIsSendingEmail(true)
     try {
-      const response = await apiRequest(REPORTING_ENDPOINTS.SEND_EMAIL(protocol.id, reportType), {
-        method: "POST",
-      })
+      const response = await apiRequest(REPORTING_ENDPOINTS.SEND_EMAIL(protocol.id, reportType), getReportRequestOptions())
 
       if (response.ok) {
         const data = await response.json()
@@ -460,12 +555,10 @@ export function ProtocolCard({
     }
   }
 
-  const handleSendWhatsApp = async () => {
+  const executeSendWhatsApp = async () => {
     setIsSendingWhatsApp(true)
     try {
-      const response = await apiRequest(REPORTING_ENDPOINTS.SEND_WHATSAPP(protocol.id, reportType), {
-        method: "POST",
-      })
+      const response = await apiRequest(REPORTING_ENDPOINTS.SEND_WHATSAPP(protocol.id, reportType), getReportRequestOptions())
 
       if (response.ok) {
         const data = await response.json()
@@ -481,6 +574,30 @@ export function ProtocolCard({
       toast.error(message, { duration: TOAST_DURATION })
     } finally {
       setIsSendingWhatsApp(false)
+    }
+  }
+
+  const handleSendEmail = () => {
+    setPendingSendMethod("email")
+    setSendConfirmationOpen(true)
+  }
+
+  const handleSendWhatsApp = () => {
+    setPendingSendMethod("whatsapp")
+    setSendConfirmationOpen(true)
+  }
+
+  const handleConfirmSend = async () => {
+    setSendConfirmationOpen(false)
+    const method = pendingSendMethod
+    setPendingSendMethod(null)
+
+    if (method === "email") {
+      await executeSendEmail()
+    }
+
+    if (method === "whatsapp") {
+      await executeSendWhatsApp()
     }
   }
 
@@ -672,7 +789,7 @@ export function ProtocolCard({
                   isArcaBilling={isArcaBilling}
                   onViewAnalysis={handleAnalysisDialog}
                   onEdit={handleOpenEditDialog}
-                  onReports={() => setReportDialogOpen(true)}
+                  onReports={handleOpenReportDialog}
                   onCancel={handleCancelProtocol}
                   onArcaBilling={handleArcaBilling}
                 />
@@ -733,10 +850,20 @@ export function ProtocolCard({
 
       <ReportDialog
         open={reportDialogOpen}
-        onOpenChange={setReportDialogOpen}
+        onOpenChange={handleReportDialogOpenChange}
         protocolId={protocol.id}
         reportType={reportType}
         onReportTypeChange={setReportType}
+        reportDate={reportDate}
+        onReportDateChange={handleReportDateChange}
+        reportTime={reportTime}
+        onReportTimeChange={setReportTime}
+        onClearDateTime={handleClearReportDateTime}
+        analyses={protocolDetails}
+        selectedAnalysisIds={selectedReportAnalysisIds}
+        onToggleAnalysis={handleToggleReportAnalysis}
+        customizationOpen={reportCustomizationOpen}
+        onToggleCustomizationOpen={setReportCustomizationOpen}
         onGenerateReport={handleGenerateReport}
         onDownloadReport={handleDownloadReport}
         onSendEmail={handleSendEmail}
@@ -746,6 +873,31 @@ export function ProtocolCard({
         isSending={isSendingEmail}
         isSendingWhatsApp={isSendingWhatsApp}
       />
+
+      <AlertDialog
+        open={sendConfirmationOpen}
+        onOpenChange={(open) => {
+          setSendConfirmationOpen(open)
+          if (!open) {
+            setPendingSendMethod(null)
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar envío</AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingSendMethod === "email"
+                ? "Vas a enviar el reporte por email. Confirmá para continuar."
+                : "Vas a enviar el reporte por WhatsApp. Confirmá para continuar."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setPendingSendMethod(null)}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmSend}>Confirmar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <ProtocolHistoryDialog
         open={historyDialogOpen}

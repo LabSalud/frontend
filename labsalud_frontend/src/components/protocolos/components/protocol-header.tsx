@@ -80,7 +80,7 @@ export function ProtocolHeader({
       <div className="flex justify-between items-start">
         <div className="flex-1 min-w-0">
           {/* // Improved responsive layout */}
-          <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-2">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-2 min-w-0">
             <div className={`flex-shrink-0 p-1.5 rounded-full ${isCancelled ? "bg-red-500" : "bg-[#204983]"} self-start`}>
               <div className="h-5 w-5 bg-white rounded-sm flex items-center justify-center">
                 <span className={`text-xs font-bold ${isCancelled ? "text-red-500" : "text-[#204983]"}`}>P</span>
@@ -92,7 +92,7 @@ export function ProtocolHeader({
                   Protocolo #{protocolId}
                 </h3>
                 {/* // Responsive button layout */}
-                <div className="flex flex-wrap gap-1">
+                <div className="flex flex-wrap gap-1 min-w-0 max-w-full">
                   {(canRegisterPayment || labOwesPatient) && (
                     <Button
                       size="sm"
@@ -109,12 +109,12 @@ export function ProtocolHeader({
                   )}
                 </div>
               </div>
-              <div className="flex items-center flex-wrap gap-1">
+              <div className="flex items-center flex-wrap gap-1 max-w-full min-w-0">
                 <Badge className={getStateColor(statusId)} variant="secondary">
                   {statusName}
                 </Badge>
                 {isPrinted && (
-                  <Badge variant="outline" className="text-xs">
+                  <Badge variant="outline" className="max-w-full text-xs">
                     <Printer className="h-3 w-3 mr-1" />
                     <span className="hidden sm:inline">Impreso / </span>Enviado
                   </Badge>
@@ -134,17 +134,17 @@ export function ProtocolHeader({
       {!isExpanded && (
         <div className="mt-2 pt-2 border-t border-gray-100">
           {/* // Improved responsive layout for collapsed view */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5 mb-2">
-            <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-3 flex-1 min-w-0">
-              <div className="flex items-center gap-1.5 min-w-0">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5 mb-2 min-w-0">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-3 flex-1 min-w-0 max-w-full">
+              <div className="flex items-center gap-1.5 min-w-0 max-w-full">
                 <User className="h-4 w-4 text-gray-400 flex-shrink-0" />
                 <span className="text-sm text-gray-600 truncate" title={patientName}>
                   {patientName}
                 </span>
               </div>
-              <div className="flex items-center gap-1 flex-shrink-0">
+              <div className="flex min-w-0 items-center gap-1 flex-shrink-0 max-w-full">
                 <CreditCard className="h-4 w-4 text-gray-400" />
-                <span className={`text-sm font-medium ${paymentStatusInfo.color}`}>
+                <span className={`min-w-0 max-w-full flex-1 break-words text-sm font-medium ${paymentStatusInfo.color}`}>
                   {paymentStatusId === 1
                     ? "Pagado"
                     : paymentStatusId === 2

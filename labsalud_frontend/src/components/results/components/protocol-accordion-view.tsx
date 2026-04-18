@@ -237,7 +237,7 @@ export function ProtocolAccordionView() {
               params.append("status__in", statusesWithoutCancelled.join(","))
             }
           } else {
-            params.append("status__in", "1,2,3,5,7")
+            params.append("status__in", "1,2,3,4,5,7,10")
           }
           if (params.toString()) {
             url += `?${params.toString()}`

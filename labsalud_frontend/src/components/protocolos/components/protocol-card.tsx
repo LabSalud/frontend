@@ -79,14 +79,14 @@ type ReportProtocolDetail = ProtocolDetailType & {
   is_valid?: boolean
 }
 
-const EXCLUDED_REPORT_ANALYSIS_CODE = 660001
+const EXCLUDED_REPORT_ANALYSIS_CODES = new Set([660001, 661001])
 
 const isSelectableForReport = (analysis: ReportProtocolDetail) => {
-  return analysis.code !== EXCLUDED_REPORT_ANALYSIS_CODE && analysis.is_valid !== false
+  return !EXCLUDED_REPORT_ANALYSIS_CODES.has(analysis.code) && analysis.is_valid !== false
 }
 
 const isReportableAnalysis = (analysis: ReportProtocolDetail) => {
-  return analysis.code !== EXCLUDED_REPORT_ANALYSIS_CODE
+  return !EXCLUDED_REPORT_ANALYSIS_CODES.has(analysis.code)
 }
 
 interface ProtocolCardProps {

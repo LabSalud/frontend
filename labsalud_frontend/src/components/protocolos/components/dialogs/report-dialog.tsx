@@ -95,14 +95,14 @@ interface ReportCustomizationDrawerProps {
   onToggleOpen: (open: boolean) => void
 }
 
-const EXCLUDED_ANALYSIS_CODE = 660001
+const EXCLUDED_ANALYSIS_CODES = new Set([660001, 661001])
 
 function isSelectableAnalysis(analysis: ReportProtocolAnalysis) {
-  return analysis.code !== EXCLUDED_ANALYSIS_CODE && analysis.is_valid !== false
+  return !EXCLUDED_ANALYSIS_CODES.has(analysis.code) && analysis.is_valid !== false
 }
 
 function isVisibleAnalysis(analysis: ReportProtocolAnalysis) {
-  return analysis.code !== EXCLUDED_ANALYSIS_CODE
+  return !EXCLUDED_ANALYSIS_CODES.has(analysis.code)
 }
 
 function ReportCustomizationDrawer({

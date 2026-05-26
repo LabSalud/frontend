@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Loader2, AlertTriangle, TestTube } from "lucide-react"
 import { CATALOG_ENDPOINTS } from "@/config/api"
+import { formatApiError, getErrorMessage } from "@/lib/api-error"
 
 interface Analysis {
   id: number
@@ -59,13 +60,13 @@ export const DeleteAnalysisCatalogDialog: React.FC<DeleteAnalysisCatalogDialogPr
       } else {
         const errorData = await response.json().catch(() => ({}))
         toastActions.error("Error", {
-          description: errorData.detail || "No se pudo eliminar el análisis.",
+          description: formatApiError(errorData, "No se pudo eliminar el análisis."),
         })
       }
     } catch (error) {
       console.error("Error deleting analysis:", error)
       toastActions.error("Error", {
-        description: "Error de conexión. Inténtalo de nuevo.",
+        description: getErrorMessage(error, "Error de conexión. Inténtalo de nuevo."),
       })
     } finally {
       setIsDeleting(false)

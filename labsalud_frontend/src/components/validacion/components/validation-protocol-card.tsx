@@ -21,40 +21,18 @@ import {
 } from "@/components/ui/dialog"
 import type { ProtocolWithLoadedResults, Result } from "@/types"
 import { Textarea } from "@/components/ui/textarea"
+import {
+  formatEvaluatedReference,
+  formatReferenceRange,
+  formatReferenceValues,
+  getReferenceEvaluationLabel,
+} from "@/lib/catalog-format"
+import { getErrorMessage, readApiError } from "@/lib/api-error"
 
-const extractErrorMessage = (error: unknown): string => {
-  if (error instanceof Error) {
-    try {
-      const parsed = JSON.parse(error.message)
-      if (parsed.detail) return parsed.detail
-      if (parsed.error) return parsed.error
-      if (parsed.message) return parsed.message
-      const firstKey = Object.keys(parsed)[0]
-      if (firstKey && Array.isArray(parsed[firstKey])) {
-        return `${firstKey}: ${parsed[firstKey][0]}`
-      }
-    } catch {
-      return error.message
-    }
-  }
-  return "Error desconocido"
-}
+const extractErrorMessage = (error: unknown): string => getErrorMessage(error, "Error desconocido")
 
-const extractResponseError = async (response: Response): Promise<string> => {
-  try {
-    const data = await response.json()
-    if (data.detail) return data.detail
-    if (data.error) return data.error
-    if (data.message) return data.message
-    const firstKey = Object.keys(data)[0]
-    if (firstKey && Array.isArray(data[firstKey])) {
-      return `${firstKey}: ${data[firstKey][0]}`
-    }
-    return JSON.stringify(data)
-  } catch {
-    return `Error ${response.status}: ${response.statusText}`
-  }
-}
+const extractResponseError = async (response: Response): Promise<string> =>
+  readApiError(response, `Error ${response.status}: ${response.statusText}`)
 
 interface GroupedAnalysis {
   analysisId: number
@@ -97,6 +75,8 @@ const mergeUpdatedResultPreservingNotes = (previous: Result, updated: Result): R
   notes: updated.notes?.trim() ? updated.notes : previous.notes,
 })
 
+const hasLoadedValue = (result: Result): boolean => result.value !== null && result.value !== undefined && String(result.value).trim() !== ""
+
 export function ValidationProtocolCard({ protocol, onProtocolValidated, isExpanded }: ValidationProtocolCardProps) {
   const { apiRequest } = useApi()
   const [results, setResults] = useState<Result[]>([])
@@ -120,7 +100,7 @@ export function ValidationProtocolCard({ protocol, onProtocolValidated, isExpand
   const loadProtocolResults = async () => {
     try {
       setIsLoading(true)
-      const response = await apiRequest(RESULTS_ENDPOINTS.BY_PROTOCOL_WITH_VALUE(protocol.id))
+      const response = await apiRequest(RESULTS_ENDPOINTS.BY_PROTOCOL(protocol.id))
 
       if (!response.ok) {
         const errorMsg = await extractResponseError(response)
@@ -128,7 +108,8 @@ export function ValidationProtocolCard({ protocol, onProtocolValidated, isExpand
       }
 
       const data = await response.json()
-      const resultsData: Result[] = data.results || data
+      const allResults: Result[] = data.results || data
+      const resultsData = allResults
       setResults(resultsData)
       const grouped = groupResultsByAnalysis(resultsData)
       setGroupedResults(grouped)
@@ -207,7 +188,7 @@ export function ValidationProtocolCard({ protocol, onProtocolValidated, isExpand
   }, [])
 
   const handleValidateResult = async (resultId: number) => {
-    const pendingResults = results.filter((r) => !r.is_valid && !r.is_wrong)
+    const pendingResults = results.filter((r) => hasLoadedValue(r) && !r.is_valid && !r.is_wrong)
     const isLast = pendingResults.length === 1 && pendingResults[0].id === resultId
 
     try {
@@ -362,8 +343,35 @@ export function ValidationProtocolCard({ protocol, onProtocolValidated, isExpand
     return <p className="text-center text-gray-500 py-4">No hay resultados cargados para validar.</p>
   }
 
+  const wrongResults = results.filter((r) => r.is_wrong)
+  const hasReviewPending = wrongResults.length > 0
+
   return (
     <>
+      {hasReviewPending && (
+        <div className="mb-3 rounded-lg border-l-4 border-l-[#800020] bg-[#f8e8ee] p-3 sm:p-4">
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="h-5 w-5 text-[#800020] flex-shrink-0 mt-0.5" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-[#800020]">
+                Pendiente de revisión: {wrongResults.length} resultado{wrongResults.length === 1 ? "" : "s"} marcado{wrongResults.length === 1 ? "" : "s"} como incorrecto{wrongResults.length === 1 ? "" : "s"}
+              </p>
+              <p className="text-xs text-[#800020]/80 mt-1">
+                El protocolo no puede avanzar hasta que cada resultado sea corregido y validado nuevamente. Editá el valor en el módulo de resultados y volvé a validar acá.
+              </p>
+              <ul className="mt-2 space-y-0.5">
+                {wrongResults.map((r) => (
+                  <li key={r.id} className="text-xs text-[#800020]">
+                    • {r.determination.name}
+                    {r.notes ? <span className="text-[#800020]/70"> — {r.notes}</span> : null}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+      )}
+
       <Accordion type="multiple" value={expandedAnalysis} onValueChange={setExpandedAnalysis} className="space-y-3">
         {groupedResults.map((group) => (
           <AccordionItem
@@ -390,6 +398,13 @@ export function ValidationProtocolCard({ protocol, onProtocolValidated, isExpand
                   const prevResults = previousResults[result.id] || []
                   const isLoadingHistory = loadingPrevious.has(result.id)
                   const isHistoryExpanded = expandedHistory.has(result.id)
+                  const valueLoaded = hasLoadedValue(result)
+                  const referenceItems = result.determination.reference_ranges?.length
+                    ? result.determination.reference_ranges.map(formatReferenceRange)
+                    : formatReferenceValues(result.determination.reference_values)
+                  const evaluation = result.reference_range_evaluation
+                  const isOutOfRange = result.is_out_of_reference_range || evaluation?.is_out_of_reference_range
+                  const evaluatedReference = formatEvaluatedReference(evaluation)
 
                   return (
                     <div
@@ -421,17 +436,53 @@ export function ValidationProtocolCard({ protocol, onProtocolValidated, isExpand
                                 Revisión
                               </Badge>
                             )}
-                            {validationStatus === "pending" && (
-                              <Badge variant="outline" className="bg-amber-50 border-amber-300 text-amber-700 text-xs">
-                                Pendiente
-                              </Badge>
-                            )}
+                          {validationStatus === "pending" && (
+                            <Badge variant="outline" className="bg-amber-50 border-amber-300 text-amber-700 text-xs">
+                              Pendiente
+                            </Badge>
+                          )}
+                          {!valueLoaded && (
+                            <Badge variant="outline" className="bg-gray-50 border-gray-300 text-gray-600 text-xs">
+                              Sin valor cargado
+                            </Badge>
+                          )}
                           </div>
 
                           {/* Valor */}
                           <p className="text-base sm:text-lg text-[#204983] font-medium mb-2">
                             {result.value || "Sin valor"} {result.determination.measure_unit}
                           </p>
+
+                          {referenceItems.length > 0 && (
+                            <div className="mb-2 flex flex-wrap gap-1">
+                              {referenceItems.map((item) => (
+                                <Badge
+                                  key={item}
+                                  variant="outline"
+                                  className="bg-slate-50 text-[10px] text-slate-700"
+                                >
+                                  {item}
+                                </Badge>
+                              ))}
+                            </div>
+                          )}
+
+                          {evaluation && evaluation.status !== "not_evaluated" && (
+                            <div className="mb-2 space-y-1">
+                              <Badge
+                                variant="outline"
+                                className={
+                                  isOutOfRange
+                                    ? "bg-red-50 border-red-200 text-red-700 text-[10px]"
+                                    : "bg-emerald-50 border-emerald-200 text-emerald-700 text-[10px]"
+                                }
+                              >
+                                {isOutOfRange && <AlertTriangle className="mr-1 h-3 w-3" />}
+                                {getReferenceEvaluationLabel(evaluation)}
+                              </Badge>
+                              {evaluatedReference && <p className="text-[10px] text-gray-500">{evaluatedReference}</p>}
+                            </div>
+                          )}
 
                           <div className="mt-2">
                             <p className="text-[11px] uppercase tracking-wide text-gray-500 mb-1">Observaciones</p>
@@ -513,7 +564,7 @@ export function ValidationProtocolCard({ protocol, onProtocolValidated, isExpand
                                     size="default"
                                     className="bg-green-600 hover:bg-green-700 text-white w-full font-semibold min-h-[50px] flex-1"
                                     onClick={() => handleValidateResult(result.id)}
-                                    disabled={isValidating || isRejecting || isToggling}
+                                    disabled={!valueLoaded || isValidating || isRejecting || isToggling}
                                   >
                                     {isValidating ? (
                                       <Loader2 className="h-4 w-4 animate-spin" />
@@ -531,7 +582,7 @@ export function ValidationProtocolCard({ protocol, onProtocolValidated, isExpand
                                       variant="outline"
                                       className="h-full border-red-300 text-red-700 hover:bg-red-50 bg-white w-full font-semibold"
                                       onClick={() => handleRejectResult(result.id)}
-                                      disabled={isValidating || isRejecting || isToggling}
+                                      disabled={!valueLoaded || isValidating || isRejecting || isToggling}
                                     >
                                       {isRejecting ? (
                                         <Loader2 className="h-4 w-4 animate-spin" />

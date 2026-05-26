@@ -18,6 +18,7 @@ import { AlertCircle, CheckCircle } from "lucide-react"
 import { useApi } from "@/hooks/use-api"
 import { toast } from "sonner"
 import { MEDICAL_ENDPOINTS } from "@/config/api"
+import { formatApiError, getErrorMessage } from "@/lib/api-error"
 
 interface CreateMedicoDialogProps {
   isOpen: boolean
@@ -110,11 +111,15 @@ export function CreateMedicoDialog({ isOpen, onOpenChange, onSuccess }: CreateMe
       } else {
         const errorData = await response.json()
         console.error("Error creating medico:", errorData)
-        toast.error(errorData.detail || errorData.message || "Error al crear el médico")
+        toast.error("Error al crear el médico", {
+          description: formatApiError(errorData, "Error al crear el médico"),
+        })
       }
     } catch (error) {
       console.error("Error creating medico:", error)
-      toast.error("Error al crear el médico")
+      toast.error("Error al crear el médico", {
+        description: getErrorMessage(error, "Error de conexión con el servidor"),
+      })
     } finally {
       setLoading(false)
     }

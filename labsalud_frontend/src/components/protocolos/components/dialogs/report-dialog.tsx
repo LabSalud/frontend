@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { Loader2, FileText, Printer, Mail, MessageCircle, Download, ChevronRight, ArrowRightLeft, X } from "lucide-react"
+import { Loader2, FileText, Printer, Mail, MessageCircle, Download, ChevronRight, ArrowRightLeft, X, PenLine } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "../../../ui/dialog"
 import { Button } from "../../../ui/button"
 import { Input } from "../../../ui/input"
@@ -10,6 +10,7 @@ import { Badge } from "../../../ui/badge"
 import { Label } from "../../../ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../ui/select"
 import { Separator } from "../../../ui/separator"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import type { ProtocolDetail } from "@/types"
 
 type ReportProtocolAnalysis = ProtocolDetail & {
@@ -23,6 +24,8 @@ interface ReportDialogProps {
   protocolId: number
   reportType: "full" | "summary"
   onReportTypeChange: (type: "full" | "summary") => void
+  signed: boolean
+  onSignedChange: (signed: boolean) => void
   reportDate: string
   onReportDateChange: (date: string) => void
   reportTime: string
@@ -31,12 +34,17 @@ interface ReportDialogProps {
   analyses: ReportProtocolAnalysis[]
   selectedAnalysisIds: number[]
   onToggleAnalysis: (analysisId: number) => void
+  onSelectAllAnalyses: () => void
+  onDeselectAllAnalyses: () => void
   customizationOpen: boolean
   onToggleCustomizationOpen: (open: boolean) => void
   onGenerateReport: () => void
   onDownloadReport: () => void
   onSendEmail: () => void
   onSendWhatsApp: () => void
+  sendMethodName?: string
+  emailDisabledReason?: string
+  whatsappDisabledReason?: string
   isGenerating: boolean
   isDownloading: boolean
   isSending: boolean
@@ -52,6 +60,7 @@ interface ActionButtonProps {
   label: string
   description: string
   colorClass: string
+  disabledReason?: string
 }
 
 function ActionButton({
@@ -63,8 +72,9 @@ function ActionButton({
   label,
   description,
   colorClass,
+  disabledReason,
 }: ActionButtonProps) {
-  return (
+  const button = (
     <button
       type="button"
       onClick={onClick}
@@ -85,6 +95,19 @@ function ActionButton({
       </span>
     </button>
   )
+
+  if (!disabledReason) return button
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span className="block">{button}</span>
+      </TooltipTrigger>
+      <TooltipContent className="max-w-[260px] bg-slate-900 text-white">
+        <p>{disabledReason}</p>
+      </TooltipContent>
+    </Tooltip>
+  )
 }
 
 interface ReportCustomizationDrawerProps {
@@ -92,6 +115,8 @@ interface ReportCustomizationDrawerProps {
   analyses: ReportProtocolAnalysis[]
   selectedAnalysisIds: number[]
   onToggleAnalysis: (analysisId: number) => void
+  onSelectAllAnalyses: () => void
+  onDeselectAllAnalyses: () => void
   onToggleOpen: (open: boolean) => void
 }
 
@@ -105,31 +130,76 @@ function isVisibleAnalysis(analysis: ReportProtocolAnalysis) {
   return !EXCLUDED_ANALYSIS_CODES.has(analysis.code)
 }
 
+const normalizeText = (value: string) =>
+  value
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+
+const getSendMethodAction = (sendMethodName?: string): "print" | "email" | "whatsapp" | null => {
+  const method = normalizeText(sendMethodName || "")
+  if (!method) return null
+  if (method.includes("whatsapp") || method.includes("wsp")) return "whatsapp"
+  if (method.includes("email") || method.includes("mail")) return "email"
+  if (method.includes("retiro") || method.includes("fisico") || method.includes("impres")) return "print"
+  return null
+}
+
+const getActionColor = (action: "print" | "download" | "email" | "whatsapp", activeAction: string | null) => {
+  const isActive = action === activeAction
+  if (action === "whatsapp") {
+    return isActive
+      ? "border-emerald-600 bg-emerald-600 text-white shadow-sm hover:bg-emerald-700 hover:border-emerald-700"
+      : "border-green-200 bg-green-50 text-green-800 hover:bg-green-100 hover:border-green-300"
+  }
+  if (action === "email") {
+    return isActive
+      ? "border-[#204983] bg-[#204983] text-white shadow-sm hover:bg-[#1a3d6f] hover:border-[#1a3d6f]"
+      : "border-sky-200 bg-sky-50 text-sky-800 hover:bg-sky-100 hover:border-sky-300"
+  }
+  if (action === "print") {
+    return isActive
+      ? "border-[#204983] bg-[#204983] text-white shadow-sm hover:bg-[#1a3d6f] hover:border-[#1a3d6f]"
+      : "border-slate-200 bg-white text-slate-800 hover:bg-slate-50 hover:border-slate-300"
+  }
+  return "border-slate-200 bg-white text-slate-800 hover:bg-slate-50 hover:border-slate-300"
+}
+
 function ReportCustomizationDrawer({
   open,
   analyses,
   selectedAnalysisIds,
   onToggleAnalysis,
+  onSelectAllAnalyses,
+  onDeselectAllAnalyses,
   onToggleOpen,
 }: ReportCustomizationDrawerProps) {
   const visibleAnalyses = analyses.filter(isVisibleAnalysis)
   const selectedCount = selectedAnalysisIds.filter((id) => visibleAnalyses.some((analysis) => analysis.id === id)).length
+  const selectableCount = visibleAnalyses.filter(isSelectableAnalysis).length
 
   return (
-    <div
-      style={{ left: "calc(50% - 112px)" }}
-      className="absolute top-0 h-full w-[404px] overflow-visible pointer-events-auto"
-    >
+    <div className="pointer-events-none absolute inset-y-0 left-0 h-full w-[1208px] overflow-visible">
       <div
-        className={`absolute inset-y-0 right-0 z-10 flex h-full w-[340px] flex-col overflow-hidden rounded-r-[28px] border border-l-0 border-slate-200 bg-slate-50 shadow-2xl transition-transform duration-300 ease-out ${
-          open ? "translate-x-[280px]" : "translate-x-0"
+        className={`pointer-events-auto absolute inset-y-0 left-[80px] z-10 flex h-full w-[540px] flex-col overflow-hidden rounded-r-2xl border border-l-0 border-slate-200 bg-slate-50 shadow-[18px_0_35px_rgba(15,23,42,0.16)] transition-transform duration-300 ease-out ${
+          open ? "translate-x-[540px]" : "translate-x-0"
         }`}
       >
         <div className="flex h-full flex-col pl-6 pr-12">
           <div className="flex items-center justify-between border-b border-slate-200 bg-white/95 px-4 py-4">
             <div>
               <p className="text-sm font-semibold text-slate-800">Personalizar reporte</p>
-              <p className="text-xs text-slate-500">{selectedCount} análisis seleccionados</p>
+              <p className="text-xs text-slate-500">
+                {selectedCount} de {selectableCount} análisis seleccionados
+              </p>
+            </div>
+            <div className="flex shrink-0 gap-2">
+              <Button type="button" variant="outline" size="sm" onClick={onSelectAllAnalyses}>
+                Seleccionar todos
+              </Button>
+              <Button type="button" variant="ghost" size="sm" onClick={onDeselectAllAnalyses}>
+                Deseleccionar todos
+              </Button>
             </div>
           </div>
 
@@ -171,7 +241,7 @@ function ReportCustomizationDrawer({
                         <div className="min-w-0 flex-1">
                           <div className="flex items-start justify-between gap-2">
                             <div className="min-w-0">
-                              <p className="text-sm font-semibold text-slate-800 truncate">{analysis.name}</p>
+                              <p className="text-sm font-semibold leading-snug text-slate-800">{analysis.name}</p>
                               <p className="text-xs text-slate-500">Código {analysis.code} · UB {analysis.ub}</p>
                             </div>
                             <div className="flex flex-col items-end gap-1">
@@ -213,11 +283,11 @@ function ReportCustomizationDrawer({
       <button
         type="button"
         onClick={() => onToggleOpen(!open)}
-        className={`absolute left-[356px] top-0 z-10 h-full w-12 rounded-r-[28px] border-l border-slate-200 bg-slate-50 shadow-lg transition-transform duration-300 ease-out transition-colors hover:bg-slate-100 ${
-          open ? "translate-x-[280px]" : "translate-x-0"
+        className={`pointer-events-auto absolute left-[608px] top-0 z-10 h-full w-16 rounded-r-2xl border border-l-0 border-slate-200 bg-slate-50 shadow-[12px_0_24px_rgba(15,23,42,0.14)] transition-transform duration-300 ease-out transition-colors hover:bg-slate-100 ${
+          open ? "translate-x-[540px]" : "translate-x-0"
         }`}
       >
-        <div className="flex h-full flex-col items-center justify-center gap-2 px-1 py-3">
+        <div className="ml-3 flex h-full flex-col items-center justify-center gap-2 px-1 py-3">
           <span className="text-[11px] font-semibold leading-none text-[#204983] [writing-mode:vertical-rl] rotate-180">
             Personalizar reporte
           </span>
@@ -237,6 +307,8 @@ export function ReportDialog({
   protocolId,
   reportType,
   onReportTypeChange,
+  signed,
+  onSignedChange,
   reportDate,
   onReportDateChange,
   reportTime,
@@ -245,12 +317,17 @@ export function ReportDialog({
   analyses,
   selectedAnalysisIds,
   onToggleAnalysis,
+  onSelectAllAnalyses,
+  onDeselectAllAnalyses,
   customizationOpen,
   onToggleCustomizationOpen,
   onGenerateReport,
   onDownloadReport,
   onSendEmail,
   onSendWhatsApp,
+  sendMethodName,
+  emailDisabledReason,
+  whatsappDisabledReason,
   isGenerating,
   isDownloading,
   isSending,
@@ -321,10 +398,20 @@ export function ReportDialog({
 
   const visibleAnalyses = analyses.filter(isVisibleAnalysis)
   const selectedCount = selectedAnalysisIds.filter((id) => visibleAnalyses.some((analysis) => analysis.id === id)).length
+  const selectableCount = visibleAnalyses.filter(isSelectableAnalysis).length
+  const activeSendAction = getSendMethodAction(sendMethodName)
+  const isBusy = isGenerating || isDownloading || isSending || isSendingWhatsApp
+  const noSelectedAnalysisReason =
+    selectedCount === 0 ? "No hay análisis seleccionados para incluir en el reporte." : undefined
+  const commonDisabledReason = noSelectedAnalysisReason || (isBusy ? "Hay otra acción de reporte en proceso." : undefined)
+  const printDisabledReason = commonDisabledReason
+  const downloadDisabledReason = commonDisabledReason
+  const emailActionDisabledReason = emailDisabledReason || commonDisabledReason
+  const whatsappActionDisabledReason = whatsappDisabledReason || commonDisabledReason
   const dialogContentClass = isMobileViewport
     ? "w-[95vw] max-w-[380px] gap-0 overflow-visible border-0 bg-transparent p-0 shadow-none rounded-none translate-x-[-50%]"
-    : `w-[95vw] max-w-[560px] gap-0 overflow-visible rounded-xl border border-slate-200 bg-white p-0 shadow-2xl transition-transform duration-300 ease-out ${
-        customizationOpen ? "translate-x-[calc(-50%-146px)]" : "translate-x-[calc(-50%-6px)]"
+    : `w-[620px] max-w-[620px] gap-0 overflow-visible rounded-none border-0 bg-transparent p-0 shadow-none transition-transform duration-300 ease-out ${
+        customizationOpen ? "translate-x-[calc(-50%-270px)]" : "translate-x-[-50%]"
       }`
 
   return (
@@ -339,8 +426,8 @@ export function ReportDialog({
           <X className="h-4 w-4" />
         </button>
 
-        <div className="relative hidden min-h-[640px] flex-col overflow-visible md:flex">
-          <div className="relative z-20 flex flex-1 flex-col overflow-hidden rounded-xl bg-white">
+        <div className="relative hidden min-h-[640px] w-[620px] flex-col overflow-visible md:flex">
+          <div className="relative z-20 flex flex-1 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl">
             <div className="px-6 pt-6 pb-4">
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2 text-base">
@@ -368,6 +455,25 @@ export function ReportDialog({
                   </SelectContent>
                 </Select>
               </div>
+
+              <button
+                type="button"
+                onClick={() => onSignedChange(!signed)}
+                className={`flex items-center gap-3 w-full rounded-lg border px-4 py-3 text-left transition-colors ${
+                  signed
+                    ? "border-[#204983] bg-blue-50 text-[#204983]"
+                    : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
+                }`}
+              >
+                <PenLine className="h-4 w-4 shrink-0" />
+                <div className="flex flex-col min-w-0">
+                  <span className="text-sm font-medium leading-tight">Firma digital</span>
+                  <span className="text-xs opacity-70 leading-tight mt-0.5">
+                    {signed ? "Se incluirá firma digital del bioquímico" : "Se incluirá línea para firma física"}
+                  </span>
+                </div>
+                <Checkbox checked={signed} onCheckedChange={onSignedChange} className="ml-auto shrink-0" />
+              </button>
 
               <div className="flex flex-col gap-1.5">
                 <Label className="text-sm font-medium">Fecha del reporte (opcional)</Label>
@@ -398,43 +504,47 @@ export function ReportDialog({
               <div className="grid grid-cols-2 gap-2">
                 <ActionButton
                   onClick={onGenerateReport}
-                  disabled={isGenerating || isDownloading || isSending || isSendingWhatsApp}
+                  disabled={Boolean(printDisabledReason)}
+                  disabledReason={printDisabledReason}
                   isLoading={isGenerating}
                   loadingLabel="Imprimiendo..."
                   icon={<Printer className="h-5 w-5" />}
                   label="Imprimir"
                   description="Dialogo de impresion del navegador"
-                  colorClass="border-[#204983] bg-[#204983] text-white hover:bg-[#1a3d6f] hover:border-[#1a3d6f]"
+                  colorClass={getActionColor("print", activeSendAction)}
                 />
                 <ActionButton
                   onClick={onDownloadReport}
-                  disabled={isGenerating || isDownloading || isSending || isSendingWhatsApp}
+                  disabled={Boolean(downloadDisabledReason)}
+                  disabledReason={downloadDisabledReason}
                   isLoading={isDownloading}
                   loadingLabel="Descargando..."
                   icon={<Download className="h-5 w-5" />}
                   label="Descargar PDF"
                   description="Guardar archivo en el dispositivo"
-                  colorClass="border-[#204983] bg-[#204983] text-white hover:bg-[#1a3d6f] hover:border-[#1a3d6f]"
+                  colorClass={getActionColor("download", activeSendAction)}
                 />
                 <ActionButton
                   onClick={onSendEmail}
-                  disabled={isGenerating || isDownloading || isSending || isSendingWhatsApp}
+                  disabled={Boolean(emailActionDisabledReason)}
+                  disabledReason={emailActionDisabledReason}
                   isLoading={isSending}
                   loadingLabel="Enviando email..."
                   icon={<Mail className="h-5 w-5" />}
                   label="Enviar por email"
                   description="Envia el reporte al paciente"
-                  colorClass="border-gray-200 bg-white text-gray-800 hover:bg-gray-50 hover:border-gray-300"
+                  colorClass={getActionColor("email", activeSendAction)}
                 />
                 <ActionButton
                   onClick={onSendWhatsApp}
-                  disabled={isGenerating || isDownloading || isSending || isSendingWhatsApp}
+                  disabled={Boolean(whatsappActionDisabledReason)}
+                  disabledReason={whatsappActionDisabledReason}
                   isLoading={isSendingWhatsApp}
                   loadingLabel="Enviando..."
                   icon={<MessageCircle className="h-5 w-5" />}
                   label="Enviar por WhatsApp"
                   description="Comparte el reporte por WhatsApp"
-                  colorClass="border-green-200 bg-green-50 text-green-800 hover:bg-green-100 hover:border-green-300"
+                  colorClass={getActionColor("whatsapp", activeSendAction)}
                 />
               </div>
             </div>
@@ -447,6 +557,8 @@ export function ReportDialog({
             analyses={analyses}
             selectedAnalysisIds={selectedAnalysisIds}
             onToggleAnalysis={onToggleAnalysis}
+            onSelectAllAnalyses={onSelectAllAnalyses}
+            onDeselectAllAnalyses={onDeselectAllAnalyses}
             onToggleOpen={onToggleCustomizationOpen}
           />
         </div>
@@ -519,6 +631,25 @@ export function ReportDialog({
                           </Select>
                         </div>
 
+                        <button
+                          type="button"
+                          onClick={() => onSignedChange(!signed)}
+                          className={`flex items-center gap-3 w-full rounded-lg border px-4 py-3 text-left transition-colors ${
+                            signed
+                              ? "border-[#204983] bg-blue-50 text-[#204983]"
+                              : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
+                          }`}
+                        >
+                          <PenLine className="h-4 w-4 shrink-0" />
+                          <div className="flex flex-col min-w-0">
+                            <span className="text-sm font-medium leading-tight">Firma digital</span>
+                            <span className="text-xs opacity-70 leading-tight mt-0.5">
+                              {signed ? "Se incluirá firma digital del bioquímico" : "Se incluirá línea para firma física"}
+                            </span>
+                          </div>
+                          <Checkbox checked={signed} onCheckedChange={onSignedChange} className="ml-auto shrink-0" />
+                        </button>
+
                         <div className="flex flex-col gap-1.5">
                           <Label className="text-sm font-medium">Fecha del reporte (opcional)</Label>
                           <Input type="date" className="min-w-0 w-full" value={reportDate} onChange={(e) => onReportDateChange(e.target.value)} />
@@ -541,43 +672,47 @@ export function ReportDialog({
                           <div className="grid grid-cols-1 gap-2">
                             <ActionButton
                               onClick={onGenerateReport}
-                              disabled={isGenerating || isDownloading || isSending || isSendingWhatsApp}
+                              disabled={Boolean(printDisabledReason)}
+                              disabledReason={printDisabledReason}
                               isLoading={isGenerating}
                               loadingLabel="Imprimiendo..."
                               icon={<Printer className="h-5 w-5" />}
                               label="Imprimir"
                               description="Dialogo de impresion del navegador"
-                              colorClass="border-[#204983] bg-[#204983] text-white hover:bg-[#1a3d6f] hover:border-[#1a3d6f]"
+                              colorClass={getActionColor("print", activeSendAction)}
                             />
                             <ActionButton
                               onClick={onDownloadReport}
-                              disabled={isGenerating || isDownloading || isSending || isSendingWhatsApp}
+                              disabled={Boolean(downloadDisabledReason)}
+                              disabledReason={downloadDisabledReason}
                               isLoading={isDownloading}
                               loadingLabel="Descargando..."
                               icon={<Download className="h-5 w-5" />}
                               label="Descargar PDF"
                               description="Guardar archivo en el dispositivo"
-                              colorClass="border-[#204983] bg-[#204983] text-white hover:bg-[#1a3d6f] hover:border-[#1a3d6f]"
+                              colorClass={getActionColor("download", activeSendAction)}
                             />
                             <ActionButton
                               onClick={onSendEmail}
-                              disabled={isGenerating || isDownloading || isSending || isSendingWhatsApp}
+                              disabled={Boolean(emailActionDisabledReason)}
+                              disabledReason={emailActionDisabledReason}
                               isLoading={isSending}
                               loadingLabel="Enviando email..."
                               icon={<Mail className="h-5 w-5" />}
                               label="Enviar por email"
                               description="Envia el reporte al paciente"
-                              colorClass="border-gray-200 bg-white text-gray-800 hover:bg-gray-50 hover:border-gray-300"
+                              colorClass={getActionColor("email", activeSendAction)}
                             />
                             <ActionButton
                               onClick={onSendWhatsApp}
-                              disabled={isGenerating || isDownloading || isSending || isSendingWhatsApp}
+                              disabled={Boolean(whatsappActionDisabledReason)}
+                              disabledReason={whatsappActionDisabledReason}
                               isLoading={isSendingWhatsApp}
                               loadingLabel="Enviando..."
                               icon={<MessageCircle className="h-5 w-5" />}
                               label="Enviar por WhatsApp"
                               description="Comparte el reporte por WhatsApp"
-                              colorClass="border-green-200 bg-green-50 text-green-800 hover:bg-green-100 hover:border-green-300"
+                              colorClass={getActionColor("whatsapp", activeSendAction)}
                             />
                           </div>
                         </div>
@@ -605,7 +740,17 @@ export function ReportDialog({
                   <div className="flex h-full flex-col">
                     <div className="border-b border-slate-200 bg-white/95 px-5 py-4">
                       <p className="text-sm font-semibold text-slate-800">Personalizar reporte</p>
-                      <p className="text-xs text-slate-500">{selectedCount} análisis seleccionados</p>
+                      <p className="text-xs text-slate-500">
+                        {selectedCount} de {selectableCount} análisis seleccionados
+                      </p>
+                      <div className="mt-3 grid grid-cols-2 gap-2">
+                        <Button type="button" variant="outline" size="sm" onClick={onSelectAllAnalyses}>
+                          Seleccionar todos
+                        </Button>
+                        <Button type="button" variant="ghost" size="sm" onClick={onDeselectAllAnalyses}>
+                          Deseleccionar todos
+                        </Button>
+                      </div>
                     </div>
 
                     <div ref={backScrollRef} className="flex-1 overflow-y-auto px-5 py-4 pb-24">
@@ -646,7 +791,7 @@ export function ReportDialog({
                                   <div className="min-w-0 flex-1">
                                     <div className="flex items-start justify-between gap-2">
                                       <div className="min-w-0">
-                                        <p className="truncate text-sm font-semibold text-slate-800">{analysis.name}</p>
+                                        <p className="text-sm font-semibold leading-snug text-slate-800">{analysis.name}</p>
                                         <p className="text-xs text-slate-500">Código {analysis.code} · UB {analysis.ub}</p>
                                       </div>
                                       <div className="flex flex-col items-end gap-1">

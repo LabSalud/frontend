@@ -19,6 +19,7 @@ import { useApi } from "../../hooks/use-api"
 import { BILLING_ENDPOINTS, TOAST_DURATION } from "@/config/api"
 import { toast } from "sonner"
 import type { Invoice, ProtocolToBill } from "@/types"
+import { formatApiError, getErrorMessage } from "@/lib/api-error"
 
 type ActiveTab = "current" | "history"
 
@@ -209,7 +210,7 @@ export default function FacturacionPage() {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.detail || errorData.error || "No se pudo marcar como facturado")
+        throw new Error(formatApiError(errorData, "No se pudo marcar como facturado"))
       }
 
       toast.success("Protocolo facturado y agregado a la presentación actual", { duration: TOAST_DURATION })
@@ -220,7 +221,7 @@ export default function FacturacionPage() {
       })
       await refreshCurrent()
     } catch (error) {
-      const message = error instanceof Error ? error.message : "No se pudo marcar como facturado"
+      const message = getErrorMessage(error, "No se pudo marcar como facturado")
       setProtocolRowErrors((prev) => ({ ...prev, [protocolId]: message }))
       toast.error(message, { duration: TOAST_DURATION })
     } finally {
@@ -238,12 +239,12 @@ export default function FacturacionPage() {
 
       const response = await apiRequest(BILLING_ENDPOINTS.CLOSE_PRESENTATION, {
         method: "POST",
-        body: JSON.stringify(payload),
+        body: payload,
       })
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.detail || errorData.error || "No se pudo cerrar la presentación")
+        throw new Error(formatApiError(errorData, "No se pudo cerrar la presentación"))
       }
 
       toast.success("Presentación cerrada correctamente", { duration: TOAST_DURATION })
@@ -254,7 +255,7 @@ export default function FacturacionPage() {
       await Promise.all([refreshCurrent(), refreshHistory()])
       setActiveTab("history")
     } catch (error) {
-      const message = error instanceof Error ? error.message : "No se pudo cerrar la presentación"
+      const message = getErrorMessage(error, "No se pudo cerrar la presentación")
       toast.error(message, { duration: TOAST_DURATION })
     } finally {
       setClosingPresentation(false)

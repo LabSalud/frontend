@@ -3,6 +3,13 @@
 import { useCallback } from "react"
 import { useLoading } from "@/hooks/use-loading"
 import { API_CONFIG, AUTH_ENDPOINTS } from "@/config/api"
+import {
+  clearSession,
+  getAccessToken,
+  getRefreshToken,
+  setAccessToken,
+  setRefreshToken,
+} from "@/lib/auth-storage"
 
 // JSDoc documentation for ApiRequestOptions and useApi hook
 /**
@@ -28,7 +35,7 @@ export const useApi = () => {
   const { setLoading } = useLoading()
 
   const refreshToken = useCallback(async (): Promise<boolean> => {
-    const refreshTokenValue = sessionStorage.getItem("refresh_token")
+    const refreshTokenValue = getRefreshToken()
     if (!refreshTokenValue) return false
 
     try {
@@ -44,9 +51,9 @@ export const useApi = () => {
       if (!response.ok) return false
 
       const data = await response.json()
-      sessionStorage.setItem("access_token", data.access)
+      setAccessToken(data.access)
       if (data.refresh) {
-        sessionStorage.setItem("refresh_token", data.refresh)
+        setRefreshToken(data.refresh)
       }
       return true
     } catch (error) {
@@ -83,9 +90,7 @@ export const useApi = () => {
 
     const reloginBtn = modal.querySelector("#relogin-btn")
     reloginBtn?.addEventListener("click", () => {
-      sessionStorage.removeItem("access_token")
-      sessionStorage.removeItem("refresh_token")
-      sessionStorage.removeItem("user")
+      clearSession()
       window.location.reload()
     })
   }, [])
@@ -107,7 +112,7 @@ export const useApi = () => {
           requestHeaders["Content-Type"] = "application/json"
         }
 
-        const token = sessionStorage.getItem("access_token")
+        const token = getAccessToken()
         if (token) {
           requestHeaders.Authorization = `Bearer ${token}`
         }

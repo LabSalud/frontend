@@ -7,6 +7,7 @@ import { Menu, X, UserCircle, Shield, Settings, LogOut, Receipt } from "lucide-r
 import useAuth from "@/contexts/auth-context"
 import { UserDropdown } from "./user-dropdown"
 import { PERMISSIONS } from "@/config/permissions"
+import { SessionNotificationToggle } from "@/components/session-notification-toggle"
 
 interface NavLinkProps {
   to: string
@@ -346,6 +347,11 @@ export const Navbar: React.FC = () => {
                 </Link>
 
                 <hr className="w-full my-2" />
+
+                <SessionNotificationToggle
+                  onDone={closeAllMenus}
+                  className="px-3 rounded-lg space-x-3"
+                />
 
                 <button
                   onClick={() => {

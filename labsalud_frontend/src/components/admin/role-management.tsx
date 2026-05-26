@@ -27,22 +27,11 @@ import { Badge } from "@/components/ui/badge"
 import { Eye, Pencil, Trash, Plus, AlertCircle } from "lucide-react"
 import { Separator } from "@/components/ui/separator"
 import { HistoryList } from "@/components/common/history-list"
+import { formatDateTime } from "@/utils/date-utils"
 import type { Role, Permission, HistoryEntry } from "@/types"
+import { formatApiError } from "@/lib/api-error"
 
-const extractErrorMessage = (errorData: unknown): string => {
-  if (!errorData || typeof errorData !== "object") return "Error desconocido"
-  const err = errorData as Record<string, unknown>
-  if (typeof err.detail === "string") return err.detail
-  if (typeof err.error === "string") return err.error
-  if (typeof err.message === "string") return err.message
-  for (const key of Object.keys(err)) {
-    const val = err[key]
-    if (Array.isArray(val) && val.length > 0) {
-      return `${key}: ${val[0]}`
-    }
-  }
-  return "Error desconocido"
-}
+const extractErrorMessage = (errorData: unknown): string => formatApiError(errorData, "Error desconocido")
 
 type RoleWithDetails = Role & {
   permission_details?: Permission[]
@@ -84,7 +73,7 @@ export function RoleManagement({ roles, setRoles, refreshData }: RoleManagementP
       const data = await res.json()
       const batch: Permission[] = data.results || []
       setAllPerms((prev) => {
-        const existingIds = new Set(prev.map((p) => p.id))
+        const existingIds = new Set(prev.map((p: Permission) => p.id))
         const newPerms = batch.filter((p) => !existingIds.has(p.id))
         return [...prev, ...newPerms]
       })
@@ -149,7 +138,7 @@ export function RoleManagement({ roles, setRoles, refreshData }: RoleManagementP
   const handleSelectRole = (role: RoleWithDetails) => {
     setSelectedRole(role)
     const existing: number[] = Array.isArray(role.permission_details)
-      ? role.permission_details.map((p) => p.id)
+      ? role.permission_details.map((p: Permission) => p.id)
       : Array.isArray(role.permissions)
         ? role.permissions
         : []
@@ -338,7 +327,7 @@ export function RoleManagement({ roles, setRoles, refreshData }: RoleManagementP
               </div>
               <div className="flex flex-wrap gap-1 mb-3">
                 {role.permission_details && role.permission_details.length > 0 ? (
-                  role.permission_details.slice(0, 2).map((p) => (
+                  role.permission_details.slice(0, 2).map((p: Permission) => (
                     <Badge key={p.id} variant="secondary" className="text-xs">
                       {p.name}
                     </Badge>
@@ -351,6 +340,10 @@ export function RoleManagement({ roles, setRoles, refreshData }: RoleManagementP
                     +{role.permission_details.length - 2} más
                   </Badge>
                 )}
+              </div>
+              <div className="text-sm text-gray-600 mb-3">
+                <p>Creado: {role.creation ? formatDateTime(role.creation.date) : "Sin fecha"}</p>
+                <p>Último cambio: {role.last_change ? formatDateTime(role.last_change.date) : "Sin cambios"}</p>
               </div>
               <div className="flex flex-wrap gap-2">
                 <Button
@@ -402,13 +395,15 @@ export function RoleManagement({ roles, setRoles, refreshData }: RoleManagementP
             <TableRow>
               <TableHead>Nombre</TableHead>
               <TableHead>Permisos</TableHead>
+              <TableHead>Creado</TableHead>
+              <TableHead>Último Cambio</TableHead>
               <TableHead className="text-right">Acciones</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {validRoles.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={3} className="text-center py-8">
+                <TableCell colSpan={5} className="text-center py-8">
                   <div className="flex flex-col items-center justify-center text-gray-500">
                     <AlertCircle className="h-8 w-8 mb-2" />
                     <p>No hay roles disponibles</p>
@@ -422,7 +417,7 @@ export function RoleManagement({ roles, setRoles, refreshData }: RoleManagementP
                   <TableCell>
                     <div className="flex flex-wrap gap-1">
                       {role.permission_details && role.permission_details.length > 0 ? (
-                        role.permission_details.slice(0, 3).map((p) => (
+                        role.permission_details.slice(0, 3).map((p: Permission) => (
                           <Badge key={p.id} variant="secondary" className="text-xs">
                             {p.name}
                           </Badge>
@@ -436,6 +431,12 @@ export function RoleManagement({ roles, setRoles, refreshData }: RoleManagementP
                         </Badge>
                       )}
                     </div>
+                  </TableCell>
+                  <TableCell className="text-sm text-gray-600">
+                    {role.creation ? formatDateTime(role.creation.date) : "Sin fecha"}
+                  </TableCell>
+                  <TableCell className="text-sm text-gray-600">
+                    {role.last_change ? formatDateTime(role.last_change.date) : "Sin cambios"}
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end space-x-2">
@@ -496,7 +497,7 @@ export function RoleManagement({ roles, setRoles, refreshData }: RoleManagementP
           }
         }}
       >
-        <DialogContent className="w-[95vw] sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+        <DialogContent className="w-[95vw] sm:max-w-5xl max-h-[90vh] overflow-x-hidden overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-base sm:text-lg">Detalles del Rol</DialogTitle>
           </DialogHeader>
@@ -512,7 +513,7 @@ export function RoleManagement({ roles, setRoles, refreshData }: RoleManagementP
                 <Label className="text-sm sm:text-base">Permisos</Label>
                 <div className="flex flex-wrap gap-1">
                   {roleDetail.permission_details && roleDetail.permission_details.length > 0 ? (
-                    roleDetail.permission_details.map((p) => (
+                    roleDetail.permission_details.map((p: Permission) => (
                       <Badge key={p.id} variant="secondary" className="text-xs">
                         {p.name}
                       </Badge>
@@ -545,7 +546,7 @@ export function RoleManagement({ roles, setRoles, refreshData }: RoleManagementP
                 <Label className="text-sm sm:text-base">Permisos</Label>
                 <div className="flex flex-wrap gap-1">
                   {selectedRole.permission_details && selectedRole.permission_details.length > 0 ? (
-                    selectedRole.permission_details.map((p) => (
+                    selectedRole.permission_details.map((p: Permission) => (
                       <Badge key={p.id} variant="secondary" className="text-xs">
                         {p.name}
                       </Badge>

@@ -20,6 +20,7 @@ import { useToast } from "@/hooks/use-toast"
 import { Loader2 } from "lucide-react"
 import type { Determination } from "@/types"
 import { CATALOG_ENDPOINTS } from "@/config/api"
+import { formatApiError, getErrorMessage } from "@/lib/api-error"
 
 interface CreateDeterminationDialogProps {
   open?: boolean
@@ -45,6 +46,7 @@ export const CreateDeterminationDialog: React.FC<CreateDeterminationDialogProps>
   const [name, setName] = useState("")
   const [measureUnit, setMeasureUnit] = useState("")
   const [formula, setFormula] = useState("")
+  const [referenceValues, setReferenceValues] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
 
@@ -64,15 +66,29 @@ export const CreateDeterminationDialog: React.FC<CreateDeterminationDialogProps>
       setName("")
       setMeasureUnit("")
       setFormula("")
+      setReferenceValues("")
       setErrors({})
       setIsLoading(false)
     }
   }, [isDialogOpen])
 
+  const parseReferenceValues = () => {
+    if (!referenceValues.trim()) return undefined
+
+    try {
+      return JSON.parse(referenceValues)
+    } catch {
+      return null
+    }
+  }
+
   const validateForm = () => {
     const newErrors: Record<string, string> = {}
     if (!name.trim()) newErrors.name = "El nombre es requerido."
     if (!measureUnit.trim()) newErrors.measureUnit = "La unidad de medida es requerida."
+    if (referenceValues.trim() && parseReferenceValues() === null) {
+      newErrors.referenceValues = "Los valores de referencia deben ser un JSON válido."
+    }
 
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
@@ -83,11 +99,13 @@ export const CreateDeterminationDialog: React.FC<CreateDeterminationDialogProps>
 
     setIsLoading(true)
     try {
+      const parsedReferenceValues = parseReferenceValues()
       const determinationData = {
         analysis: finalAnalysisId,
         name,
         measure_unit: measureUnit,
         formula: formula || "",
+        ...(parsedReferenceValues ? { reference_values: parsedReferenceValues } : {}),
       }
       const response = await apiRequest(CATALOG_ENDPOINTS.DETERMINATIONS, {
         method: "POST",
@@ -101,6 +119,7 @@ export const CreateDeterminationDialog: React.FC<CreateDeterminationDialogProps>
         handleOpenChange(false)
       } else {
         const errorData = await response.json()
+        const errorMessage = formatApiError(errorData, "No se pudo crear la determinación.")
         const backendErrors = errorData.detail || errorData.errors || errorData.error || errorData
         if (typeof backendErrors === "string") {
           setErrors({ form: backendErrors })
@@ -115,15 +134,15 @@ export const CreateDeterminationDialog: React.FC<CreateDeterminationDialogProps>
             }
           }
           setErrors(formattedErrors)
-          toastActions.error("Error", { description: "No se pudo crear la determinación." })
+          toastActions.error("Error", { description: errorMessage })
         } else {
           setErrors({ form: "Error al crear la determinación." })
-          toastActions.error("Error", { description: "No se pudo crear la determinación." })
+          toastActions.error("Error", { description: errorMessage })
         }
       }
     } catch (error) {
       console.error("Error creating determination:", error)
-      const errorMessage = error instanceof Error ? error.message : "Ocurrió un error de red o servidor."
+      const errorMessage = getErrorMessage(error, "Ocurrió un error de red o servidor.")
       setErrors({ form: errorMessage })
       toastActions.error("Error", { description: errorMessage })
     } finally {
@@ -146,6 +165,10 @@ export const CreateDeterminationDialog: React.FC<CreateDeterminationDialogProps>
               {errors.form}
             </div>
           )}
+
+          <div className="rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-800">
+            El código se genera automáticamente al crear la determinación.
+          </div>
 
           <div className="space-y-2">
             <Label htmlFor="determination-name" className="text-sm">
@@ -188,6 +211,23 @@ export const CreateDeterminationDialog: React.FC<CreateDeterminationDialogProps>
               className="text-sm"
             />
             {errors.formula && <p className="text-xs md:text-sm text-red-500">{errors.formula}</p>}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="determination-reference-values" className="text-sm">
+              Valores de Referencia (JSON opcional)
+            </Label>
+            <Textarea
+              id="determination-reference-values"
+              value={referenceValues}
+              onChange={(e) => setReferenceValues(e.target.value)}
+              placeholder='{"hombre_mayor":{"min":"70","max":"110"}}'
+              rows={4}
+              className="font-mono text-xs"
+            />
+            {errors.referenceValues && (
+              <p className="text-xs md:text-sm text-red-500">{errors.referenceValues}</p>
+            )}
           </div>
         </div>
 

@@ -3,6 +3,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "../../../ui/dialog"
 import { Badge } from "../../../ui/badge"
 import { Switch } from "../../../ui/switch"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import type { ProtocolDetail } from "@/types"
 
 interface AnalysisDialogProps {
@@ -15,7 +16,7 @@ interface AnalysisDialogProps {
   updatingDetailId: number | null
   onToggleAuthorization: (detail: ProtocolDetail) => void
   isEditable?: boolean
-  insuranceId?: number
+  readOnlyReason?: string
 }
 
 export function AnalysisDialog({
@@ -27,9 +28,39 @@ export function AnalysisDialog({
   updatingDetailId,
   onToggleAuthorization,
   isEditable = true,
-  insuranceId,
+  readOnlyReason = "No se puede modificar la autorización en el estado actual del protocolo.",
 }: AnalysisDialogProps) {
-  const isParticular = insuranceId === 1
+  const getAuthorizationDisabledReason = (detail: ProtocolDetail) => {
+    if (!isEditable) return readOnlyReason
+    if (!detail.is_active) return "No se puede modificar porque este análisis está inactivo."
+    if (updatingDetailId === detail.id) return "Se está actualizando la autorización."
+    return undefined
+  }
+
+  const renderAuthorizationSwitch = (detail: ProtocolDetail, className?: string) => {
+    const disabledReason = getAuthorizationDisabledReason(detail)
+    const control = (
+      <Switch
+        checked={detail.is_authorized}
+        onCheckedChange={() => onToggleAuthorization(detail)}
+        disabled={Boolean(disabledReason)}
+        className={className}
+      />
+    )
+
+    if (!disabledReason) return control
+
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className="inline-flex">{control}</span>
+        </TooltipTrigger>
+        <TooltipContent className="max-w-[260px] bg-slate-900 text-white">
+          <p>{disabledReason}</p>
+        </TooltipContent>
+      </Tooltip>
+    )
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -42,11 +73,9 @@ export function AnalysisDialog({
             Análisis del Protocolo #{protocolNumber}
           </DialogTitle>
           <DialogDescription>
-            {isEditable && !isParticular
+            {isEditable
               ? "Puede cambiar la autorización de cada análisis. Esto puede afectar el costo total del protocolo."
-              : isParticular
-                ? "Vista de análisis. Los análisis particulares no requieren autorización."
-                : "Vista de solo lectura. El protocolo está completado o cancelado."}
+              : "Vista de solo lectura. El protocolo está completado o cancelado."}
           </DialogDescription>
         </DialogHeader>
 
@@ -85,17 +114,11 @@ export function AnalysisDialog({
                   </div>
                   <div className="flex justify-between items-center text-sm">
                     <span className="text-gray-500">UB: {detail.ub}</span>
-                    {!isParticular && (
-                      <div className="flex items-center gap-2">
-                        <span className="text-gray-500 text-xs">Autorizado:</span>
-                        <Switch
-                          checked={detail.is_authorized}
-                          onCheckedChange={() => onToggleAuthorization(detail)}
-                          disabled={!isEditable || updatingDetailId === detail.id || !detail.is_active}
-                        />
-                        {updatingDetailId === detail.id && <Loader2 className="h-4 w-4 animate-spin" />}
-                      </div>
-                    )}
+                    <div className="flex items-center gap-2">
+                      <span className="text-gray-500 text-xs">Autorizado:</span>
+                      {renderAuthorizationSwitch(detail)}
+                      {updatingDetailId === detail.id && <Loader2 className="h-4 w-4 animate-spin" />}
+                    </div>
                   </div>
                 </div>
               ))}
@@ -109,9 +132,7 @@ export function AnalysisDialog({
                     <th className="px-2 lg:px-3 py-2.5 text-left text-xs font-medium text-gray-500 uppercase w-16 lg:w-20">Código</th>
                     <th className="px-2 lg:px-3 py-2.5 text-left text-xs font-medium text-gray-500 uppercase">Análisis</th>
                     <th className="px-2 lg:px-3 py-2.5 text-left text-xs font-medium text-gray-500 uppercase w-12 lg:w-14">UB</th>
-                    {!isParticular && (
-                      <th className="px-2 lg:px-3 py-2.5 text-center text-xs font-medium text-gray-500 uppercase w-20 lg:w-24">Autoriz.</th>
-                    )}
+                    <th className="px-2 lg:px-3 py-2.5 text-center text-xs font-medium text-gray-500 uppercase w-20 lg:w-24">Autoriz.</th>
                     <th className="px-2 lg:px-3 py-2.5 text-center text-xs font-medium text-gray-500 uppercase w-16 lg:w-20">Urg.</th>
                   </tr>
                 </thead>
@@ -123,19 +144,12 @@ export function AnalysisDialog({
                         <div className="break-words leading-tight">{detail.name}</div>
                       </td>
                       <td className="px-2 lg:px-3 py-2.5 text-xs lg:text-sm">{detail.ub}</td>
-                      {!isParticular && (
-                        <td className="px-2 lg:px-3 py-2.5 text-center">
-                          <div className="flex items-center justify-center gap-1">
-                            <Switch
-                              checked={detail.is_authorized}
-                              onCheckedChange={() => onToggleAuthorization(detail)}
-                              disabled={!isEditable || updatingDetailId === detail.id || !detail.is_active}
-                              className="scale-90"
-                            />
-                            {updatingDetailId === detail.id && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                          </div>
-                        </td>
-                      )}
+                      <td className="px-2 lg:px-3 py-2.5 text-center">
+                        <div className="flex items-center justify-center gap-1">
+                          {renderAuthorizationSwitch(detail, "scale-90")}
+                          {updatingDetailId === detail.id && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                        </div>
+                      </td>
                       <td className="px-2 lg:px-3 py-2.5 text-center">
                         {detail.is_urgent && (
                           <Badge variant="destructive" className="text-[10px] lg:text-xs px-1.5">

@@ -20,6 +20,7 @@ import { useApi } from "@/hooks/use-api"
 import { useToast } from "@/hooks/use-toast"
 import { Loader2 } from "lucide-react"
 import { CATALOG_ENDPOINTS } from "@/config/api"
+import { formatApiError, getErrorMessage } from "@/lib/api-error"
 
 interface EditAnalysisCatalogDialogProps {
   open: boolean
@@ -40,6 +41,7 @@ export const EditAnalysisCatalogDialog: React.FC<EditAnalysisCatalogDialogProps>
   const [name, setName] = useState("")
   const [bioUnit, setBioUnit] = useState("")
   const [isUrgent, setIsUrgent] = useState(false)
+  const [requiresDerivacion, setRequiresDerivacion] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
 
@@ -49,6 +51,7 @@ export const EditAnalysisCatalogDialog: React.FC<EditAnalysisCatalogDialogProps>
       setName(analysis.name)
       setBioUnit(analysis.bio_unit)
       setIsUrgent(analysis.is_urgent)
+      setRequiresDerivacion(analysis.requires_derivacion ?? false)
       setErrors({})
     }
   }, [analysis, open])
@@ -74,6 +77,9 @@ export const EditAnalysisCatalogDialog: React.FC<EditAnalysisCatalogDialogProps>
       if (name !== analysis.name) analysisUpdateData.name = name
       if (bioUnit !== analysis.bio_unit) analysisUpdateData.bio_unit = bioUnit
       if (isUrgent !== analysis.is_urgent) analysisUpdateData.is_urgent = isUrgent
+      if (requiresDerivacion !== (analysis.requires_derivacion ?? false)) {
+        analysisUpdateData.requires_derivacion = requiresDerivacion
+      }
 
       if (Object.keys(analysisUpdateData).length === 0) {
         toastActions.info("Sin cambios", { description: "No se realizaron modificaciones." })
@@ -93,6 +99,7 @@ export const EditAnalysisCatalogDialog: React.FC<EditAnalysisCatalogDialogProps>
         onOpenChange(false)
       } else {
         const errorData = await response.json().catch(() => ({ detail: "Error desconocido" }))
+        const errorMessage = formatApiError(errorData, "No se pudo actualizar el análisis.")
         const backendErrors = errorData.errors || errorData.detail || errorData
         if (typeof backendErrors === "object" && backendErrors !== null) {
           const formattedErrors: Record<string, string> = {}
@@ -107,12 +114,13 @@ export const EditAnalysisCatalogDialog: React.FC<EditAnalysisCatalogDialogProps>
         } else {
           setErrors({ form: backendErrors || "Error al actualizar el análisis." })
         }
-        toastActions.error("Error", { description: "No se pudo actualizar el análisis." })
+        toastActions.error("Error", { description: errorMessage })
       }
     } catch (error) {
       console.error("Error updating analysis:", error)
-      setErrors({ form: "Ocurrió un error de red o servidor." })
-      toastActions.error("Error", { description: "Ocurrió un error inesperado." })
+      const errorMessage = getErrorMessage(error, "Ocurrió un error de red o servidor.")
+      setErrors({ form: errorMessage })
+      toastActions.error("Error", { description: errorMessage })
     } finally {
       setIsLoading(false)
     }
@@ -155,15 +163,41 @@ export const EditAnalysisCatalogDialog: React.FC<EditAnalysisCatalogDialogProps>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="edit-bioUnit">Unidad Bioquímica *</Label>
+            <Label htmlFor="edit-bioUnit">Unidad Bioquímica (principal) *</Label>
             <Input
               id="edit-bioUnit"
               value={bioUnit}
               onChange={(e) => setBioUnit(e.target.value)}
-              placeholder="Ingrese la unidad bioquímica"
+              placeholder="Ingrese la unidad bioquímica principal"
             />
+            <p className="text-xs text-gray-500">
+              Es la UB que se usa por defecto. Cada OOSS puede elegir la UB de un año específico según su nomenclador.
+            </p>
             {errors.bioUnit && <p className="text-sm text-red-500">{errors.bioUnit}</p>}
           </div>
+
+          {analysis.bio_unit_values && analysis.bio_unit_values.length > 0 && (
+            <div className="space-y-2 rounded-md border border-blue-100 bg-blue-50/50 p-3">
+              <Label className="text-sm font-semibold text-blue-900">
+                UB históricas por año (referencia)
+              </Label>
+              <p className="text-xs text-blue-800">
+                Estos valores se importan desde el catálogo Excel. Cada obra social usa la UB del año de su nomenclador asignado.
+              </p>
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {analysis.bio_unit_values.map((item) => (
+                  <span
+                    key={item.year}
+                    className="inline-flex items-center gap-1 rounded-md border border-blue-200 bg-white px-2 py-1 text-xs font-mono text-blue-700"
+                  >
+                    <span className="font-semibold">{item.year}</span>
+                    <span className="text-blue-400">·</span>
+                    <span>{item.value}</span>
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
             <div>
@@ -173,6 +207,22 @@ export const EditAnalysisCatalogDialog: React.FC<EditAnalysisCatalogDialogProps>
               <p className="text-sm text-gray-500">Marcar si este análisis es de carácter urgente</p>
             </div>
             <Switch id="edit-isUrgent" checked={isUrgent} onCheckedChange={setIsUrgent} />
+          </div>
+
+          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+            <div>
+              <Label htmlFor="edit-requiresDerivacion" className="font-medium">
+                Requiere derivación
+              </Label>
+              <p className="text-sm text-gray-500">
+                Si la obra social cobra derivación, este análisis suma el monto fijo.
+              </p>
+            </div>
+            <Switch
+              id="edit-requiresDerivacion"
+              checked={requiresDerivacion}
+              onCheckedChange={setRequiresDerivacion}
+            />
           </div>
         </div>
 

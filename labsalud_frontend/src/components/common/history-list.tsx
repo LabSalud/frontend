@@ -1,8 +1,9 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Clock, User } from "lucide-react"
+import { Clock, User, ArrowRight } from "lucide-react"
 import type { HistoryEntry } from "@/types"
+import { formatUtcDateTime } from "@/lib/format-utils"
 
 interface HistoryListProps {
   history: HistoryEntry[]
@@ -29,6 +30,18 @@ const getActionBorderColor = (action: string): string => {
     return "border-l-red-500 dark:border-l-red-600"
   }
 
+  if (lowerAction.includes("negocio") || lowerAction.includes("business")) {
+    return "border-l-blue-500 dark:border-l-blue-600"
+  }
+
+  if (lowerAction.includes("autenticacion") || lowerAction.includes("auth")) {
+    return "border-l-indigo-500 dark:border-l-indigo-600"
+  }
+
+  if (lowerAction.includes("sistema") || lowerAction.includes("system")) {
+    return "border-l-slate-500 dark:border-l-slate-600"
+  }
+
   return "border-l-gray-400 dark:border-l-gray-600"
 }
 
@@ -52,7 +65,39 @@ const getActionBadgeVariant = (action: string): string => {
     return "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
   }
 
+  if (lowerAction.includes("negocio") || lowerAction.includes("business")) {
+    return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
+  }
+
+  if (lowerAction.includes("autenticacion") || lowerAction.includes("auth")) {
+    return "bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200"
+  }
+
+  if (lowerAction.includes("sistema") || lowerAction.includes("system")) {
+    return "bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200"
+  }
+
   return "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200"
+}
+
+export const CATEGORY_META: Record<string, { label: string; className: string }> = {
+  protocol: { label: "Protocolo", className: "bg-sky-100 text-sky-800 dark:bg-sky-900 dark:text-sky-200" },
+  result: { label: "Resultado", className: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200" },
+  validation: { label: "Validación", className: "bg-violet-100 text-violet-800 dark:bg-violet-900 dark:text-violet-200" },
+  payment: { label: "Pago", className: "bg-amber-100 text-amber-900 dark:bg-amber-900 dark:text-amber-200" },
+  state: { label: "Estado", className: "bg-rose-100 text-rose-800 dark:bg-rose-900 dark:text-rose-200" },
+  doctor: { label: "Médico", className: "bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-200" },
+  insurance: { label: "Obra Social", className: "bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200" },
+  analysis: { label: "Análisis", className: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200" },
+  user: { label: "Usuario", className: "bg-fuchsia-100 text-fuchsia-800 dark:bg-fuchsia-900 dark:text-fuchsia-200" },
+  patient: { label: "Paciente", className: "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200" },
+  system: { label: "Sistema", className: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200" },
+}
+
+const formatActionName = (name?: string): string => {
+  if (!name) return ""
+  const last = name.split(".").pop() || name
+  return last.replace(/_/g, " ")
 }
 
 export function HistoryList({ history, emptyMessage = "No hay historial disponible" }: HistoryListProps) {
@@ -61,14 +106,20 @@ export function HistoryList({ history, emptyMessage = "No hay historial disponib
   }
 
   return (
-    <div className="space-y-1.5 sm:space-y-2">
+    <div className="space-y-1.5 sm:space-y-2 w-full min-w-0">
       {history.map((entry, index) => {
         const user = entry.user || { username: "Sistema", photo: null }
+        const timestamp = entry.date || entry.created_at || null
+        const categoryMeta = entry.category ? CATEGORY_META[entry.category] : undefined
+        const hasStateTransition = entry.state_from && entry.state_to
 
         return (
-          <Card key={index} className={`border-l-4 ${getActionBorderColor(entry.action || "")}`}>
-            <CardContent className="p-2 sm:p-3">
-              <div className="flex flex-col sm:flex-row sm:items-start gap-2">
+          <Card
+            key={entry.event_id || `${entry.version}-${index}`}
+            className={`border-l-4 w-full min-w-0 overflow-hidden ${getActionBorderColor(entry.action || "")}`}
+          >
+            <CardContent className="p-2 sm:p-3 min-w-0">
+              <div className="flex flex-col sm:flex-row sm:items-start gap-2 min-w-0">
                 <Avatar className="h-6 w-6 sm:h-8 sm:w-8 shrink-0">
                   <AvatarImage src={user.photo || "/placeholder.svg"} alt={user.username} />
                   <AvatarFallback>
@@ -77,9 +128,9 @@ export function HistoryList({ history, emptyMessage = "No hay historial disponib
                 </Avatar>
 
                 <div className="flex-1 min-w-0 space-y-1">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-2 text-sm">
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-1 sm:gap-2 text-sm min-w-0">
                     <div className="flex items-center gap-1 sm:gap-1.5 min-w-0 flex-wrap">
-                      <span className="font-medium truncate text-xs sm:text-sm">{user.username}</span>
+                      <span className="font-medium text-xs sm:text-sm break-all">{user.username}</span>
                       {entry.version && (
                         <Badge variant="outline" className="text-[10px] sm:text-xs px-1 sm:px-1.5 py-0">
                           v{entry.version}
@@ -92,20 +143,54 @@ export function HistoryList({ history, emptyMessage = "No hay historial disponib
                           {entry.action}
                         </Badge>
                       )}
+                      {categoryMeta && (
+                        <Badge className={`text-[10px] sm:text-xs px-1 sm:px-1.5 py-0 ${categoryMeta.className}`}>
+                          {categoryMeta.label}
+                        </Badge>
+                      )}
                     </div>
-                    <div className="flex items-center gap-1 text-[10px] sm:text-xs text-muted-foreground whitespace-nowrap">
-                      <Clock className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
-                      {new Date(entry.date).toLocaleString("es-AR", {
-                        dateStyle: "short",
-                        timeStyle: "short",
-                      })}
+                    <div className="flex items-center gap-1 text-[10px] sm:text-xs text-muted-foreground whitespace-nowrap shrink-0">
+                      <Clock className="h-2.5 w-2.5 sm:h-3 sm:w-3 shrink-0" />
+                      {formatUtcDateTime(timestamp)}
                     </div>
                   </div>
 
+                  {(entry.model || entry.action_name) && (
+                    <div className="flex items-center gap-1.5 flex-wrap text-[10px] sm:text-xs text-muted-foreground min-w-0">
+                      {entry.model && (
+                        <Badge variant="secondary" className="text-[10px] sm:text-xs px-1.5 py-0">
+                          {entry.model.display}
+                        </Badge>
+                      )}
+                      {entry.object_repr && (
+                        <span className="text-slate-500 break-all min-w-0">{entry.object_repr}</span>
+                      )}
+                      {entry.action_name && (
+                        <span className="font-mono text-slate-400 break-all min-w-0">· {formatActionName(entry.action_name)}</span>
+                      )}
+                    </div>
+                  )}
+
+                  {hasStateTransition && (
+                    <div className="flex items-center gap-1.5 flex-wrap text-xs">
+                      <Badge variant="outline" className="text-[10px] sm:text-xs px-1.5 py-0">
+                        {entry.state_from}
+                      </Badge>
+                      <ArrowRight className="h-3 w-3 text-slate-400 shrink-0" />
+                      <Badge className="text-[10px] sm:text-xs px-1.5 py-0 bg-rose-100 text-rose-800">
+                        {entry.state_to}
+                      </Badge>
+                    </div>
+                  )}
+
+                  {entry.message && (
+                    <p className="text-xs sm:text-sm text-slate-700 break-words whitespace-pre-wrap">{entry.message}</p>
+                  )}
+
                   {entry.changes && entry.changes.length > 0 && (
-                    <div className="text-xs sm:text-sm text-muted-foreground space-y-0.5">
+                    <div className="text-xs sm:text-sm text-muted-foreground space-y-0.5 min-w-0">
                       {entry.changes.map((change, idx) => (
-                        <div key={idx} className="leading-snug break-words">
+                        <div key={idx} className="leading-snug break-words whitespace-pre-wrap">
                           • {change}
                         </div>
                       ))}

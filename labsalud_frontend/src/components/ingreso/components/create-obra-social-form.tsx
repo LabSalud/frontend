@@ -13,26 +13,14 @@ import { useApi } from "../../../hooks/use-api"
 import { toast } from "sonner"
 import type { Insurance } from "../../../types"
 import { MEDICAL_ENDPOINTS } from "@/config/api"
+import { formatApiError } from "@/lib/api-error"
 
 interface CreateObraSocialFormProps {
   onObraSocialCreated: (obraSocial: Insurance) => void
   onCancel: () => void
 }
 
-const extractErrorMessage = (errorData: unknown): string => {
-  if (typeof errorData === "string") return errorData
-  if (errorData && typeof errorData === "object") {
-    const err = errorData as Record<string, unknown>
-    if (err.detail) return String(err.detail)
-    if (err.error) return String(err.error)
-    if (err.message) return String(err.message)
-    const firstKey = Object.keys(err)[0]
-    if (firstKey && Array.isArray(err[firstKey])) {
-      return `${firstKey}: ${err[firstKey][0]}`
-    }
-  }
-  return "Ha ocurrido un error inesperado"
-}
+const extractErrorMessage = (errorData: unknown): string => formatApiError(errorData)
 
 export function CreateObraSocialForm({ onObraSocialCreated, onCancel }: CreateObraSocialFormProps) {
   const { apiRequest } = useApi()

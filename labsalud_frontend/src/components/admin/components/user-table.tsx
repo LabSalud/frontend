@@ -5,7 +5,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Pencil, Trash, Shield, UserPlus, UserMinus, Clock, AlertCircle, Eye, ShieldX } from "lucide-react"
+import { AuditAvatars } from "@/components/common/audit-avatars"
+import { AlertCircle, Clock, Eye, Pencil, Shield, ShieldX, UserPlus, UserMinus, Trash } from "lucide-react"
 
 interface UserTableProps {
   users: User[]
@@ -53,6 +54,15 @@ export function UserTable({
     return user.groups || user.roles || []
   }
 
+  const getAuditInfo = (audit?: User["creation"] | User["last_change"]) => {
+    if (!audit) return undefined
+
+    return {
+      user: audit.user ? { username: audit.user.username, photo: audit.user.photo } : null,
+      date: audit.date,
+    }
+  }
+
   if (users.length === 0) {
     return (
       <div className="bg-white rounded-lg shadow-sm p-4 sm:p-8">
@@ -92,6 +102,25 @@ export function UserTable({
               </div>
 
               <div className="text-xs text-gray-600 mb-2 truncate">{user.email}</div>
+
+              <div className="mb-3 flex items-center gap-4 text-xs text-gray-600">
+                <div className="flex items-center gap-2">
+                  <span>Creación</span>
+                  {user.creation ? (
+                    <AuditAvatars creation={getAuditInfo(user.creation)} size="sm" />
+                  ) : (
+                    <span className="text-gray-400">Sin fecha</span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <span>Último cambio</span>
+                  {user.last_change ? (
+                    <AuditAvatars lastChange={getAuditInfo(user.last_change)} size="sm" />
+                  ) : (
+                    <span className="text-gray-400">Sin cambios</span>
+                  )}
+                </div>
+              </div>
 
               <div className="flex flex-wrap gap-1 mb-3">
                 {user.is_superuser && (
@@ -176,6 +205,8 @@ export function UserTable({
               <TableHead className="font-semibold text-gray-900">Usuario</TableHead>
               <TableHead className="font-semibold text-gray-900">Email</TableHead>
               <TableHead className="font-semibold text-gray-900">Roles</TableHead>
+              <TableHead className="font-semibold text-gray-900">Creado</TableHead>
+              <TableHead className="font-semibold text-gray-900">Último Cambio</TableHead>
               <TableHead className="text-right font-semibold text-gray-900">Acciones</TableHead>
             </TableRow>
           </TableHeader>
@@ -246,6 +277,22 @@ export function UserTable({
                         </Badge>
                       )}
                     </div>
+                  </TableCell>
+
+                  <TableCell className="bg-white text-sm text-gray-600">
+                    {user.creation ? (
+                      <AuditAvatars creation={getAuditInfo(user.creation)} size="sm" />
+                    ) : (
+                      <span className="text-gray-400">Sin fecha</span>
+                    )}
+                  </TableCell>
+
+                  <TableCell className="bg-white text-sm text-gray-600">
+                    {user.last_change ? (
+                      <AuditAvatars lastChange={getAuditInfo(user.last_change)} size="sm" />
+                    ) : (
+                      <span className="text-gray-400">Sin cambios</span>
+                    )}
                   </TableCell>
 
                   <TableCell className="text-right bg-white">

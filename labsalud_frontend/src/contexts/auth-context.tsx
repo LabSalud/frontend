@@ -4,8 +4,19 @@ import { createContext, useContext, useState, useEffect, useCallback, useRef, ty
 import { useToast } from "@/hooks/use-toast"
 import { IdleWarningModal } from "@/components/idle-warning-modal"
 import useIdleTimeout from "@/hooks/use-idle-timeout"
+import { useSessionNotifications } from "@/hooks/use-session-notifications"
 import { AUTH_ENDPOINTS } from "@/config/api"
+import { formatApiError } from "@/lib/api-error"
 import type { User } from "@/types"
+import {
+  clearSession,
+  getAccessToken,
+  getRefreshToken,
+  getStoredUser,
+  setAccessToken,
+  setRefreshToken,
+  setStoredUser,
+} from "@/lib/auth-storage"
 
 export interface TokenRefreshResponse {
   access: string
@@ -46,6 +57,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [isLoading, setIsLoading] = useState(false)
   const { success, error } = useToast()
   const initializationRef = useRef(false)
+  const warningNotificationSentRef = useRef(false)
+  const {
+    enabled: notificationsEnabled,
+    isSupported: notificationsSupported,
+    requestPermission: requestNotificationPermission,
+    notifyIdleWarning,
+    closeActiveNotification,
+  } = useSessionNotifications()
 
   const [idleConfig] = useState({
     idleTime: 5 * 60 * 1000, // 5 minutes
@@ -54,9 +73,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const logout = useCallback(
     (showToast = true) => {
-      sessionStorage.removeItem("access_token")
-      sessionStorage.removeItem("refresh_token")
-      sessionStorage.removeItem("user")
+      clearSession()
       setToken(null)
       setUser(null)
       setIsAuthenticated(false)
@@ -76,6 +93,19 @@ export function AuthProvider({ children }: AuthProviderProps) {
     warningTime: idleConfig.warningTime,
     enabled: isAuthenticated,
   })
+
+  useEffect(() => {
+    if (!showWarning) {
+      warningNotificationSentRef.current = false
+      closeActiveNotification()
+      return
+    }
+
+    if (!warningNotificationSentRef.current) {
+      notifyIdleWarning(timeLeft)
+      warningNotificationSentRef.current = true
+    }
+  }, [showWarning, timeLeft, notifyIdleWarning, closeActiveNotification])
 
   const hasPermission = useCallback(
     (permission: number | string): boolean => {
@@ -98,7 +128,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   )
 
   const refreshToken = useCallback(async (): Promise<boolean> => {
-    const refreshTokenValue = sessionStorage.getItem("refresh_token")
+    const refreshTokenValue = getRefreshToken()
     if (!refreshTokenValue) return false
 
     try {
@@ -114,9 +144,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
       const data: TokenRefreshResponse = await response.json()
 
-      sessionStorage.setItem("access_token", data.access)
+      setAccessToken(data.access)
       if (data.refresh) {
-        sessionStorage.setItem("refresh_token", data.refresh)
+        setRefreshToken(data.refresh)
       }
       setToken(data.access)
       return true
@@ -144,7 +174,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
           console.log("[v0] Login failed:", errorData)
 
           error("Error de inicio de sesión", {
-            description: errorData.detail || "Credenciales inválidas",
+            description: formatApiError(errorData, "Credenciales inválidas"),
           })
           return false
         }
@@ -152,9 +182,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
         const data: AuthResponse = await response.json()
         console.log("[v0] Login successful, user:", data.user.username)
 
-        sessionStorage.setItem("access_token", data.access)
-        sessionStorage.setItem("refresh_token", data.refresh)
-        sessionStorage.setItem("user", JSON.stringify(data.user))
+        setAccessToken(data.access)
+        setRefreshToken(data.refresh)
+        setStoredUser(data.user)
         localStorage.setItem("last_username", username)
 
         setToken(data.access)
@@ -185,8 +215,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const refreshUser = useCallback(async () => {
     if (initializationRef.current) return
 
-    const tokenValue = sessionStorage.getItem("access_token")
-    const savedUser = sessionStorage.getItem("user")
+    const tokenValue = getAccessToken()
+    const savedUser = getStoredUser<User>()
 
     if (!tokenValue || !savedUser) {
       setIsInitialized(true)
@@ -195,8 +225,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
     try {
       setToken(tokenValue)
-      const parsedUser = JSON.parse(savedUser)
-      setUser(parsedUser)
+      setUser(savedUser)
       setIsAuthenticated(true)
     } catch {
       logout(false)
@@ -232,7 +261,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
     <AuthContext.Provider value={value}>
       {children}
       {isAuthenticated && showWarning && (
-        <IdleWarningModal isOpen={true} timeLeft={timeLeft} onExtend={extendSession} onLogout={() => logout(false)} />
+        <IdleWarningModal
+          isOpen={true}
+          timeLeft={timeLeft}
+          onExtend={extendSession}
+          onLogout={() => logout(false)}
+          notificationsAvailable={notificationsSupported}
+          notificationsEnabled={notificationsEnabled}
+          onEnableNotifications={requestNotificationPermission}
+        />
       )}
     </AuthContext.Provider>
   )

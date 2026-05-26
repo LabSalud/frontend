@@ -4,14 +4,14 @@ import type React from "react"
 import { useState } from "react"
 import { Card, CardHeader, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Edit, ChevronDown, DollarSign } from "lucide-react"
+import { Edit, ChevronDown, DollarSign, History } from "lucide-react"
 import { Switch } from "@/components/ui/switch"
 import { Badge } from "@/components/ui/badge"
 import { AuditAvatars } from "@/components/common/audit-avatars"
 import type { ObraSocial } from "@/types"
-import { HistoryList } from "@/components/common/history-list"
 import { useApi } from "@/hooks/use-api"
 import { MEDICAL_ENDPOINTS } from "@/config/api"
+import { ObraSocialHistoryDialog } from "./obra-social-history-dialog"
 
 interface ObraSocialCardProps {
   obraSocial: ObraSocial
@@ -32,10 +32,31 @@ const formatDateShort = (dateString?: string) => {
 export const ObraSocialCard: React.FC<ObraSocialCardProps> = ({ obraSocial, onEdit, onToggleActive, isToggling }) => {
   const [isExpanded, setIsExpanded] = useState(false)
   const [fullDetails, setFullDetails] = useState<ObraSocial | null>(null)
-  const [isLoadingHistory, setIsLoadingHistory] = useState(false)
+  const [isLoadingDetails, setIsLoadingDetails] = useState(false)
+  const [historyOpen, setHistoryOpen] = useState(false)
   const { apiRequest } = useApi()
 
-  const { name, description, ub_value, is_active, creation, last_change } = obraSocial
+  const {
+    name,
+    description,
+    ub_value,
+    is_active,
+    creation,
+    last_change,
+    charges_coseguro,
+    charges_material_descartable,
+    charges_derivacion,
+    requires_preauthorization,
+  } = obraSocial
+
+  const detailFlags = fullDetails ?? obraSocial
+  const flags: Array<{ label: string; active?: boolean }> = [
+    { label: "Coseguro", active: detailFlags.charges_coseguro },
+    { label: "Material descartable", active: detailFlags.charges_material_descartable },
+    { label: "Derivación", active: detailFlags.charges_derivacion },
+    { label: "Preautorización", active: detailFlags.requires_preauthorization },
+  ]
+  const hasFlags = charges_coseguro || charges_material_descartable || charges_derivacion || requires_preauthorization
 
   const handleToggle = (newStatus: boolean) => {
     if (onToggleActive) {
@@ -52,7 +73,7 @@ export const ObraSocialCard: React.FC<ObraSocialCardProps> = ({ obraSocial, onEd
     setIsExpanded(newExpandedState)
 
     if (newExpandedState && !fullDetails && obraSocial.id) {
-      setIsLoadingHistory(true)
+      setIsLoadingDetails(true)
       try {
         const response = await apiRequest(MEDICAL_ENDPOINTS.INSURANCE_DETAIL(obraSocial.id))
         const data = await response.json()
@@ -60,7 +81,7 @@ export const ObraSocialCard: React.FC<ObraSocialCardProps> = ({ obraSocial, onEd
       } catch (error) {
         console.error("Error fetching obra social details:", error)
       } finally {
-        setIsLoadingHistory(false)
+        setIsLoadingDetails(false)
       }
     }
   }
@@ -107,6 +128,11 @@ export const ObraSocialCard: React.FC<ObraSocialCardProps> = ({ obraSocial, onEd
                   <span className="text-xs md:text-xs text-gray-500 hidden sm:inline">
                     {formatDateShort(creation?.date)}
                   </span>
+                  {hasFlags && (
+                    <span className="text-[10px] md:text-xs text-[#204983] font-medium hidden sm:inline">
+                      • Cobra extras
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
@@ -155,6 +181,23 @@ export const ObraSocialCard: React.FC<ObraSocialCardProps> = ({ obraSocial, onEd
               </div>
             )}
 
+            <div className="p-2 md:p-3 bg-gray-50 rounded-md space-y-2">
+              <p className="text-xs md:text-sm text-gray-700 font-semibold">Conceptos que cobra</p>
+              <div className="flex flex-wrap gap-1.5">
+                {flags.map((flag) => (
+                  <Badge
+                    key={flag.label}
+                    variant={flag.active ? "default" : "secondary"}
+                    className={`text-[10px] md:text-xs ${
+                      flag.active ? "bg-[#204983] hover:bg-[#1a3d6f]" : "bg-gray-200 text-gray-600"
+                    }`}
+                  >
+                    {flag.label}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+
             {(creation || last_change) && (
               <div className="flex items-center justify-between p-2 md:p-3 bg-gray-50 rounded-md">
                 <span className="text-xs md:text-sm text-gray-600 font-medium">Auditoría</span>
@@ -162,16 +205,23 @@ export const ObraSocialCard: React.FC<ObraSocialCardProps> = ({ obraSocial, onEd
               </div>
             )}
 
-            {isLoadingHistory ? (
-              <div className="flex items-center justify-center py-6 md:py-8">
-                <div className="h-6 w-6 md:h-8 md:w-8 animate-spin rounded-full border-4 border-current border-t-transparent text-[#204983]" />
-              </div>
-            ) : fullDetails?.history ? (
-              <div className="space-y-2">
-                <h4 className="text-xs md:text-sm font-semibold text-gray-700">Historial de Cambios</h4>
-                <HistoryList history={fullDetails.history} />
-              </div>
-            ) : null}
+            <div data-no-expand>
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full text-xs md:text-sm"
+                disabled={isLoadingDetails}
+                onClick={() => setHistoryOpen(true)}
+              >
+                <History className="h-3 w-3 md:h-4 md:w-4 mr-2 text-[#204983]" />
+                Ver Historial de Cambios
+                {fullDetails?.total_changes ? (
+                  <span className="ml-2 text-[10px] md:text-xs text-muted-foreground">
+                    ({fullDetails.total_changes})
+                  </span>
+                ) : null}
+              </Button>
+            </div>
 
             {onEdit && (
               <div className="pt-2 border-t border-gray-100" data-no-expand>
@@ -188,6 +238,13 @@ export const ObraSocialCard: React.FC<ObraSocialCardProps> = ({ obraSocial, onEd
           </div>
         </CardContent>
       )}
+
+      <ObraSocialHistoryDialog
+        open={historyOpen}
+        onOpenChange={setHistoryOpen}
+        obraSocialId={obraSocial.id}
+        obraSocialName={name}
+      />
     </Card>
   )
 }

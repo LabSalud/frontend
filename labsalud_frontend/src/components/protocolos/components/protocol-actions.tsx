@@ -1,7 +1,9 @@
 "use client"
 
-import { Loader2, TestTube, Edit, X, AlertTriangle, FileText, Landmark } from "lucide-react"
+import type React from "react"
+import { Loader2, TestTube, Edit, X, AlertTriangle, FileText, Landmark, RefreshCw, ShieldCheck, Wallet } from "lucide-react"
 import { Button } from "../../ui/button"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -17,30 +19,73 @@ import {
 interface ProtocolActionsProps {
   protocolId: number
   canBeCancelled: boolean
+  isCancelled?: boolean
+  canUncancel?: boolean
   isEditable?: boolean
   showReports?: boolean
+  showCoseguro?: boolean
+  showPreauth?: boolean
+  editDisabledReason?: string
+  reportsDisabledReason?: string
+  cancelDisabledReason?: string
+  arcaDisabledReason?: string
+  coseguroDisabledReason?: string
+  preauthDisabledReason?: string
   isCancelling: boolean
+  isUncancelling?: boolean
   isArcaBilling?: boolean
   onViewAnalysis: () => void
   onEdit: () => void
   onReports: () => void
   onCancel: () => void
+  onUncancel?: () => void
   onArcaBilling: () => void
+  onSetCoseguro?: () => void
+  onApplyPreauthorization?: () => void
 }
 
 export function ProtocolActions({
   protocolId,
   canBeCancelled,
+  isCancelled = false,
+  canUncancel = false,
   isEditable = true,
   showReports = true,
+  showCoseguro = false,
+  showPreauth = false,
+  editDisabledReason,
+  reportsDisabledReason,
+  cancelDisabledReason,
+  arcaDisabledReason,
+  coseguroDisabledReason,
+  preauthDisabledReason,
   isCancelling,
+  isUncancelling = false,
   isArcaBilling = false,
   onViewAnalysis,
   onEdit,
   onReports,
   onCancel,
+  onUncancel,
   onArcaBilling,
+  onSetCoseguro,
+  onApplyPreauthorization,
 }: ProtocolActionsProps) {
+  const renderDisabledTooltip = (reason: string | undefined, children: React.ReactNode) => {
+    if (!reason) return children
+
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className="inline-flex w-full sm:w-auto">{children}</span>
+        </TooltipTrigger>
+        <TooltipContent className="max-w-[260px] bg-slate-900 text-white">
+          <p>{reason}</p>
+        </TooltipContent>
+      </Tooltip>
+    )
+  }
+
   return (
     <div className="pt-4 border-t border-gray-100" data-no-expand>
       {/* // Improved responsive button layout */}
@@ -57,48 +102,134 @@ export function ProtocolActions({
           <TestTube className="h-4 w-4 mr-1" />
           <span className="hidden xs:inline">Ver </span>Análisis
         </Button>
-        {isEditable && (
+        {renderDisabledTooltip(
+          !isEditable ? editDisabledReason || "Este protocolo no puede editarse en su estado actual." : undefined,
           <Button
             size="sm"
             variant="outline"
             className="bg-transparent"
+            disabled={!isEditable}
             onClick={(e) => {
               e.stopPropagation()
+              if (!isEditable) return
               onEdit()
             }}
           >
             <Edit className="h-4 w-4 mr-1" />
             Editar
-          </Button>
+          </Button>,
         )}
-        {showReports && (
+        {renderDisabledTooltip(
+          !showReports ? reportsDisabledReason || "No se pueden generar reportes en el estado actual." : undefined,
           <Button
             size="sm"
             variant="outline"
             className="text-purple-600 border-purple-600 hover:bg-purple-600 hover:text-white bg-transparent"
+            disabled={!showReports}
             onClick={(e) => {
               e.stopPropagation()
+              if (!showReports) return
               onReports()
             }}
           >
             <FileText className="h-4 w-4 mr-1" />
             Reportes
-          </Button>
+          </Button>,
         )}
-        <Button
-          size="sm"
-          variant="outline"
-          className="text-amber-700 border-amber-500 hover:bg-amber-600 hover:text-white bg-transparent"
-          onClick={(e) => {
-            e.stopPropagation()
-            onArcaBilling()
-          }}
-          disabled={isArcaBilling}
-        >
-          {isArcaBilling ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Landmark className="h-4 w-4 mr-1" />}
-          Facturar ARCA
-        </Button>
-        {canBeCancelled && (
+        {renderDisabledTooltip(
+          arcaDisabledReason,
+          <Button
+            size="sm"
+            variant="outline"
+            className="text-amber-700 border-amber-500 hover:bg-amber-600 hover:text-white bg-transparent"
+            onClick={(e) => {
+              e.stopPropagation()
+              if (arcaDisabledReason) return
+              onArcaBilling()
+            }}
+            disabled={isArcaBilling || Boolean(arcaDisabledReason)}
+          >
+            {isArcaBilling ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Landmark className="h-4 w-4 mr-1" />}
+            Facturar ARCA
+          </Button>,
+        )}
+        {showCoseguro && renderDisabledTooltip(
+          coseguroDisabledReason,
+          <Button
+            size="sm"
+            variant="outline"
+            className="text-teal-700 border-teal-600 hover:bg-teal-600 hover:text-white bg-transparent"
+            disabled={Boolean(coseguroDisabledReason)}
+            onClick={(e) => {
+              e.stopPropagation()
+              if (coseguroDisabledReason) return
+              onSetCoseguro?.()
+            }}
+          >
+            <Wallet className="h-4 w-4 mr-1" />
+            Coseguro
+          </Button>,
+        )}
+        {showPreauth && renderDisabledTooltip(
+          preauthDisabledReason,
+          <Button
+            size="sm"
+            variant="outline"
+            className="text-indigo-700 border-indigo-600 hover:bg-indigo-600 hover:text-white bg-transparent"
+            disabled={Boolean(preauthDisabledReason)}
+            onClick={(e) => {
+              e.stopPropagation()
+              if (preauthDisabledReason) return
+              onApplyPreauthorization?.()
+            }}
+          >
+            <ShieldCheck className="h-4 w-4 mr-1" />
+            Preautorización
+          </Button>,
+        )}
+        {isCancelled && canUncancel ? (
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button
+                size="sm"
+                variant="outline"
+                className="text-green-700 border-green-600 hover:bg-green-600 hover:text-white bg-transparent"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <RefreshCw className="h-4 w-4 mr-1" />
+                Descancelar
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent className="w-[95vw] max-w-md" onClick={(e) => e.stopPropagation()}>
+              <AlertDialogHeader>
+                <AlertDialogTitle className="flex items-center gap-2">
+                  <RefreshCw className="h-5 w-5 text-green-600" />
+                  Descancelar Protocolo
+                </AlertDialogTitle>
+                <AlertDialogDescription>
+                  ¿Confirmás descancelar el protocolo #{protocolId}? Se restaurará al estado previo a la cancelación.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+                <AlertDialogCancel className="w-full sm:w-auto">Volver</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={onUncancel}
+                  disabled={isUncancelling}
+                  className="bg-green-600 hover:bg-green-700 text-white w-full sm:w-auto"
+                >
+                  {isUncancelling ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Descancelando...
+                    </>
+                  ) : (
+                    "Confirmar descancelación"
+                  )}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        ) : canBeCancelled ? (
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <Button
@@ -118,8 +249,8 @@ export function ProtocolActions({
                   Cancelar Protocolo
                 </AlertDialogTitle>
                 <AlertDialogDescription>
-                  ¿Estás seguro de que deseas cancelar el protocolo #{protocolId}? Esta acción no se puede deshacer y el
-                  protocolo pasará al estado "Cancelado".
+                  ¿Estás seguro de que deseas cancelar el protocolo #{protocolId}? El protocolo pasará al estado "Cancelado"
+                  y podrá ser restaurado más adelante.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter className="flex-col sm:flex-row gap-2">
@@ -141,6 +272,20 @@ export function ProtocolActions({
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
+        ) : (
+          renderDisabledTooltip(
+            cancelDisabledReason || "Este protocolo no puede cancelarse en su estado actual.",
+            <Button
+              size="sm"
+              variant="outline"
+              className="text-red-600 border-red-600 hover:bg-red-600 hover:text-white bg-transparent"
+              disabled
+              onClick={(e) => e.stopPropagation()}
+            >
+              <X className="h-4 w-4 mr-1" />
+              Cancelar
+            </Button>,
+          )
         )}
       </div>
     </div>

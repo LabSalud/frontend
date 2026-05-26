@@ -13,6 +13,7 @@ import { useApi } from "../../../hooks/use-api"
 import { toast } from "sonner"
 import type { Patient } from "../../../types"
 import { PATIENT_ENDPOINTS } from "../../../config/api"
+import { formatApiError, getErrorMessage } from "@/lib/api-error"
 
 interface EditPatientDialogProps {
   isOpen: boolean
@@ -26,7 +27,7 @@ export function EditPatientDialog({ isOpen, onClose, patient, onPatientUpdated }
   const [formData, setFormData] = useState({
     first_name: "",
     last_name: "",
-    dni: "",
+    cuil: "",
     birth_date: "",
     gender: "",
     phone_mobile: "",
@@ -44,7 +45,7 @@ export function EditPatientDialog({ isOpen, onClose, patient, onPatientUpdated }
       setFormData({
         first_name: patient.first_name || "",
         last_name: patient.last_name || "",
-        dni: patient.dni || "",
+        cuil: patient.cuil || "",
         birth_date: patient.birth_date ? patient.birth_date.split("T")[0] : "",
         gender: patient.gender || "",
         phone_mobile: patient.phone_mobile || "",
@@ -60,9 +61,9 @@ export function EditPatientDialog({ isOpen, onClose, patient, onPatientUpdated }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
-    if (name === "dni") {
-      const numericValue = value.replace(/\D/g, "")
-      setFormData((prev) => ({ ...prev, [name]: numericValue }))
+    if (name === "cuil") {
+      const cleaned = value.replace(/[^\d-]/g, "")
+      setFormData((prev) => ({ ...prev, [name]: cleaned }))
     } else {
       setFormData((prev) => ({ ...prev, [name]: value }))
     }
@@ -75,7 +76,7 @@ export function EditPatientDialog({ isOpen, onClose, patient, onPatientUpdated }
   const handleUpdatePatient = async () => {
     if (!patient) return
 
-    if (!formData.first_name || !formData.last_name || !formData.dni || !formData.birth_date || !formData.gender) {
+    if (!formData.first_name || !formData.last_name || !formData.cuil || !formData.birth_date || !formData.gender) {
       toast.error("Complete los campos obligatorios")
       return
     }
@@ -86,7 +87,7 @@ export function EditPatientDialog({ isOpen, onClose, patient, onPatientUpdated }
 
       const response = await apiRequest(PATIENT_ENDPOINTS.PATIENT_DETAIL(patient.id), {
         method: "PUT",
-        body: formData,
+        body: { ...formData, cuil: formData.cuil.replace(/-/g, "") },
       })
 
       if (response.ok) {
@@ -99,12 +100,14 @@ export function EditPatientDialog({ isOpen, onClose, patient, onPatientUpdated }
         const errorData = await response.json()
         console.error("Patient update error:", errorData)
         toast.error("Error al actualizar paciente", {
-          description: errorData.detail || "Ha ocurrido un error al actualizar el paciente.",
+          description: formatApiError(errorData, "Ha ocurrido un error al actualizar el paciente."),
         })
       }
     } catch (error) {
       console.error("Error updating patient:", error)
-      toast.error("Error al actualizar el paciente")
+      toast.error("Error al actualizar el paciente", {
+        description: getErrorMessage(error, "Error de conexión con el servidor"),
+      })
     } finally {
       setIsUpdating(false)
     }
@@ -147,14 +150,14 @@ export function EditPatientDialog({ isOpen, onClose, patient, onPatientUpdated }
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="dni">DNI *</Label>
+            <Label htmlFor="cuil">CUIL *</Label>
             <Input
-              id="dni"
-              name="dni"
-              value={formData.dni}
+              id="cuil"
+              name="cuil"
+              value={formData.cuil}
               onChange={handleInputChange}
-              placeholder="12345678"
-              maxLength={8}
+              placeholder="20-12345678-4"
+              maxLength={13}
               className="font-mono text-lg"
               required
             />

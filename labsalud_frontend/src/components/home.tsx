@@ -1,7 +1,7 @@
 "use client"
-import { useState, useEffect } from "react"
+import { useEffect } from "react"
 import useAuth from "@/contexts/auth-context"
-import { useApi } from "@/hooks/use-api"
+import { useApiQuery } from "@/hooks/use-api-query"
 import { useToast } from "@/hooks/use-toast"
 import { ANALYTICS_ENDPOINTS, BILLING_ENDPOINTS } from "@/config/api"
 import { PERMISSIONS } from "@/config/permissions"
@@ -20,35 +20,59 @@ import {
 } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
 
-interface Stats {
-  analysisToday: number
-  patientsToday: number
-  pendingResultsLoad: number
-  pendingResultsValidation: number
-  protocolsCompletedMonth: number
-  protocolsCompletedGrowthPercent: string
-  avgResultLoadTimeHuman: string
-  printedIncompletePayment: number
-  pendingBilling: number
+interface DashboardResponse {
+  analysis_today?: number
+  patients_today?: number
+  protocols_completed_month?: number
+  protocols_completed_growth_percent?: string
+  avg_result_load_time_human?: string
+  pending_results_load?: number
+  pending_results_validation?: number
+  printed_with_incomplete_payment?: number
+}
+
+interface ProtocolsToBillResponse {
+  count?: number
 }
 
 export default function Home() {
   const { user, hasPermission } = useAuth()
-  const { apiRequest } = useApi()
   const { error: showErrorToast } = useToast()
+  const canAccessBilling = hasPermission(PERMISSIONS.MANAGE_BILLING.id)
+  const canSeeValidationStats = hasPermission("validar_resultados") || hasPermission(4)
 
-  const [stats, setStats] = useState<Stats>({
-    analysisToday: 0,
-    patientsToday: 0,
-    pendingResultsLoad: 0,
-    pendingResultsValidation: 0,
-    protocolsCompletedMonth: 0,
-    protocolsCompletedGrowthPercent: "0.0",
-    avgResultLoadTimeHuman: "0 min",
-    printedIncompletePayment: 0,
-    pendingBilling: 0,
+  const dashboardQuery = useApiQuery<DashboardResponse>({
+    queryKey: ["analytics", "dashboard"],
+    url: ANALYTICS_ENDPOINTS.DASHBOARD,
+    staleTime: 30 * 1000,
   })
-  const [loading, setLoading] = useState(true)
+
+  const protocolsToBillQuery = useApiQuery<ProtocolsToBillResponse>({
+    queryKey: ["billing", "protocols-to-bill", "count"],
+    url: BILLING_ENDPOINTS.PROTOCOLS_TO_BILL,
+    enabled: canAccessBilling,
+    staleTime: 30 * 1000,
+  })
+
+  const loading = dashboardQuery.isLoading || (canAccessBilling && protocolsToBillQuery.isLoading)
+  const dashboard = dashboardQuery.data
+  const stats = {
+    analysisToday: dashboard?.analysis_today || 0,
+    patientsToday: dashboard?.patients_today || 0,
+    protocolsCompletedMonth: dashboard?.protocols_completed_month || 0,
+    protocolsCompletedGrowthPercent: dashboard?.protocols_completed_growth_percent || "0.0",
+    avgResultLoadTimeHuman: dashboard?.avg_result_load_time_human || "0 min",
+    pendingResultsLoad: dashboard?.pending_results_load || 0,
+    pendingResultsValidation: dashboard?.pending_results_validation || 0,
+    printedIncompletePayment: dashboard?.printed_with_incomplete_payment || 0,
+    pendingBilling: Number(protocolsToBillQuery.data?.count || 0),
+  }
+
+  useEffect(() => {
+    if (dashboardQuery.error) {
+      showErrorToast("Error al cargar las estadísticas")
+    }
+  }, [dashboardQuery.error, showErrorToast])
 
   const getActivePermissions = (): Permission[] => {
     if (!user || !user.permissions) return []
@@ -57,50 +81,6 @@ export default function Home() {
       (perm: Permission) => perm.temporary === true && perm.expires_at && new Date(perm.expires_at) > now,
     )
   }
-
-  const fetchStats = async () => {
-    try {
-      setLoading(true)
-
-      const [dashboardResponse, billingSummaryResponse] = await Promise.all([
-        apiRequest(ANALYTICS_ENDPOINTS.DASHBOARD),
-        apiRequest(BILLING_ENDPOINTS.SUMMARY),
-      ])
-
-      const data = await dashboardResponse.json()
-
-      let pendingBillingCount = 0
-
-      if (billingSummaryResponse.ok) {
-        const billingData = await billingSummaryResponse.json()
-        pendingBillingCount = Number(billingData.protocolos_por_facturar || 0)
-      }
-
-      setStats({
-        analysisToday: data.analysis_today || 0,
-        patientsToday: data.patients_today || 0,
-        protocolsCompletedMonth: data.protocols_completed_month || 0,
-        protocolsCompletedGrowthPercent: data.protocols_completed_growth_percent || "0.0",
-        avgResultLoadTimeHuman: data.avg_result_load_time_human || "0 min",
-        pendingResultsLoad: data.pending_results_load || 0,
-        pendingResultsValidation: data.pending_results_validation || 0,
-        printedIncompletePayment: data.printed_with_incomplete_payment || 0,
-        pendingBilling: pendingBillingCount,
-      })
-    } catch (error) {
-      console.error("Error fetching stats:", error)
-      showErrorToast("Error al cargar las estadísticas")
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    fetchStats()
-  }, [])
-
-  const canSeeValidationStats = hasPermission("validar_resultados") || hasPermission(4)
-  const canAccessBilling = hasPermission(PERMISSIONS.MANAGE_BILLING.id)
 
   // ── Sub-components ────────────────────────────────────────────────────────
 

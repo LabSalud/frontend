@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Loader2, Upload, FileSpreadsheet, AlertCircle, CheckCircle2, Info } from "lucide-react"
+import { formatApiError, getErrorMessage } from "@/lib/api-error"
 
 interface ImportDataDialogProps {
   open: boolean
@@ -60,17 +61,25 @@ export function ImportDataDialog({ open, onOpenChange, onSuccess }: ImportDataDi
 
       if (response.ok) {
         const data = await response.json()
-        toast.success(data.message || "Los datos se importaron correctamente")
+        const analysesCreated = data.analyses?.created ?? 0
+        const analysesSkipped = data.analyses?.skipped ?? 0
+        const determinationsCreated = data.determinations?.created ?? 0
+        const determinationsSkipped = data.determinations?.skipped ?? 0
+        const importSummary =
+          data.analyses && data.determinations
+            ? `${analysesCreated} análisis creados, ${analysesSkipped} omitidos; ${determinationsCreated} determinaciones creadas, ${determinationsSkipped} omitidas.`
+            : data.message || "Los datos se importaron correctamente"
+        toast.success(importSummary)
         onOpenChange(false)
         onSuccess()
       } else {
         const errorData = await response.json().catch(() => ({}))
-        const errorMessage = errorData.detail || errorData.error || errorData.message || "Error al importar el catálogo"
+        const errorMessage = formatApiError(errorData, "Error al importar el catálogo")
         setError(errorMessage)
         toast.error(errorMessage)
       }
     } catch (err) {
-      const errorMessage = (err as Error).message || "Error de conexión al importar el catálogo"
+      const errorMessage = getErrorMessage(err, "Error de conexión al importar el catálogo")
       setError(errorMessage)
       toast.error(errorMessage)
     } finally {
@@ -107,7 +116,7 @@ export function ImportDataDialog({ open, onOpenChange, onSuccess }: ImportDataDi
               <div className="space-y-3">
                 <div>
                   <p className="font-semibold">Tabla 1: "Analisis"</p>
-                  <p className="text-[10px] md:text-xs mt-1">Debe contener las siguientes columnas:</p>
+                  <p className="text-[10px] md:text-xs mt-1">Formato anterior:</p>
                   <ul className="list-disc list-inside text-[10px] md:text-xs mt-1 ml-2 space-y-0.5">
                     <li>
                       <code className="bg-blue-100 px-1 rounded">id</code> - Identificador único del análisis
@@ -125,10 +134,19 @@ export function ImportDataDialog({ open, onOpenChange, onSuccess }: ImportDataDi
                       <code className="bg-blue-100 px-1 rounded">ub</code> - Unidad bioquímica
                     </li>
                   </ul>
+                  <p className="text-[10px] md:text-xs mt-2">Formato nuevo:</p>
+                  <ul className="list-disc list-inside text-[10px] md:text-xs mt-1 ml-2 space-y-0.5">
+                    <li>
+                      <code className="bg-blue-100 px-1 rounded">ub 2016</code>,{" "}
+                      <code className="bg-blue-100 px-1 rounded">ub 2023</code>,{" "}
+                      <code className="bg-blue-100 px-1 rounded">ub 2024</code> - UB por año
+                    </li>
+                    <li>También se aceptan otras columnas con formato ub + año.</li>
+                  </ul>
                 </div>
                 <div>
                   <p className="font-semibold">Tabla 2: "Determinaciones"</p>
-                  <p className="text-[10px] md:text-xs mt-1">Debe contener las siguientes columnas:</p>
+                  <p className="text-[10px] md:text-xs mt-1">Formato anterior:</p>
                   <ul className="list-disc list-inside text-[10px] md:text-xs mt-1 ml-2 space-y-0.5">
                     <li>
                       <code className="bg-blue-100 px-1 rounded">id</code> - Identificador único de la determinación
@@ -148,6 +166,18 @@ export function ImportDataDialog({ open, onOpenChange, onSuccess }: ImportDataDi
                     <li>
                       <code className="bg-blue-100 px-1 rounded">valores_referencia</code> - Valores de referencia
                       (JSON)
+                    </li>
+                  </ul>
+                  <p className="text-[10px] md:text-xs mt-2">Formato nuevo:</p>
+                  <ul className="list-disc list-inside text-[10px] md:text-xs mt-1 ml-2 space-y-0.5">
+                    <li>
+                      <code className="bg-blue-100 px-1 rounded">codigo</code> - Código de determinación
+                    </li>
+                    <li>
+                      <code className="bg-blue-100 px-1 rounded">hombre_mayor_min/max</code>,{" "}
+                      <code className="bg-blue-100 px-1 rounded">mujer_mayor_min/max</code>,{" "}
+                      <code className="bg-blue-100 px-1 rounded">niño_min/max</code>,{" "}
+                      <code className="bg-blue-100 px-1 rounded">niña_min/max</code> - Rangos de referencia
                     </li>
                   </ul>
                 </div>

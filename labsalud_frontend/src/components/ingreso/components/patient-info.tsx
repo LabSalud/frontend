@@ -1,10 +1,11 @@
 "use client"
 
-import { User, Calendar, Phone, Mail, MapPin, Edit } from "lucide-react"
+import { User, Calendar, Phone, Mail, MapPin, Edit, UserCog } from "lucide-react"
 import { Button } from "../../ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "../../ui/card"
 import { Badge } from "../../ui/badge"
 import type { Patient } from "../../../types"
+import { formatCuilForDisplay } from "@/lib/cuil"
 
 interface PatientInfoProps {
   patient: Patient
@@ -80,6 +81,7 @@ const calculateAge = (birthDate: string): number => {
 }
 
 export function PatientInfo({ patient, onEdit }: PatientInfoProps) {
+  const isAnonymous = Boolean(patient.is_anonymous)
   return (
     <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
       <CardHeader className="pb-3 sm:pb-4">
@@ -102,41 +104,53 @@ export function PatientInfo({ patient, onEdit }: PatientInfoProps) {
       <CardContent className="space-y-3 sm:space-y-4 p-4 sm:p-6">
         <div className="text-center pb-3 sm:pb-4 border-b">
           <h3 className="text-lg sm:text-xl font-bold text-gray-900">
-            {patient.first_name} {patient.last_name}
+            {patient.first_name} {patient.last_name || ""}
           </h3>
-          <div className="flex items-center justify-center gap-2 mt-2">
-            <Badge variant="outline" className="font-mono text-sm sm:text-lg px-2 sm:px-3 py-1">
-              DNI: {patient.dni}
-            </Badge>
+          <div className="flex items-center justify-center gap-2 mt-2 flex-wrap">
+            {isAnonymous ? (
+              <Badge className="bg-amber-500 hover:bg-amber-600 text-white text-xs sm:text-sm px-2 sm:px-3 py-1">
+                <UserCog className="h-3 w-3 mr-1" /> Paciente anónimo
+              </Badge>
+            ) : (
+              <Badge variant="outline" className="font-mono text-sm sm:text-lg px-2 sm:px-3 py-1">
+                CUIL: {formatCuilForDisplay(patient.cuil)}
+              </Badge>
+            )}
           </div>
+          {isAnonymous && (
+            <p className="text-xs text-amber-700 mt-2">
+              La obra social es opcional. Si no la elegís, se asigna Particular automáticamente.
+            </p>
+          )}
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-          <div className="space-y-2 sm:space-y-3">
-            <div className="flex items-center gap-2 text-xs sm:text-sm">
-              <Calendar className="h-3 w-3 sm:h-4 sm:w-4 text-gray-500" />
-              <div>
-                <p className="font-medium">Fecha de nacimiento</p>
-                <p className="text-gray-600">{formatDate(patient.birth_date)}</p>
+        {!isAnonymous && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+            <div className="space-y-2 sm:space-y-3">
+              <div className="flex items-center gap-2 text-xs sm:text-sm">
+                <Calendar className="h-3 w-3 sm:h-4 sm:w-4 text-gray-500" />
+                <div>
+                  <p className="font-medium">Fecha de nacimiento</p>
+                  <p className="text-gray-600">{formatDate(patient.birth_date)}</p>
+                </div>
               </div>
-            </div>
 
-            <div className="flex items-center gap-2 text-xs sm:text-sm">
-              <User className="h-3 w-3 sm:h-4 sm:w-4 text-gray-500" />
-              <div>
-                <p className="font-medium">Edad</p>
-                <p className="text-gray-600">{calculateAge(patient.birth_date)} años</p>
+              <div className="flex items-center gap-2 text-xs sm:text-sm">
+                <User className="h-3 w-3 sm:h-4 sm:w-4 text-gray-500" />
+                <div>
+                  <p className="font-medium">Edad</p>
+                  <p className="text-gray-600">{calculateAge(patient.birth_date)} años</p>
+                </div>
               </div>
-            </div>
 
-            <div className="flex items-center gap-2 text-xs sm:text-sm">
-              <User className="h-3 w-3 sm:h-4 sm:w-4 text-gray-500" />
-              <div>
-                <p className="font-medium">Género</p>
-                <p className="text-gray-600">{patient.gender === "M" ? "Masculino" : "Femenino"}</p>
+              <div className="flex items-center gap-2 text-xs sm:text-sm">
+                <User className="h-3 w-3 sm:h-4 sm:w-4 text-gray-500" />
+                <div>
+                  <p className="font-medium">Género</p>
+                  <p className="text-gray-600">{patient.gender === "M" ? "Masculino" : "Femenino"}</p>
+                </div>
               </div>
             </div>
-          </div>
 
           <div className="space-y-2 sm:space-y-3">
             {patient.phone_mobile && (
@@ -170,8 +184,9 @@ export function PatientInfo({ patient, onEdit }: PatientInfoProps) {
             )}
           </div>
         </div>
+        )}
 
-        {(patient.address || patient.city || patient.province || patient.country) && (
+        {!isAnonymous && (patient.address || patient.city || patient.province || patient.country) && (
           <div className="pt-3 sm:pt-4 border-t">
             <div className="flex items-start gap-2 text-xs sm:text-sm">
               <MapPin className="h-3 w-3 sm:h-4 sm:w-4 text-gray-500 mt-0.5" />

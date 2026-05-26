@@ -9,21 +9,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast"
 import type { ApiRequestOptions } from "@/hooks/use-api"
 import { AC_ENDPOINTS } from "@/config/api"
+import { formatApiError } from "@/lib/api-error"
 
-const extractErrorMessage = (errorData: unknown): string => {
-  if (!errorData || typeof errorData !== "object") return "Error desconocido"
-  const err = errorData as Record<string, unknown>
-  if (typeof err.detail === "string") return err.detail
-  if (typeof err.error === "string") return err.error
-  if (typeof err.message === "string") return err.message
-  for (const key of Object.keys(err)) {
-    const val = err[key]
-    if (Array.isArray(val) && val.length > 0) {
-      return `${key}: ${val[0]}`
-    }
-  }
-  return "Error desconocido"
-}
+const extractErrorMessage = (errorData: unknown): string => formatApiError(errorData, "Error desconocido")
 
 interface RoleRemoveDialogProps {
   open: boolean

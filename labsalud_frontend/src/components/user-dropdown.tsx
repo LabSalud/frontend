@@ -6,6 +6,7 @@ import { User, LogOut, Settings, UserCircle, Shield, Receipt } from "lucide-reac
 import useAuth from "@/contexts/auth-context"
 import { Link } from "react-router-dom"
 import { PERMISSIONS } from "@/config/permissions"
+import { SessionNotificationToggle } from "@/components/session-notification-toggle"
 
 interface UserDropdownProps {
   isMobile?: boolean
@@ -162,6 +163,8 @@ export const UserDropdown: React.FC<UserDropdownProps> = ({ isMobile = false, on
           </Link>
 
           <hr className="my-2" />
+
+          <SessionNotificationToggle onDone={closeMenu} />
 
           <button
             onClick={handleLogout}

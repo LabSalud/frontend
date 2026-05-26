@@ -3,9 +3,13 @@
 // ============================================================================
 
 export const formatUtils = {
-  // Formatear DNI con puntos
-  formatDni: (dni: string): string => {
-    return dni.replace(/\B(?=(\d{3})+(?!\d))/g, ".")
+  // Formatear CUIL con guiones (XX-XXXXXXXX-X)
+  formatCuil: (cuil: string): string => {
+    const digits = cuil.replace(/-/g, "")
+    if (digits.length === 11) {
+      return `${digits.slice(0, 2)}-${digits.slice(2, 10)}-${digits.slice(10)}`
+    }
+    return cuil
   },
 
   // Formatear fecha para input
@@ -59,4 +63,62 @@ export const formatUtils = {
     }
     return phone
   },
+}
+
+/**
+ * Parsea una fecha que viene del backend (UTC) de forma robusta.
+ * El backend envía `str (utc)` pero puede o no tener el sufijo `Z`.
+ * Si falta el sufijo de zona horaria, JS lo interpretaría como hora local
+ * y mostraría la hora incorrecta (con offset).
+ *
+ * Esta función fuerza la interpretación UTC cuando no hay zona horaria explícita.
+ */
+export const parseUtcDate = (value: string | null | undefined): Date | null => {
+  if (!value) return null
+  const trimmed = value.trim()
+
+  // Si ya tiene zona horaria (Z, +HH:MM, -HH:MM) o es solo fecha, dejarlo tal cual
+  const hasTimezone = /[zZ]$|[+-]\d{2}:?\d{2}$/.test(trimmed)
+  const hasTime = trimmed.includes("T") || /\d{2}:\d{2}/.test(trimmed)
+
+  let isoCandidate = trimmed.replace(" ", "T")
+
+  if (hasTime && !hasTimezone) {
+    isoCandidate = `${isoCandidate}Z`
+  }
+
+  const parsed = new Date(isoCandidate)
+  if (isNaN(parsed.getTime())) {
+    return null
+  }
+  return parsed
+}
+
+/**
+ * Formatea una fecha UTC del backend en hora local Argentina, mostrando fecha y hora completas.
+ */
+export const formatUtcDateTime = (value: string | null | undefined): string => {
+  const parsed = parseUtcDate(value)
+  if (!parsed) return "Sin fecha"
+  return parsed.toLocaleString("es-AR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  })
+}
+
+/**
+ * Formatea solo la fecha (sin hora) en formato local Argentina.
+ */
+export const formatUtcDate = (value: string | null | undefined): string => {
+  const parsed = parseUtcDate(value)
+  if (!parsed) return "Sin fecha"
+  return parsed.toLocaleDateString("es-AR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  })
 }

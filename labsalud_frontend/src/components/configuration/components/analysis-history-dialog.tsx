@@ -1,12 +1,7 @@
 "use client"
 
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { HistoryList } from "@/components/common/history-list"
-import { Loader2 } from "lucide-react"
-import { useEffect, useState } from "react"
-import { useApi } from "@/hooks/use-api"
+import { ObjectHistoryDialog } from "@/components/common/object-history-dialog"
 import { CATALOG_ENDPOINTS } from "@/config/api"
-import type { HistoryEntry } from "@/types"
 
 interface AnalysisHistoryDialogProps {
   open: boolean
@@ -16,49 +11,15 @@ interface AnalysisHistoryDialogProps {
 }
 
 export function AnalysisHistoryDialog({ open, onOpenChange, analysisId, analysisName }: AnalysisHistoryDialogProps) {
-  const { apiRequest } = useApi()
-  const [history, setHistory] = useState<HistoryEntry[]>([])
-  const [loading, setLoading] = useState(false)
-
-  useEffect(() => {
-    if (open && analysisId) {
-      loadHistory()
-    }
-  }, [open, analysisId])
-
-  const loadHistory = async () => {
-    if (!analysisId) return
-
-    setLoading(true)
-    try {
-      const response = await apiRequest(CATALOG_ENDPOINTS.ANALYSIS_DETAIL(analysisId))
-      if (response.ok) {
-        const data = await response.json()
-        setHistory(data.history || [])
-      }
-    } catch (error) {
-      console.error("Error al cargar historial:", error)
-    } finally {
-      setLoading(false)
-    }
-  }
-
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[80vh]">
-        <DialogHeader>
-          <DialogTitle>Historial de Cambios - {analysisName}</DialogTitle>
-        </DialogHeader>
-        <div className="mt-4">
-          {loading ? (
-            <div className="flex justify-center items-center py-8">
-              <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
-            </div>
-          ) : (
-            <HistoryList history={history}/>
-          )}
-        </div>
-      </DialogContent>
-    </Dialog>
+    <ObjectHistoryDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title={`Historial de Cambios - ${analysisName}`}
+      timelineEndpoint={analysisId ? CATALOG_ENDPOINTS.ANALYSIS_AUDIT_TIMELINE(analysisId) : null}
+      detailEndpoint={analysisId ? CATALOG_ENDPOINTS.ANALYSIS_DETAIL(analysisId) : null}
+      availableCategories={["analysis", "system"]}
+      emptyMessage="Sin historial de cambios para este análisis"
+    />
   )
 }

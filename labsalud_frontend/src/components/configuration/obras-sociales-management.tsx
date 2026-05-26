@@ -1,8 +1,9 @@
 "use client"
 
-import type React from "react"
-import { useState, useEffect, useCallback } from "react"
+import { useCallback, useState } from "react"
+import { useQueryClient } from "@tanstack/react-query"
 import { useApi } from "@/hooks/use-api"
+import { useApiInfiniteQuery, flattenPages } from "@/hooks/use-api-infinite-query"
 import { MEDICAL_ENDPOINTS } from "@/config/api"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -15,112 +16,68 @@ import { ObraSocialCard } from "./components/obra-social-card"
 import { useToast } from "@/hooks/use-toast"
 import { useInfiniteScroll } from "@/hooks/use-infinite-scroll"
 import { useDebounce } from "@/hooks/use-debounce"
-
-type ObrasSocialesManagementProps = {}
+import { formatApiError, getErrorMessage } from "@/lib/api-error"
 
 const PAGE_LIMIT = 20
 
+type ObrasSocialesManagementProps = {}
+
 export const ObrasSocialesManagement: React.FC<ObrasSocialesManagementProps> = () => {
   const { apiRequest } = useApi()
+  const queryClient = useQueryClient()
   const { success, error } = useToast()
 
-  const [obrasSociales, setObrasSociales] = useState<ObraSocial[]>([])
-  const [totalObrasSociales, setTotalObrasSociales] = useState(0)
-  const [nextUrl, setNextUrl] = useState<string | null>(null)
-  const [isLoadingInitial, setIsLoadingInitial] = useState(true)
-  const [isLoadingMore, setIsLoadingMore] = useState(false)
-  const [errorState, setErrorState] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
-  const [switchLoading, setSwitchLoading] = useState<number | null>(null)
   const debouncedSearchTerm = useDebounce(searchTerm, 500)
-
+  const [switchLoading, setSwitchLoading] = useState<number | null>(null)
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [selectedObraSocial, setSelectedObraSocial] = useState<ObraSocial | null>(null)
 
   const buildUrl = useCallback(
-    (offset = 0, search = debouncedSearchTerm) => {
-      let url = `${MEDICAL_ENDPOINTS.INSURANCES}?limit=${PAGE_LIMIT}&offset=${offset}`
-      if (search) {
-        url += `&search=${encodeURIComponent(search)}`
-      }
-      return url
+    (offset: number) => {
+      const params = new URLSearchParams({
+        limit: String(PAGE_LIMIT),
+        offset: String(offset),
+      })
+      if (debouncedSearchTerm) params.append("search", debouncedSearchTerm)
+      return `${MEDICAL_ENDPOINTS.INSURANCES}?${params.toString()}`
     },
     [debouncedSearchTerm],
   )
 
-  const fetchObrasSociales = useCallback(
-    async (isNewSearchOrFilter = false) => {
-      let currentUrlToFetch: string
-      if (isNewSearchOrFilter) {
-        setObrasSociales([])
-        setNextUrl(null)
-        setTotalObrasSociales(0)
-        currentUrlToFetch = buildUrl(0)
-      } else {
-        if (!nextUrl) {
-          setIsLoadingMore(false)
-          return
-        }
-        currentUrlToFetch = nextUrl
-      }
+  const insurancesQuery = useApiInfiniteQuery<ObraSocial>({
+    queryKey: ["insurances", "list", debouncedSearchTerm],
+    buildUrl,
+  })
 
-      setIsLoadingInitial(isNewSearchOrFilter && obrasSociales.length === 0)
-      setIsLoadingMore(!isNewSearchOrFilter)
-      setErrorState(null)
-
-      try {
-        const response = await apiRequest(currentUrlToFetch)
-        if (response.ok) {
-          const data = await response.json()
-          setObrasSociales((prev) => (isNewSearchOrFilter ? data.results : [...prev, ...data.results]))
-          setTotalObrasSociales(data.count)
-          setNextUrl(data.next)
-        } else {
-          const errorData = await response.json().catch(() => ({}))
-          const errorMessage =
-            errorData.detail || errorData.error || errorData.message || "Error al cargar las obras sociales."
-          setErrorState(errorMessage)
-          error("Error", { description: errorMessage })
-        }
-      } catch (err) {
-        console.error("Error fetching OOSS:", err)
-        const errorMessage =
-          err instanceof Error ? err.message : "Ocurrió un error inesperado al cargar las obras sociales."
-        setErrorState(errorMessage)
-        error("Error", { description: errorMessage })
-      } finally {
-        setIsLoadingInitial(false)
-        setIsLoadingMore(false)
-      }
-    },
-    [apiRequest, error, buildUrl, nextUrl, obrasSociales.length],
-  )
-
-  useEffect(() => {
-    fetchObrasSociales(true)
-  }, [debouncedSearchTerm])
-
-  const hasMore = !!nextUrl && obrasSociales.length < totalObrasSociales
+  const obrasSociales = flattenPages<ObraSocial>(insurancesQuery.data?.pages)
+  const totalObrasSociales = insurancesQuery.data?.pages[0]?.count ?? obrasSociales.length
+  const isLoadingInitial = insurancesQuery.isLoading
+  const isLoadingMore = insurancesQuery.isFetchingNextPage
+  const hasMore = !!insurancesQuery.hasNextPage
+  const errorState = insurancesQuery.error?.message ?? null
 
   const loadMoreSentinelRef = useInfiniteScroll({
     loading: isLoadingMore,
     hasMore,
     onLoadMore: () => {
-      if (nextUrl && !isLoadingMore) {
-        fetchObrasSociales(false)
-      }
+      if (!isLoadingMore && hasMore) insurancesQuery.fetchNextPage()
     },
-    dependencies: [nextUrl, isLoadingMore, hasMore],
+    dependencies: [debouncedSearchTerm, hasMore, isLoadingMore],
   })
 
+  const invalidateInsurances = () => {
+    queryClient.invalidateQueries({ queryKey: ["insurances"] })
+  }
+
   const handleCreateSuccess = () => {
-    fetchObrasSociales(true)
+    invalidateInsurances()
     setIsCreateModalOpen(false)
   }
 
   const handleEditSuccess = () => {
-    fetchObrasSociales(true)
+    invalidateInsurances()
     setIsEditModalOpen(false)
     setSelectedObraSocial(null)
   }
@@ -132,12 +89,6 @@ export const ObrasSocialesManagement: React.FC<ObrasSocialesManagementProps> = (
 
   const handleToggleActive = async (obraSocialToToggle: ObraSocial, newStatus: boolean) => {
     setSwitchLoading(obraSocialToToggle.id)
-    const originalStatus = obraSocialToToggle.is_active
-
-    setObrasSociales((prevObrasSociales) =>
-      prevObrasSociales.map((os) => (os.id === obraSocialToToggle.id ? { ...os, is_active: newStatus } : os)),
-    )
-
     try {
       let response: Response
       if (newStatus) {
@@ -155,30 +106,14 @@ export const ObrasSocialesManagement: React.FC<ObrasSocialesManagementProps> = (
         success("Estado actualizado", {
           description: `Obra Social ${obraSocialToToggle.name} ${newStatus ? "activada" : "desactivada"}.`,
         })
-
-        if (response.ok && newStatus) {
-          try {
-            const updatedOS = await response.json()
-            setObrasSociales((prevObrasSociales) =>
-              prevObrasSociales.map((os) => (os.id === updatedOS.id ? updatedOS : os)),
-            )
-          } catch {
-            // Si no hay JSON, mantenemos el optimistic update
-          }
-        }
+        invalidateInsurances()
       } else {
-        setObrasSociales((prevObrasSociales) =>
-          prevObrasSociales.map((os) => (os.id === obraSocialToToggle.id ? { ...os, is_active: originalStatus } : os)),
-        )
         const errorData = await response.json().catch(() => ({ detail: "Error al actualizar." }))
-        const errorMessage = errorData.detail || errorData.error || errorData.message || "No se pudo cambiar el estado."
+        const errorMessage = formatApiError(errorData, "No se pudo cambiar el estado.")
         error("Error al actualizar", { description: errorMessage })
       }
     } catch (errorCatch) {
-      setObrasSociales((prevObrasSociales) =>
-        prevObrasSociales.map((os) => (os.id === obraSocialToToggle.id ? { ...os, is_active: originalStatus } : os)),
-      )
-      const errorMessage = errorCatch instanceof Error ? errorCatch.message : "No se pudo conectar con el servidor."
+      const errorMessage = getErrorMessage(errorCatch, "No se pudo conectar con el servidor.")
       error("Error de red", { description: errorMessage })
       console.error("Error toggling active state:", errorCatch)
     } finally {
@@ -256,7 +191,9 @@ export const ObrasSocialesManagement: React.FC<ObrasSocialesManagementProps> = (
       )}
 
       {!hasMore && obrasSociales.length > 0 && !isLoadingInitial && (
-        <p className="text-center text-xs md:text-sm text-gray-500 py-4">Fin de los resultados.</p>
+        <p className="text-center text-xs md:text-sm text-gray-500 py-4">
+          Fin de los resultados. ({totalObrasSociales} en total)
+        </p>
       )}
 
       {isCreateModalOpen && (

@@ -1,6 +1,6 @@
 "use client"
 
-import { User, Stethoscope, Building, TestTube, Send, DollarSign, RefreshCw } from "lucide-react"
+import { User, Stethoscope, Building, TestTube, Send, DollarSign, RefreshCw, ClipboardCheck } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "../../ui/card"
 import { Switch } from "../../ui/switch"
 import { Label } from "../../ui/label"
@@ -34,6 +34,7 @@ interface ProtocolFormProps {
   selectedSendMethod: SendMethod | null
   patientPaid: string
   affiliateNumber: string
+  trajoOrden: boolean
   isRefund: boolean
   isPrivateInsurance: boolean
   totals: Totals
@@ -42,16 +43,19 @@ interface ProtocolFormProps {
   onInsuranceSelect: (insurance: Insurance | null) => void
   onSendMethodSelect: (sendMethod: SendMethod | null) => void
   onPatientFound: (patient: Patient) => void
-  onPatientNotFound: (dni: string) => void
+  onPatientNotFound: (cuil: string) => void
+  onCreateAnonymous?: () => void
   onReset: () => void
   onShowCreateMedico: () => void
   onShowCreateObraSocial: () => void
   onPatientPaidChange: (value: string) => void
   onAffiliateNumberChange: (number: string) => void
+  onTrajoOrdenChange: (trajoOrden: boolean) => void
   onRefundChange: (isRefund: boolean) => void
 }
 
 export function ProtocolForm({
+  patient,
   doctors,
   insurances,
   sendMethods,
@@ -61,6 +65,7 @@ export function ProtocolForm({
   selectedSendMethod,
   patientPaid,
   affiliateNumber,
+  trajoOrden,
   isRefund,
   isPrivateInsurance,
   totals,
@@ -70,13 +75,16 @@ export function ProtocolForm({
   onSendMethodSelect,
   onPatientFound,
   onPatientNotFound,
+  onCreateAnonymous,
   onReset,
   onShowCreateMedico,
   onShowCreateObraSocial,
   onPatientPaidChange,
   onAffiliateNumberChange,
+  onTrajoOrdenChange,
   onRefundChange,
 }: ProtocolFormProps) {
+  const isAnonymousPatient = Boolean(patient?.is_anonymous)
   const paidAmount = Number.parseFloat(patientPaid) || 0
   const remaining = Math.max(0, totals.patientOwes - paidAmount)
 
@@ -100,7 +108,12 @@ export function ProtocolForm({
             <User className="h-4 w-4 sm:h-5 sm:w-5 text-[#204983]" />
             <h3 className="text-base sm:text-lg font-semibold text-[#204983]">Paciente</h3>
           </div>
-          <PatientSearch onPatientFound={onPatientFound} onPatientNotFound={onPatientNotFound} onReset={onReset} />
+          <PatientSearch
+            onPatientFound={onPatientFound}
+            onPatientNotFound={onPatientNotFound}
+            onReset={onReset}
+            onCreateAnonymous={onCreateAnonymous}
+          />
         </div>
 
         {/* Doctor Selection */}
@@ -121,7 +134,9 @@ export function ProtocolForm({
         <div className="space-y-2 sm:space-y-3">
           <div className="flex items-center gap-2">
             <Building className="h-4 w-4 sm:h-5 sm:w-5 text-[#204983]" />
-            <h3 className="text-base sm:text-lg font-semibold text-[#204983]">Obra Social</h3>
+            <h3 className="text-base sm:text-lg font-semibold text-[#204983]">
+              Obra Social {isAnonymousPatient && <span className="text-xs font-normal text-amber-700">(opcional - paciente anónimo)</span>}
+            </h3>
           </div>
           <div className="flex flex-col sm:flex-row gap-3">
             <div className="sm:flex-grow">
@@ -200,6 +215,24 @@ export function ProtocolForm({
               ))}
             </SelectContent>
           </Select>
+        </div>
+
+        <div className="space-y-2 sm:space-y-3">
+          <div className="flex items-center gap-2">
+            <ClipboardCheck className="h-4 w-4 sm:h-5 sm:w-5 text-[#204983]" />
+            <h3 className="text-base sm:text-lg font-semibold text-[#204983]">Orden médica</h3>
+          </div>
+          <div className="flex items-start gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
+            <Switch id="trajo-orden" checked={trajoOrden} onCheckedChange={onTrajoOrdenChange} />
+            <div className="space-y-1">
+              <Label htmlFor="trajo-orden" className="cursor-pointer text-sm sm:text-base">
+                El paciente trajo la orden
+              </Label>
+              <p className="text-xs text-gray-500">
+                Si no la trajo, el protocolo quedará marcado con orden pendiente y no podrá completarse el envío hasta recibirla.
+              </p>
+            </div>
+          </div>
         </div>
 
         {/* Analysis Search */}

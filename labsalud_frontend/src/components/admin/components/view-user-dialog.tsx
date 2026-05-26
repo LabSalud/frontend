@@ -9,23 +9,12 @@ import { Separator } from "@/components/ui/separator"
 import { useToast } from "@/hooks/use-toast"
 import type { ApiRequestOptions } from "@/hooks/use-api"
 import { USER_ENDPOINTS } from "@/config/api"
-import { HistoryList } from "@/components/common/history-list"
-import { Clock, Mail, UserIcon, Shield, Calendar } from "lucide-react"
+import { Clock, Mail, UserIcon, Shield, History } from "lucide-react"
+import { formatApiError } from "@/lib/api-error"
+import { formatUtcDateTime } from "@/lib/format-utils"
+import { UserHistoryDialog } from "./user-history-dialog"
 
-const extractErrorMessage = (errorData: unknown): string => {
-  if (!errorData || typeof errorData !== "object") return "Error desconocido"
-  const err = errorData as Record<string, unknown>
-  if (typeof err.detail === "string") return err.detail
-  if (typeof err.error === "string") return err.error
-  if (typeof err.message === "string") return err.message
-  for (const key of Object.keys(err)) {
-    const val = err[key]
-    if (Array.isArray(val) && val.length > 0) {
-      return `${key}: ${val[0]}`
-    }
-  }
-  return "Error desconocido"
-}
+const extractErrorMessage = (errorData: unknown): string => formatApiError(errorData, "Error desconocido")
 
 interface ViewUserDialogProps {
   open: boolean
@@ -45,6 +34,7 @@ export function ViewUserDialog({ open, onOpenChange, userId, apiRequest }: ViewU
   const { error: showError } = useToast()
   const [userData, setUserData] = useState<UserDetailData | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [historyOpen, setHistoryOpen] = useState(false)
 
   useEffect(() => {
     if (open && userId) {
@@ -89,21 +79,13 @@ export function ViewUserDialog({ open, onOpenChange, userId, apiRequest }: ViewU
     return username.substring(0, 2).toUpperCase()
   }
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString("es-ES", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    })
-  }
+  const formatDate = (dateString: string) => formatUtcDateTime(dateString)
 
   if (!userId) return null
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[95vw] sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="w-[95vw] sm:max-w-5xl max-h-[90vh] overflow-x-hidden overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-base sm:text-lg">Detalles del Usuario</DialogTitle>
         </DialogHeader>
@@ -214,16 +196,20 @@ export function ViewUserDialog({ open, onOpenChange, userId, apiRequest }: ViewU
               </div>
             </div>
 
-            {/* Historial de cambios */}
-            {userData.history && userData.history.length > 0 && (
-              <div className="space-y-3">
-                <h4 className="font-semibold text-gray-900 flex items-center text-sm sm:text-base">
-                  <Calendar className="h-4 w-4 mr-2" />
-                  Historial de Cambios ({userData.total_changes || userData.history.length})
-                </h4>
-                <HistoryList history={userData.history} />
-              </div>
-            )}
+            {/* Historial de cambios → dialog dedicado con filtros por categoría */}
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={() => setHistoryOpen(true)}
+            >
+              <History className="h-4 w-4 mr-2 text-[#204983]" />
+              Ver Historial de Cambios
+              {userData.total_changes || userData.history?.length ? (
+                <span className="ml-2 text-xs text-muted-foreground">
+                  ({userData.total_changes || userData.history?.length || 0})
+                </span>
+              ) : null}
+            </Button>
           </div>
         ) : (
           <div className="py-8 text-center text-gray-500 text-sm sm:text-base">
@@ -239,6 +225,17 @@ export function ViewUserDialog({ open, onOpenChange, userId, apiRequest }: ViewU
           </DialogClose>
         </div>
       </DialogContent>
+
+      <UserHistoryDialog
+        open={historyOpen}
+        onOpenChange={setHistoryOpen}
+        userId={userId}
+        userName={
+          userData
+            ? `${userData.first_name} ${userData.last_name}`.trim() || userData.username
+            : ""
+        }
+      />
     </Dialog>
   )
 }

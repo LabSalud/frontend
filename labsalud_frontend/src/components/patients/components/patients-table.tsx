@@ -55,9 +55,12 @@ export function PatientTable({ patients, onSelectPatient, canEdit, canDelete }: 
     return age
   }
 
-  const formatDni = (dni: string) => {
-    // Formatear DNI con puntos para mejor legibilidad
-    return dni.replace(/\B(?=(\d{3})+(?!\d))/g, ".")
+  const formatCuil = (cuil: string) => {
+    const digits = cuil.replace(/-/g, "")
+    if (digits.length === 11) {
+      return `${digits.slice(0, 2)}-${digits.slice(2, 10)}-${digits.slice(10)}`
+    }
+    return cuil
   }
 
   // Función para mapear género correctamente
@@ -79,7 +82,7 @@ export function PatientTable({ patients, onSelectPatient, canEdit, canDelete }: 
           <Table>
             <TableHeader>
               <TableRow className="bg-gray-50/50">
-                <TableHead className="font-semibold text-gray-900">DNI</TableHead>
+                <TableHead className="font-semibold text-gray-900">CUIL</TableHead>
                 <TableHead className="font-semibold text-gray-900">Nombre</TableHead>
                 <TableHead className="font-semibold text-gray-900">Edad</TableHead>
                 <TableHead className="font-semibold text-gray-900">Género</TableHead>
@@ -94,7 +97,7 @@ export function PatientTable({ patients, onSelectPatient, canEdit, canDelete }: 
                 patients.map((patient) => (
                   <TableRow key={patient.id} className="bg-white hover:bg-gray-50/50 border-gray-200">
                     <TableCell className="font-mono font-medium text-[#204983] bg-white">
-                      {formatDni(patient.dni)}
+                      {formatCuil(patient.cuil)}
                     </TableCell>
                     <TableCell className="font-medium bg-white">{`${patient.first_name} ${patient.last_name}`}</TableCell>
                     <TableCell className="bg-white">{calculateAge(patient.birth_date)} años</TableCell>

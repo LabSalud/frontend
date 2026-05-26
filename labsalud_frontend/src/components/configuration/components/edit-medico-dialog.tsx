@@ -10,6 +10,7 @@ import { useApi } from "@/hooks/use-api"
 import { useToast } from "@/hooks/use-toast"
 import { MEDICAL_ENDPOINTS } from "@/config/api"
 import type { Medico } from "@/types"
+import { formatApiError, getErrorMessage } from "@/lib/api-error"
 
 interface EditMedicoDialogProps {
   isOpen: boolean
@@ -50,13 +51,13 @@ export const EditMedicoDialog: React.FC<EditMedicoDialogProps> = ({ isOpen, medi
 
       if (!response.ok) {
         const errorData = await response.json()
-        throw new Error(errorData.detail || "Error al actualizar el médico")
+        throw new Error(formatApiError(errorData, "Error al actualizar el médico"))
       }
 
       error("Médico actualizado", { description: "Los cambios se guardaron correctamente" })
       onSuccess()
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Error desconocido"
+      const errorMessage = getErrorMessage(err, "Error desconocido")
       error("Error al actualizar médico", { description: errorMessage })
     } finally {
       setIsLoading(false)

@@ -6,7 +6,8 @@ import { Card, CardContent } from "../../ui/card"
 import { Skeleton } from "../../ui/skeleton"
 import { useApi } from "../../../hooks/use-api"
 import { toast } from "sonner"
-import { PROTOCOL_ENDPOINTS, REPORTING_ENDPOINTS, TOAST_DURATION } from "@/config/api"
+import { PROTOCOL_ENDPOINTS, TOAST_DURATION } from "@/config/api"
+import { Mail, MessageCircle } from "lucide-react"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -31,16 +32,32 @@ import type {
 import { ProtocolHeader } from "./protocol-header"
 import { ProtocolDetailsSection } from "./protocol-details-section"
 import { ProtocolActions } from "./protocol-actions"
-import { PaymentDialog, AnalysisDialog, AuditDialog, EditDialog, ReportDialog } from "./dialogs"
+import {
+  PaymentDialog,
+  AnalysisDialog,
+  AuditDialog,
+  EditDialog,
+  ReportDialog,
+  CoseguroDialog,
+  PreauthorizationDialog,
+  ArcaBillingDialog,
+} from "./dialogs"
+import type { ArcaPayload } from "./dialogs"
 import { ProtocolHistoryDialog } from "./dialogs/protocol-history-dialog"
+import { formatApiError, getErrorMessage } from "@/lib/api-error"
+import { useAuth } from "@/contexts/auth-context"
 
 interface ProtocolDetailResponse {
   id: number
   patient: {
     id: number
-    dni: string
+    cuil: string
     first_name: string
     last_name: string
+    email?: string
+    phone_mobile?: string
+    alt_phone?: string
+    is_anonymous?: boolean
   }
   doctor: {
     id: number
@@ -51,6 +68,10 @@ interface ProtocolDetailResponse {
   insurance: {
     id: number
     name: string
+    charges_coseguro?: boolean
+    charges_material_descartable?: boolean
+    charges_derivacion?: boolean
+    requires_preauthorization?: boolean
   }
   affiliate_number?: string
   status: ProtocolStatus
@@ -65,19 +86,36 @@ interface ProtocolDetailResponse {
   amount_pending: string
   patient_paid: string
   amount_to_return: string
+  // Pricing breakdown (new fields)
+  analyses_amount_due?: string
+  coseguro_amount?: string
+  material_descartable_amount?: string
+  derivacion_amount?: string
+  extras_total?: string
+  private_amount_due?: string
+  nbu?: { id: number; name: string } | null
   payment_status: PaymentStatus
   billing_status?: BillingStatus
   is_printed: boolean
+  trajo_orden: boolean
+  is_in_patient?: boolean
   is_active: boolean
+  created_at?: string
+  completed_at?: string | null
+  previous_status?: ProtocolStatus | null
+  // ARCA
+  is_arca_billed?: boolean
+  arca_invoice_pdf_url?: string | null
+  arca_cae?: string
+  arca_cbte_number?: number | null
   details: ProtocolDetailType[]
   history?: HistoryEntry[]
   total_changes?: number
 }
 
-type ReportProtocolDetail = ProtocolDetailType & {
-  is_sent?: boolean
-  is_valid?: boolean
-}
+type ReportProtocolDetail = ProtocolDetailType
+
+type ReportAction = "download" | "email" | "whatsapp"
 
 const EXCLUDED_REPORT_ANALYSIS_CODES = new Set([660001, 661001])
 
@@ -93,7 +131,6 @@ interface ProtocolCardProps {
   protocol: ProtocolListItem
   onUpdate: () => void
   sendMethods?: SendMethod[]
-  isSelectionMode?: boolean
   isSelected?: boolean
   onToggleSelection?: (id: number) => void
 }
@@ -102,18 +139,24 @@ export function ProtocolCard({
   protocol,
   onUpdate,
   sendMethods = [],
-  isSelectionMode = false,
   isSelected = false,
   onToggleSelection,
 }: ProtocolCardProps) {
   const { apiRequest } = useApi()
+  const { hasPermission, user } = useAuth()
   const [isExpanded, setIsExpanded] = useState(false)
   const [protocolDetail, setProtocolDetail] = useState<ProtocolDetailResponse | null>(null)
   const [protocolDetails, setProtocolDetails] = useState<ReportProtocolDetail[]>([])
   const [loadingDetail, setLoadingDetail] = useState(false)
   const [loadingAnalyses, setLoadingAnalyses] = useState(false)
   const [isCancelling, setIsCancelling] = useState(false)
+  const [isUncancelling, setIsUncancelling] = useState(false)
   const [isArcaBilling, setIsArcaBilling] = useState(false)
+  const [coseguroDialogOpen, setCoseguroDialogOpen] = useState(false)
+  const [isProcessingCoseguro, setIsProcessingCoseguro] = useState(false)
+  const [preauthDialogOpen, setPreauthDialogOpen] = useState(false)
+  const [isProcessingPreauth, setIsProcessingPreauth] = useState(false)
+  const [arcaDialogOpen, setArcaDialogOpen] = useState(false)
 
   // Dialog states
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false)
@@ -128,11 +171,14 @@ export function ProtocolCard({
   const [editFormData, setEditFormData] = useState({
     send_method: "",
     affiliate_number: "",
+    trajo_orden: true,
+    is_in_patient: false,
   })
   const [isSavingEdit, setIsSavingEdit] = useState(false)
 
   const [reportDialogOpen, setReportDialogOpen] = useState(false)
   const [reportType, setReportType] = useState<"full" | "summary">("full")
+  const [reportSigned, setReportSigned] = useState(false)
   const [reportDate, setReportDate] = useState("")
   const [reportTime, setReportTime] = useState("")
   const [reportCustomizationOpen, setReportCustomizationOpen] = useState(false)
@@ -154,21 +200,8 @@ export function ProtocolCard({
     setReportTime("")
   }
 
-  // Helper function to extract error messages from backend responses
   const extractErrorMessage = (error: unknown, defaultMessage: string): string => {
-    if (error && typeof error === "object") {
-      const err = error as Record<string, unknown>
-      if (typeof err.detail === "string") return err.detail
-      if (typeof err.error === "string") return err.error
-      if (typeof err.message === "string") return err.message
-      // Check for field-specific errors
-      for (const key in err) {
-        if (Array.isArray(err[key]) && err[key].length > 0) {
-          return `${key}: ${err[key][0]}`
-        }
-      }
-    }
-    return defaultMessage
+    return formatApiError(error, defaultMessage)
   }
 
   const getReportRequestOptions = () => {
@@ -182,26 +215,32 @@ export function ProtocolCard({
       .filter((analysis) => !includedAnalysisIds.includes(analysis.id))
       .map((analysis) => analysis.id)
 
-    if (!date && !time) {
-      return {
-        method: "POST" as const,
-        body: {
-          analysis_ids: includedAnalysisIds,
-          exclude_analysis_ids: excludedAnalysisIds,
-        },
-      }
+    const body: Record<string, unknown> = {
+      signed: reportSigned,
+      analysis_ids: includedAnalysisIds,
+      exclude_analysis_ids: excludedAnalysisIds,
     }
-
-    const body: Record<string, unknown> = {}
     if (date) body.protocol_date = date
     if (time) body.protocol_time = time
-    body.analysis_ids = includedAnalysisIds
-    body.exclude_analysis_ids = excludedAnalysisIds
 
     return {
       method: "POST" as const,
       body,
     }
+  }
+
+  const executeSingleReportRequest = async (action: ReportAction) => {
+    const reportRequest = getReportRequestOptions()
+    const reportPayload = (reportRequest.body ?? {}) as Record<string, unknown>
+
+    return apiRequest(PROTOCOL_ENDPOINTS.REPORT(protocol.id), {
+      method: "POST",
+      body: {
+        action,
+        type: reportType,
+        ...reportPayload,
+      },
+    })
   }
 
   const loadProtocolAnalyses = useCallback(async (): Promise<ReportProtocolDetail[] | null> => {
@@ -223,7 +262,7 @@ export function ProtocolCard({
       throw new Error(extractErrorMessage(errorData, "Error fetching protocol details"))
     } catch (error) {
       console.error("Error fetching protocol details:", error)
-      const message = error instanceof Error ? error.message : "Error al cargar los análisis del protocolo"
+      const message = getErrorMessage(error, "Error al cargar los análisis del protocolo")
       toast.error(message, { duration: TOAST_DURATION })
       return null
     } finally {
@@ -243,8 +282,8 @@ export function ProtocolCard({
     }
   }, [apiRequest, protocol.id])
 
-  const fetchProtocolDetail = async () => {
-    if (protocolDetail) return
+  const fetchProtocolDetail = async (): Promise<ProtocolDetailResponse | null> => {
+    if (protocolDetail) return protocolDetail
 
     setLoadingDetail(true)
     try {
@@ -253,14 +292,16 @@ export function ProtocolCard({
       if (response.ok) {
         const data: ProtocolDetailResponse = await response.json()
         setProtocolDetail(data)
+        return data
       } else {
         const errorData = await response.json().catch(() => ({}))
         throw new Error(extractErrorMessage(errorData, "Error fetching protocol detail"))
       }
     } catch (error) {
       console.error("Error fetching protocol detail:", error)
-      const message = error instanceof Error ? error.message : "Error al cargar los detalles del protocolo"
+      const message = getErrorMessage(error, "Error al cargar los detalles del protocolo")
       toast.error(message, { duration: TOAST_DURATION })
+      return null
     } finally {
       setLoadingDetail(false)
     }
@@ -275,10 +316,6 @@ export function ProtocolCard({
 
   const handleCardClick = (e: React.MouseEvent) => {
     if ((e.target as HTMLElement).closest("[data-no-expand]")) {
-      return
-    }
-    if (isSelectionMode) {
-      onToggleSelection?.(protocol.id)
       return
     }
     handleExpand()
@@ -314,6 +351,14 @@ export function ProtocolCard({
     )
   }
 
+  const handleSelectAllReportAnalyses = () => {
+    setSelectedReportAnalysisIds(protocolDetails.filter(isSelectableForReport).map((analysis) => analysis.id))
+  }
+
+  const handleDeselectAllReportAnalyses = () => {
+    setSelectedReportAnalysisIds([])
+  }
+
   const handleReportDialogOpenChange = (open: boolean) => {
     setReportDialogOpen(open)
     if (!open) {
@@ -337,19 +382,26 @@ export function ProtocolCard({
       }
     } catch (error) {
       console.error("Error cancelling protocol:", error)
-      const message = error instanceof Error ? error.message : "Error al cancelar el protocolo"
+      const message = getErrorMessage(error, "Error al cancelar el protocolo")
       toast.error(message, { duration: TOAST_DURATION })
     } finally {
       setIsCancelling(false)
     }
   }
 
-  const handleArcaBilling = async () => {
+  const handleOpenArcaDialog = async () => {
+    if (!protocolDetail) {
+      await fetchProtocolDetail()
+    }
+    setArcaDialogOpen(true)
+  }
+
+  const handleArcaBilling = async (payload: ArcaPayload): Promise<boolean> => {
     setIsArcaBilling(true)
     try {
       const response = await apiRequest(PROTOCOL_ENDPOINTS.ARCA_BILLING(protocol.id), {
         method: "POST",
-        body: { bill_to: "patient" },
+        body: payload,
       })
 
       if (response.ok) {
@@ -357,14 +409,15 @@ export function ProtocolCard({
         toast.success(data.detail || "Facturación ARCA generada exitosamente", { duration: TOAST_DURATION })
         await refreshProtocolDetail()
         onUpdate()
-      } else {
-        const errorData = await response.json().catch(() => ({}))
-        throw new Error(extractErrorMessage(errorData, "No se pudo facturar a ARCA"))
+        return true
       }
+      const errorData = await response.json().catch(() => ({}))
+      throw new Error(extractErrorMessage(errorData, "No se pudo facturar a ARCA"))
     } catch (error) {
       console.error("Error ARCA billing:", error)
-      const message = error instanceof Error ? error.message : "Error al emitir facturación ARCA"
+      const message = getErrorMessage(error, "Error al emitir facturación ARCA")
       toast.error(message, { duration: TOAST_DURATION })
+      return false
     } finally {
       setIsArcaBilling(false)
     }
@@ -397,7 +450,7 @@ export function ProtocolCard({
       }
     } catch (error) {
       console.error("Error regularize balance:", error)
-      const message = error instanceof Error ? error.message : "Error al procesar la operacion"
+      const message = getErrorMessage(error, "Error al procesar la operacion")
       toast.error(message, { duration: TOAST_DURATION })
       return false
     } finally {
@@ -406,13 +459,13 @@ export function ProtocolCard({
   }
 
   const handleOpenEditDialog = async () => {
-    if (!protocolDetail) {
-      await fetchProtocolDetail()
-    }
-    if (protocolDetail) {
+    const detail = protocolDetail || (await fetchProtocolDetail())
+    if (detail) {
       setEditFormData({
-        send_method: protocolDetail.send_method.id.toString(),
-        affiliate_number: protocolDetail.affiliate_number || "",
+        send_method: detail.send_method.id.toString(),
+        affiliate_number: detail.affiliate_number || "",
+        trajo_orden: detail.trajo_orden ?? true,
+        is_in_patient: detail.is_in_patient ?? false,
       })
     }
     setEditDialogOpen(true)
@@ -427,7 +480,13 @@ export function ProtocolCard({
         updateData.send_method = Number.parseInt(editFormData.send_method)
       }
       if (editFormData.affiliate_number !== (protocolDetail?.affiliate_number || "")) {
-        updateData.affiliate_number = editFormData.affiliate_number
+        updateData.affiliate_number = editFormData.affiliate_number.trim()
+      }
+      if (editFormData.trajo_orden !== (protocolDetail?.trajo_orden ?? true)) {
+        updateData.trajo_orden = editFormData.trajo_orden
+      }
+      if (editFormData.is_in_patient !== (protocolDetail?.is_in_patient ?? false)) {
+        updateData.is_in_patient = editFormData.is_in_patient
       }
 
       if (Object.keys(updateData).length === 0) {
@@ -452,7 +511,7 @@ export function ProtocolCard({
       }
     } catch (error) {
       console.error("Error updating protocol:", error)
-      const message = error instanceof Error ? error.message : "Error al actualizar el protocolo"
+      const message = getErrorMessage(error, "Error al actualizar el protocolo")
       toast.error(message, { duration: TOAST_DURATION })
     } finally {
       setIsSavingEdit(false)
@@ -463,7 +522,7 @@ export function ProtocolCard({
     setIsGeneratingReport(true)
 
     try {
-      const response = await apiRequest(REPORTING_ENDPOINTS.PRINT(protocol.id, reportType), getReportRequestOptions())
+      const response = await executeSingleReportRequest("download")
 
       if (response.ok) {
         const blob = await response.blob()
@@ -490,7 +549,7 @@ export function ProtocolCard({
       }
     } catch (error) {
       console.error("Error generating report:", error)
-      const message = error instanceof Error ? error.message : "Error al generar el reporte"
+      const message = getErrorMessage(error, "Error al generar el reporte")
       toast.error(message, { duration: TOAST_DURATION })
     } finally {
       setIsGeneratingReport(false)
@@ -501,7 +560,7 @@ export function ProtocolCard({
     setIsDownloadingReport(true)
 
     try {
-      const response = await apiRequest(REPORTING_ENDPOINTS.PRINT(protocol.id, reportType), getReportRequestOptions())
+      const response = await executeSingleReportRequest("download")
 
       if (response.ok) {
         const blob = await response.blob()
@@ -526,7 +585,7 @@ export function ProtocolCard({
       }
     } catch (error) {
       console.error("Error downloading report:", error)
-      const message = error instanceof Error ? error.message : "Error al descargar el reporte"
+      const message = getErrorMessage(error, "Error al descargar el reporte")
       toast.error(message, { duration: TOAST_DURATION })
     } finally {
       setIsDownloadingReport(false)
@@ -536,7 +595,7 @@ export function ProtocolCard({
   const executeSendEmail = async () => {
     setIsSendingEmail(true)
     try {
-      const response = await apiRequest(REPORTING_ENDPOINTS.SEND_EMAIL(protocol.id, reportType), getReportRequestOptions())
+      const response = await executeSingleReportRequest("email")
 
       if (response.ok) {
         const data = await response.json()
@@ -548,7 +607,7 @@ export function ProtocolCard({
       }
     } catch (error) {
       console.error("Error sending email:", error)
-      const message = error instanceof Error ? error.message : "Error al enviar el email"
+      const message = getErrorMessage(error, "Error al enviar el email")
       toast.error(message, { duration: TOAST_DURATION })
     } finally {
       setIsSendingEmail(false)
@@ -558,7 +617,7 @@ export function ProtocolCard({
   const executeSendWhatsApp = async () => {
     setIsSendingWhatsApp(true)
     try {
-      const response = await apiRequest(REPORTING_ENDPOINTS.SEND_WHATSAPP(protocol.id, reportType), getReportRequestOptions())
+      const response = await executeSingleReportRequest("whatsapp")
 
       if (response.ok) {
         const data = await response.json()
@@ -570,7 +629,7 @@ export function ProtocolCard({
       }
     } catch (error) {
       console.error("Error sending WhatsApp:", error)
-      const message = error instanceof Error ? error.message : "Error al enviar el WhatsApp"
+      const message = getErrorMessage(error, "Error al enviar el WhatsApp")
       toast.error(message, { duration: TOAST_DURATION })
     } finally {
       setIsSendingWhatsApp(false)
@@ -622,7 +681,7 @@ export function ProtocolCard({
       }
     } catch (error) {
       console.error("Error updating authorization:", error)
-      const message = error instanceof Error ? error.message : "Error al actualizar la autorización"
+      const message = getErrorMessage(error, "Error al actualizar la autorización")
       toast.error(message, { duration: TOAST_DURATION })
     } finally {
       setUpdatingDetailId(null)
@@ -634,6 +693,104 @@ export function ProtocolCard({
     if (!open) {
       // Refresh protocol detail when dialog closes
       await refreshProtocolDetail()
+    }
+  }
+
+  const handleUncancelProtocol = async () => {
+    setIsUncancelling(true)
+    try {
+      const response = await apiRequest(PROTOCOL_ENDPOINTS.UNCANCEL(protocol.id), {
+        method: "POST",
+      })
+      if (response.ok) {
+        toast.success("Protocolo descancelado correctamente", { duration: TOAST_DURATION })
+        await refreshProtocolDetail()
+        onUpdate()
+      } else {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(extractErrorMessage(errorData, "No se pudo descancelar el protocolo"))
+      }
+    } catch (error) {
+      console.error("Error uncancelling protocol:", error)
+      const message = getErrorMessage(error, "Error al descancelar el protocolo")
+      toast.error(message, { duration: TOAST_DURATION })
+    } finally {
+      setIsUncancelling(false)
+    }
+  }
+
+  const handleOpenCoseguroDialog = async () => {
+    if (!protocolDetail) {
+      await fetchProtocolDetail()
+    }
+    setCoseguroDialogOpen(true)
+  }
+
+  const handleSetCoseguro = async (amount: number): Promise<boolean> => {
+    setIsProcessingCoseguro(true)
+    try {
+      const response = await apiRequest(PROTOCOL_ENDPOINTS.SET_COSEGURO(protocol.id), {
+        method: "POST",
+        body: { amount: amount.toFixed(2) },
+      })
+      if (response.ok) {
+        const data = await response.json().catch(() => ({}))
+        toast.success(data.detail || "Coseguro actualizado correctamente", { duration: TOAST_DURATION })
+        await refreshProtocolDetail()
+        onUpdate()
+        return true
+      }
+      const errorData = await response.json().catch(() => ({}))
+      throw new Error(extractErrorMessage(errorData, "No se pudo cargar el coseguro"))
+    } catch (error) {
+      console.error("Error setting coseguro:", error)
+      toast.error(getErrorMessage(error, "Error al cargar el coseguro"), { duration: TOAST_DURATION })
+      return false
+    } finally {
+      setIsProcessingCoseguro(false)
+    }
+  }
+
+  const handleOpenPreauthDialog = async () => {
+    const analyses = await loadProtocolAnalyses()
+    if (!analyses) return
+    if (!protocolDetail) {
+      await fetchProtocolDetail()
+    }
+    setPreauthDialogOpen(true)
+  }
+
+  const handleApplyPreauthorization = async (payload: {
+    authorized_analysis_ids: number[]
+    brought: boolean
+    reference?: string
+    notes?: string
+  }): Promise<boolean> => {
+    setIsProcessingPreauth(true)
+    try {
+      const response = await apiRequest(PROTOCOL_ENDPOINTS.APPLY_PREAUTHORIZATION, {
+        method: "POST",
+        body: {
+          protocol_ids: [protocol.id],
+          ...payload,
+        },
+      })
+      if (response.ok) {
+        const data = await response.json().catch(() => ({}))
+        toast.success(data.detail || "Preautorización aplicada correctamente", { duration: TOAST_DURATION })
+        setProtocolDetails([])
+        await refreshProtocolDetail()
+        onUpdate()
+        return true
+      }
+      const errorData = await response.json().catch(() => ({}))
+      throw new Error(extractErrorMessage(errorData, "No se pudo aplicar la preautorización"))
+    } catch (error) {
+      console.error("Error applying preauthorization:", error)
+      toast.error(getErrorMessage(error, "Error al aplicar la preautorización"), { duration: TOAST_DURATION })
+      return false
+    } finally {
+      setIsProcessingPreauth(false)
     }
   }
 
@@ -666,15 +823,51 @@ export function ProtocolCard({
   }
 
   const statusId = protocol.status?.id ?? 0
-  const canBeCancelled = statusId !== 4 && statusId !== 5 && statusId !== 7 && statusId !== 10
-  const isEditable = statusId !== 4 && statusId !== 5 && statusId !== 7 && statusId !== 10
-  const showReports = statusId !== 4
+  const statusName = protocol.status?.name || "este estado"
+  const isCancelled = statusId === 4
+  const isCompleted = statusId === 5
+  const isLockedForChanges = isCancelled || isCompleted
+  const canBeCancelled = !isLockedForChanges
+  const isEditable = !isLockedForChanges
+  const showReports = !isCancelled
+  const editDisabledReason = !isEditable ? `No se puede editar un protocolo en estado "${statusName}".` : undefined
+  const cancelDisabledReason = !canBeCancelled ? `No se puede cancelar un protocolo en estado "${statusName}".` : undefined
+  const reportsDisabledReason = !showReports ? "No se pueden generar ni enviar reportes de un protocolo cancelado." : undefined
+  const arcaDisabledReason = isCancelled ? "No se puede facturar ARCA para un protocolo cancelado." : undefined
+  const canUncancel = isCancelled && (user?.is_superuser || hasPermission("descancelar_protocolos") || hasPermission("laboratory_protocols.descancelar_protocolos"))
+  const insuranceChargesCoseguro = Boolean(protocolDetail?.insurance?.charges_coseguro)
+  const insuranceRequiresPreauth = Boolean(protocolDetail?.insurance?.requires_preauthorization)
+  const showCoseguroAction = !isCancelled && !isCompleted && insuranceChargesCoseguro
+  const coseguroDisabledReason = isCancelled || isCompleted
+    ? `No se puede cargar coseguro en estado "${statusName}".`
+    : undefined
+  const showPreauthAction = !isCancelled && !isCompleted && insuranceRequiresPreauth
+  const preauthDisabledReason = isCancelled || isCompleted
+    ? `No se puede aplicar preautorización en estado "${statusName}".`
+    : undefined
 
   const amountPending = protocolDetail ? Number.parseFloat(protocolDetail.amount_pending || "0") : 0
   const amountToReturn = protocolDetail ? Number.parseFloat(protocolDetail.amount_to_return || "0") : 0
   const balance = Number.parseFloat(protocol.balance || "0")
   const hasPatientDebt = amountPending > 0
   const labOwesPatient = amountToReturn > 0
+  const hasBalanceToRegularize = hasPatientDebt || labOwesPatient
+  const paymentDisabledReason =
+    hasBalanceToRegularize && !canBeCancelled
+      ? `No se pueden registrar pagos o devoluciones en estado "${statusName}".`
+      : undefined
+  const patientEmail = protocolDetail?.patient.email?.trim()
+  const patientPhone = (protocolDetail?.patient.phone_mobile || protocolDetail?.patient.alt_phone || "").trim()
+  const emailDisabledReason =
+    protocolDetail && "email" in protocolDetail.patient && !patientEmail
+      ? "No se puede enviar por email porque el paciente no tiene email cargado."
+      : undefined
+  const whatsappDisabledReason =
+    protocolDetail &&
+    ("phone_mobile" in protocolDetail.patient || "alt_phone" in protocolDetail.patient) &&
+    !patientPhone
+      ? "No se puede enviar por WhatsApp porque el paciente no tiene teléfono cargado."
+      : undefined
 
   const getBorderColor = (statusId: number): string => {
     const borderColors: Record<number, string> = {
@@ -687,6 +880,8 @@ export function ProtocolCard({
       7: "border-l-pink-500", // Envío fallido
       8: "border-l-teal-500", // Pendiente de Facturación
       10: "border-l-indigo-500", // Pendiente de envío
+      11: "border-l-[#800020]", // Pendiente de revisión
+      12: "border-l-amber-500", // Información faltante
     }
     return borderColors[statusId] || "border-l-gray-500"
   }
@@ -700,46 +895,57 @@ export function ProtocolCard({
         onClick={handleCardClick}
       >
         <CardContent className="px-4 py-2.5 sm:py-3">
-          {isSelectionMode && (
-            <div className="flex items-center mb-2" data-no-expand>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onToggleSelection?.(protocol.id)
-                }}
-                className="flex items-center gap-2 text-sm text-gray-600"
+          <div className="flex items-start gap-3">
+            <button
+              type="button"
+              data-no-expand
+              onClick={(e) => {
+                e.stopPropagation()
+                onToggleSelection?.(protocol.id)
+              }}
+              className="mt-1 shrink-0"
+              aria-label={isSelected ? "Quitar selección" : "Seleccionar protocolo"}
+              title={isSelected ? "Quitar selección" : "Seleccionar para acciones en lote"}
+            >
+              <div
+                className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
+                  isSelected
+                    ? "bg-[#204983] border-[#204983]"
+                    : "border-gray-300 hover:border-[#204983]"
+                }`}
               >
-                <div
-                  className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
-                    isSelected
-                      ? "bg-[#204983] border-[#204983]"
-                      : "border-gray-300 hover:border-[#204983]"
-                  }`}
-                >
-                  {isSelected && (
-                    <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                    </svg>
-                  )}
-                </div>
-                <span>Protocolo #{protocol.id}</span>
-              </button>
+                {isSelected && (
+                  <svg
+                    className="w-3 h-3 text-white"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={3}
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                )}
+              </div>
+            </button>
+            <div className="flex-1 min-w-0">
+              <ProtocolHeader
+                protocolId={protocol.id}
+                status={protocol.status}
+                patientName={getPatientName()}
+                isAnonymousPatient={Boolean(protocol.patient?.is_anonymous)}
+                paymentStatus={protocol.payment_status}
+                balance={balance}
+                isPrinted={protocol.is_printed}
+                canRegisterPayment={hasPatientDebt && canBeCancelled}
+                labOwesPatient={labOwesPatient && canBeCancelled}
+                paymentDisabledReason={paymentDisabledReason}
+                isExpanded={isExpanded}
+                creation={protocol.creation}
+                lastChange={protocol.last_change}
+                onRegisterPayment={handleOpenPaymentDialog}
+              />
             </div>
-          )}
-          <ProtocolHeader
-            protocolId={protocol.id}
-            status={protocol.status}
-            patientName={getPatientName()}
-            paymentStatus={protocol.payment_status}
-            balance={balance}
-            isPrinted={protocol.is_printed}
-            canRegisterPayment={hasPatientDebt && canBeCancelled}
-            labOwesPatient={labOwesPatient && canBeCancelled}
-            isExpanded={isExpanded}
-            creation={protocol.creation}
-            lastChange={protocol.last_change}
-            onRegisterPayment={handleOpenPaymentDialog}
-          />
+          </div>
         </CardContent>
 
         {isExpanded && (
@@ -778,20 +984,42 @@ export function ProtocolCard({
                   insuranceUbValue={protocolDetail?.insurance_ub_value}
                   privateUbValue={protocolDetail?.private_ub_value}
                   isPrinted={protocolDetail?.is_printed}
+                  trajoOrden={protocolDetail?.trajo_orden}
+                  isInPatient={protocolDetail?.is_in_patient}
+                  analysesAmountDue={protocolDetail?.analyses_amount_due}
+                  coseguroAmount={protocolDetail?.coseguro_amount}
+                  materialDescartableAmount={protocolDetail?.material_descartable_amount}
+                  derivacionAmount={protocolDetail?.derivacion_amount}
+                  extrasTotal={protocolDetail?.extras_total}
+                  nbu={protocolDetail?.nbu}
                   onOpenHistoryDialog={() => setHistoryDialogOpen(true)}
                 />
                 <ProtocolActions
                   protocolId={protocol.id}
                   canBeCancelled={canBeCancelled}
+                  isCancelled={isCancelled}
+                  canUncancel={Boolean(canUncancel)}
                   isEditable={isEditable}
                   showReports={showReports}
+                  showCoseguro={showCoseguroAction}
+                  showPreauth={showPreauthAction}
+                  editDisabledReason={editDisabledReason}
+                  reportsDisabledReason={reportsDisabledReason}
+                  cancelDisabledReason={cancelDisabledReason}
+                  arcaDisabledReason={arcaDisabledReason}
+                  coseguroDisabledReason={coseguroDisabledReason}
+                  preauthDisabledReason={preauthDisabledReason}
                   isCancelling={isCancelling}
+                  isUncancelling={isUncancelling}
                   isArcaBilling={isArcaBilling}
                   onViewAnalysis={handleAnalysisDialog}
                   onEdit={handleOpenEditDialog}
                   onReports={handleOpenReportDialog}
                   onCancel={handleCancelProtocol}
-                  onArcaBilling={handleArcaBilling}
+                  onUncancel={handleUncancelProtocol}
+                  onArcaBilling={handleOpenArcaDialog}
+                  onSetCoseguro={handleOpenCoseguroDialog}
+                  onApplyPreauthorization={handleOpenPreauthDialog}
                 />
               </>
             )}
@@ -823,7 +1051,7 @@ export function ProtocolCard({
         updatingDetailId={updatingDetailId}
         onToggleAuthorization={handleToggleAuthorization}
         isEditable={isEditable}
-        insuranceId={protocolDetail?.insurance?.id}
+        readOnlyReason={editDisabledReason}
       />
 
       <AuditDialog
@@ -845,7 +1073,6 @@ export function ProtocolCard({
         sendMethods={sendMethods}
         onSave={handleSaveEdit}
         isSaving={isSavingEdit}
-        insuranceId={protocolDetail?.insurance?.id}
       />
 
       <ReportDialog
@@ -854,6 +1081,8 @@ export function ProtocolCard({
         protocolId={protocol.id}
         reportType={reportType}
         onReportTypeChange={setReportType}
+        signed={reportSigned}
+        onSignedChange={setReportSigned}
         reportDate={reportDate}
         onReportDateChange={handleReportDateChange}
         reportTime={reportTime}
@@ -862,12 +1091,17 @@ export function ProtocolCard({
         analyses={protocolDetails}
         selectedAnalysisIds={selectedReportAnalysisIds}
         onToggleAnalysis={handleToggleReportAnalysis}
+        onSelectAllAnalyses={handleSelectAllReportAnalyses}
+        onDeselectAllAnalyses={handleDeselectAllReportAnalyses}
         customizationOpen={reportCustomizationOpen}
         onToggleCustomizationOpen={setReportCustomizationOpen}
         onGenerateReport={handleGenerateReport}
         onDownloadReport={handleDownloadReport}
         onSendEmail={handleSendEmail}
         onSendWhatsApp={handleSendWhatsApp}
+        sendMethodName={protocolDetail?.send_method?.name || ""}
+        emailDisabledReason={emailDisabledReason}
+        whatsappDisabledReason={whatsappDisabledReason}
         isGenerating={isGeneratingReport}
         isDownloading={isDownloadingReport}
         isSending={isSendingEmail}
@@ -883,19 +1117,43 @@ export function ProtocolCard({
           }
         }}
       >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Confirmar envío</AlertDialogTitle>
-            <AlertDialogDescription>
-              {pendingSendMethod === "email"
-                ? "Vas a enviar el reporte por email. Confirmá para continuar."
-                : "Vas a enviar el reporte por WhatsApp. Confirmá para continuar."}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setPendingSendMethod(null)}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmSend}>Confirmar</AlertDialogAction>
-          </AlertDialogFooter>
+        <AlertDialogContent className="overflow-hidden border-0 p-0 shadow-2xl">
+          <div
+            className={
+              pendingSendMethod === "email"
+                ? "bg-gradient-to-r from-[#204983] to-sky-600 px-6 py-5 text-white"
+                : "bg-gradient-to-r from-emerald-600 to-green-500 px-6 py-5 text-white"
+            }
+          >
+            <AlertDialogHeader>
+              <div className="mb-2 flex h-11 w-11 items-center justify-center rounded-full bg-white/20">
+                {pendingSendMethod === "email" ? <Mail className="h-6 w-6" /> : <MessageCircle className="h-6 w-6" />}
+              </div>
+              <AlertDialogTitle className="text-white">
+                {pendingSendMethod === "email" ? "Enviar reporte por email" : "Enviar reporte por WhatsApp"}
+              </AlertDialogTitle>
+              <AlertDialogDescription className="text-white/85">
+                {pendingSendMethod === "email"
+                  ? "Confirmá el envío del reporte al email cargado en el paciente."
+                  : "Confirmá el envío del reporte al teléfono cargado para WhatsApp."}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+          </div>
+          <div className="bg-white px-6 py-4">
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setPendingSendMethod(null)}>Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleConfirmSend}
+                className={
+                  pendingSendMethod === "email"
+                    ? "bg-[#204983] text-white hover:bg-[#1a3d6f]"
+                    : "bg-emerald-600 text-white hover:bg-emerald-700"
+                }
+              >
+                Confirmar envío
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </div>
         </AlertDialogContent>
       </AlertDialog>
 
@@ -907,6 +1165,39 @@ export function ProtocolCard({
         history={protocolDetail?.history}
         totalChanges={protocolDetail?.total_changes}
         isLoading={loadingDetail}
+      />
+
+      <CoseguroDialog
+        open={coseguroDialogOpen}
+        onOpenChange={setCoseguroDialogOpen}
+        protocolId={protocol.id}
+        currentCoseguro={protocolDetail?.coseguro_amount || "0"}
+        insuranceChargesCoseguro={insuranceChargesCoseguro}
+        onConfirm={handleSetCoseguro}
+        isProcessing={isProcessingCoseguro}
+      />
+
+      <PreauthorizationDialog
+        open={preauthDialogOpen}
+        onOpenChange={setPreauthDialogOpen}
+        protocolId={protocol.id}
+        details={protocolDetails}
+        onConfirm={handleApplyPreauthorization}
+        isProcessing={isProcessingPreauth}
+      />
+
+      <ArcaBillingDialog
+        open={arcaDialogOpen}
+        onOpenChange={setArcaDialogOpen}
+        protocolId={protocol.id}
+        patientName={getPatientName()}
+        patientCuil={protocol.patient?.cuil}
+        invoicePdfUrl={protocolDetail?.arca_invoice_pdf_url ?? null}
+        arcaCae={protocolDetail?.arca_cae}
+        arcaCbteNumber={protocolDetail?.arca_cbte_number ?? null}
+        isAlreadyBilled={Boolean(protocolDetail?.is_arca_billed)}
+        onConfirm={handleArcaBilling}
+        isProcessing={isArcaBilling}
       />
     </>
   )

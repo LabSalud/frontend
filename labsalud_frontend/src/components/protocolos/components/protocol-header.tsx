@@ -1,27 +1,30 @@
 "use client"
 
-import { ChevronDown, User, CreditCard, Printer, DollarSign } from "lucide-react"
+import { ChevronDown, User, CreditCard, Printer, DollarSign, UserCog } from "lucide-react"
 import { Badge } from "../../ui/badge"
 import { Button } from "../../ui/button"
 import { AuditAvatars } from "@/components/common/audit-avatars"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import type { PaymentStatus, CreationAudit, LastChangeAudit, ProtocolStatus } from "@/types"
 
 interface ProtocolHeaderProps {
   protocolId: number
   status: ProtocolStatus
   patientName: string
+  isAnonymousPatient?: boolean
   paymentStatus?: PaymentStatus | null
   balance: number
   isPrinted?: boolean
   canRegisterPayment: boolean
   labOwesPatient: boolean
+  paymentDisabledReason?: string
   isExpanded: boolean
   creation?: CreationAudit
   lastChange?: LastChangeAudit
   onRegisterPayment: () => void
 }
 
-// Status IDs: 1=Pendiente de carga, 2=Pendiente de validación, 3=Pago incompleto, 4=Cancelado, 5=Completado, 6=Pendiente de Retiro, 7=Envío fallido, 8=Pendiente de Facturación, 10=Pendiente de envío
+// Status IDs: 1=Pendiente de carga, 2=Pendiente de validación, 3=Pago incompleto, 4=Cancelado, 5=Completado, 6=Pendiente de Retiro, 7=Envío fallido, 8=Pendiente de Facturación, 10=Pendiente de envío, 11=Pendiente de revisión, 12=Información faltante
 const getStateColor = (statusId: number) => {
   const stateColors: Record<number, string> = {
     1: "bg-yellow-100 text-yellow-800", // Pendiente de carga
@@ -33,6 +36,8 @@ const getStateColor = (statusId: number) => {
     7: "bg-pink-100 text-pink-800", // Envío fallido
     8: "bg-teal-100 text-teal-800", // Pendiente de Facturación
     10: "bg-indigo-100 text-indigo-800", // Pendiente de envío
+    11: "bg-[#f8e8ee] text-[#800020]", // Pendiente de revisión
+    12: "bg-amber-100 text-amber-800", // Información faltante
   }
   return stateColors[statusId] || "bg-gray-100 text-gray-800"
 }
@@ -58,11 +63,13 @@ export function ProtocolHeader({
   protocolId,
   status,
   patientName,
+  isAnonymousPatient = false,
   paymentStatus,
   balance,
   isPrinted,
   canRegisterPayment,
   labOwesPatient,
+  paymentDisabledReason,
   isExpanded,
   creation,
   lastChange,
@@ -74,6 +81,23 @@ export function ProtocolHeader({
   const statusName = status?.name ?? "Desconocido"
 
   const isCancelled = statusId === 4
+  const showPaymentButton = canRegisterPayment || labOwesPatient || Boolean(paymentDisabledReason)
+  const paymentButton = (
+    <Button
+      size="sm"
+      onClick={(e) => {
+        e.stopPropagation()
+        if (paymentDisabledReason) return
+        onRegisterPayment()
+      }}
+      disabled={Boolean(paymentDisabledReason)}
+      className="bg-green-600 hover:bg-green-700 text-white text-xs px-2 py-1 h-6 disabled:opacity-60"
+      data-no-expand
+    >
+      <DollarSign className="h-3 w-3 mr-1" />
+      Pagos
+    </Button>
+  )
 
   return (
     <>
@@ -93,19 +117,19 @@ export function ProtocolHeader({
                 </h3>
                 {/* // Responsive button layout */}
                 <div className="flex flex-wrap gap-1 min-w-0 max-w-full">
-                  {(canRegisterPayment || labOwesPatient) && (
-                    <Button
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        onRegisterPayment()
-                      }}
-                      className="bg-green-600 hover:bg-green-700 text-white text-xs px-2 py-1 h-6"
-                      data-no-expand
-                    >
-                      <DollarSign className="h-3 w-3 mr-1" />
-                      Pagos
-                    </Button>
+                  {showPaymentButton && (
+                    paymentDisabledReason ? (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="inline-flex">{paymentButton}</span>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-[260px] bg-slate-900 text-white">
+                          <p>{paymentDisabledReason}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    ) : (
+                      paymentButton
+                    )
                   )}
                 </div>
               </div>
@@ -113,6 +137,12 @@ export function ProtocolHeader({
                 <Badge className={getStateColor(statusId)} variant="secondary">
                   {statusName}
                 </Badge>
+                {isAnonymousPatient && (
+                  <Badge className="bg-amber-500 hover:bg-amber-600 text-white text-xs">
+                    <UserCog className="h-3 w-3 mr-1" />
+                    Paciente anónimo
+                  </Badge>
+                )}
                 {isPrinted && (
                   <Badge variant="outline" className="max-w-full text-xs">
                     <Printer className="h-3 w-3 mr-1" />

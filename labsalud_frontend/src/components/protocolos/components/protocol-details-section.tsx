@@ -1,9 +1,9 @@
 "use client"
 
-import { User, Building, CreditCard, Send, DollarSign, Printer, History } from "lucide-react"
+import { User, Building, CreditCard, Send, DollarSign, Printer, History, ClipboardCheck, BedDouble, BookOpen } from "lucide-react"
 import { Badge } from "../../ui/badge"
 import { Button } from "../../ui/button"
-import type { PaymentStatus } from "@/types"
+import type { PaymentStatus, Nbu } from "@/types"
 import { getPaymentStatusInfo } from "./protocol-header"
 
 interface ProtocolDetailsSectionProps {
@@ -21,6 +21,14 @@ interface ProtocolDetailsSectionProps {
   insuranceUbValue?: string
   privateUbValue?: string
   isPrinted?: boolean
+  trajoOrden?: boolean
+  isInPatient?: boolean
+  analysesAmountDue?: string
+  coseguroAmount?: string
+  materialDescartableAmount?: string
+  derivacionAmount?: string
+  extrasTotal?: string
+  nbu?: Nbu | null
   onOpenHistoryDialog: () => void
 }
 
@@ -34,6 +42,14 @@ export function ProtocolDetailsSection({
   insuranceUbValue,
   privateUbValue,
   isPrinted,
+  trajoOrden,
+  isInPatient,
+  analysesAmountDue,
+  coseguroAmount,
+  materialDescartableAmount,
+  derivacionAmount,
+  extrasTotal,
+  nbu,
   onOpenHistoryDialog,
   amountDue,
   amountPending,
@@ -46,6 +62,13 @@ export function ProtocolDetailsSection({
   const pending = Number.parseFloat(amountPending || "0")
   const paid = Number.parseFloat(patientPaid || "0")
   const toReturn = Number.parseFloat(amountToReturn || "0")
+  const analyses = Number.parseFloat(analysesAmountDue || "0")
+  const coseguro = Number.parseFloat(coseguroAmount || "0")
+  const material = Number.parseFloat(materialDescartableAmount || "0")
+  const derivacion = Number.parseFloat(derivacionAmount || "0")
+  const extras = Number.parseFloat(extrasTotal || "0")
+  const hasExtras = coseguro > 0 || material > 0 || derivacion > 0
+  const nbuName = nbu && typeof nbu === "object" && "name" in nbu ? nbu.name : null
 
   return (
     <div className="space-y-4 mt-4">
@@ -82,6 +105,75 @@ export function ProtocolDetailsSection({
           <span className="text-gray-600 w-28 flex-shrink-0">Envío:</span>
           <span className="font-medium">{sendMethodName}</span>
         </div>
+
+        {trajoOrden !== undefined && (
+          <div className="flex items-center gap-3 text-sm">
+            <ClipboardCheck className={`h-4 w-4 flex-shrink-0 ${trajoOrden ? "text-emerald-500" : "text-amber-500"}`} />
+            <span className="text-gray-600 w-28 flex-shrink-0">Orden médica:</span>
+            <Badge
+              variant="outline"
+              className={
+                trajoOrden
+                  ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                  : "border-amber-200 bg-amber-50 text-amber-700"
+              }
+            >
+              {trajoOrden ? "Recibida" : "Pendiente"}
+            </Badge>
+          </div>
+        )}
+
+        {isInPatient && (
+          <div className="flex items-center gap-3 text-sm">
+            <BedDouble className="h-4 w-4 text-purple-500 flex-shrink-0" />
+            <span className="text-gray-600 w-28 flex-shrink-0">Paciente:</span>
+            <Badge className="bg-purple-100 text-purple-700">Internado</Badge>
+          </div>
+        )}
+
+        {nbuName && (
+          <div className="flex items-center gap-3 text-sm">
+            <BookOpen className="h-4 w-4 text-gray-400 flex-shrink-0" />
+            <span className="text-gray-600 w-28 flex-shrink-0">Nomenclador:</span>
+            <span className="font-medium">{nbuName}</span>
+          </div>
+        )}
+
+        {(analyses > 0 || hasExtras) && (
+          <div className="rounded-md border border-gray-200 bg-gray-50 p-3 space-y-1.5">
+            <p className="text-xs font-semibold text-gray-700">Desglose de pricing</p>
+            {analyses > 0 && (
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-gray-600">Análisis particulares</span>
+                <span className="font-medium">${analyses.toFixed(2)}</span>
+              </div>
+            )}
+            {coseguro > 0 && (
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-gray-600">Coseguro</span>
+                <span className="font-medium">${coseguro.toFixed(2)}</span>
+              </div>
+            )}
+            {material > 0 && (
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-gray-600">Material descartable</span>
+                <span className="font-medium">${material.toFixed(2)}</span>
+              </div>
+            )}
+            {derivacion > 0 && (
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-gray-600">Derivación</span>
+                <span className="font-medium">${derivacion.toFixed(2)}</span>
+              </div>
+            )}
+            {extras > 0 && (
+              <div className="flex items-center justify-between text-xs pt-1 border-t border-gray-200">
+                <span className="text-gray-600">Total extras</span>
+                <span className="font-medium">${extras.toFixed(2)}</span>
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="flex items-center gap-3 text-sm">
           <DollarSign className="h-4 w-4 text-gray-400 flex-shrink-0" />

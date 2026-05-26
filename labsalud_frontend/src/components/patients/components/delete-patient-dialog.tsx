@@ -1,6 +1,5 @@
 "use client"
 
-import type React from "react"
 import type { Patient } from "@/types"
 import {
   AlertDialog,
@@ -14,12 +13,14 @@ import {
 } from "@/components/ui/alert-dialog"
 import { toast } from "sonner"
 import { PATIENT_ENDPOINTS, TOAST_DURATION } from "@/config/api"
+import { formatApiError, getErrorMessage } from "@/lib/api-error"
 
 interface DeletePatientDialogProps {
   isOpen: boolean
   onClose: () => void
   patient: Patient | null
-  setPatients: React.Dispatch<React.SetStateAction<Patient[]>>
+  /** Callback que se invoca después de eliminar correctamente (la página re-fetchea). */
+  setPatients: (patient: Patient) => void
   apiRequest: (url: string, options?: any) => Promise<Response>
 }
 
@@ -43,7 +44,7 @@ export default function DeletePatientDialog({
       toast.dismiss(loadingId)
 
       if (response.ok) {
-        setPatients((prev) => prev.filter((p) => p.id !== patient.id))
+        setPatients(patient)
         toast.success("Paciente eliminado", {
           description: "El paciente ha sido eliminado exitosamente.",
           duration: TOAST_DURATION,
@@ -52,14 +53,14 @@ export default function DeletePatientDialog({
       } else {
         const errorData = await response.json()
         toast.error("Error al eliminar paciente", {
-          description: errorData.detail || "Ha ocurrido un error al eliminar el paciente.",
+          description: formatApiError(errorData, "Ha ocurrido un error al eliminar el paciente."),
           duration: TOAST_DURATION,
         })
       }
     } catch (error) {
       console.error("Error al eliminar paciente:", error)
       toast.error("Error", {
-        description: "Ha ocurrido un error al eliminar el paciente.",
+        description: getErrorMessage(error, "Ha ocurrido un error al eliminar el paciente."),
         duration: TOAST_DURATION,
       })
     }

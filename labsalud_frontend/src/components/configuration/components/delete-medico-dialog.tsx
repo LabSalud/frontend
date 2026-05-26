@@ -14,6 +14,7 @@ import {
 import { useApi } from "@/hooks/use-api"
 import { toast } from "sonner"
 import { MEDICAL_ENDPOINTS } from "@/config/api"
+import { formatApiError, getErrorMessage } from "@/lib/api-error"
 
 interface Medico {
   id: number
@@ -46,10 +47,14 @@ export function DeleteMedicoDialog({ isOpen, onOpenChange, medico, onSuccess }: 
         onSuccess()
       } else {
         const errorData = await response.json()
-        toast.error(errorData.message || "Error al eliminar el médico")
+        toast.error("Error al eliminar el médico", {
+          description: formatApiError(errorData, "Error al eliminar el médico"),
+        })
       }
     } catch (error) {
-      toast.error("Error al eliminar el médico")
+      toast.error("Error al eliminar el médico", {
+        description: getErrorMessage(error, "Error de conexión con el servidor"),
+      })
     } finally {
       setLoading(false)
     }

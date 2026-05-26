@@ -23,33 +23,90 @@ export interface UserReference {
 // ============================================================================
 
 export interface AuditUser {
-  id: number
+  id: number | null
   username: string
-  photo: string
+  photo: string | null
 }
 
 export interface CreationAudit {
   version: number
   action: string
-  user: AuditUser
+  user: AuditUser | null
   date: string
+  changes?: string[]
+  message?: string
 }
 
 export interface LastChangeAudit {
   version: number
   action: string
-  user: AuditUser
+  user: AuditUser | null
   date: string
   changes: string[]
+  message?: string
 }
 
+export type AuditCategory =
+  | "protocol"
+  | "result"
+  | "validation"
+  | "payment"
+  | "state"
+  | "doctor"
+  | "insurance"
+  | "analysis"
+  | "user"
+  | "patient"
+  | "system"
+
+export type AuditActionType = "create" | "update" | "delete" | "business" | "auth" | "system"
+
 export interface HistoryEntry {
-  created_at: any
+  event_id?: string
   version: number
-  action: string // "creacion", "actualizacion", "eliminacion"
-  user: AuditUser
-  date: string // UTC string
+  action: string // "creacion", "actualizacion", "eliminacion", "negocio", "autenticacion", "sistema"
+  action_name?: string
+  category?: AuditCategory | string
+  state_from?: string | null
+  state_to?: string | null
+  related_protocol_id?: number | null
+  user: AuditUser | null
+  model?: {
+    app: string
+    model: string
+    display: string
+  } | null
+  object_id?: string
+  object_repr?: string
+  changed_fields?: Record<string, { old: unknown; new: unknown }>
   changes: string[]
+  before_state?: Record<string, unknown>
+  after_state?: Record<string, unknown>
+  message?: string
+  request?: {
+    id: string
+    path: string
+    method: string
+    ip: string
+  }
+  metadata?: Record<string, unknown>
+  created_at?: string
+  date: string // UTC string
+}
+
+export interface ProtocolAuditTimelineResponse {
+  protocol_id: number
+  count: number
+  events: HistoryEntry[]
+}
+
+export interface ProtocolAuditTimelineFilters {
+  category?: AuditCategory | string
+  actor?: number
+  action_name?: string
+  from?: string
+  to?: string
+  limit?: number
 }
 
 // ============================================================================
@@ -72,16 +129,37 @@ export interface ActiveTempPermission {
 }
 
 export interface AuditEntry {
+  id?: number
+  event_id?: string
   version: number
   action: string
-  user: AuditUser
+  action_name?: string
+  category?: AuditCategory | string
+  state_from?: string | null
+  state_to?: string | null
+  related_protocol_id?: number | null
+  user: AuditUser | null
   date: string
+  created_at?: string
   model: {
     app: string
     model: string
     display: string
+  } | null
+  object_id?: string
+  object?: string
+  object_repr?: string
+  message?: string
+  request?: {
+    id: string
+    path: string
+    method: string
+    ip: string
   }
-  object: string
+  metadata?: Record<string, unknown>
+  before_state?: Record<string, unknown>
+  after_state?: Record<string, unknown>
+  changed_fields?: Record<string, { old: unknown; new: unknown }>
   changes: string[]
 }
 
@@ -90,6 +168,8 @@ export interface Role {
   name: string
   permission_details?: Permission[]
   permissions?: number[]
+  creation?: HistoryEntry
+  last_change?: HistoryEntry
 }
 
 export interface Group {
@@ -154,7 +234,7 @@ export interface Patient {
   id: number
   first_name: string
   last_name: string
-  dni: string
+  cuil: string
   full_name: string
   birth_date: string
   age: number
@@ -167,16 +247,32 @@ export interface Patient {
   city: string
   address: string
   is_active: boolean
+  is_anonymous?: boolean
   creation?: CreationAudit
   last_change?: LastChangeAudit
   history?: HistoryEntry[]
   total_changes?: number
 }
 
+export interface PatientMergePreview {
+  source_patient_id: number
+  target_patient_id: number
+  conflicts: Array<{ field: string; source_value: unknown; target_value: unknown }>
+  auto_filled: Array<{ field: string; value: unknown }>
+  protocols_to_move: number[]
+}
+
+export interface PatientMergeResult {
+  detail: string
+  unification_id: number
+  moved_protocols: number[]
+  patient: Patient
+}
+
 export interface PatientFormData {
   first_name: string
   last_name: string
-  dni: string
+  cuil: string
   birth_date: string
   gender: string
   phone_mobile: string
@@ -207,6 +303,11 @@ export interface Doctor {
 // Alias for backward compatibility
 export type Medico = Doctor
 
+export interface Nbu {
+  id: number
+  name: string
+}
+
 export interface Insurance {
   id: number
   name: string
@@ -214,6 +315,11 @@ export interface Insurance {
   ub_value: string
   private_ub_value: number
   is_active: boolean
+  charges_coseguro?: boolean
+  charges_material_descartable?: boolean
+  charges_derivacion?: boolean
+  requires_preauthorization?: boolean
+  nbu?: Nbu | number | null
   creation?: CreationAudit
   last_change?: LastChangeAudit
   history?: HistoryEntry[]
@@ -234,8 +340,10 @@ export interface Analysis {
   code: number
   name: string
   bio_unit: string
+  bio_unit_values?: BioUnitValue[]
   is_urgent: boolean
   is_active: boolean
+  requires_derivacion?: boolean
   creation?: CreationAudit
   last_change?: LastChangeAudit
   history?: HistoryEntry[]
@@ -245,6 +353,50 @@ export interface Analysis {
 // Legacy alias - panels are now just analysis
 export type AnalysisPanel = Analysis
 
+export interface BioUnitValue {
+  year: number
+  value: string
+}
+
+export type ReferenceValueGroup = "hombre_mayor" | "mujer_mayor" | "nino" | "nina"
+
+export interface ReferenceValueBounds {
+  min?: string
+  max?: string
+}
+
+export type ReferenceValues = Partial<Record<ReferenceValueGroup | string, ReferenceValueBounds>>
+
+export interface ReferenceRange {
+  id?: number
+  group: ReferenceValueGroup | string
+  sex: "male" | "female" | string
+  age_group: "adult" | "child" | string
+  min_value: string
+  max_value: string
+}
+
+export type ReferenceRangeEvaluationStatus =
+  | "not_evaluated"
+  | "no_applicable_reference"
+  | "no_reference"
+  | "in_range"
+  | "out_of_range"
+  | "uncheckable"
+
+export interface ReferenceRangeEvaluation {
+  status: ReferenceRangeEvaluationStatus
+  is_out_of_reference_range: boolean
+  value: string
+  patient?: {
+    gender: "M" | "F" | string
+    age: number
+    sex: "male" | "female" | string
+    age_group: "adult" | "child" | string
+  }
+  reference?: ReferenceRange | null
+}
+
 export interface Determination {
   id: number
   code: string
@@ -252,6 +404,8 @@ export interface Determination {
   name: string
   measure_unit: string
   formula: string
+  reference_values?: ReferenceValues
+  reference_ranges?: ReferenceRange[]
   is_active: boolean
   creation?: CreationAudit
   last_change?: LastChangeAudit
@@ -289,6 +443,7 @@ export interface ProtocolDetail {
   id: number
   analysis: number
   is_authorized: boolean
+  is_sent?: boolean
   is_valid?: boolean
   code: number
   name: string
@@ -306,9 +461,13 @@ export interface Protocol {
   id: number
   patient: {
     id: number
-    dni: string
+    cuil: string
     first_name: string
     last_name: string
+    email?: string
+    phone_mobile?: string
+    alt_phone?: string
+    is_anonymous?: boolean
   }
   doctor: {
     id: number
@@ -319,6 +478,10 @@ export interface Protocol {
   insurance: {
     id: number
     name: string
+    charges_coseguro?: boolean
+    charges_material_descartable?: boolean
+    charges_derivacion?: boolean
+    requires_preauthorization?: boolean
   }
   affiliate_number: string
   status: ProtocolStatus
@@ -333,6 +496,14 @@ export interface Protocol {
   amount_pending?: string
   patient_paid?: string
   amount_to_return?: string
+  // Pricing breakdown (new fields - May 2026)
+  analyses_amount_due?: string
+  coseguro_amount?: string
+  material_descartable_amount?: string
+  derivacion_amount?: string
+  extras_total?: string
+  private_amount_due?: string
+  nbu?: Nbu | null
   // Returned by protocol create response
   value_paid?: string
   payment_status: PaymentStatus
@@ -350,8 +521,17 @@ export interface Protocol {
   arca_cbte_number?: number | null
   arca_cae?: string
   arca_cae_due_date?: string
+  arca_invoice_pdf_url?: string | null
   is_printed: boolean
+  trajo_orden: boolean
+  is_in_patient?: boolean
   is_active: boolean
+  created_at?: string
+  completed_at?: string | null
+  previous_status?: ProtocolStatus | null
+  // Información faltante (estado intermedio antes de "Completado")
+  missing_info_notes?: string | null
+  missing_info_at?: string | null
   details: ProtocolDetail[]
   creation?: CreationAudit
   last_change?: LastChangeAudit
@@ -363,14 +543,42 @@ export interface ProtocolListItem {
   id: number
   patient: {
     id: number
+    cuil: string
     first_name: string
     last_name: string
+    is_anonymous?: boolean
   }
   status: ProtocolStatus
   balance: string
+  private_amount_due?: string
+  patient_paid?: string
+  amount_to_return?: string
+  // Pricing breakdown (new fields)
+  analyses_amount_due?: string
+  coseguro_amount?: string
+  material_descartable_amount?: string
+  derivacion_amount?: string
+  extras_total?: string
   payment_status: PaymentStatus
   billing_status?: BillingStatus
   is_printed: boolean
+  trajo_orden: boolean
+  is_in_patient?: boolean
+  missing_info_notes?: string | null
+  created_at?: string
+  is_arca_billed?: boolean
+  arca_billing_status?: "pendiente" | "emitida" | "error" | "anulada" | string
+  arca_billed_at?: string | null
+  arca_reference?: string
+  arca_bill_to?: "patient" | "third_party"
+  arca_receiver_doc_type?: string
+  arca_receiver_doc_number?: string
+  arca_receiver_name?: string
+  arca_receiver_address?: string
+  arca_cbte_tipo?: number | null
+  arca_cbte_number?: number | null
+  arca_cae?: string
+  arca_cae_due_date?: string
   creation?: CreationAudit
   last_change?: LastChangeAudit
 }
@@ -378,18 +586,47 @@ export interface ProtocolListItem {
 export interface CreateProtocolInput {
   patient: number
   doctor: number
-  insurance: number
+  insurance?: number
   affiliate_number?: string
   send_method: number
   value_paid: string
+  trajo_orden?: boolean
+  is_in_patient?: boolean
   details: ProtocolDetailInput[]
+}
+
+export interface PreauthorizationPayload {
+  protocol_ids: number[]
+  authorized_analysis_ids: number[]
+  reference?: string
+  brought?: boolean
+  notes?: string
+}
+
+export interface PreauthorizationResponse {
+  detail: string
+  preauthorization_id: number
+  brought: boolean
+  protocols: number[]
+  authorized_analysis_ids: number[]
+}
+
+export interface MergeReportPayload {
+  protocol_ids: number[]
+  action: "download" | "email" | "whatsapp"
+  type: "full" | "summary"
+  protocol_date?: string
+  protocol_time?: string
+  signed?: boolean
+  email?: string
+  phone_number?: string
 }
 
 export interface ProtocolSummary {
   id: number
   patient_first_name: string
   patient_last_name: string
-  patient_dni: string
+  patient_cuil: string
   ooss: string
   created_at: string
   state: "pending_entry" | "entry_complete" | "pending_validation" | "review" | "completed" | "cancelled"
@@ -403,9 +640,12 @@ export interface ProtocolSummary {
 
 export interface ResultDetermination {
   id: number
+  code?: string
   name: string
   measure_unit: string
   formula: string
+  reference_values?: ReferenceValues
+  reference_ranges?: ReferenceRange[]
 }
 
 export interface ResultAnalysis {
@@ -414,6 +654,7 @@ export interface ResultAnalysis {
   code: number
   is_urgent: boolean
   ub: string
+  bio_unit_values?: BioUnitValue[]
 }
 
 export interface Result {
@@ -423,6 +664,8 @@ export interface Result {
   is_valid: boolean
   notes: string
   is_wrong: boolean
+  is_out_of_reference_range?: boolean
+  reference_range_evaluation?: ReferenceRangeEvaluation | null
   is_active: boolean
   analysis: ResultAnalysis
   validated_by?: {
@@ -448,33 +691,54 @@ export interface ResultsByAnalysisItem {
   results: Result[]
 }
 
-// Response from GET /results/results/available-analysis/
+// Response from GET /results/results/available-analyses/
 export interface AvailableAnalysis {
   id: number
   code: number
   name: string
   bio_unit: string
+  bio_unit_values?: BioUnitValue[]
   is_urgent: boolean
   is_active: boolean
 }
 
-export interface PreviousResult {
-  result_id: number
-  protocol_id: number
-  value: string
-  created_at: string
-  created_by: {
+// PreviousResult matches the Result structure returned by GET /results/results/history/
+export type PreviousResult = Result
+
+export interface ResultValidacion {
+  id: number
+  tipo: "tecnica" | "bioquimica"
+  estado: "pendiente" | "aprobada" | "rechazada"
+  validado_por: {
+    id: number
     username: string
-    photo: string | null
-  }
-  date?: string
+    first_name: string
+    last_name: string
+  } | null
+  validado_at: string | null
+  result_notes: string
+  created_at: string
+}
+
+export interface ResultCambio {
+  id: number
+  valor_anterior: string
+  valor_nuevo: string
+  motivo: string
+  modificado_por: {
+    id: number
+    username: string
+    first_name: string
+    last_name: string
+  } | null
+  created_at: string
 }
 
 export interface ProtocolWithLoadedResults {
   id: number
   patient: {
     id: number
-    dni: string
+    cuil: string
     first_name: string
     last_name: string
   }
@@ -519,7 +783,6 @@ export interface ProtocolToBill {
     id: number
     name: string
     ub_value_at_protocol_creation?: string
-    ub_value_current?: string
   } | null
   total_ub_authorized: string
   estimated_amount?: string
@@ -561,6 +824,8 @@ export interface BillingPresentation {
     protocol_id: number
     invoice_id: number
     invoice_number: string
+    insurance?: { id: number; name: string } | null
+    patient?: { id: number; first_name: string; last_name: string } | null
     expected_amount: string
     paid_amount?: string
     difference_amount?: string

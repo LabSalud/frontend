@@ -3,6 +3,7 @@
 import { useState, useCallback } from "react"
 import { toast } from "sonner"
 import type { FormErrors, ApiResponse } from "@/types"
+import { formatApiError } from "@/lib/api-error"
 
 interface ErrorState {
   hasError: boolean
@@ -19,37 +20,37 @@ export function useErrorHandler() {
 
   const handleApiError = useCallback((response: Response, errorData?: ApiResponse) => {
     const status = response.status
-    let message = "Ha ocurrido un error inesperado"
+    let message = formatApiError(errorData, "Ha ocurrido un error inesperado")
     let details: FormErrors | undefined
 
     // Manejo específico por código de estado
     switch (status) {
       case 400:
-        message = "Datos inválidos"
+        message = formatApiError(errorData, "Datos inválidos")
         details = errorData?.errors || {}
         break
       case 401:
-        message = "No autorizado. Por favor, inicia sesión nuevamente"
+        message = formatApiError(errorData, "No autorizado. Por favor, inicia sesión nuevamente")
         // Redirigir al login si es necesario
         break
       case 403:
-        message = "No tienes permisos para realizar esta acción"
+        message = formatApiError(errorData, "No tienes permisos para realizar esta acción")
         break
       case 404:
-        message = "Recurso no encontrado"
+        message = formatApiError(errorData, "Recurso no encontrado")
         break
       case 409:
-        message = "Conflicto: El recurso ya existe"
+        message = formatApiError(errorData, "Conflicto: El recurso ya existe")
         break
       case 422:
-        message = "Datos de entrada inválidos"
+        message = formatApiError(errorData, "Datos de entrada inválidos")
         details = errorData?.errors || {}
         break
       case 500:
-        message = "Error interno del servidor"
+        message = formatApiError(errorData, "Error interno del servidor")
         break
       default:
-        message = errorData?.message || errorData?.detail || message
+        message = formatApiError(errorData, message)
     }
 
     setError({

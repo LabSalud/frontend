@@ -1,5 +1,6 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { formatUtcDateTime } from "@/lib/format-utils"
 
 interface AuditInfo {
   user: {
@@ -28,20 +29,7 @@ const textSizeClasses = {
   lg: "text-base",
 }
 
-const formatDateTime = (dateString: string) => {
-  if (!dateString) return ""
-
-  // Parsear el string ISO sin conversión de timezone
-  const cleanDate = dateString.replace("Z", "").replace("T", " ")
-  const [datePart, timePart] = cleanDate.split(" ")
-
-  if (!datePart || !timePart) return dateString
-
-  const [year, month, day] = datePart.split("-")
-  const [hour, minute] = timePart.split(":")
-
-  return `${day.padStart(2, "0")}/${month.padStart(2, "0")}/${year} ${hour.padStart(2, "0")}:${minute.padStart(2, "0")}`
-}
+const formatDateTime = (dateString: string) => formatUtcDateTime(dateString)
 
 export function AuditAvatars({ creation, lastChange, size = "md", className = "" }: AuditAvatarsProps) {
   const sizeClass = sizeClasses[size]

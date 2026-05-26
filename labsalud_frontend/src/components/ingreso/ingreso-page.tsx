@@ -14,6 +14,7 @@ import { CreateObraSocialForm } from "./components/create-obra-social-form"
 import { ProtocolSuccess } from "./components/protocol-success"
 import { useApi } from "../../hooks/use-api"
 import { MEDICAL_ENDPOINTS, PROTOCOL_ENDPOINTS } from "@/config/api"
+import { formatApiError, getErrorMessage } from "@/lib/api-error"
 import type {
   Patient,
   Doctor,
@@ -31,7 +32,8 @@ export default function IngresoPage() {
   // Main states
   const [currentPatient, setCurrentPatient] = useState<Patient | null>(null)
   const [patientNotFound, setPatientNotFound] = useState(false)
-  const [searchedDni, setSearchedDni] = useState("")
+  const [searchedCuil, setSearchedCuil] = useState("")
+  const [creatingAnonymous, setCreatingAnonymous] = useState(false)
   const [selectedAnalyses, setSelectedAnalyses] = useState<SelectedAnalysis[]>([])
   const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null)
   const [selectedInsurance, setSelectedInsurance] = useState<Insurance | null>(null)
@@ -39,6 +41,7 @@ export default function IngresoPage() {
   const [patientPaid, setPatientPaid] = useState("")
   const [selectedSendMethod, setSelectedSendMethod] = useState<SendMethod | null>(null)
   const [affiliateNumber, setAffiliateNumber] = useState("")
+  const [trajoOrden, setTrajoOrden] = useState(true)
   const [isRefund, setIsRefund] = useState(false)
   const [doctors, setDoctors] = useState<Doctor[]>([])
   const [insurances, setInsurances] = useState<Insurance[]>([])
@@ -50,7 +53,7 @@ export default function IngresoPage() {
     protocol: Protocol
     patient: Patient
     doctor: Doctor
-    insurance: Insurance
+    insurance: Insurance | null
     sendMethod: SendMethod
   } | null>(null)
   const [isAnimating, setIsAnimating] = useState(false)
@@ -60,7 +63,7 @@ export default function IngresoPage() {
     protocol: Protocol
     patient: Patient
     doctor: Doctor
-    insurance: Insurance
+    insurance: Insurance | null
     sendMethod: SendMethod
   } | null>(null)
 
@@ -121,22 +124,7 @@ export default function IngresoPage() {
     }
   }, [isAnimating, animationResult, pendingSuccessData])
 
-  // Extract mensaje de error del backend
-  const extractErrorMessage = (errorData: unknown): string => {
-    if (typeof errorData === "string") return errorData
-    if (errorData && typeof errorData === "object") {
-      const err = errorData as Record<string, unknown>
-      if (err.detail) return String(err.detail)
-      if (err.error) return String(err.error)
-      if (err.message) return String(err.message)
-      // Si es un objeto con múltiples campos de error
-      const firstKey = Object.keys(err)[0]
-      if (firstKey && Array.isArray(err[firstKey])) {
-        return `${firstKey}: ${err[firstKey][0]}`
-      }
-    }
-    return "Ha ocurrido un error inesperado"
-  }
+  const extractErrorMessage = (errorData: unknown): string => formatApiError(errorData)
 
   const loadInitialData = async () => {
     try {
@@ -223,19 +211,27 @@ export default function IngresoPage() {
   const handlePatientFound = (patient: Patient) => {
     setCurrentPatient(patient)
     setPatientNotFound(false)
-    setSearchedDni("")
+    setSearchedCuil("")
   }
 
-  const handlePatientNotFound = (dni: string) => {
+  const handlePatientNotFound = (cuil: string) => {
     setCurrentPatient(null)
     setPatientNotFound(true)
-    setSearchedDni(dni)
+    setSearchedCuil(cuil)
   }
 
   const handlePatientCreated = (patient: Patient) => {
     setCurrentPatient(patient)
     setPatientNotFound(false)
-    setSearchedDni("")
+    setSearchedCuil("")
+    setCreatingAnonymous(false)
+  }
+
+  const handleCreateAnonymous = () => {
+    setCurrentPatient(null)
+    setSearchedCuil("")
+    setPatientNotFound(true)
+    setCreatingAnonymous(true)
   }
 
   const handleDoctorCreated = (doctor: Doctor) => {
@@ -253,7 +249,8 @@ export default function IngresoPage() {
   const handleReset = () => {
     setCurrentPatient(null)
     setPatientNotFound(false)
-    setSearchedDni("")
+    setSearchedCuil("")
+    setCreatingAnonymous(false)
     setSelectedAnalyses([])
     setSelectedDoctor(null)
     setSelectedInsurance(null)
@@ -262,10 +259,13 @@ export default function IngresoPage() {
     setPatientPaid("")
     setSelectedSendMethod(sendMethods[0] || null)
     setAffiliateNumber("")
+    setTrajoOrden(true)
     setIsRefund(false)
   }
 
   const isPrivateInsurance = selectedInsurance?.name.toLowerCase() === "particular"
+  const isAnonymousPatient = Boolean(currentPatient?.is_anonymous)
+  const treatAsPrivate = isPrivateInsurance || (isAnonymousPatient && !selectedInsurance)
 
   const handleCreateProtocol = async () => {
     if (!currentPatient) {
@@ -278,7 +278,8 @@ export default function IngresoPage() {
       return
     }
 
-    if (!selectedInsurance) {
+    // Para pacientes anónimos, la OOSS es opcional (se asigna Particular automáticamente)
+    if (!isAnonymousPatient && !selectedInsurance) {
       toast.error("Seleccione una obra social")
       return
     }
@@ -293,7 +294,7 @@ export default function IngresoPage() {
       return
     }
 
-    if (!isPrivateInsurance && !affiliateNumber.trim()) {
+    if (selectedInsurance && !isPrivateInsurance && !affiliateNumber.trim()) {
       toast.error("Ingrese el número de afiliado")
       return
     }
@@ -310,16 +311,21 @@ export default function IngresoPage() {
       const protocolData: CreateProtocolInput = {
         patient: currentPatient.id,
         doctor: selectedDoctor.id,
-        insurance: selectedInsurance.id,
         send_method: selectedSendMethod.id,
         value_paid: totalValuePaid.toFixed(2),
+        trajo_orden: trajoOrden,
         details: selectedAnalyses.map((analysis) => ({
           analysis: analysis.id,
-          is_authorized: isPrivateInsurance ? false : analysis.is_authorized,
+          is_authorized: treatAsPrivate ? false : analysis.is_authorized,
         })),
       }
 
-      if (!isPrivateInsurance && affiliateNumber.trim()) {
+      // Si hay OOSS seleccionada se manda; si es anónimo sin OOSS, el backend asigna Particular
+      if (selectedInsurance) {
+        protocolData.insurance = selectedInsurance.id
+      }
+
+      if (selectedInsurance && !isPrivateInsurance && affiliateNumber.trim()) {
         protocolData.affiliate_number = affiliateNumber.trim()
       }
 
@@ -350,7 +356,7 @@ export default function IngresoPage() {
       setIsAnimating(true)
     } catch (error) {
       console.error("Error creating protocol:", error)
-      toast.error("Error al crear el protocolo", { description: "Error de conexión con el servidor" })
+      toast.error("Error al crear el protocolo", { description: getErrorMessage(error, "Error de conexión con el servidor") })
       setAnimationResult("error")
       setIsAnimating(true)
     }
@@ -391,10 +397,10 @@ export default function IngresoPage() {
   const isFormValid =
     currentPatient &&
     selectedDoctor &&
-    selectedInsurance &&
+    (isAnonymousPatient || selectedInsurance) &&
     selectedAnalyses.length > 0 &&
     selectedSendMethod &&
-    (isPrivateInsurance || affiliateNumber.trim())
+    (treatAsPrivate || !selectedInsurance || affiliateNumber.trim())
 
   return (
     <div className="min-h-screen p-2 sm:p-4 lg:p-6">
@@ -426,8 +432,9 @@ export default function IngresoPage() {
               selectedSendMethod={selectedSendMethod}
               patientPaid={patientPaid}
               affiliateNumber={affiliateNumber}
+              trajoOrden={trajoOrden}
               isRefund={isRefund}
-              isPrivateInsurance={isPrivateInsurance}
+              isPrivateInsurance={treatAsPrivate}
               totals={calculateTotals()}
               onAnalysisChange={setSelectedAnalyses}
               onDoctorSelect={setSelectedDoctor}
@@ -435,11 +442,13 @@ export default function IngresoPage() {
               onSendMethodSelect={setSelectedSendMethod}
               onPatientFound={handlePatientFound}
               onPatientNotFound={handlePatientNotFound}
+              onCreateAnonymous={handleCreateAnonymous}
               onReset={handleReset}
               onShowCreateMedico={() => setShowCreateMedico(true)}
               onShowCreateObraSocial={() => setShowCreateObraSocial(true)}
               onPatientPaidChange={setPatientPaid}
               onAffiliateNumberChange={setAffiliateNumber}
+              onTrajoOrdenChange={setTrajoOrden}
               onRefundChange={setIsRefund}
             />
           </div>
@@ -459,9 +468,13 @@ export default function IngresoPage() {
 
               {patientNotFound && (
                 <CreatePatientForm
-                  initialDni={searchedDni}
+                  initialCuil={searchedCuil}
+                  defaultAnonymous={creatingAnonymous}
                   onPatientCreated={handlePatientCreated}
-                  onCancel={() => setPatientNotFound(false)}
+                  onCancel={() => {
+                    setPatientNotFound(false)
+                    setCreatingAnonymous(false)
+                  }}
                 />
               )}
 

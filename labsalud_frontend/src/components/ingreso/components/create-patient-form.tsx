@@ -3,31 +3,44 @@
 import type React from "react"
 
 import { useState } from "react"
-import { User, Save, X } from "lucide-react"
+import { AlertCircle, CheckCircle, User, Save, X, UserCog } from "lucide-react"
 import { Button } from "../../ui/button"
 import { Input } from "../../ui/input"
 import { Label } from "../../ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../ui/select"
+import { Switch } from "../../ui/switch"
 import { Card, CardContent, CardHeader, CardTitle } from "../../ui/card"
 import { useApi } from "../../../hooks/use-api"
 import { toast } from "sonner"
 import type { Patient } from "../../../types"
-import { PATIENT_ENDPOINTS } from "@/config/api"
+import { PATIENT_ENDPOINTS, TOAST_DURATION } from "@/config/api"
+import { formatApiError, getErrorMessage } from "@/lib/api-error"
+import { formatCuilForDisplay, getCuilValidationMessage, inferGenderFromCuil, isValidCuil, normalizeCuil } from "@/lib/cuil"
 
 interface CreatePatientFormProps {
-  initialDni: string
+  initialCuil: string
   onPatientCreated: (patient: Patient) => void
   onCancel: () => void
+  defaultAnonymous?: boolean
 }
 
-export function CreatePatientForm({ initialDni, onPatientCreated, onCancel }: CreatePatientFormProps) {
+type ValidationResult = { isValid: boolean; message: string }
+type ValidatedField = "cuil" | "first_name" | "last_name" | "birth_date" | "email"
+
+export function CreatePatientForm({
+  initialCuil,
+  onPatientCreated,
+  onCancel,
+  defaultAnonymous = false,
+}: CreatePatientFormProps) {
   const { apiRequest } = useApi()
+  const [isAnonymous, setIsAnonymous] = useState(defaultAnonymous)
   const [formData, setFormData] = useState({
     first_name: "",
     last_name: "",
-    dni: initialDni,
+    cuil: normalizeCuil(initialCuil),
     birth_date: "",
-    gender: "",
+    gender: inferGenderFromCuil(initialCuil) || "",
     phone_mobile: "",
     phone_landline: "",
     email: "",
@@ -37,12 +50,68 @@ export function CreatePatientForm({ initialDni, onPatientCreated, onCancel }: Cr
     address: "",
   })
   const [isCreating, setIsCreating] = useState(false)
+  const [touched, setTouched] = useState<Record<string, boolean>>({
+    cuil: Boolean(normalizeCuil(initialCuil)),
+  })
+
+  const validateField = (name: ValidatedField, value: string): ValidationResult => {
+    if (name === "cuil") {
+      const message = getCuilValidationMessage(value)
+      return { isValid: isValidCuil(value), message }
+    }
+    if (name === "first_name") {
+      if (!value.trim()) return { isValid: false, message: "El nombre es obligatorio" }
+      if (value.trim().length < 2) return { isValid: false, message: "Mínimo 2 caracteres" }
+      return { isValid: true, message: "Nombre válido" }
+    }
+    if (name === "last_name") {
+      if (!value.trim()) return { isValid: false, message: "El apellido es obligatorio" }
+      if (value.trim().length < 2) return { isValid: false, message: "Mínimo 2 caracteres" }
+      return { isValid: true, message: "Apellido válido" }
+    }
+    if (name === "birth_date") {
+      return value ? { isValid: true, message: "Fecha válida" } : { isValid: false, message: "La fecha de nacimiento es obligatoria" }
+    }
+    if (name === "email") {
+      if (!value.trim()) return { isValid: true, message: "" }
+      return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
+        ? { isValid: true, message: "Email válido" }
+        : { isValid: false, message: "Formato de email inválido" }
+    }
+    return { isValid: true, message: "" }
+  }
+
+  const getFieldValidation = (name: ValidatedField) => validateField(name, String(formData[name] || ""))
+
+  const getFieldStyle = (name: ValidatedField) => {
+    if (!touched[name]) return ""
+    return getFieldValidation(name).isValid ? "border-green-500 focus:ring-green-500" : "border-red-500 focus:ring-red-500"
+  }
+
+  const renderFieldMessage = (name: ValidatedField) => {
+    if (!touched[name]) return null
+    const field = getFieldValidation(name)
+    if (!field.message) return null
+
+    return (
+      <div className={`flex items-center gap-1 text-xs mt-1 ${field.isValid ? "text-green-600" : "text-red-600"}`}>
+        {field.isValid ? <CheckCircle className="h-3 w-3" /> : <AlertCircle className="h-3 w-3" />}
+        <span>{field.message}</span>
+      </div>
+    )
+  }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
-    if (name === "dni") {
-      const numericValue = value.replace(/\D/g, "")
-      setFormData((prev) => ({ ...prev, [name]: numericValue }))
+    setTouched((prev) => ({ ...prev, [name]: true }))
+    if (name === "cuil") {
+      const cleaned = normalizeCuil(value)
+      const inferredGender = inferGenderFromCuil(cleaned)
+      setFormData((prev) => ({
+        ...prev,
+        [name]: cleaned,
+        ...(inferredGender ? { gender: inferredGender } : {}),
+      }))
     } else {
       setFormData((prev) => ({ ...prev, [name]: value }))
     }
@@ -53,35 +122,81 @@ export function CreatePatientForm({ initialDni, onPatientCreated, onCancel }: Cr
   }
 
   const handleCreatePatient = async () => {
-    if (!formData.first_name || !formData.last_name || !formData.dni || !formData.birth_date || !formData.gender) {
-      toast.error("Complete los campos obligatorios")
-      return
+    if (isAnonymous) {
+      if (formData.first_name.trim().length < 2) {
+        setTouched((prev) => ({ ...prev, first_name: true }))
+        toast.error("Formulario inválido", {
+          description: "Ingresá un identificador (ej: 'Internado Cama 4').",
+          duration: TOAST_DURATION,
+        })
+        return
+      }
+    } else {
+      const fieldsToValidate: ValidatedField[] = ["cuil", "first_name", "last_name", "birth_date", "email"]
+      setTouched((prev) => ({ ...prev, ...Object.fromEntries(fieldsToValidate.map((field) => [field, true])) }))
+      const fieldsAreValid = fieldsToValidate.every((field) => getFieldValidation(field).isValid)
+
+      if (!fieldsAreValid || !formData.gender) {
+        toast.error("Formulario inválido", {
+          description: !formData.gender ? "Seleccione el género del paciente." : "Por favor, corrige los errores antes de continuar.",
+          duration: TOAST_DURATION,
+        })
+        return
+      }
     }
 
     try {
       setIsCreating(true)
-      console.log("Creating patient with data:", formData)
+
+      const buildAnonymousPayload = () => {
+        const result: Record<string, unknown> = {
+          first_name: formData.first_name.trim(),
+          is_anonymous: true,
+        }
+        const cuilDigits = normalizeCuil(formData.cuil)
+        if (cuilDigits) result.cuil = cuilDigits
+        if (formData.last_name.trim()) result.last_name = formData.last_name.trim()
+        if (formData.birth_date) result.birth_date = formData.birth_date
+        if (formData.gender) result.gender = formData.gender
+        if (formData.phone_mobile.trim()) result.phone_mobile = formData.phone_mobile.trim()
+        if (formData.phone_landline.trim()) result.alt_phone = formData.phone_landline.trim()
+        if (formData.email.trim()) result.email = formData.email.trim()
+        if (formData.country.trim()) result.country = formData.country.trim()
+        if (formData.province.trim()) result.province = formData.province.trim()
+        if (formData.city.trim()) result.city = formData.city.trim()
+        if (formData.address.trim()) result.address = formData.address.trim()
+        return result
+      }
+
+      const payload = isAnonymous
+        ? buildAnonymousPayload()
+        : { ...formData, cuil: normalizeCuil(formData.cuil) }
 
       const response = await apiRequest(PATIENT_ENDPOINTS.PATIENTS, {
         method: "POST",
-        body: formData,
+        body: payload,
       })
 
       if (response.ok) {
         const newPatient = await response.json()
-        console.log("Patient created:", newPatient)
         onPatientCreated(newPatient)
-        toast.success("Paciente creado exitosamente")
+        toast.success(isAnonymous ? "Paciente anónimo creado" : "Paciente creado exitosamente", {
+          duration: TOAST_DURATION,
+        })
       } else {
         const errorData = await response.json()
         console.error("Patient creation error:", errorData)
         toast.error("Error al crear paciente", {
-          description: errorData.detail || "Ha ocurrido un error al crear el paciente.",
+          description: formatApiError(errorData, "Ha ocurrido un error al crear el paciente."),
+          duration: TOAST_DURATION,
         })
       }
     } catch (error) {
       console.error("Error creating patient:", error)
-      toast.error("Error al crear el paciente")
+      toast.error("Error al crear el paciente", {
+        description: getErrorMessage(error, "Error de conexión con el servidor"),
+        duration: TOAST_DURATION,
+      })
     } finally {
       setIsCreating(false)
     }
@@ -96,143 +211,337 @@ export function CreatePatientForm({ initialDni, onPatientCreated, onCancel }: Cr
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="first_name">Nombre *</Label>
-            <Input
-              id="first_name"
-              name="first_name"
-              value={formData.first_name}
-              onChange={handleInputChange}
-              placeholder="Juan"
-              required
-            />
+        <div className="flex items-start justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3">
+          <div className="flex items-start gap-2">
+            <UserCog className="h-5 w-5 text-amber-600 mt-0.5" />
+            <div>
+              <Label htmlFor="ingreso_is_anonymous" className="cursor-pointer text-sm font-semibold text-amber-900">
+                Paciente anónimo
+              </Label>
+              <p className="text-xs text-amber-800">
+                Para pacientes sin datos completos. Solo requiere un identificador; el resto es opcional y se puede ir completando.
+              </p>
+            </div>
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="last_name">Apellido *</Label>
-            <Input
-              id="last_name"
-              name="last_name"
-              value={formData.last_name}
-              onChange={handleInputChange}
-              placeholder="Pérez"
-              required
-            />
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="dni">DNI *</Label>
-          <Input
-            id="dni"
-            name="dni"
-            value={formData.dni}
-            onChange={handleInputChange}
-            placeholder="12345678"
-            maxLength={8}
-            className="font-mono text-lg"
-            required
+          <Switch
+            id="ingreso_is_anonymous"
+            checked={isAnonymous}
+            onCheckedChange={(checked) => setIsAnonymous(checked)}
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="birth_date">Fecha de nacimiento *</Label>
-            <Input
-              id="birth_date"
-              name="birth_date"
-              type="date"
-              value={formData.birth_date}
-              onChange={handleInputChange}
-              required
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="gender">Género *</Label>
-            <Select value={formData.gender} onValueChange={(value) => handleSelectChange("gender", value)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Seleccionar género" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="M">Masculino</SelectItem>
-                <SelectItem value="F">Femenino</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
+        {isAnonymous ? (
+          <>
+            <div className="space-y-2">
+              <Label htmlFor="first_name" className="text-base font-semibold">
+                Identificador *
+              </Label>
+              <Input
+                id="first_name"
+                name="first_name"
+                value={formData.first_name}
+                onChange={handleInputChange}
+                placeholder="Internado Cama 4 / Juan"
+                className={getFieldStyle("first_name")}
+                required
+              />
+              {renderFieldMessage("first_name")}
+              <p className="text-xs text-gray-500">
+                Único campo obligatorio. Completá lo que tengas; el paciente deja de ser anónimo cuando se cargan todos los datos.
+              </p>
+            </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="phone_mobile">Teléfono móvil</Label>
-            <Input
-              id="phone_mobile"
-              name="phone_mobile"
-              value={formData.phone_mobile}
-              onChange={handleInputChange}
-              placeholder="Teléfono móvil"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="phone_landline">Teléfono fijo</Label>
-            <Input
-              id="phone_landline"
-              name="phone_landline"
-              value={formData.phone_landline}
-              onChange={handleInputChange}
-              placeholder="Teléfono fijo"
-            />
-          </div>
-        </div>
+            <div className="space-y-2">
+              <Label htmlFor="last_name_anon_ingreso">
+                Apellido <span className="text-gray-400 font-normal">(opcional)</span>
+              </Label>
+              <Input
+                id="last_name_anon_ingreso"
+                name="last_name"
+                value={formData.last_name}
+                onChange={handleInputChange}
+                placeholder="Pérez"
+              />
+            </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="email">Email</Label>
-          <Input
-            id="email"
-            name="email"
-            type="email"
-            value={formData.email}
-            onChange={handleInputChange}
-            placeholder="correo@ejemplo.com"
-          />
-        </div>
+            <div className="space-y-2">
+              <Label htmlFor="cuil_anon_ingreso">
+                CUIL <span className="text-gray-400 font-normal">(opcional)</span>
+              </Label>
+              <Input
+                id="cuil_anon_ingreso"
+                name="cuil"
+                value={formatCuilForDisplay(formData.cuil)}
+                onChange={handleInputChange}
+                placeholder="20-12345678-4"
+                maxLength={13}
+                className="font-mono"
+              />
+            </div>
 
-        <div className="grid grid-cols-3 gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="country">País</Label>
-            <Input
-              id="country"
-              name="country"
-              value={formData.country}
-              onChange={handleInputChange}
-              placeholder="País"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="province">Provincia</Label>
-            <Input
-              id="province"
-              name="province"
-              value={formData.province}
-              onChange={handleInputChange}
-              placeholder="Provincia"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="city">Ciudad</Label>
-            <Input id="city" name="city" value={formData.city} onChange={handleInputChange} placeholder="Ciudad" />
-          </div>
-        </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="birth_date_anon_ingreso">
+                  Fecha de nacimiento <span className="text-gray-400 font-normal">(opcional)</span>
+                </Label>
+                <Input
+                  id="birth_date_anon_ingreso"
+                  name="birth_date"
+                  type="date"
+                  value={formData.birth_date}
+                  onChange={handleInputChange}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="gender_anon_ingreso">
+                  Género <span className="text-gray-400 font-normal">(opcional)</span>
+                </Label>
+                <Select value={formData.gender} onValueChange={(value) => handleSelectChange("gender", value)}>
+                  <SelectTrigger id="gender_anon_ingreso">
+                    <SelectValue placeholder="Seleccionar" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="M">Masculino</SelectItem>
+                    <SelectItem value="F">Femenino</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="address">Dirección</Label>
-          <Input
-            id="address"
-            name="address"
-            value={formData.address}
-            onChange={handleInputChange}
-            placeholder="Dirección completa"
-          />
-        </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="phone_mobile_anon_ingreso">
+                  Teléfono móvil <span className="text-gray-400 font-normal">(opcional)</span>
+                </Label>
+                <Input
+                  id="phone_mobile_anon_ingreso"
+                  name="phone_mobile"
+                  value={formData.phone_mobile}
+                  onChange={handleInputChange}
+                  placeholder="Teléfono móvil"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="phone_landline_anon_ingreso">
+                  Teléfono fijo <span className="text-gray-400 font-normal">(opcional)</span>
+                </Label>
+                <Input
+                  id="phone_landline_anon_ingreso"
+                  name="phone_landline"
+                  value={formData.phone_landline}
+                  onChange={handleInputChange}
+                  placeholder="Teléfono fijo"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="email_anon_ingreso">
+                Email <span className="text-gray-400 font-normal">(opcional)</span>
+              </Label>
+              <Input
+                id="email_anon_ingreso"
+                name="email"
+                type="email"
+                value={formData.email}
+                onChange={handleInputChange}
+                placeholder="correo@ejemplo.com"
+              />
+            </div>
+
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="country_anon_ingreso">País</Label>
+                <Input
+                  id="country_anon_ingreso"
+                  name="country"
+                  value={formData.country}
+                  onChange={handleInputChange}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="province_anon_ingreso">Provincia</Label>
+                <Input
+                  id="province_anon_ingreso"
+                  name="province"
+                  value={formData.province}
+                  onChange={handleInputChange}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="city_anon_ingreso">Ciudad</Label>
+                <Input
+                  id="city_anon_ingreso"
+                  name="city"
+                  value={formData.city}
+                  onChange={handleInputChange}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="address_anon_ingreso">
+                Dirección <span className="text-gray-400 font-normal">(opcional)</span>
+              </Label>
+              <Input
+                id="address_anon_ingreso"
+                name="address"
+                value={formData.address}
+                onChange={handleInputChange}
+                placeholder="Dirección completa"
+              />
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="first_name">Nombre *</Label>
+                <Input
+                  id="first_name"
+                  name="first_name"
+                  value={formData.first_name}
+                  onChange={handleInputChange}
+                  placeholder="Juan"
+                  className={getFieldStyle("first_name")}
+                  required
+                />
+                {renderFieldMessage("first_name")}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="last_name">Apellido *</Label>
+                <Input
+                  id="last_name"
+                  name="last_name"
+                  value={formData.last_name}
+                  onChange={handleInputChange}
+                  placeholder="Pérez"
+                  className={getFieldStyle("last_name")}
+                  required
+                />
+                {renderFieldMessage("last_name")}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="cuil">CUIL *</Label>
+              <Input
+                id="cuil"
+                name="cuil"
+                value={formatCuilForDisplay(formData.cuil)}
+                onChange={handleInputChange}
+                placeholder="20123456784"
+                maxLength={13}
+                className={`font-mono text-lg ${getFieldStyle("cuil")}`}
+                required
+              />
+              {renderFieldMessage("cuil")}
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="birth_date">Fecha de nacimiento *</Label>
+                <Input
+                  id="birth_date"
+                  name="birth_date"
+                  type="date"
+                  value={formData.birth_date}
+                  onChange={handleInputChange}
+                  className={getFieldStyle("birth_date")}
+                  required
+                />
+                {renderFieldMessage("birth_date")}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="gender">Género *</Label>
+                <Select value={formData.gender} onValueChange={(value) => handleSelectChange("gender", value)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleccionar género" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="M">Masculino</SelectItem>
+                    <SelectItem value="F">Femenino</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="phone_mobile">Teléfono móvil</Label>
+                <Input
+                  id="phone_mobile"
+                  name="phone_mobile"
+                  value={formData.phone_mobile}
+                  onChange={handleInputChange}
+                  placeholder="Teléfono móvil"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="phone_landline">Teléfono fijo</Label>
+                <Input
+                  id="phone_landline"
+                  name="phone_landline"
+                  value={formData.phone_landline}
+                  onChange={handleInputChange}
+                  placeholder="Teléfono fijo"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                name="email"
+                type="email"
+                value={formData.email}
+                onChange={handleInputChange}
+                placeholder="correo@ejemplo.com"
+                className={getFieldStyle("email")}
+              />
+              {renderFieldMessage("email")}
+            </div>
+
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="country">País</Label>
+                <Input
+                  id="country"
+                  name="country"
+                  value={formData.country}
+                  onChange={handleInputChange}
+                  placeholder="País"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="province">Provincia</Label>
+                <Input
+                  id="province"
+                  name="province"
+                  value={formData.province}
+                  onChange={handleInputChange}
+                  placeholder="Provincia"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="city">Ciudad</Label>
+                <Input id="city" name="city" value={formData.city} onChange={handleInputChange} placeholder="Ciudad" />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="address">Dirección</Label>
+              <Input
+                id="address"
+                name="address"
+                value={formData.address}
+                onChange={handleInputChange}
+                placeholder="Dirección completa"
+              />
+            </div>
+          </>
+        )}
 
         <div className="flex gap-2 pt-4">
           <Button
@@ -245,7 +554,7 @@ export function CreatePatientForm({ initialDni, onPatientCreated, onCancel }: Cr
             ) : (
               <Save className="h-4 w-4 mr-2" />
             )}
-            {isCreating ? "Creando..." : "Crear Paciente"}
+            {isCreating ? "Creando..." : isAnonymous ? "Crear Paciente Anónimo" : "Crear Paciente"}
           </Button>
           <Button variant="outline" onClick={onCancel}>
             <X className="h-4 w-4 mr-2" />

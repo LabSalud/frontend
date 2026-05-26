@@ -11,6 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { useToast } from "@/hooks/use-toast"
 import type { ApiRequestOptions } from "@/hooks/use-api"
 import { USER_ENDPOINTS, AC_ENDPOINTS } from "@/config/api"
+import { formatApiError } from "@/lib/api-error"
 import { Eye, EyeOff } from "lucide-react"
 
 interface CreateUserDialogProps {
@@ -22,21 +23,7 @@ interface CreateUserDialogProps {
   refreshData: () => Promise<void>
 }
 
-const extractErrorMessage = (errorData: unknown): string => {
-  if (!errorData || typeof errorData !== "object") return "Error desconocido"
-  const err = errorData as Record<string, unknown>
-  if (typeof err.detail === "string") return err.detail
-  if (typeof err.error === "string") return err.error
-  if (typeof err.message === "string") return err.message
-  // Buscar errores de campo
-  for (const key of Object.keys(err)) {
-    const val = err[key]
-    if (Array.isArray(val) && val.length > 0) {
-      return `${key}: ${val[0]}`
-    }
-  }
-  return "Error desconocido"
-}
+const extractErrorMessage = (errorData: unknown): string => formatApiError(errorData, "Error desconocido")
 
 export function CreateUserDialog({
   open,

@@ -35,6 +35,7 @@ export const AUTH_ENDPOINTS = {
 export const USER_ENDPOINTS = {
   USERS: buildApiUrl("/users/users/"),
   USER_DETAIL: (id: number) => buildApiUrl(`/users/users/${id}/`),
+  USER_AUDIT_TIMELINE: (id: number) => buildApiUrl(`/users/users/${id}/audit-timeline/`),
   ME: buildApiUrl("/users/me/"),
   ME_CONTEXT: buildApiUrl("/users/me/context/"),
   PASSWORD_RESET: buildApiUrl("/users/password-reset/"),
@@ -57,34 +58,53 @@ export const AC_ENDPOINTS = {
 export const PATIENT_ENDPOINTS = {
   PATIENTS: buildApiUrl("/patients/patients/"),
   PATIENT_DETAIL: (id: number) => buildApiUrl(`/patients/patients/${id}/`),
+  PATIENT_AUDIT_TIMELINE: (id: number) => buildApiUrl(`/patients/patients/${id}/audit-timeline/`),
+  MERGE_PREVIEW: (sourceId: number, targetId: number) =>
+    buildApiUrl(`/patients/patients/${sourceId}/merge-preview/${targetId}/`),
+  MERGE: (sourceId: number, targetId: number) =>
+    buildApiUrl(`/patients/patients/${sourceId}/merge/${targetId}/`),
+  UNDO_UNIFICATION: (unificationId: number) =>
+    buildApiUrl(`/patients/patients/unifications/${unificationId}/undo/`),
 } as const
 
 export const MEDICAL_ENDPOINTS = {
   DOCTORS: buildApiUrl("/medicale/doctors/"),
   DOCTOR_DETAIL: (id: number) => buildApiUrl(`/medicale/doctors/${id}/`),
+  DOCTOR_AUDIT_TIMELINE: (id: number) => buildApiUrl(`/medicale/doctors/${id}/audit-timeline/`),
   INSURANCES: buildApiUrl("/medicale/insurances/"),
   INSURANCE_DETAIL: (id: number) => buildApiUrl(`/medicale/insurances/${id}/`),
+  INSURANCE_AUDIT_TIMELINE: (id: number) => buildApiUrl(`/medicale/insurances/${id}/audit-timeline/`),
 } as const
 
 export const CATALOG_ENDPOINTS = {
   ANALYSIS: buildApiUrl("/catalog/analysis/"),
   ANALYSIS_DETAIL: (id: number) => buildApiUrl(`/catalog/analysis/${id}/`),
+  ANALYSIS_AUDIT_TIMELINE: (id: number) => buildApiUrl(`/catalog/analysis/${id}/audit-timeline/`),
   ANALYSIS_IMPORT: buildApiUrl("/catalog/analysis/import-catalog/"),
+  CLEAR_CATALOG: buildApiUrl("/catalog/analysis/clear-catalog/"),
   DETERMINATIONS: buildApiUrl("/catalog/determination/"),
   DETERMINATION_DETAIL: (id: number) => buildApiUrl(`/catalog/determination/${id}/`),
+  DETERMINATION_AUDIT_TIMELINE: (id: number) => buildApiUrl(`/catalog/determination/${id}/audit-timeline/`),
 } as const
 
 // Protocol management endpoints
 export const PROTOCOL_ENDPOINTS = {
   PROTOCOLS: buildApiUrl("/protocols/protocols/"),
   PROTOCOL_DETAIL: (id: number) => buildApiUrl(`/protocols/protocols/${id}/`),
+  PROTOCOL_HISTORY: (id: number) => buildApiUrl(`/protocols/protocols/${id}/history/`),
   ARCA_BILLING: (id: number) => buildApiUrl(`/protocols/protocols/${id}/arca-billing/`),
+  REPORT: (id: number) => buildApiUrl(`/protocols/protocols/${id}/report/`),
   PROTOCOL_DETAILS: (id: number) => buildApiUrl(`/protocols/protocols/${id}/details/`),
   PROTOCOL_DETAIL_UPDATE: (protocolId: number, detailId: number) =>
     buildApiUrl(`/protocols/protocols/${protocolId}/details/${detailId}/`),
   SEND_METHODS: buildApiUrl("/protocols/send-methods/"),
   REPORT_BATCH: buildApiUrl("/protocols/protocols/report-batch/"),
   REGULARIZE_BALANCE: (id: number) => buildApiUrl(`/protocols/protocols/${id}/regularize-balance/`),
+  UNCANCEL: (id: number) => buildApiUrl(`/protocols/protocols/${id}/uncancel/`),
+  SET_COSEGURO: (id: number) => buildApiUrl(`/protocols/protocols/${id}/set-coseguro/`),
+  APPLY_PREAUTHORIZATION: buildApiUrl("/protocols/protocols/apply-preauthorization/"),
+  MERGE_REPORT: buildApiUrl("/protocols/protocols/merge-report/"),
+  AUDIT_TIMELINE: (id: number) => buildApiUrl(`/protocols/protocols/${id}/audit-timeline/`),
 } as const
 
 // Audit system endpoints
@@ -109,15 +129,14 @@ export const RESULTS_ENDPOINTS = {
     buildApiUrl(`/results/results/history/?patient_id=${patientId}&determination_id=${determinationId}`),
   PROTOCOLS_WITH_LOADED_RESULTS: buildApiUrl("/results/results/protocols-with-loaded-results/"),
   BY_PROTOCOL_WITH_VALUE: (protocolId: number) => buildApiUrl(`/results/results/by-protocol-with-value/${protocolId}/`),
+  RESULT_VALIDACIONES: (id: number) => buildApiUrl(`/results/results/${id}/validaciones/`),
+  RESULT_CAMBIOS: (id: number) => buildApiUrl(`/results/results/${id}/cambios/`),
 } as const
 
 // Reporting endpoints
 export const REPORTING_ENDPOINTS = {
-  PRINT: (id: number, type: "full" | "summary") => buildApiUrl(`/reports/protocols/${id}/print/?type=${type}`),
-  SEND_EMAIL: (id: number, type: "full" | "summary") =>
-    buildApiUrl(`/reports/protocols/${id}/send-email/?type=${type}`),
-  SEND_WHATSAPP: (id: number, type: "full" | "summary") =>
-    buildApiUrl(`/reports/protocols/${id}/send-whatsapp/?type=${type}`),
+  REPORT: (id: number) => buildApiUrl(`/protocols/protocols/${id}/report/`),
+  REPORT_BATCH: buildApiUrl("/protocols/protocols/report-batch/"),
 } as const
 
 // Billing endpoints
@@ -199,7 +218,7 @@ export interface SearchParams extends PaginationParams {
 
 // Patient specific filters
 export interface PatientFilters extends SearchParams {
-  dni?: string
+  cuil?: string
   gender?: "M" | "F"
   city?: string
   province?: string

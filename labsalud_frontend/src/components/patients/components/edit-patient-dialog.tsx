@@ -9,8 +9,10 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toast } from "sonner"
-import { AlertCircle, CheckCircle } from "lucide-react"
+import { AlertCircle, CheckCircle, UserCog, Sparkles } from "lucide-react"
 import { PATIENT_ENDPOINTS, TOAST_DURATION } from "@/config/api"
+import { formatApiError, getErrorMessage } from "@/lib/api-error"
+import { isValidCuil } from "@/lib/cuil"
 
 interface EditPatientDialogProps {
   isOpen: boolean
@@ -21,7 +23,7 @@ interface EditPatientDialogProps {
 }
 
 interface ValidationState {
-  dni: { isValid: boolean; message: string }
+  cuil: { isValid: boolean; message: string }
   first_name: { isValid: boolean; message: string }
   last_name: { isValid: boolean; message: string }
   email: { isValid: boolean; message: string }
@@ -32,7 +34,7 @@ interface ValidationState {
 
 export function EditPatientDialog({ isOpen, onClose, patient, setPatients, apiRequest }: EditPatientDialogProps) {
   const [formData, setFormData] = useState({
-    dni: "",
+    cuil: "",
     first_name: "",
     last_name: "",
     birth_date: "",
@@ -47,7 +49,7 @@ export function EditPatientDialog({ isOpen, onClose, patient, setPatients, apiRe
   })
 
   const [validation, setValidation] = useState<ValidationState>({
-    dni: { isValid: true, message: "" },
+    cuil: { isValid: true, message: "" },
     first_name: { isValid: true, message: "" },
     last_name: { isValid: true, message: "" },
     email: { isValid: true, message: "" },
@@ -59,17 +61,17 @@ export function EditPatientDialog({ isOpen, onClose, patient, setPatients, apiRe
   const [touched, setTouched] = useState<Record<string, boolean>>({})
 
   // Funciones de validación (iguales a las de crear)
-  const validateDNI = (dni: string) => {
-    if (!dni.trim()) {
-      return { isValid: false, message: "El DNI es obligatorio" }
+  const validateCUIL = (cuil: string) => {
+    const digits = cuil.replace(/-/g, "")
+    if (!digits.trim()) {
+      return { isValid: false, message: "El CUIL es obligatorio" }
     }
-    if (!/^\d+$/.test(dni)) {
-      return { isValid: false, message: "El DNI solo debe contener números" }
+    if (!/^\d+$/.test(digits)) {
+      return { isValid: false, message: "El CUIL solo debe contener números" }
     }
-    if (dni.length < 7 || dni.length > 8) {
-      return { isValid: false, message: "El DNI debe tener entre 7 y 8 dígitos" }
-    }
-    return { isValid: true, message: "DNI válido" }
+    if (digits.length !== 11) return { isValid: false, message: "El CUIL debe tener 11 dígitos" }
+    if (!isValidCuil(digits)) return { isValid: false, message: "El CUIL no es válido" }
+    return { isValid: true, message: "CUIL válido" }
   }
 
   const validateName = (name: string, field: string) => {
@@ -132,8 +134,8 @@ export function EditPatientDialog({ isOpen, onClose, patient, setPatients, apiRe
   const validateField = (name: string, value: string) => {
     let result
     switch (name) {
-      case "dni":
-        result = validateDNI(value)
+      case "cuil":
+        result = validateCUIL(value)
         break
       case "first_name":
         result = validateName(value, "El nombre")
@@ -182,7 +184,7 @@ export function EditPatientDialog({ isOpen, onClose, patient, setPatients, apiRe
       }
 
       const newFormData = {
-        dni: patient.dni,
+        cuil: patient.cuil,
         first_name: patient.first_name,
         last_name: patient.last_name,
         birth_date: formatDateForInput(patient.birth_date),
@@ -212,15 +214,15 @@ export function EditPatientDialog({ isOpen, onClose, patient, setPatients, apiRe
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
 
-    if (name === "dni") {
-      const numericValue = value.replace(/\D/g, "")
+    if (name === "cuil") {
+      const cleaned = value.replace(/[^\d-]/g, "")
       setFormData((prev) => ({
         ...prev,
-        [name]: numericValue,
+        [name]: cleaned,
       }))
 
       setTouched((prev) => ({ ...prev, [name]: true }))
-      validateField(name, numericValue)
+      validateField(name, cleaned)
     } else {
       setFormData((prev) => ({
         ...prev,
@@ -240,7 +242,7 @@ export function EditPatientDialog({ isOpen, onClose, patient, setPatients, apiRe
   }
 
   const isFormValid = () => {
-    const requiredFields = ["dni", "first_name", "last_name", "birth_date"]
+    const requiredFields = ["cuil", "first_name", "last_name", "birth_date"]
     const requiredFieldsValid = requiredFields.every((field) => {
       const fieldValidation = validation[field as keyof ValidationState]
       return fieldValidation.isValid
@@ -257,7 +259,7 @@ export function EditPatientDialog({ isOpen, onClose, patient, setPatients, apiRe
   const handleUpdatePatient = async () => {
     if (!patient) return
 
-    const requiredFields = ["dni", "first_name", "last_name", "birth_date"]
+    const requiredFields = ["cuil", "first_name", "last_name", "birth_date"]
     const newTouched = requiredFields.reduce((acc, field) => ({ ...acc, [field]: true }), touched)
     setTouched(newTouched)
 
@@ -278,6 +280,7 @@ export function EditPatientDialog({ isOpen, onClose, patient, setPatients, apiRe
 
       const dataToSend = {
         ...formData,
+        cuil: formData.cuil.replace(/-/g, ""),
         birth_date: formData.birth_date,
       }
 
@@ -292,28 +295,32 @@ export function EditPatientDialog({ isOpen, onClose, patient, setPatients, apiRe
         const updatedPatient = await response.json()
         setPatients((prev) => prev.map((p) => (p.id === updatedPatient.id ? updatedPatient : p)))
         toast.success("Paciente actualizado", {
-          description: `El paciente ${updatedPatient.first_name} ${updatedPatient.last_name} (DNI: ${updatedPatient.dni}) ha sido actualizado exitosamente.`,
+          description: `El paciente ${updatedPatient.first_name} ${updatedPatient.last_name} ha sido actualizado exitosamente.`,
           duration: TOAST_DURATION,
         })
         onClose()
       } else {
         const errorData = await response.json()
         toast.error("Error al actualizar paciente", {
-          description: errorData.detail || "Ha ocurrido un error al actualizar el paciente.",
+          description: formatApiError(errorData, "Ha ocurrido un error al actualizar el paciente."),
           duration: TOAST_DURATION,
         })
       }
     } catch (error) {
       console.error("Error al actualizar paciente:", error)
       toast.error("Error", {
-        description: "Ha ocurrido un error al actualizar el paciente.",
+        description: getErrorMessage(error, "Ha ocurrido un error al actualizar el paciente."),
         duration: TOAST_DURATION,
       })
     }
   }
 
-  const formatDniDisplay = (dni: string) => {
-    return dni.replace(/\B(?=(\d{3})+(?!\d))/g, ".")
+  const formatCuilDisplay = (cuil: string) => {
+    const digits = cuil.replace(/-/g, "")
+    if (digits.length === 11) {
+      return `${digits.slice(0, 2)}-${digits.slice(2, 10)}-${digits.slice(10)}`
+    }
+    return cuil
   }
 
   const getFieldStyle = (fieldName: string) => {
@@ -339,26 +346,46 @@ export function EditPatientDialog({ isOpen, onClose, patient, setPatients, apiRe
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Editar Paciente</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            Editar Paciente
+            {patient?.is_anonymous && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-amber-500 px-2 py-0.5 text-xs font-medium text-white">
+                <UserCog className="h-3 w-3" />
+                Anónimo
+              </span>
+            )}
+          </DialogTitle>
         </DialogHeader>
+        {patient?.is_anonymous && (
+          <div className="rounded-md border border-amber-200 bg-amber-50 p-3 flex items-start gap-2">
+            <Sparkles className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
+            <div className="text-xs text-amber-900">
+              <p className="font-semibold">Este es un paciente anónimo.</p>
+              <p>
+                Cuando completes CUIL, apellido, fecha de nacimiento, género, teléfono móvil, email,
+                provincia, ciudad y dirección, el paciente dejará de ser anónimo automáticamente al guardar.
+              </p>
+            </div>
+          </div>
+        )}
         <div className="grid gap-4 py-4">
-          {/* DNI - Campo principal */}
+          {/* CUIL - Campo principal */}
           <div className="space-y-2">
-            <Label htmlFor="edit-dni" className="text-base font-semibold">
-              DNI *
+            <Label htmlFor="edit-cuil" className="text-base font-semibold">
+              CUIL *
             </Label>
             <Input
-              id="edit-dni"
-              name="dni"
-              value={formData.dni}
+              id="edit-cuil"
+              name="cuil"
+              value={formData.cuil}
               onChange={handleInputChange}
-              placeholder="12345678"
-              maxLength={8}
-              className={`font-mono text-lg ${getFieldStyle("dni")}`}
+              placeholder="20-12345678-4"
+              maxLength={13}
+              className={`font-mono text-lg ${getFieldStyle("cuil")}`}
               required
             />
-            {renderFieldMessage("dni")}
-            {formData.dni && <p className="text-xs text-gray-500">Vista previa: {formatDniDisplay(formData.dni)}</p>}
+            {renderFieldMessage("cuil")}
+            {formData.cuil && <p className="text-xs text-gray-500">Vista previa: {formatCuilDisplay(formData.cuil)}</p>}
           </div>
 
           {/* Información personal */}

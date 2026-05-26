@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState, useCallback } from "react"
-import { CheckIcon, X, User, FileText, Stethoscope, Building, Send, DollarSign, TestTube } from "lucide-react"
+import { CheckIcon, X, User, FileText, Stethoscope, Building, Send, DollarSign, TestTube, ClipboardCheck } from "lucide-react"
 import { Button } from "../../ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "../../ui/card"
 import { Badge } from "../../ui/badge"
@@ -12,7 +12,7 @@ interface ProtocolSuccessProps {
   protocol: Protocol
   patient: Patient
   doctor: Doctor
-  insurance: Insurance
+  insurance: Insurance | null
   sendMethod: SendMethod
   onClose: () => void
 }
@@ -167,7 +167,7 @@ export function ProtocolSuccess({ protocol, patient, doctor, insurance, sendMeth
                   <div className="font-medium text-lg">
                     {patient.first_name} {patient.last_name}
                   </div>
-                  <div className="text-sm text-gray-600">DNI: {patient.dni}</div>
+                  <div className="text-sm text-gray-600">CUIL: {patient.cuil}</div>
                 </div>
               </div>
 
@@ -179,7 +179,7 @@ export function ProtocolSuccess({ protocol, patient, doctor, insurance, sendMeth
                     <Building className="h-4 w-4" />
                     <span>Obra Social:</span>
                   </div>
-                  <div className="pl-6 font-medium text-gray-800">{insurance.name}</div>
+                  <div className="pl-6 font-medium text-gray-800">{insurance?.name || protocol.insurance?.name || "Particular"}</div>
                 </div>
 
                 <div className="space-y-1">
@@ -199,6 +199,21 @@ export function ProtocolSuccess({ protocol, patient, doctor, insurance, sendMeth
                   </div>
                   <div className="pl-6 font-medium text-gray-800">{sendMethod.name}</div>
                 </div>
+              </div>
+
+              <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
+                <ClipboardCheck className={protocol.trajo_orden ? "h-4 w-4 text-emerald-600" : "h-4 w-4 text-amber-600"} />
+                <span className="text-gray-600">Orden médica:</span>
+                <Badge
+                  variant="outline"
+                  className={
+                    protocol.trajo_orden
+                      ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                      : "border-amber-200 bg-amber-50 text-amber-700"
+                  }
+                >
+                  {protocol.trajo_orden ? "Recibida" : "Pendiente"}
+                </Badge>
               </div>
 
               <Separator />

@@ -33,6 +33,16 @@ import {
 import { useApi } from "../../../hooks/use-api"
 import { RESULTS_ENDPOINTS } from "../../../config/api"
 import { useToast } from "../../../hooks/use-toast"
+import {
+  formatBioUnitValues,
+  formatEvaluatedReference,
+  formatReferenceRange,
+  formatReferenceValues,
+  getReferenceEvaluationLabel,
+} from "@/lib/catalog-format"
+import type { BioUnitValue, ReferenceRange, ReferenceRangeEvaluation, ReferenceValues } from "@/types"
+import { applyFormulaCalculations, calculateFormulaValue } from "@/lib/result-formulas"
+import { formatApiError } from "@/lib/api-error"
 
 const RESULTS_ANALYSIS_STATUS_FILTER_KEY = "labsalud_results_analysis_status_filters"
 
@@ -41,15 +51,19 @@ interface AvailableAnalysis {
   code: number
   name: string
   bio_unit: string
+  bio_unit_values?: BioUnitValue[]
   is_urgent: boolean
   is_active: boolean
 }
 
 interface Determination {
   id: number
+  code?: string
   name: string
   measure_unit: string
   formula: string
+  reference_values?: ReferenceValues
+  reference_ranges?: ReferenceRange[]
 }
 
 interface AnalysisInfo {
@@ -58,6 +72,7 @@ interface AnalysisInfo {
   code: number
   is_urgent: boolean
   ub: string
+  bio_unit_values?: BioUnitValue[]
 }
 
 interface ValidatedBy {
@@ -74,6 +89,8 @@ interface Result {
   is_valid: boolean
   notes: string
   is_wrong: boolean
+  is_out_of_reference_range?: boolean
+  reference_range_evaluation?: ReferenceRangeEvaluation | null
   is_active: boolean
   analysis: AnalysisInfo
   validated_by?: ValidatedBy | null
@@ -105,6 +122,8 @@ interface PreviousResultData {
   is_valid: boolean
   notes: string
   is_wrong: boolean
+  is_out_of_reference_range?: boolean
+  reference_range_evaluation?: ReferenceRangeEvaluation | null
   validated_by: ValidatedBy | null
   is_active: boolean
   analysis: AnalysisInfo
@@ -133,27 +152,16 @@ const getStatusColor = (statusId: number): string => {
       return "bg-teal-100 text-teal-800 border-teal-300"
     case 10:
       return "bg-indigo-100 text-indigo-800 border-indigo-300"
+    case 11:
+      return "bg-[#f8e8ee] text-[#800020] border-[#800020]"
+    case 12:
+      return "bg-amber-100 text-amber-800 border-amber-300"
     default:
       return "bg-gray-100 text-gray-800 border-gray-300"
   }
 }
 
-const extractErrorMessage = (errorData: any): string => {
-  if (typeof errorData === "string") return errorData
-  if (errorData?.detail) return errorData.detail
-  if (errorData?.error) return errorData.error
-  if (errorData?.message) return errorData.message
-  if (typeof errorData === "object") {
-    const firstKey = Object.keys(errorData)[0]
-    if (firstKey && Array.isArray(errorData[firstKey])) {
-      return `${firstKey}: ${errorData[firstKey][0]}`
-    }
-    if (firstKey && typeof errorData[firstKey] === "string") {
-      return `${firstKey}: ${errorData[firstKey]}`
-    }
-  }
-  return "Error desconocido"
-}
+const extractErrorMessage = (errorData: unknown): string => formatApiError(errorData, "Error desconocido")
 
 export function AnalysisAccordionView() {
   const { apiRequest } = useApi()
@@ -251,7 +259,7 @@ export function AnalysisAccordionView() {
               params.append("status__in", statusesWithoutCancelled.join(","))
             }
           } else {
-            params.append("status__in", "1,2,3,5,7")
+            params.append("status__in", "1,2,3,5,7,11")
           }
           if (params.toString()) {
             url += `?${params.toString()}`
@@ -283,7 +291,12 @@ export function AnalysisAccordionView() {
               }
             })
           })
-          setResultValues((prev) => ({ ...prev, ...initialValues }))
+          setResultValues((prev) =>
+            allResults.reduce((acc, protocol) => applyFormulaCalculations(protocol.results, acc), {
+              ...prev,
+              ...initialValues,
+            }),
+          )
 
           if (!Array.isArray(data) && data.next) {
             setNextUrl(data.next)
@@ -349,15 +362,24 @@ export function AnalysisAccordionView() {
     setHasMore(true)
   }, [])
 
-  const handleValueChange = useCallback((resultId: number, field: "value" | "notes", value: string) => {
-    setResultValues((prev) => ({
-      ...prev,
-      [resultId]: {
-        ...prev[resultId],
-        [field]: value,
-      },
-    }))
-  }, [])
+  const handleValueChange = useCallback(
+    (resultId: number, field: "value" | "notes", value: string, protocolId: number) => {
+      setResultValues((prev) => {
+        const updatedValues = {
+          ...prev,
+          [resultId]: {
+            ...prev[resultId],
+            [field]: value,
+          },
+        }
+
+        if (field !== "value") return updatedValues
+        const protocol = protocolsWithResults.find((item) => item.id === protocolId)
+        return protocol ? applyFormulaCalculations(protocol.results, updatedValues) : updatedValues
+      })
+    },
+    [protocolsWithResults],
+  )
 
   const handleSaveResult = useCallback(
     async (resultId: number, protocolId: number) => {
@@ -501,9 +523,7 @@ export function AnalysisAccordionView() {
       setLoadingPrevious((prev) => new Set(prev).add(resultId))
 
       try {
-        const response = await apiRequest(
-          `${RESULTS_ENDPOINTS.RESULT_DETAIL(0).replace("/0/", "/history/")}?patient_id=${patientId}&determination_id=${determinationId}`,
-        )
+        const response = await apiRequest(RESULTS_ENDPOINTS.PREVIOUS_RESULTS(patientId, determinationId))
 
         if (response.ok) {
           const data: PreviousResultData[] = await response.json()
@@ -647,36 +667,45 @@ export function AnalysisAccordionView() {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-            {filteredAnalysis.map((analysis) => (
-              <button
-                key={analysis.id}
-                onClick={() => handleSelectAnalysis(analysis)}
-                className="p-4 sm:p-6 bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md hover:border-[#204983] transition-all text-left group"
-              >
-                <div className="flex items-start gap-2 sm:gap-3 mb-2">
-                  <FlaskConical className="h-5 w-5 sm:h-6 sm:w-6 text-[#204983] group-hover:scale-110 transition-transform flex-shrink-0 mt-0.5" />
-                  <h3 className="font-semibold text-sm sm:text-lg text-gray-900 group-hover:text-[#204983] transition-colors line-clamp-2">
-                    {analysis.name}
-                  </h3>
-                </div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <Badge variant="outline" className="bg-gray-50 text-xs">
-                    Código: {analysis.code}
-                  </Badge>
-                  {analysis.is_urgent && (
-                    <Badge variant="destructive" className="bg-red-100 text-red-700 border-red-300 text-xs">
-                      Urgente
+            {filteredAnalysis.map((analysis) => {
+              const bioUnitItems = formatBioUnitValues(analysis.bio_unit_values)
+
+              return (
+                <button
+                  key={analysis.id}
+                  onClick={() => handleSelectAnalysis(analysis)}
+                  className="p-4 sm:p-6 bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md hover:border-[#204983] transition-all text-left group"
+                >
+                  <div className="flex items-start gap-2 sm:gap-3 mb-2">
+                    <FlaskConical className="h-5 w-5 sm:h-6 sm:w-6 text-[#204983] group-hover:scale-110 transition-transform flex-shrink-0 mt-0.5" />
+                    <h3 className="font-semibold text-sm sm:text-lg text-gray-900 group-hover:text-[#204983] transition-colors line-clamp-2">
+                      {analysis.name}
+                    </h3>
+                  </div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Badge variant="outline" className="bg-gray-50 text-xs">
+                      Código: {analysis.code}
                     </Badge>
+                    {analysis.is_urgent && (
+                      <Badge variant="destructive" className="bg-red-100 text-red-700 border-red-300 text-xs">
+                        Urgente
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-500 mt-2">Unidad: {analysis.bio_unit || "N/A"}</p>
+                  {bioUnitItems.length > 0 && (
+                    <p className="text-[10px] text-gray-400 mt-1">UB por año: {bioUnitItems.join(" · ")}</p>
                   )}
-                </div>
-                <p className="text-xs text-gray-500 mt-2">Unidad: {analysis.bio_unit || "N/A"}</p>
-              </button>
-            ))}
+                </button>
+              )
+            })}
           </div>
         )}
       </div>
     )
   }
+
+  const selectedBioUnitItems = formatBioUnitValues(selectedAnalysis.bio_unit_values)
 
   return (
     <div className="space-y-4">
@@ -694,6 +723,11 @@ export function AnalysisAccordionView() {
           {selectedAnalysis.is_urgent && (
             <Badge variant="destructive" className="bg-red-100 text-red-700 border-red-300 text-xs">
               Urgente
+            </Badge>
+          )}
+          {selectedBioUnitItems.length > 0 && (
+            <Badge variant="outline" className="bg-white text-xs">
+              UB por año: {selectedBioUnitItems.join(" · ")}
             </Badge>
           )}
         </div>
@@ -730,6 +764,15 @@ export function AnalysisAccordionView() {
             >
               <Filter className="h-3 w-3 mr-1" />
               <span className="hidden sm:inline">Pend.</span> Valid.
+            </Button>
+            <Button
+              variant={selectedStatuses.includes(11) ? "default" : "outline"}
+              size="sm"
+              onClick={() => toggleStatus(11)}
+              className={`text-xs ${selectedStatuses.includes(11) ? "bg-[#800020] hover:bg-[#670019]" : ""}`}
+            >
+              <AlertTriangle className="h-3 w-3 mr-1" />
+              <span className="hidden sm:inline">Pend.</span> Revisión
             </Button>
             <Button
               variant={selectedStatuses.includes(3) ? "default" : "outline"}
@@ -852,6 +895,11 @@ export function AnalysisAccordionView() {
                     <Badge variant="outline" className="bg-white text-xs">
                       Código: {selectedAnalysis.code}
                     </Badge>
+                    {selectedBioUnitItems.length > 0 && (
+                      <Badge variant="outline" className="bg-white text-xs">
+                        UB por año: {selectedBioUnitItems.join(" · ")}
+                      </Badge>
+                    )}
                   </div>
 
                   <div className="space-y-3">
@@ -864,6 +912,15 @@ export function AnalysisAccordionView() {
                       const isHistoryExpanded = expandedHistory.has(result.id)
                       const prevResults = previousResults[result.id] || []
                       const isLoadingHistory = loadingPrevious.has(result.id)
+                      const referenceItems = result.determination.reference_ranges?.length
+                        ? result.determination.reference_ranges.map(formatReferenceRange)
+                        : formatReferenceValues(result.determination.reference_values)
+                      const evaluation = result.reference_range_evaluation
+                      const isOutOfRange = result.is_out_of_reference_range || evaluation?.is_out_of_reference_range
+                      const evaluatedReference = formatEvaluatedReference(evaluation)
+                      const formulaCalculation = calculateFormulaValue(result, protocol.results, resultValues)
+                      const isFormulaResult = !!result.determination.formula?.trim()
+                      const isFormulaResolved = !!formulaCalculation && formulaCalculation.missingCodes.length === 0
 
                       return (
                         <div
@@ -886,6 +943,49 @@ export function AnalysisAccordionView() {
                               </p>
                               {result.determination.formula && (
                                 <p className="text-xs text-gray-400 mt-1">Fórmula: {result.determination.formula}</p>
+                              )}
+                              {isFormulaResult && (
+                                <Badge
+                                  variant="outline"
+                                  className={
+                                    isFormulaResolved
+                                      ? "mt-2 bg-blue-50 border-blue-200 text-blue-700 text-[10px]"
+                                      : "mt-2 bg-amber-50 border-amber-200 text-amber-700 text-[10px]"
+                                  }
+                                >
+                                  {isFormulaResolved ? "Calculado automáticamente" : "Fórmula pendiente"}
+                                </Badge>
+                              )}
+                              {referenceItems.length > 0 && (
+                                <div className="mt-2 flex flex-wrap gap-1">
+                                  {referenceItems.map((item) => (
+                                    <Badge
+                                      key={item}
+                                      variant="outline"
+                                      className="bg-slate-50 text-[10px] text-slate-700"
+                                    >
+                                      {item}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              )}
+                              {evaluation && evaluation.status !== "not_evaluated" && (
+                                <div className="mt-2 space-y-1">
+                                  <Badge
+                                    variant="outline"
+                                    className={
+                                      isOutOfRange
+                                        ? "bg-red-50 border-red-200 text-red-700 text-[10px]"
+                                        : "bg-emerald-50 border-emerald-200 text-emerald-700 text-[10px]"
+                                    }
+                                  >
+                                    {isOutOfRange && <AlertTriangle className="mr-1 h-3 w-3" />}
+                                    {getReferenceEvaluationLabel(evaluation)}
+                                  </Badge>
+                                  {evaluatedReference && (
+                                    <p className="text-[10px] text-gray-500">{evaluatedReference}</p>
+                                  )}
+                                </div>
                               )}
                               {isValidated && <Badge className="mt-2 bg-green-600 text-white">Validado</Badge>}
                               {isWrong && (
@@ -915,12 +1015,13 @@ export function AnalysisAccordionView() {
                                 }}
                                 placeholder="Valor"
                                 value={currentValue.value}
-                                onChange={(e) => handleValueChange(result.id, "value", e.target.value)}
+                                onChange={(e) => handleValueChange(result.id, "value", e.target.value, protocol.id)}
                                 onKeyDown={(e) => handleKeyDown(e, result.id, protocol.id)}
                                 onFocus={() =>
                                   handleInputFocus(result.id, protocol.patient.id, result.determination.id)
                                 }
                                 onBlur={handleInputBlur}
+                                readOnly={isFormulaResolved}
                                 disabled={isValidated && !isWrong}
                                 className={`${
                                   isWrong
@@ -966,7 +1067,7 @@ export function AnalysisAccordionView() {
                                 }}
                                 placeholder="Notas..."
                                 value={currentValue.notes}
-                                onChange={(e) => handleValueChange(result.id, "notes", e.target.value)}
+                                onChange={(e) => handleValueChange(result.id, "notes", e.target.value, protocol.id)}
                                 onKeyDown={(e) => handleTextareaKeyDown(e, result.id)}
                                 disabled={isValidated && !isWrong}
                                 className={`min-h-[60px] text-xs ${

@@ -5,6 +5,7 @@ import { useState } from "react"
 import { Link } from "react-router-dom"
 import { Mail, AlertCircle, CheckCircle, ArrowLeft } from "lucide-react"
 import { AUTH_ENDPOINTS, getAuthHeaders } from "../config/api"
+import { formatApiError, getErrorMessage } from "@/lib/api-error"
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState("")
@@ -49,12 +50,12 @@ export default function ForgotPassword() {
         if (response.status === 404) {
           setError("No se encontró una cuenta con este email")
         } else {
-          setError(errorData.detail || errorData.message || "Error al procesar la solicitud. Intenta nuevamente.")
+          setError(formatApiError(errorData, "Error al procesar la solicitud. Intenta nuevamente."))
         }
       }
     } catch (err) {
       console.error("[v0] Password reset error:", err)
-      setError("Error de conexión. Por favor, verifica tu conexión e intenta nuevamente.")
+      setError(getErrorMessage(err, "Error de conexión. Por favor, verifica tu conexión e intenta nuevamente."))
     } finally {
       setIsSubmitting(false)
     }

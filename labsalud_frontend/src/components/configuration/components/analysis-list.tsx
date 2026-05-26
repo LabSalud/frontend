@@ -4,6 +4,7 @@ import type React from "react"
 import { useState, useEffect, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Badge } from "@/components/ui/badge"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import {
   Loader2,
@@ -28,6 +29,8 @@ import { DeterminationHistoryDialog } from "./determination-history-dialog"
 import { AuditAvatars } from "@/components/common/audit-avatars"
 import type { Determination } from "@/types"
 import { CATALOG_ENDPOINTS } from "@/config/api"
+import { formatReferenceRange, formatReferenceValues } from "@/lib/catalog-format"
+import { formatApiError, getErrorMessage } from "@/lib/api-error"
 
 interface AnalysisCatalog {
   id: number
@@ -113,15 +116,13 @@ export const AnalysisList: React.FC<AnalysisListProps> = ({ analysis, showInacti
           setAnalysesNextUrl(data.next || null)
         } else {
           const errorData = await response.json().catch(() => ({}))
-          const errorMessage =
-            errorData.detail || errorData.error || errorData.message || "Error al cargar las determinaciones."
+          const errorMessage = formatApiError(errorData, "Error al cargar las determinaciones.")
           setError(errorMessage)
           toastActions.error("Error", { description: errorMessage })
         }
       } catch (fetchErr) {
         console.error("Error fetching analyses:", fetchErr)
-        const errorMessage =
-          fetchErr instanceof Error ? fetchErr.message : "Ocurrió un error inesperado al cargar determinaciones."
+        const errorMessage = getErrorMessage(fetchErr, "Ocurrió un error inesperado al cargar determinaciones.")
         setError(errorMessage)
         toastActions.error("Error", { description: errorMessage })
       } finally {
@@ -220,6 +221,9 @@ export const AnalysisList: React.FC<AnalysisListProps> = ({ analysis, showInacti
         <div className="space-y-2 px-2 md:px-4">
           {analyses.map((analysisItem) => {
             const isExpanded = expandedDeterminations.has(analysisItem.id)
+            const referenceItems = analysisItem.reference_ranges?.length
+              ? analysisItem.reference_ranges.map(formatReferenceRange)
+              : formatReferenceValues(analysisItem.reference_values)
 
             return (
               <div
@@ -246,6 +250,7 @@ export const AnalysisList: React.FC<AnalysisListProps> = ({ analysis, showInacti
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="text-xs md:text-sm font-medium text-gray-800 truncate">{analysisItem.name}</p>
+                      <p className="text-[10px] md:text-xs text-gray-500">Código: {analysisItem.code || "N/A"}</p>
                       <p className="text-[10px] md:text-xs text-gray-500">Unidad: {analysisItem.measure_unit}</p>
                       <p className="text-[10px] md:text-xs text-gray-500">
                         Fórmula:{" "}
@@ -313,6 +318,20 @@ export const AnalysisList: React.FC<AnalysisListProps> = ({ analysis, showInacti
 
                 {isExpanded && (
                   <div className="border-t p-4 bg-gray-50" onClick={(e) => e.stopPropagation()}>
+                    <div className="mb-3 rounded-md border border-gray-200 bg-white p-3">
+                      <p className="text-xs font-semibold text-gray-700">Valores de referencia</p>
+                      {referenceItems.length > 0 ? (
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          {referenceItems.map((item) => (
+                            <Badge key={item} variant="outline" className="bg-slate-50 text-[10px] text-slate-700">
+                              {item}
+                            </Badge>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="mt-1 text-xs italic text-gray-400">Sin valores de referencia cargados</p>
+                      )}
+                    </div>
                     <Button
                       variant="outline"
                       size="sm"

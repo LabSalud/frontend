@@ -16,6 +16,8 @@ import { toast } from "sonner"
 import { USER_ENDPOINTS, TOAST_DURATION } from "@/config/api"
 import type { HistoryEntry, ActiveTempPermission } from "@/types"
 import { HistoryList } from "@/components/common/history-list"
+import { formatApiError } from "@/lib/api-error"
+import { getStoredUser, setStoredUser } from "@/lib/auth-storage"
 
 interface ProfileData {
   id: number
@@ -41,22 +43,7 @@ interface ValidationErrors {
   photo?: string
 }
 
-const extractErrorMessage = (error: unknown): string => {
-  if (error && typeof error === "object") {
-    const err = error as Record<string, unknown>
-    if (typeof err.detail === "string") return err.detail
-    if (typeof err.error === "string") return err.error
-    if (typeof err.message === "string") return err.message
-    // Check for field-specific errors
-    for (const key in err) {
-      const value = err[key]
-      if (Array.isArray(value) && value.length > 0) {
-        return `${key}: ${value[0]}`
-      }
-    }
-  }
-  return "Error desconocido"
-}
+const extractErrorMessage = (error: unknown): string => formatApiError(error, "Error desconocido")
 
 export default function ProfilePage() {
   const { user } = useAuth()
@@ -204,20 +191,14 @@ export default function ProfilePage() {
           const updatedProfile: ProfileData = await response.json()
           setProfileData(updatedProfile)
 
-          // Obtener el usuario actual de sessionStorage
-          const currentUserData = sessionStorage.getItem("user")
-          if (currentUserData) {
-            const currentUser = JSON.parse(currentUserData)
-
-            // Actualizar solo los campos que pueden haber cambiado
-            const updatedUserData = {
+          // Actualizar el usuario almacenado con los campos que pueden haber cambiado
+          const currentUser = getStoredUser<{ email?: string; photo?: string | null; [key: string]: unknown }>()
+          if (currentUser) {
+            setStoredUser({
               ...currentUser,
               email: updatedProfile.email || currentUser.email,
               photo: updatedProfile.photo !== undefined ? updatedProfile.photo : currentUser.photo,
-            }
-
-            // Guardar el objeto usuario actualizado
-            sessionStorage.setItem("user", JSON.stringify(updatedUserData))
+            })
           }
 
           toast.success("Perfil actualizado correctamente", {
@@ -519,14 +500,14 @@ export default function ProfilePage() {
       </form>
 
       <Dialog open={showAuditDialog} onOpenChange={setShowAuditDialog}>
-        <DialogContent className="w-[95vw] max-w-2xl max-h-[80vh] overflow-y-auto">
+        <DialogContent className="w-[95vw] max-w-5xl max-h-[85vh] overflow-x-hidden overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-base sm:text-lg">
               <History className="h-4 w-4 sm:h-5 sm:w-5" />
               Historial Completo de Cambios
             </DialogTitle>
           </DialogHeader>
-          <div className="mt-4">
+          <div className="mt-4 min-w-0">
             {profileData && (
               <>
                 <p className="text-xs sm:text-sm text-gray-500 mb-4">Total de cambios: {profileData.total_changes}</p>

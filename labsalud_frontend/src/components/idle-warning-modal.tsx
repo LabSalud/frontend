@@ -19,9 +19,20 @@ interface IdleWarningModalProps {
   timeLeft: number
   onExtend: () => void
   onLogout: () => void
+  notificationsAvailable?: boolean
+  notificationsEnabled?: boolean
+  onEnableNotifications?: () => void
 }
 
-export const IdleWarningModal: React.FC<IdleWarningModalProps> = ({ isOpen, timeLeft, onExtend, onLogout }) => {
+export const IdleWarningModal: React.FC<IdleWarningModalProps> = ({
+  isOpen,
+  timeLeft,
+  onExtend,
+  onLogout,
+  notificationsAvailable = false,
+  notificationsEnabled = false,
+  onEnableNotifications,
+}) => {
   const formatTime = (seconds: number): string => {
     const mins = Math.floor(seconds / 60)
     const secs = seconds % 60
@@ -56,6 +67,17 @@ export const IdleWarningModal: React.FC<IdleWarningModalProps> = ({ isOpen, time
             <p className="text-sm text-gray-600 text-center">
               {timeLeft <= 10 ? "¡Tu sesión se cerrará muy pronto!" : "¿Deseas continuar con tu sesión?"}
             </p>
+            {notificationsAvailable && !notificationsEnabled && onEnableNotifications && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={onEnableNotifications}
+                className="mt-4 border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100"
+              >
+                Activar notificaciones
+              </Button>
+            )}
           </div>
 
           <DialogFooter className="flex gap-2 sm:gap-2">

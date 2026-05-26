@@ -20,6 +20,7 @@ import { useToast } from "@/hooks/use-toast"
 import { Loader2 } from "lucide-react"
 import type { Determination } from "@/types"
 import { CATALOG_ENDPOINTS } from "@/config/api"
+import { formatApiError, getErrorMessage } from "@/lib/api-error"
 
 interface EditDeterminationDialogProps {
   open?: boolean
@@ -44,6 +45,7 @@ export const EditDeterminationDialog: React.FC<EditDeterminationDialogProps> = (
   const [name, setName] = useState("")
   const [measureUnit, setMeasureUnit] = useState("")
   const [formula, setFormula] = useState("")
+  const [referenceValues, setReferenceValues] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
 
@@ -61,15 +63,31 @@ export const EditDeterminationDialog: React.FC<EditDeterminationDialogProps> = (
       setName(determination.name)
       setMeasureUnit(determination.measure_unit)
       setFormula(determination.formula || "")
+      setReferenceValues(
+        determination.reference_values ? JSON.stringify(determination.reference_values, null, 2) : "",
+      )
       setErrors({})
       setIsLoading(false)
     }
   }, [determination, isDialogOpen])
 
+  const parseReferenceValues = () => {
+    if (!referenceValues.trim()) return undefined
+
+    try {
+      return JSON.parse(referenceValues)
+    } catch {
+      return null
+    }
+  }
+
   const validateForm = () => {
     const newErrors: Record<string, string> = {}
     if (!name.trim()) newErrors.name = "El nombre es requerido."
     if (!measureUnit.trim()) newErrors.measureUnit = "La unidad de medida es requerida."
+    if (referenceValues.trim() && parseReferenceValues() === null) {
+      newErrors.referenceValues = "Los valores de referencia deben ser un JSON válido."
+    }
 
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
@@ -81,11 +99,18 @@ export const EditDeterminationDialog: React.FC<EditDeterminationDialogProps> = (
     setIsLoading(true)
     try {
       const determinationUpdateData: Partial<Determination> = {}
+      const parsedReferenceValues = parseReferenceValues()
+      const originalReferenceValues = determination.reference_values
+        ? JSON.stringify(determination.reference_values, null, 2)
+        : ""
 
       if (name !== determination.name) determinationUpdateData.name = name
       if (measureUnit !== determination.measure_unit) determinationUpdateData.measure_unit = measureUnit
       if (formula !== (determination.formula || "")) {
         determinationUpdateData.formula = formula.trim() || ""
+      }
+      if (referenceValues !== originalReferenceValues) {
+        determinationUpdateData.reference_values = parsedReferenceValues || {}
       }
 
       if (Object.keys(determinationUpdateData).length === 0) {
@@ -106,6 +131,7 @@ export const EditDeterminationDialog: React.FC<EditDeterminationDialogProps> = (
         handleOpenChange(false)
       } else {
         const errorData = await response.json()
+        const errorMessage = formatApiError(errorData, "No se pudo actualizar la determinación.")
         const backendErrors = errorData.detail || errorData.errors || errorData.error || errorData
         if (typeof backendErrors === "string") {
           setErrors({ form: backendErrors })
@@ -120,15 +146,15 @@ export const EditDeterminationDialog: React.FC<EditDeterminationDialogProps> = (
             }
           }
           setErrors(formattedErrors)
-          toastActions.error("Error", { description: "No se pudo actualizar la determinación." })
+          toastActions.error("Error", { description: errorMessage })
         } else {
           setErrors({ form: "Error al actualizar la determinación." })
-          toastActions.error("Error", { description: "No se pudo actualizar la determinación." })
+          toastActions.error("Error", { description: errorMessage })
         }
       }
     } catch (error) {
       console.error("Error updating determination:", error)
-      const errorMessage = error instanceof Error ? error.message : "Ocurrió un error de red o servidor."
+      const errorMessage = getErrorMessage(error, "Ocurrió un error de red o servidor.")
       setErrors({ form: errorMessage })
       toastActions.error("Error", { description: errorMessage })
     } finally {
@@ -149,6 +175,16 @@ export const EditDeterminationDialog: React.FC<EditDeterminationDialogProps> = (
           {errors.form && (
             <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded text-xs md:text-sm">
               {errors.form}
+            </div>
+          )}
+
+          {determination.code && (
+            <div className="space-y-2">
+              <Label className="text-sm text-gray-500">Código</Label>
+              <div className="rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-mono text-gray-700">
+                {determination.code}
+              </div>
+              <p className="text-xs text-gray-500">El código se genera automáticamente y no puede modificarse.</p>
             </div>
           )}
 
@@ -193,6 +229,23 @@ export const EditDeterminationDialog: React.FC<EditDeterminationDialogProps> = (
               className="text-sm"
             />
             {errors.formula && <p className="text-xs md:text-sm text-red-500">{errors.formula}</p>}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="edit-determination-reference-values" className="text-sm">
+              Valores de Referencia (JSON opcional)
+            </Label>
+            <Textarea
+              id="edit-determination-reference-values"
+              value={referenceValues}
+              onChange={(e) => setReferenceValues(e.target.value)}
+              placeholder='{"hombre_mayor":{"min":"70","max":"110"}}'
+              rows={4}
+              className="font-mono text-xs"
+            />
+            {errors.referenceValues && (
+              <p className="text-xs md:text-sm text-red-500">{errors.referenceValues}</p>
+            )}
           </div>
         </div>
 

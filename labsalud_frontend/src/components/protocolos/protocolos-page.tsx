@@ -15,12 +15,11 @@ import {
   Clock,
   Ban,
   AlertTriangle,
-  Receipt,
-  CheckSquare,
-  Square,
   Download,
   Mail,
   MessageCircle,
+  PenLine,
+  GitMerge,
 } from "lucide-react"
 import { Input } from "../ui/input"
 import { Button } from "../ui/button"
@@ -29,14 +28,14 @@ import { Skeleton } from "../ui/skeleton"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
 import { ProtocolCard } from "./components/protocol-card"
 import { useApi } from "../../hooks/use-api"
+import { useApiQuery } from "@/hooks/use-api-query"
 import { useInfiniteScroll } from "../../hooks/use-infinite-scroll"
 import { useDebounce } from "../../hooks/use-debounce"
-import { useAuth } from "@/contexts/auth-context"
 import { useNavigate } from "react-router-dom"
 import { toast } from "sonner"
-import { PROTOCOL_ENDPOINTS, ANALYTICS_ENDPOINTS, BILLING_ENDPOINTS, TOAST_DURATION } from "@/config/api"
-import { PERMISSIONS } from "@/config/permissions"
+import { PROTOCOL_ENDPOINTS, ANALYTICS_ENDPOINTS, TOAST_DURATION } from "@/config/api"
 import type { ProtocolListItem, SendMethod } from "@/types"
+import { formatApiError, getErrorMessage } from "@/lib/api-error"
 
 interface PaginatedResponse {
   count: number
@@ -63,21 +62,20 @@ const STATUS_ID_MAP: Record<number, string> = {
   6: "pendingRetiro",
   7: "sendFailed",
   10: "pendingDelivery",
+  11: "pendingReview",
+  12: "missingInfo",
 }
 
 const STATUS_FILTER_KEY = "labsalud_protocol_status_filters"
-const ALLOWED_STATUS_FILTERS = [1, 2, 3, 4, 5, 6, 7, 10]
+const ALLOWED_STATUS_FILTERS = [1, 2, 3, 4, 5, 6, 7, 10, 11, 12]
 
 export default function ProtocolosPage() {
   const { apiRequest } = useApi()
-  const { hasPermission } = useAuth()
   const navigate = useNavigate()
   const searchInputRef = useRef<HTMLInputElement>(null)
-  const canAccessBilling = hasPermission(PERMISSIONS.MANAGE_BILLING.id)
 
   // Estados principales
   const [allProtocols, setAllProtocols] = useState<ProtocolListItem[]>([])
-  const [sendMethods, setSendMethods] = useState<SendMethod[]>([])
   const [isInitialLoading, setIsInitialLoading] = useState(true)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
   const [isSearching, setIsSearching] = useState(false)
@@ -98,84 +96,62 @@ export default function ProtocolosPage() {
   const [nextUrl, setNextUrl] = useState<string | null>(null)
   const [totalCount, setTotalCount] = useState(0)
 
-  // Estados para seleccion batch
-  const [isSelectionMode, setIsSelectionMode] = useState(false)
+  // Selección batch (el checkbox está siempre visible; el modo se infiere de la selección)
   const [selectedProtocols, setSelectedProtocols] = useState<Set<number>>(new Set())
+  const isSelectionMode = selectedProtocols.size > 0
   const [batchReportType, setBatchReportType] = useState<"full" | "summary">("full")
+  const [batchSigned, setBatchSigned] = useState(false)
   const [isBatchProcessing, setIsBatchProcessing] = useState(false)
-
-  // Estados para estadísticas
-  const [stats, setStats] = useState({
-    total: 0,
-    pendingEntry: 0,
-    pendingRetiro: 0,
-    incompletePayment: 0,
-    pendingValidation: 0,
-    completed: 0,
-    cancelled: 0,
-    sendFailed: 0,
-    pendingDelivery: 0,
-    pendingBilling: 0,
-  })
 
   // Debounce para la búsqueda
   const debouncedSearchTerm = useDebounce(searchTerm, 300)
 
-  const fetchStateStats = useCallback(async () => {
-    try {
-      const [statusResponse, billingSummaryResponse] = await Promise.all([
-        apiRequest(ANALYTICS_ENDPOINTS.PROTOCOLS_BY_STATUS),
-        apiRequest(BILLING_ENDPOINTS.SUMMARY),
-      ])
+  // Estadísticas por estado vía React Query — cache 30s, refetch en window focus.
+  const stateStatsQuery = useApiQuery<ProtocolsByStatusResponse>({
+    queryKey: ["analytics", "protocols-by-status"],
+    url: ANALYTICS_ENDPOINTS.PROTOCOLS_BY_STATUS,
+    staleTime: 30 * 1000,
+  })
 
-      if (statusResponse.ok) {
-        const data: ProtocolsByStatusResponse = await statusResponse.json()
-
-        // Inicializar stats con todos en 0
-        const newStats = {
-          total: data.total_protocols,
-          pendingEntry: 0,
-          pendingRetiro: 0,
-          incompletePayment: 0,
-          pendingValidation: 0,
-          completed: 0,
-          cancelled: 0,
-          sendFailed: 0,
-          pendingDelivery: 0,
-          pendingBilling: 0,
-        }
-
-        // Solo asignar los que vienen en la respuesta (los que tienen 1 o más)
-        data.states.forEach((state) => {
-          const key = STATUS_ID_MAP[state.status_id]
-          if (key && key in newStats) {
-            ;(newStats as Record<string, number>)[key] = state.count
-          }
-        })
-
-        if (billingSummaryResponse.ok) {
-          const billingData = await billingSummaryResponse.json()
-          newStats.pendingBilling = Number(billingData.protocolos_por_facturar || 0)
-        }
-
-        setStats(newStats)
-      }
-    } catch (error) {
-      console.error("Error fetching state stats:", error)
+  const stats = (() => {
+    const base = {
+      total: 0,
+      pendingEntry: 0,
+      pendingRetiro: 0,
+      incompletePayment: 0,
+      pendingValidation: 0,
+      completed: 0,
+      cancelled: 0,
+      sendFailed: 0,
+      pendingDelivery: 0,
+      pendingReview: 0,
+      missingInfo: 0,
     }
-  }, [apiRequest])
-
-  const fetchSendMethods = useCallback(async () => {
-    try {
-      const response = await apiRequest(PROTOCOL_ENDPOINTS.SEND_METHODS)
-      if (response.ok) {
-        const data = await response.json()
-        setSendMethods(data.results || data)
+    const data = stateStatsQuery.data
+    if (!data) return base
+    base.total = data.total_protocols
+    data.states.forEach((state) => {
+      const key = STATUS_ID_MAP[state.status_id]
+      if (key && key in base) {
+        ;(base as Record<string, number>)[key] = state.count
       }
-    } catch (error) {
-      console.error("Error fetching send methods:", error)
-    }
-  }, [apiRequest])
+    })
+    return base
+  })()
+
+  const fetchStateStats = useCallback(() => {
+    stateStatsQuery.refetch()
+  }, [stateStatsQuery])
+
+  // Send methods raramente cambia → cache de 30 minutos
+  const sendMethodsQuery = useApiQuery<{ results?: SendMethod[] } | SendMethod[]>({
+    queryKey: ["protocols", "send-methods"],
+    url: PROTOCOL_ENDPOINTS.SEND_METHODS,
+    staleTime: 30 * 60 * 1000,
+  })
+  const sendMethods: SendMethod[] = Array.isArray(sendMethodsQuery.data)
+    ? sendMethodsQuery.data
+    : sendMethodsQuery.data?.results || []
 
   const buildUrl = useCallback(
     (search = "", offset = 0) => {
@@ -274,7 +250,6 @@ export default function ProtocolosPage() {
   // Efecto para carga inicial
   useEffect(() => {
     fetchProtocolsFromAPI()
-    fetchSendMethods()
     fetchStateStats()
   }, [])
 
@@ -321,13 +296,6 @@ export default function ProtocolosPage() {
     )
   }
 
-  const toggleSelectionMode = () => {
-    setIsSelectionMode((prev) => {
-      if (prev) setSelectedProtocols(new Set())
-      return !prev
-    })
-  }
-
   const toggleProtocolSelection = useCallback((id: number) => {
     setSelectedProtocols((prev) => {
       const next = new Set(prev)
@@ -348,6 +316,62 @@ export default function ProtocolosPage() {
     setSelectedProtocols(new Set())
   }
 
+  const handleMergeReport = async (action: "download" | "email" | "whatsapp") => {
+    if (selectedProtocols.size < 2) {
+      toast.error("Seleccioná al menos 2 protocolos del mismo paciente.", { duration: TOAST_DURATION })
+      return
+    }
+    const ids = Array.from(selectedProtocols)
+    const patientIds = new Set(
+      allProtocols.filter((p) => ids.includes(p.id)).map((p) => p.patient?.id).filter((id): id is number => typeof id === "number"),
+    )
+    if (patientIds.size > 1) {
+      toast.error("Todos los protocolos deben ser del mismo paciente para unificar el reporte.", { duration: TOAST_DURATION })
+      return
+    }
+
+    setIsBatchProcessing(true)
+    try {
+      const response = await apiRequest(PROTOCOL_ENDPOINTS.MERGE_REPORT, {
+        method: "POST",
+        body: {
+          protocol_ids: ids,
+          action,
+          type: batchReportType,
+          signed: batchSigned,
+        },
+      })
+
+      if (response.ok) {
+        if (action === "download") {
+          const blob = await response.blob()
+          const url = window.URL.createObjectURL(blob)
+          const a = document.createElement("a")
+          a.href = url
+          const signedSuffix = batchSigned ? "firmado" : "sin_firma"
+          a.download = `reporte_unificado_${batchReportType}_${signedSuffix}_${new Date().toISOString().slice(0, 10)}.pdf`
+          document.body.appendChild(a)
+          a.click()
+          document.body.removeChild(a)
+          window.URL.revokeObjectURL(url)
+          toast.success("Reporte unificado descargado", { duration: TOAST_DURATION })
+        } else {
+          const data = await response.json().catch(() => ({}))
+          toast.success(data.detail || "Reporte unificado enviado", { duration: TOAST_DURATION })
+        }
+        setSelectedProtocols(new Set())
+      } else {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(formatApiError(errorData, "No se pudo generar el reporte unificado"))
+      }
+    } catch (error) {
+      console.error("Error merge report:", error)
+      toast.error(getErrorMessage(error, "Error al generar el reporte unificado"), { duration: TOAST_DURATION })
+    } finally {
+      setIsBatchProcessing(false)
+    }
+  }
+
   const handleBatchAction = async (action: "download" | "email" | "whatsapp") => {
     if (selectedProtocols.size === 0) return
 
@@ -359,6 +383,7 @@ export default function ProtocolosPage() {
           protocol_ids: Array.from(selectedProtocols),
           action,
           type: batchReportType,
+          signed: batchSigned,
         },
       })
 
@@ -368,7 +393,8 @@ export default function ProtocolosPage() {
           const url = window.URL.createObjectURL(blob)
           const a = document.createElement("a")
           a.href = url
-          a.download = `reportes_${new Date().toISOString().slice(0, 10)}.zip`
+          const signedSuffix = batchSigned ? "firmado" : "sin_firma"
+          a.download = `protocolos_${batchReportType}_${signedSuffix}_${new Date().toISOString().slice(0, 10)}.pdf`
           document.body.appendChild(a)
           a.click()
           document.body.removeChild(a)
@@ -391,14 +417,13 @@ export default function ProtocolosPage() {
           }
         }
         setSelectedProtocols(new Set())
-        setIsSelectionMode(false)
       } else {
         const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.detail || errorData.error || "Error al procesar los reportes")
+        throw new Error(formatApiError(errorData, "Error al procesar los reportes"))
       }
     } catch (error) {
       console.error("Error batch action:", error)
-      const message = error instanceof Error ? error.message : "Error al procesar los reportes"
+      const message = getErrorMessage(error, "Error al procesar los reportes")
       toast.error(message, { duration: TOAST_DURATION })
     } finally {
       setIsBatchProcessing(false)
@@ -424,8 +449,8 @@ export default function ProtocolosPage() {
 
         {/* Stats cards skeleton */}
         <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-md p-4 md:p-6 mb-4 md:mb-6">
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-9 gap-3 sm:gap-4">
-            {[...Array(9)].map((_, i) => (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-10 gap-3 sm:gap-4">
+            {[...Array(10)].map((_, i) => (
               <Skeleton key={i} className="h-24 rounded-lg" />
             ))}
           </div>
@@ -483,14 +508,6 @@ export default function ProtocolosPage() {
             </p>
           </div>
           <div className="flex gap-2 w-full sm:w-auto">
-            <Button
-              variant={isSelectionMode ? "default" : "outline"}
-              onClick={toggleSelectionMode}
-              className={`flex-1 sm:flex-initial ${isSelectionMode ? "bg-[#204983]" : ""}`}
-            >
-              {isSelectionMode ? <CheckSquare className="mr-2 h-4 w-4" /> : <Square className="mr-2 h-4 w-4" />}
-              {isSelectionMode ? "Cancelar" : "Seleccionar"}
-            </Button>
             <Button onClick={handleNewProtocol} className="bg-[#204983] flex-1 sm:flex-initial">
               <Plus className="mr-2 h-4 w-4" />
               Nuevo Protocolo
@@ -503,8 +520,8 @@ export default function ProtocolosPage() {
       <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-md p-4 md:p-6 mb-4 md:mb-6">
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-3">
           <Card>
-            <CardContent className="px-2 py-1 sm:px-2.5 sm:py-1.5">
-              <div className="space-y-0.5">
+            <CardContent className="flex h-full items-center justify-center px-2 py-1 text-center sm:px-2.5 sm:py-1.5">
+              <div className="w-full space-y-0.5 text-center">
                 <div className="flex items-center justify-center gap-1">
                   <FileText className="h-5 w-5 sm:h-6 sm:w-6 text-gray-400 flex-shrink-0" />
                   <p className="text-lg sm:text-2xl font-bold text-gray-900">{stats.total}</p>
@@ -515,8 +532,8 @@ export default function ProtocolosPage() {
           </Card>
 
           <Card className="bg-yellow-50">
-            <CardContent className="px-2 py-1 sm:px-2.5 sm:py-1.5">
-              <div className="space-y-0.5">
+            <CardContent className="flex h-full items-center justify-center px-2 py-1 text-center sm:px-2.5 sm:py-1.5">
+              <div className="w-full space-y-0.5 text-center">
                 <div className="flex items-center justify-center gap-1">
                   <Clock className="h-5 w-5 sm:h-6 sm:w-6 text-yellow-400 flex-shrink-0" />
                   <p className="text-lg sm:text-2xl font-bold text-yellow-600">{stats.pendingEntry}</p>
@@ -527,8 +544,8 @@ export default function ProtocolosPage() {
           </Card>
 
           <Card className="bg-purple-50">
-            <CardContent className="px-2 py-1 sm:px-2.5 sm:py-1.5">
-              <div className="space-y-0.5">
+            <CardContent className="flex h-full items-center justify-center px-2 py-1 text-center sm:px-2.5 sm:py-1.5">
+              <div className="w-full space-y-0.5 text-center">
                 <div className="flex items-center justify-center gap-1">
                   <User className="h-5 w-5 sm:h-6 sm:w-6 text-purple-400 flex-shrink-0" />
                   <p className="text-lg sm:text-2xl font-bold text-purple-600">{stats.pendingRetiro}</p>
@@ -539,8 +556,8 @@ export default function ProtocolosPage() {
           </Card>
 
           <Card className="bg-orange-50">
-            <CardContent className="px-2 py-1 sm:px-2.5 sm:py-1.5">
-              <div className="space-y-0.5">
+            <CardContent className="flex h-full items-center justify-center px-2 py-1 text-center sm:px-2.5 sm:py-1.5">
+              <div className="w-full space-y-0.5 text-center">
                 <div className="flex items-center justify-center gap-1">
                   <Calendar className="h-5 w-5 sm:h-6 sm:w-6 text-orange-400 flex-shrink-0" />
                   <p className="text-lg sm:text-2xl font-bold text-orange-600">{stats.incompletePayment}</p>
@@ -551,8 +568,8 @@ export default function ProtocolosPage() {
           </Card>
 
           <Card className="bg-sky-50">
-            <CardContent className="px-2 py-1 sm:px-2.5 sm:py-1.5">
-              <div className="space-y-0.5">
+            <CardContent className="flex h-full items-center justify-center px-2 py-1 text-center sm:px-2.5 sm:py-1.5">
+              <div className="w-full space-y-0.5 text-center">
                 <div className="flex items-center justify-center gap-1">
                   <Filter className="h-5 w-5 sm:h-6 sm:w-6 text-sky-400 flex-shrink-0" />
                   <p className="text-lg sm:text-2xl font-bold text-sky-600">{stats.pendingValidation}</p>
@@ -562,9 +579,21 @@ export default function ProtocolosPage() {
             </CardContent>
           </Card>
 
+          <Card className="bg-[#f8e8ee]">
+            <CardContent className="flex h-full items-center justify-center px-2 py-1 text-center sm:px-2.5 sm:py-1.5">
+              <div className="w-full space-y-0.5 text-center">
+                <div className="flex items-center justify-center gap-1">
+                  <PenLine className="h-5 w-5 sm:h-6 sm:w-6 text-[#800020] flex-shrink-0" />
+                  <p className="text-lg sm:text-2xl font-bold text-[#800020]">{stats.pendingReview}</p>
+                </div>
+                <p className="text-xs sm:text-sm font-medium text-[#800020] text-center break-words">Pend. Revisión</p>
+              </div>
+            </CardContent>
+          </Card>
+
           <Card className="bg-green-50">
-            <CardContent className="px-2 py-1 sm:px-2.5 sm:py-1.5">
-              <div className="space-y-0.5">
+            <CardContent className="flex h-full items-center justify-center px-2 py-1 text-center sm:px-2.5 sm:py-1.5">
+              <div className="w-full space-y-0.5 text-center">
                 <div className="flex items-center justify-center gap-1">
                   <CheckCircle className="h-5 w-5 sm:h-6 sm:w-6 text-green-400 flex-shrink-0" />
                   <p className="text-lg sm:text-2xl font-bold text-green-600">{stats.completed}</p>
@@ -575,8 +604,8 @@ export default function ProtocolosPage() {
           </Card>
 
           <Card className="bg-red-50">
-            <CardContent className="px-2 py-1 sm:px-2.5 sm:py-1.5">
-              <div className="space-y-0.5">
+            <CardContent className="flex h-full items-center justify-center px-2 py-1 text-center sm:px-2.5 sm:py-1.5">
+              <div className="w-full space-y-0.5 text-center">
                 <div className="flex items-center justify-center gap-1">
                   <Ban className="h-5 w-5 sm:h-6 sm:w-6 text-red-400 flex-shrink-0" />
                   <p className="text-lg sm:text-2xl font-bold text-red-600">{stats.cancelled}</p>
@@ -587,8 +616,8 @@ export default function ProtocolosPage() {
           </Card>
 
           <Card className="bg-pink-50">
-            <CardContent className="px-2 py-1 sm:px-2.5 sm:py-1.5">
-              <div className="space-y-0.5">
+            <CardContent className="flex h-full items-center justify-center px-2 py-1 text-center sm:px-2.5 sm:py-1.5">
+              <div className="w-full space-y-0.5 text-center">
                 <div className="flex items-center justify-center gap-1">
                   <AlertTriangle className="h-5 w-5 sm:h-6 sm:w-6 text-pink-400 flex-shrink-0" />
                   <p className="text-lg sm:text-2xl font-bold text-pink-600">{stats.sendFailed}</p>
@@ -599,8 +628,8 @@ export default function ProtocolosPage() {
           </Card>
 
           <Card className="bg-indigo-50">
-            <CardContent className="px-2 py-1 sm:px-2.5 sm:py-1.5">
-              <div className="space-y-0.5">
+            <CardContent className="flex h-full items-center justify-center px-2 py-1 text-center sm:px-2.5 sm:py-1.5">
+              <div className="w-full space-y-0.5 text-center">
                 <div className="flex items-center justify-center gap-1">
                   <Mail className="h-5 w-5 sm:h-6 sm:w-6 text-indigo-400 flex-shrink-0" />
                   <p className="text-lg sm:text-2xl font-bold text-indigo-600">{stats.pendingDelivery}</p>
@@ -610,19 +639,18 @@ export default function ProtocolosPage() {
             </CardContent>
           </Card>
 
-          {canAccessBilling && (
-            <Card className="bg-teal-50">
-              <CardContent className="px-2 py-1 sm:px-2.5 sm:py-1.5">
-                <div className="space-y-0.5">
-                  <div className="flex items-center justify-center gap-1">
-                    <Receipt className="h-5 w-5 sm:h-6 sm:w-6 text-teal-400 flex-shrink-0" />
-                    <p className="text-lg sm:text-2xl font-bold text-teal-600">{stats.pendingBilling}</p>
-                  </div>
-                  <p className="text-xs sm:text-sm font-medium text-teal-700 text-center break-words">Pend. Facturación</p>
+          <Card className="bg-amber-50">
+            <CardContent className="flex h-full items-center justify-center px-2 py-1 text-center sm:px-2.5 sm:py-1.5">
+              <div className="w-full space-y-0.5 text-center">
+                <div className="flex items-center justify-center gap-1">
+                  <AlertCircle className="h-5 w-5 sm:h-6 sm:w-6 text-amber-500 flex-shrink-0" />
+                  <p className="text-lg sm:text-2xl font-bold text-amber-700">{stats.missingInfo}</p>
                 </div>
-              </CardContent>
-            </Card>
-          )}
+                <p className="text-xs sm:text-sm font-medium text-amber-800 text-center break-words">Info Faltante</p>
+              </div>
+            </CardContent>
+          </Card>
+
         </div>
       </div>
 
@@ -674,6 +702,15 @@ export default function ProtocolosPage() {
               >
                 <Filter className="h-3 w-3 mr-1" />
                 Pend. Validación
+              </Button>
+              <Button
+                variant={selectedStatuses.includes(11) ? "default" : "outline"}
+                size="sm"
+                onClick={() => toggleStatus(11)}
+                className={selectedStatuses.includes(11) ? "bg-[#800020] hover:bg-[#670019]" : ""}
+              >
+                <PenLine className="h-3 w-3 mr-1" />
+                Pend. Revisión
               </Button>
               <Button
                 variant={selectedStatuses.includes(3) ? "default" : "outline"}
@@ -728,6 +765,15 @@ export default function ProtocolosPage() {
               >
                 <Mail className="h-3 w-3 mr-1" />
                 Pend. Envío
+              </Button>
+              <Button
+                variant={selectedStatuses.includes(12) ? "default" : "outline"}
+                size="sm"
+                onClick={() => toggleStatus(12)}
+                className={selectedStatuses.includes(12) ? "bg-amber-500 hover:bg-amber-600" : ""}
+              >
+                <AlertCircle className="h-3 w-3 mr-1" />
+                Info Faltante
               </Button>
               {selectedStatuses.length > 0 && (
                 <Button variant="ghost" size="sm" onClick={() => setSelectedStatuses([])} className="text-gray-500">
@@ -807,7 +853,6 @@ export default function ProtocolosPage() {
                   protocol={protocol}
                   onUpdate={refreshProtocols}
                   sendMethods={sendMethods}
-                  isSelectionMode={isSelectionMode}
                   isSelected={selectedProtocols.has(protocol.id)}
                   onToggleSelection={toggleProtocolSelection}
                 />
@@ -865,6 +910,20 @@ export default function ProtocolosPage() {
               </SelectContent>
             </Select>
 
+            {/* Signed toggle */}
+            <button
+              type="button"
+              onClick={() => setBatchSigned(!batchSigned)}
+              className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors whitespace-nowrap ${
+                batchSigned
+                  ? "border-[#204983] bg-blue-50 text-[#204983]"
+                  : "border-gray-200 bg-white text-gray-700 hover:border-gray-300"
+              }`}
+            >
+              <PenLine className="h-4 w-4 shrink-0" />
+              <span className="font-medium">{batchSigned ? "Firma digital" : "Sin firma digital"}</span>
+            </button>
+
             {/* Action buttons */}
             <div className="flex items-center gap-2 w-full sm:w-auto">
               <Button
@@ -899,6 +958,17 @@ export default function ProtocolosPage() {
               >
                 <MessageCircle className="h-4 w-4 mr-1" />
                 WhatsApp
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={selectedProtocols.size < 2 || isBatchProcessing}
+                onClick={() => handleMergeReport("download")}
+                className="flex-1 sm:flex-initial border-[#204983] text-[#204983] hover:bg-[#204983] hover:text-white"
+                title="Combinar varios protocolos del mismo paciente en un único reporte"
+              >
+                <GitMerge className="h-4 w-4 mr-1" />
+                Unificar
               </Button>
             </div>
           </div>

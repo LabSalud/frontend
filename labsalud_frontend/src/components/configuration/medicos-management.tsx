@@ -1,13 +1,14 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useCallback, useState } from "react"
+import { useQueryClient } from "@tanstack/react-query"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Search, Plus, Eye, Pencil, Trash, Loader2 } from "lucide-react"
-import { useApi } from "@/hooks/use-api"
 import { useDebounce } from "@/hooks/use-debounce"
 import { useInfiniteScroll } from "@/hooks/use-infinite-scroll"
+import { useApiInfiniteQuery, flattenPages } from "@/hooks/use-api-infinite-query"
 import { MEDICAL_ENDPOINTS } from "@/config/api"
 import { toast } from "sonner"
 import { CreateMedicoDialog } from "./components/create-medico-dialog"
@@ -17,110 +18,73 @@ import { MedicoDetailsDialog } from "./components/medico-details-dialog"
 import { AuditAvatars } from "@/components/common/audit-avatars"
 import type { Medico } from "@/types"
 
-interface ApiResponse {
-  results: Medico[]
-  count: number
-  next: string | null
-  previous: string | null
-}
+const PAGE_LIMIT = 20
 
 export function MedicosManagement() {
-  const [medicos, setMedicos] = useState<Medico[]>([])
+  const queryClient = useQueryClient()
   const [searchTerm, setSearchTerm] = useState("")
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [hasMore, setHasMore] = useState(true)
-  const [offset, setOffset] = useState(0)
   const [selectedMedico, setSelectedMedico] = useState<Medico | null>(null)
   const [showCreateDialog, setShowCreateDialog] = useState(false)
   const [showEditDialog, setShowEditDialog] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [showDetailsDialog, setShowDetailsDialog] = useState(false)
 
-  const { apiRequest } = useApi()
   const debouncedSearchTerm = useDebounce(searchTerm, 500)
 
-  const buildUrl = useCallback((searchTerm: string, offset: number) => {
-    const params = new URLSearchParams({
-      limit: "20",
-      offset: offset.toString(),
-      search: searchTerm,
-      is_active: "true",
-    })
-    return `${MEDICAL_ENDPOINTS.DOCTORS}?${params.toString()}`
-  }, [])
-
-  const fetchMedicos = useCallback(
-    async (reset = false) => {
-      if (isLoading) return
-
-      setIsLoading(true)
-      setError(null)
-
-      try {
-        const currentOffset = reset ? 0 : offset
-        const url = buildUrl(debouncedSearchTerm, currentOffset)
-        const response = await apiRequest(url)
-
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}))
-          const errorMessage =
-            errorData.detail ||
-            errorData.error ||
-            errorData.message ||
-            `Error ${response.status}: ${response.statusText}`
-          throw new Error(errorMessage)
-        }
-
-        const data: ApiResponse = await response.json()
-
-        if (reset) {
-          setMedicos(data.results)
-          setOffset(20)
-        } else {
-          setMedicos((prev) => [...prev, ...data.results])
-          setOffset((prev) => prev + 20)
-        }
-
-        setHasMore(data.next !== null)
-      } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : "Error desconocido"
-        setError(errorMessage)
-        toast.error(`Error al cargar médicos: ${errorMessage}`)
-      } finally {
-        setIsLoading(false)
-      }
+  const buildUrl = useCallback(
+    (offset: number) => {
+      const params = new URLSearchParams({
+        limit: String(PAGE_LIMIT),
+        offset: String(offset),
+        search: debouncedSearchTerm,
+        is_active: "true",
+      })
+      return `${MEDICAL_ENDPOINTS.DOCTORS}?${params.toString()}`
     },
-    [apiRequest, buildUrl, debouncedSearchTerm, offset, isLoading],
+    [debouncedSearchTerm],
   )
 
-  const lastElementRef = useInfiniteScroll({
-    loading: isLoading,
-    hasMore,
-    onLoadMore: () => fetchMedicos(false),
+  const medicosQuery = useApiInfiniteQuery<Medico>({
+    queryKey: ["doctors", "list", debouncedSearchTerm],
+    buildUrl,
   })
 
-  useEffect(() => {
-    fetchMedicos(true)
-  }, [debouncedSearchTerm])
+  const medicos = flattenPages<Medico>(medicosQuery.data?.pages)
+  const isLoading = medicosQuery.isLoading
+  const isLoadingMore = medicosQuery.isFetchingNextPage
+  const hasMore = !!medicosQuery.hasNextPage
+  const error = medicosQuery.error?.message
+
+  const lastElementRef = useInfiniteScroll({
+    loading: isLoadingMore,
+    hasMore,
+    onLoadMore: () => {
+      if (!isLoadingMore && hasMore) medicosQuery.fetchNextPage()
+    },
+    dependencies: [debouncedSearchTerm, hasMore, isLoadingMore],
+  })
+
+  const invalidateDoctors = () => {
+    queryClient.invalidateQueries({ queryKey: ["doctors"] })
+  }
 
   const handleCreateSuccess = () => {
     setShowCreateDialog(false)
-    fetchMedicos(true)
+    invalidateDoctors()
     toast.success("Médico creado exitosamente")
   }
 
   const handleEditSuccess = () => {
     setShowEditDialog(false)
     setSelectedMedico(null)
-    fetchMedicos(true)
+    invalidateDoctors()
     toast.success("Médico actualizado exitosamente")
   }
 
   const handleDeleteSuccess = () => {
     setShowDeleteDialog(false)
     setSelectedMedico(null)
-    fetchMedicos(true)
+    invalidateDoctors()
     toast.success("Médico eliminado exitosamente")
   }
 
@@ -204,69 +168,69 @@ export function MedicosManagement() {
                   </td>
                 </tr>
               ) : (
-              medicos.map((medicoItem, index) => (
-                <tr
-                  key={medicoItem.id}
-                  ref={index === medicos.length - 1 ? lastElementRef : null}
-                  className="hover:bg-gray-50"
-                >
-                  <td className="px-4 md:px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900">
-                      {medicoItem.first_name} {medicoItem.last_name}
-                    </div>
-                    <div className="text-xs text-gray-500 sm:hidden">Mat: {medicoItem.license}</div>
-                  </td>
-                  <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-gray-900 hidden sm:table-cell">
-                    {medicoItem.license}
-                  </td>
-                  <td className="px-4 md:px-6 py-4 whitespace-nowrap hidden md:table-cell">
-                    {(medicoItem.creation || medicoItem.last_change) && (
-                      <AuditAvatars creation={medicoItem.creation} lastChange={medicoItem.last_change} size="sm" />
-                    )}
-                  </td>
-                  <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <div className="flex space-x-1 md:space-x-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setSelectedMedico(medicoItem)
-                          setShowDetailsDialog(true)
-                        }}
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setSelectedMedico(medicoItem)
-                          setShowEditDialog(true)
-                        }}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="border-red-200 hover:bg-red-50 bg-transparent"
-                        onClick={() => {
-                          setSelectedMedico(medicoItem)
-                          setShowDeleteDialog(true)
-                        }}
-                      >
-                        <Trash className="h-4 w-4 text-red-500" />
-                      </Button>
-                    </div>
-                  </td>
-                </tr>
-              ))
+                medicos.map((medicoItem, index) => (
+                  <tr
+                    key={medicoItem.id}
+                    ref={index === medicos.length - 1 ? lastElementRef : null}
+                    className="hover:bg-gray-50"
+                  >
+                    <td className="px-4 md:px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm font-medium text-gray-900">
+                        {medicoItem.first_name} {medicoItem.last_name}
+                      </div>
+                      <div className="text-xs text-gray-500 sm:hidden">Mat: {medicoItem.license}</div>
+                    </td>
+                    <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-gray-900 hidden sm:table-cell">
+                      {medicoItem.license}
+                    </td>
+                    <td className="px-4 md:px-6 py-4 whitespace-nowrap hidden md:table-cell">
+                      {(medicoItem.creation || medicoItem.last_change) && (
+                        <AuditAvatars creation={medicoItem.creation} lastChange={medicoItem.last_change} size="sm" />
+                      )}
+                    </td>
+                    <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <div className="flex space-x-1 md:space-x-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setSelectedMedico(medicoItem)
+                            setShowDetailsDialog(true)
+                          }}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setSelectedMedico(medicoItem)
+                            setShowEditDialog(true)
+                          }}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="border-red-200 hover:bg-red-50 bg-transparent"
+                          onClick={() => {
+                            setSelectedMedico(medicoItem)
+                            setShowDeleteDialog(true)
+                          }}
+                        >
+                          <Trash className="h-4 w-4 text-red-500" />
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
               )}
             </tbody>
           </table>
         </div>
 
-        {isLoading && medicos.length > 0 && (
+        {isLoadingMore && (
           <div className="flex justify-center py-4">
             <Loader2 className="h-6 w-6 animate-spin text-[#204983]" />
           </div>

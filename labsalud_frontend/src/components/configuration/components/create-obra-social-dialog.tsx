@@ -14,10 +14,13 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Switch } from "@/components/ui/switch"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { AlertCircle, CheckCircle } from "lucide-react"
 import { useApi } from "@/hooks/use-api"
 import { toast } from "sonner"
-import { MEDICAL_ENDPOINTS } from "@/config/api"
+import { MEDICAL_ENDPOINTS, TOAST_DURATION } from "@/config/api"
+import { formatApiError, getErrorMessage } from "@/lib/api-error"
 
 interface CreateObraSocialDialogProps {
   open: boolean
@@ -29,7 +32,18 @@ interface FormData {
   name: string
   description: string
   ub_value: string
+  nbu_year: string
+  charges_coseguro: boolean
+  charges_material_descartable: boolean
+  charges_derivacion: boolean
+  requires_preauthorization: boolean
 }
+
+const NBU_YEAR_OPTIONS = [
+  { value: "2024", label: "NBU 2024 (más actual)" },
+  { value: "2023", label: "NBU 2023" },
+  { value: "2016", label: "NBU 2016 (principal)" },
+]
 
 interface ValidationState {
   name: { isValid: boolean; message: string }
@@ -37,12 +51,19 @@ interface ValidationState {
   ub_value: { isValid: boolean; message: string }
 }
 
+const initialFormData: FormData = {
+  name: "",
+  description: "",
+  ub_value: "",
+  nbu_year: "2024",
+  charges_coseguro: false,
+  charges_material_descartable: false,
+  charges_derivacion: false,
+  requires_preauthorization: false,
+}
+
 export function CreateObraSocialDialog({ open, onOpenChange, onSuccess }: CreateObraSocialDialogProps) {
-  const [formData, setFormData] = useState<FormData>({
-    name: "",
-    description: "",
-    ub_value: "",
-  })
+  const [formData, setFormData] = useState<FormData>(initialFormData)
   const [validation, setValidation] = useState<ValidationState>({
     name: { isValid: false, message: "" },
     description: { isValid: true, message: "" },
@@ -52,7 +73,7 @@ export function CreateObraSocialDialog({ open, onOpenChange, onSuccess }: Create
 
   const { apiRequest } = useApi()
 
-  const validateField = (name: keyof FormData, value: string) => {
+  const validateField = (name: keyof ValidationState, value: string) => {
     let isValid = false
     let message = ""
 
@@ -62,12 +83,12 @@ export function CreateObraSocialDialog({ open, onOpenChange, onSuccess }: Create
         message = isValid ? "Nombre válido" : "El nombre debe tener al menos 3 caracteres"
         break
       case "description":
-        isValid = true // Optional field
+        isValid = true
         message = ""
         break
       case "ub_value":
         if (value.trim() === "") {
-          isValid = true // Optional field
+          isValid = true
           message = ""
         } else {
           const numValue = Number.parseFloat(value)
@@ -83,9 +104,13 @@ export function CreateObraSocialDialog({ open, onOpenChange, onSuccess }: Create
     }))
   }
 
-  const handleInputChange = (name: keyof FormData, value: string) => {
+  const handleStringChange = (name: keyof ValidationState, value: string) => {
     setFormData((prev) => ({ ...prev, [name]: value }))
     validateField(name, value)
+  }
+
+  const handleSwitchChange = (name: keyof FormData, value: boolean) => {
+    setFormData((prev) => ({ ...prev, [name]: value }))
   }
 
   const isFormValid = () => {
@@ -98,9 +123,16 @@ export function CreateObraSocialDialog({ open, onOpenChange, onSuccess }: Create
 
     try {
       setLoading(true)
-      const body: any = { name: formData.name }
+      const body: Record<string, unknown> = {
+        name: formData.name,
+        charges_coseguro: formData.charges_coseguro,
+        charges_material_descartable: formData.charges_material_descartable,
+        charges_derivacion: formData.charges_derivacion,
+        requires_preauthorization: formData.requires_preauthorization,
+      }
       if (formData.description.trim()) body.description = formData.description
       if (formData.ub_value.trim()) body.ub_value = Number.parseFloat(formData.ub_value)
+      if (formData.nbu_year) body.nbu_year = Number.parseInt(formData.nbu_year, 10)
 
       const response = await apiRequest(MEDICAL_ENDPOINTS.INSURANCES, {
         method: "POST",
@@ -108,9 +140,9 @@ export function CreateObraSocialDialog({ open, onOpenChange, onSuccess }: Create
       })
 
       if (response.ok) {
-        toast.success("Obra Social creada exitosamente")
+        toast.success("Obra Social creada exitosamente", { duration: TOAST_DURATION })
         onSuccess()
-        setFormData({ name: "", description: "", ub_value: "" })
+        setFormData(initialFormData)
         setValidation({
           name: { isValid: false, message: "" },
           description: { isValid: true, message: "" },
@@ -118,17 +150,24 @@ export function CreateObraSocialDialog({ open, onOpenChange, onSuccess }: Create
         })
       } else {
         const errorData = await response.json()
-        toast.error(errorData.message || "Error al crear la obra social")
+        toast.error("Error al crear la obra social", {
+          description: formatApiError(errorData, "Error al crear la obra social"),
+          duration: TOAST_DURATION,
+        })
       }
     } catch (error) {
-      toast.error("Error al crear la obra social")
+      toast.error("Error al crear la obra social", {
+        description: getErrorMessage(error, "Error de conexión con el servidor"),
+        duration: TOAST_DURATION,
+      })
     } finally {
       setLoading(false)
     }
   }
 
   const renderValidationIcon = (field: keyof ValidationState) => {
-    if (!formData[field]) return null
+    const value = formData[field] as string
+    if (!value) return null
     return validation[field].isValid ? (
       <CheckCircle className="w-4 h-4 text-green-500" />
     ) : (
@@ -137,7 +176,8 @@ export function CreateObraSocialDialog({ open, onOpenChange, onSuccess }: Create
   }
 
   const renderValidationMessage = (field: keyof ValidationState) => {
-    if (!formData[field] || !validation[field].message) return null
+    const value = formData[field] as string
+    if (!value || !validation[field].message) return null
     return (
       <p className={`text-xs mt-1 ${validation[field].isValid ? "text-green-600" : "text-red-600"}`}>
         {validation[field].message}
@@ -147,10 +187,10 @@ export function CreateObraSocialDialog({ open, onOpenChange, onSuccess }: Create
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[480px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Crear Nueva Obra Social</DialogTitle>
-          <DialogDescription>Ingresa los datos de la nueva obra social.</DialogDescription>
+          <DialogDescription>Ingresa los datos y los conceptos que cobra la obra social.</DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
           <div className="grid gap-4 py-4">
@@ -160,7 +200,7 @@ export function CreateObraSocialDialog({ open, onOpenChange, onSuccess }: Create
                 <Input
                   id="name"
                   value={formData.name}
-                  onChange={(e) => handleInputChange("name", e.target.value)}
+                  onChange={(e) => handleStringChange("name", e.target.value)}
                   placeholder="Ingresa el nombre"
                   className={`pr-10 ${
                     formData.name
@@ -180,7 +220,7 @@ export function CreateObraSocialDialog({ open, onOpenChange, onSuccess }: Create
               <Input
                 id="description"
                 value={formData.description}
-                onChange={(e) => handleInputChange("description", e.target.value)}
+                onChange={(e) => handleStringChange("description", e.target.value)}
                 placeholder="Ingresa una descripción (opcional)"
               />
             </div>
@@ -193,12 +233,11 @@ export function CreateObraSocialDialog({ open, onOpenChange, onSuccess }: Create
                   type="number"
                   step="0.01"
                   value={formData.ub_value}
-                  onChange={(e) => handleInputChange("ub_value", e.target.value)}
+                  onChange={(e) => handleStringChange("ub_value", e.target.value)}
                   placeholder="Ingresa el valor UB"
                   className={`pr-10 ${
                     formData.ub_value && !validation.ub_value.isValid ? "border-red-500 focus:border-red-500" : ""
                   }`}
-                  required
                 />
                 <div className="absolute inset-y-0 right-0 flex items-center pr-3">
                   {renderValidationIcon("ub_value")}
@@ -206,12 +245,86 @@ export function CreateObraSocialDialog({ open, onOpenChange, onSuccess }: Create
               </div>
               {renderValidationMessage("ub_value")}
             </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="nbu_year">Nomenclador (NBU)</Label>
+              <Select
+                value={formData.nbu_year}
+                onValueChange={(value) => setFormData((prev) => ({ ...prev, nbu_year: value }))}
+              >
+                <SelectTrigger id="nbu_year">
+                  <SelectValue placeholder="Seleccionar año" />
+                </SelectTrigger>
+                <SelectContent>
+                  {NBU_YEAR_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-gray-500">
+                Define qué UB usa la obra social. Si un análisis no tiene UB para ese año, sube por la cadena hasta encontrar valor.
+              </p>
+            </div>
+
+            <div className="space-y-3 rounded-lg border border-gray-200 p-4">
+              <p className="text-sm font-semibold text-gray-700">Conceptos que cobra</p>
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label htmlFor="charges_coseguro" className="cursor-pointer">Coseguro</Label>
+                  <p className="text-xs text-gray-500">Permite cargar coseguro al protocolo.</p>
+                </div>
+                <Switch
+                  id="charges_coseguro"
+                  checked={formData.charges_coseguro}
+                  onCheckedChange={(checked) => handleSwitchChange("charges_coseguro", checked)}
+                />
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label htmlFor="charges_material_descartable" className="cursor-pointer">Material descartable</Label>
+                  <p className="text-xs text-gray-500">Suma el monto fijo por material descartable.</p>
+                </div>
+                <Switch
+                  id="charges_material_descartable"
+                  checked={formData.charges_material_descartable}
+                  onCheckedChange={(checked) => handleSwitchChange("charges_material_descartable", checked)}
+                />
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label htmlFor="charges_derivacion" className="cursor-pointer">Derivación</Label>
+                  <p className="text-xs text-gray-500">Cobra derivación si hay análisis con esa marca.</p>
+                </div>
+                <Switch
+                  id="charges_derivacion"
+                  checked={formData.charges_derivacion}
+                  onCheckedChange={(checked) => handleSwitchChange("charges_derivacion", checked)}
+                />
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label htmlFor="requires_preauthorization" className="cursor-pointer">Requiere preautorización</Label>
+                  <p className="text-xs text-gray-500">Los análisis deben preautorizarse antes de procesar.</p>
+                </div>
+                <Switch
+                  id="requires_preauthorization"
+                  checked={formData.requires_preauthorization}
+                  onCheckedChange={(checked) => handleSwitchChange("requires_preauthorization", checked)}
+                />
+              </div>
+            </div>
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
               Cancelar
             </Button>
-            <Button type="submit" disabled={!isFormValid() || loading}>
+            <Button type="submit" className="bg-[#204983] hover:bg-[#1a3d6f]" disabled={!isFormValid() || loading}>
               {loading ? "Creando..." : "Crear Obra Social"}
             </Button>
           </DialogFooter>

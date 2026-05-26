@@ -17,6 +17,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Loader2, AlertTriangle, TestTube2 } from "lucide-react"
 import { CATALOG_ENDPOINTS } from "@/config/api"
+import { formatApiError, getErrorMessage } from "@/lib/api-error"
 
 interface DeterminationItem {
   id: number
@@ -57,13 +58,13 @@ export const DeleteDeterminationDialog: React.FC<DeleteDeterminationDialogProps>
       } else {
         const errorData = await response.json().catch(() => ({}))
         toastActions.error("Error", {
-          description: errorData.detail || "No se pudo eliminar la determinación.",
+          description: formatApiError(errorData, "No se pudo eliminar la determinación."),
         })
       }
     } catch (error) {
       console.error("Error deleting determination:", error)
       toastActions.error("Error", {
-        description: "Error de conexión. Inténtalo de nuevo.",
+        description: getErrorMessage(error, "Error de conexión. Inténtalo de nuevo."),
       })
     } finally {
       setIsDeleting(false)
@@ -94,6 +95,9 @@ export const DeleteDeterminationDialog: React.FC<DeleteDeterminationDialogProps>
                 <div className="flex-1 min-w-0">
                   <h4 className="font-medium text-red-900 mb-1">{determination.name}</h4>
                   <div className="space-y-1 text-sm text-red-700">
+                    <p>
+                      <span className="font-medium">Código:</span> {determination.code || "N/A"}
+                    </p>
                     <p>
                       <span className="font-medium">Unidad:</span> {determination.measure_unit}
                     </p>

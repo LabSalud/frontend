@@ -20,6 +20,7 @@ import { useApi } from "@/hooks/use-api"
 import { useToast } from "@/hooks/use-toast"
 import { Loader2 } from "lucide-react"
 import { CATALOG_ENDPOINTS } from "@/config/api"
+import { formatApiError, getErrorMessage } from "@/lib/api-error"
 
 interface CreateAnalysisCatalogDialogProps {
   open: boolean
@@ -38,6 +39,7 @@ export const CreateAnalysisCatalogDialog: React.FC<CreateAnalysisCatalogDialogPr
   const [name, setName] = useState("")
   const [bioUnit, setBioUnit] = useState("")
   const [isUrgent, setIsUrgent] = useState(false)
+  const [requiresDerivacion, setRequiresDerivacion] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
 
@@ -47,6 +49,7 @@ export const CreateAnalysisCatalogDialog: React.FC<CreateAnalysisCatalogDialogPr
       setName("")
       setBioUnit("")
       setIsUrgent(false)
+      setRequiresDerivacion(false)
       setErrors({})
       setIsLoading(false)
     }
@@ -73,6 +76,7 @@ export const CreateAnalysisCatalogDialog: React.FC<CreateAnalysisCatalogDialogPr
         name,
         bio_unit: bioUnit,
         is_urgent: isUrgent,
+        requires_derivacion: requiresDerivacion,
       }
       const response = await apiRequest(CATALOG_ENDPOINTS.ANALYSIS, {
         method: "POST",
@@ -86,6 +90,7 @@ export const CreateAnalysisCatalogDialog: React.FC<CreateAnalysisCatalogDialogPr
         onOpenChange(false)
       } else {
         const errorData = await response.json().catch(() => ({ detail: "Error desconocido" }))
+        const errorMessage = formatApiError(errorData, "No se pudo crear el análisis.")
         const backendErrors = errorData.errors || errorData.detail || errorData
         if (typeof backendErrors === "object" && backendErrors !== null) {
           const formattedErrors: Record<string, string> = {}
@@ -100,12 +105,13 @@ export const CreateAnalysisCatalogDialog: React.FC<CreateAnalysisCatalogDialogPr
         } else {
           setErrors({ form: backendErrors || "Error al crear el análisis." })
         }
-        toastActions.error("Error", { description: "No se pudo crear el análisis." })
+        toastActions.error("Error", { description: errorMessage })
       }
     } catch (error) {
       console.error("Error creating analysis:", error)
-      setErrors({ form: "Ocurrió un error de red o servidor." })
-      toastActions.error("Error", { description: "Ocurrió un error inesperado." })
+      const errorMessage = getErrorMessage(error, "Ocurrió un error de red o servidor.")
+      setErrors({ form: errorMessage })
+      toastActions.error("Error", { description: errorMessage })
     } finally {
       setIsLoading(false)
     }
@@ -164,6 +170,22 @@ export const CreateAnalysisCatalogDialog: React.FC<CreateAnalysisCatalogDialogPr
               <p className="text-sm text-gray-500">Marcar si este análisis es de carácter urgente</p>
             </div>
             <Switch id="isUrgent" checked={isUrgent} onCheckedChange={setIsUrgent} />
+          </div>
+
+          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+            <div>
+              <Label htmlFor="requiresDerivacion" className="font-medium">
+                Requiere derivación
+              </Label>
+              <p className="text-sm text-gray-500">
+                Si la obra social cobra derivación, este análisis suma el monto fijo.
+              </p>
+            </div>
+            <Switch
+              id="requiresDerivacion"
+              checked={requiresDerivacion}
+              onCheckedChange={setRequiresDerivacion}
+            />
           </div>
         </div>
 

@@ -8,18 +8,19 @@ import type { ValidationResultType, ValidationState } from "@/types"
 // ============================================================================
 
 export const validators = {
-  // Validación de DNI
-  dni: (value: string): ValidationResultType => {
-    if (!value.trim()) {
-      return { isValid: false, message: "El DNI es obligatorio" }
+  // Validación de CUIL
+  cuil: (value: string): ValidationResultType => {
+    const digits = value.replace(/-/g, "")
+    if (!digits.trim()) {
+      return { isValid: false, message: "El CUIL es obligatorio" }
     }
-    if (!/^\d+$/.test(value)) {
-      return { isValid: false, message: "El DNI solo debe contener números" }
+    if (!/^\d+$/.test(digits)) {
+      return { isValid: false, message: "El CUIL solo debe contener números" }
     }
-    if (value.length < 7 || value.length > 8) {
-      return { isValid: false, message: "El DNI debe tener entre 7 y 8 dígitos" }
+    if (digits.length !== 11) {
+      return { isValid: false, message: "El CUIL debe tener 11 dígitos" }
     }
-    return { isValid: true, message: "DNI válido" }
+    return { isValid: true, message: "CUIL válido" }
   },
 
   // Validación de nombres
@@ -212,7 +213,7 @@ export function useValidation<T extends Record<string, any>>(initialState: Valid
 
 export function usePatientValidation() {
   const initialState: ValidationState<any> = {
-    dni: { isValid: false, message: "" },
+    cuil: { isValid: false, message: "" },
     first_name: { isValid: false, message: "" },
     last_name: { isValid: false, message: "" },
     email: { isValid: true, message: "" },

@@ -79,8 +79,12 @@ export function PatientDetailsDialog({ isOpen, onClose, patient }: PatientDetail
     return age
   }
 
-  const formatDni = (dni: string) => {
-    return dni.replace(/\B(?=(\d{3})+(?!\d))/g, ".")
+  const formatCuil = (cuil: string) => {
+    const digits = cuil.replace(/-/g, "")
+    if (digits.length === 11) {
+      return `${digits.slice(0, 2)}-${digits.slice(2, 10)}-${digits.slice(10)}`
+    }
+    return cuil
   }
 
   // Función para mapear género correctamente
@@ -106,8 +110,8 @@ export function PatientDetailsDialog({ isOpen, onClose, patient }: PatientDetail
             <div className="flex items-center space-x-2">
               <CreditCard className="h-4 w-4 text-gray-400" />
               <div>
-                <p className="text-sm font-medium text-gray-500">DNI</p>
-                <p className="text-lg font-mono font-semibold text-[#204983]">{formatDni(patient.dni)}</p>
+                <p className="text-sm font-medium text-gray-500">CUIL</p>
+                <p className="text-lg font-mono font-semibold text-[#204983]">{formatCuil(patient.cuil)}</p>
               </div>
             </div>
           </div>
@@ -213,7 +217,7 @@ export function PatientDetailsDialog({ isOpen, onClose, patient }: PatientDetail
                 {patient.creation && (
                   <div>
                     <p className="text-sm font-medium text-gray-500">Creado por</p>
-                    <p>{patient.creation.user.username}</p>
+                    <p>{patient.creation.user?.username || "Sistema"}</p>
                     <p className="text-xs text-gray-400">{formatDateTime(patient.creation.date)}</p>
                   </div>
                 )}
@@ -221,7 +225,7 @@ export function PatientDetailsDialog({ isOpen, onClose, patient }: PatientDetail
                 {patient.last_change && (
                   <div>
                     <p className="text-sm font-medium text-gray-500">Última modificación</p>
-                    <p>{patient.last_change.user.username}</p>
+                    <p>{patient.last_change.user?.username || "Sistema"}</p>
                     <p className="text-xs text-gray-400">{formatDateTime(patient.last_change.date)}</p>
                     {patient.last_change.changes && patient.last_change.changes.length > 0 && (
                       <div className="mt-1 text-xs text-gray-500">

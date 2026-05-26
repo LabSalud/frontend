@@ -7,9 +7,12 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Switch } from "@/components/ui/switch"
 import { toast } from "sonner"
-import { AlertCircle, CheckCircle } from "lucide-react"
+import { AlertCircle, CheckCircle, UserCog } from "lucide-react"
 import { PATIENT_ENDPOINTS, TOAST_DURATION } from "@/config/api"
+import { formatApiError, getErrorMessage } from "@/lib/api-error"
+import { formatCuilForDisplay, inferGenderFromCuil, isValidCuil, normalizeCuil } from "@/lib/cuil"
 
 interface CreatePatientDialogProps {
   isOpen: boolean
@@ -19,7 +22,7 @@ interface CreatePatientDialogProps {
 }
 
 interface ValidationState {
-  dni: { isValid: boolean; message: string }
+  cuil: { isValid: boolean; message: string }
   first_name: { isValid: boolean; message: string }
   last_name: { isValid: boolean; message: string }
   email: { isValid: boolean; message: string }
@@ -29,7 +32,7 @@ interface ValidationState {
 }
 
 const initialValidation: ValidationState = {
-  dni: { isValid: false, message: "Ingresa un DNI válido (7-8 dígitos)" },
+  cuil: { isValid: false, message: "Ingresa un CUIL válido (11 dígitos)" },
   first_name: { isValid: false, message: "Ingresa el nombre" },
   last_name: { isValid: false, message: "Ingresa el apellido" },
   email: { isValid: true, message: "" },
@@ -40,7 +43,7 @@ const initialValidation: ValidationState = {
 
 export function CreatePatientDialog({ isOpen, onClose, addPatient, apiRequest }: CreatePatientDialogProps) {
   const [formData, setFormData] = useState({
-    dni: "",
+    cuil: "",
     first_name: "",
     last_name: "",
     birth_date: "",
@@ -54,21 +57,22 @@ export function CreatePatientDialog({ isOpen, onClose, addPatient, apiRequest }:
     address: "",
   })
 
+  const [isAnonymous, setIsAnonymous] = useState(false)
   const [validation, setValidation] = useState<ValidationState>(initialValidation)
   const [touched, setTouched] = useState<Record<string, boolean>>({})
 
   // Funciones de validación
-  const validateDNI = (dni: string) => {
-    if (!dni.trim()) {
-      return { isValid: false, message: "El DNI es obligatorio" }
+  const validateCUIL = (cuil: string) => {
+    const digits = normalizeCuil(cuil)
+    if (!digits.trim()) {
+      return { isValid: false, message: "El CUIL es obligatorio" }
     }
-    if (!/^\d+$/.test(dni)) {
-      return { isValid: false, message: "El DNI solo debe contener números" }
+    if (!/^\d+$/.test(digits)) {
+      return { isValid: false, message: "El CUIL solo debe contener números" }
     }
-    if (dni.length < 7 || dni.length > 8) {
-      return { isValid: false, message: "El DNI debe tener entre 7 y 8 dígitos" }
-    }
-    return { isValid: true, message: "DNI válido" }
+    if (digits.length !== 11) return { isValid: false, message: "El CUIL debe tener 11 dígitos" }
+    if (!isValidCuil(digits)) return { isValid: false, message: "El CUIL no es válido" }
+    return { isValid: true, message: "CUIL válido" }
   }
 
   const validateName = (name: string, field: string) => {
@@ -132,8 +136,8 @@ export function CreatePatientDialog({ isOpen, onClose, addPatient, apiRequest }:
   const validateField = (name: string, value: string) => {
     let result
     switch (name) {
-      case "dni":
-        result = validateDNI(value)
+      case "cuil":
+        result = validateCUIL(value)
         break
       case "first_name":
         result = validateName(value, "El nombre")
@@ -166,19 +170,21 @@ export function CreatePatientDialog({ isOpen, onClose, addPatient, apiRequest }:
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
 
-    // Validación especial para DNI - solo números
-    if (name === "dni") {
-      const numericValue = value.replace(/\D/g, "")
+    // Validación especial para CUIL - solo números y guiones
+    if (name === "cuil") {
+      const cleaned = normalizeCuil(value)
+      const inferredGender = inferGenderFromCuil(cleaned)
       setFormData((prev) => ({
         ...prev,
-        [name]: numericValue,
+        [name]: cleaned,
+        ...(inferredGender ? { gender: inferredGender } : {}),
       }))
 
       // Marcar como tocado
       setTouched((prev) => ({ ...prev, [name]: true }))
 
       // Validar en tiempo real
-      validateField(name, numericValue)
+      validateField(name, cleaned)
     } else {
       setFormData((prev) => ({
         ...prev,
@@ -202,7 +208,7 @@ export function CreatePatientDialog({ isOpen, onClose, addPatient, apiRequest }:
 
   const resetForm = () => {
     setFormData({
-      dni: "",
+      cuil: "",
       first_name: "",
       last_name: "",
       birth_date: "",
@@ -217,10 +223,14 @@ export function CreatePatientDialog({ isOpen, onClose, addPatient, apiRequest }:
     })
     setValidation(initialValidation)
     setTouched({})
+    setIsAnonymous(false)
   }
 
   const isFormValid = () => {
-    const requiredFields = ["dni", "first_name", "last_name", "birth_date"]
+    if (isAnonymous) {
+      return formData.first_name.trim().length >= 2
+    }
+    const requiredFields = ["cuil", "first_name", "last_name", "birth_date"]
     const requiredFieldsValid = requiredFields.every((field) => {
       const fieldValidation = validation[field as keyof ValidationState]
       return fieldValidation.isValid
@@ -235,31 +245,66 @@ export function CreatePatientDialog({ isOpen, onClose, addPatient, apiRequest }:
   }
 
   const handleCreatePatient = async () => {
-    // Marcar todos los campos como tocados
-    const allFields = ["dni", "first_name", "last_name", "birth_date", "email", "phone_mobile", "alt_phone"]
-    const newTouched = allFields.reduce((acc, field) => ({ ...acc, [field]: true }), {})
-    setTouched(newTouched)
+    if (isAnonymous) {
+      if (formData.first_name.trim().length < 2) {
+        setTouched((prev) => ({ ...prev, first_name: true }))
+        toast.error("Formulario inválido", {
+          description: "Ingresá un identificador (ej: 'Internado Cama 4').",
+          duration: TOAST_DURATION,
+        })
+        return
+      }
+    } else {
+      const allFields = ["cuil", "first_name", "last_name", "birth_date", "email", "phone_mobile", "alt_phone"]
+      const newTouched = allFields.reduce((acc, field) => ({ ...acc, [field]: true }), {})
+      setTouched(newTouched)
 
-    // Validar todos los campos
-    allFields.forEach((field) => {
-      validateField(field, formData[field as keyof typeof formData] as string)
-    })
-
-    if (!isFormValid() || !formData.gender) {
-      toast.error("Formulario inválido", {
-        description: "Por favor, corrige los errores antes de continuar.",
-        duration: TOAST_DURATION,
+      allFields.forEach((field) => {
+        validateField(field, formData[field as keyof typeof formData] as string)
       })
-      return
+
+      if (!isFormValid() || !formData.gender) {
+        toast.error("Formulario inválido", {
+          description: "Por favor, corrige los errores antes de continuar.",
+          duration: TOAST_DURATION,
+        })
+        return
+      }
     }
 
     try {
-      const loadingId = toast.loading("Creando paciente...")
+      const loadingId = toast.loading(isAnonymous ? "Creando paciente anónimo..." : "Creando paciente...")
 
-      const dataToSend = {
-        ...formData,
-        birth_date: formData.birth_date,
+      // Para anónimo: enviamos todos los campos completos. El backend desactiva is_anonymous
+      // automáticamente si llegan completos los datos requeridos (cuil, last_name, birth_date,
+      // gender, phone_mobile, email, province, city, address).
+      const buildAnonymousPayload = () => {
+        const payload: Record<string, unknown> = {
+          first_name: formData.first_name.trim(),
+          is_anonymous: true,
+        }
+        const cuilDigits = normalizeCuil(formData.cuil)
+        if (cuilDigits) payload.cuil = cuilDigits
+        if (formData.last_name.trim()) payload.last_name = formData.last_name.trim()
+        if (formData.birth_date) payload.birth_date = formData.birth_date
+        if (formData.gender) payload.gender = formData.gender
+        if (formData.phone_mobile.trim()) payload.phone_mobile = formData.phone_mobile.trim()
+        if (formData.alt_phone.trim()) payload.alt_phone = formData.alt_phone.trim()
+        if (formData.email.trim()) payload.email = formData.email.trim()
+        if (formData.country.trim()) payload.country = formData.country.trim()
+        if (formData.province.trim()) payload.province = formData.province.trim()
+        if (formData.city.trim()) payload.city = formData.city.trim()
+        if (formData.address.trim()) payload.address = formData.address.trim()
+        return payload
       }
+
+      const dataToSend = isAnonymous
+        ? buildAnonymousPayload()
+        : {
+            ...formData,
+            cuil: normalizeCuil(formData.cuil),
+            birth_date: formData.birth_date,
+          }
 
       const response = await apiRequest(PATIENT_ENDPOINTS.PATIENTS, {
         method: "POST",
@@ -272,7 +317,7 @@ export function CreatePatientDialog({ isOpen, onClose, addPatient, apiRequest }:
         const newPatient = await response.json()
         addPatient(newPatient)
         toast.success("Paciente creado", {
-          description: `El paciente ${newPatient.first_name} ${newPatient.last_name} (DNI: ${newPatient.dni}) ha sido creado exitosamente.`,
+          description: `El paciente ${newPatient.first_name} ${newPatient.last_name} ha sido creado exitosamente.`,
           duration: TOAST_DURATION,
         })
         resetForm()
@@ -280,14 +325,14 @@ export function CreatePatientDialog({ isOpen, onClose, addPatient, apiRequest }:
       } else {
         const errorData = await response.json()
         toast.error("Error al crear paciente", {
-          description: errorData.detail || "Ha ocurrido un error al crear el paciente.",
+          description: formatApiError(errorData, "Ha ocurrido un error al crear el paciente."),
           duration: TOAST_DURATION,
         })
       }
     } catch (error) {
       console.error("Error al crear paciente:", error)
       toast.error("Error", {
-        description: "Ha ocurrido un error al crear el paciente.",
+        description: getErrorMessage(error, "Ha ocurrido un error al crear el paciente."),
         duration: TOAST_DURATION,
       })
     }
@@ -296,10 +341,6 @@ export function CreatePatientDialog({ isOpen, onClose, addPatient, apiRequest }:
   const handleClose = () => {
     resetForm()
     onClose()
-  }
-
-  const formatDniDisplay = (dni: string) => {
-    return dni.replace(/\B(?=(\d{3})+(?!\d))/g, ".")
   }
 
   const getFieldStyle = (fieldName: string) => {
@@ -328,24 +369,191 @@ export function CreatePatientDialog({ isOpen, onClose, addPatient, apiRequest }:
           <DialogTitle>Crear Nuevo Paciente</DialogTitle>
         </DialogHeader>
         <div className="grid gap-4 py-4">
-          {/* DNI - Campo principal */}
-          <div className="space-y-2">
-            <Label htmlFor="dni" className="text-base font-semibold">
-              DNI *
-            </Label>
-            <Input
-              id="dni"
-              name="dni"
-              value={formData.dni}
-              onChange={handleInputChange}
-              placeholder="12345678"
-              maxLength={8}
-              className={`font-mono text-lg ${getFieldStyle("dni")}`}
-              required
+          <div className="flex items-start justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3">
+            <div className="flex items-start gap-2">
+              <UserCog className="h-5 w-5 text-amber-600 mt-0.5" />
+              <div>
+                <Label htmlFor="is_anonymous" className="cursor-pointer text-sm font-semibold text-amber-900">
+                  Paciente anónimo
+                </Label>
+                <p className="text-xs text-amber-800">
+                  Para pacientes sin datos completos. Solo requiere un identificador; el resto es opcional y se puede ir completando.
+                </p>
+              </div>
+            </div>
+            <Switch
+              id="is_anonymous"
+              checked={isAnonymous}
+              onCheckedChange={(checked) => setIsAnonymous(checked)}
             />
-            {renderFieldMessage("dni")}
-            {formData.dni && <p className="text-xs text-gray-500">Vista previa: {formatDniDisplay(formData.dni)}</p>}
           </div>
+
+          {isAnonymous ? (
+            <>
+              <div className="space-y-2">
+                <Label htmlFor="first_name" className="text-base font-semibold">
+                  Identificador *
+                </Label>
+                <Input
+                  id="first_name"
+                  name="first_name"
+                  value={formData.first_name}
+                  onChange={handleInputChange}
+                  placeholder="Internado Cama 4 / Juan"
+                  className={getFieldStyle("first_name")}
+                  required
+                />
+                <p className="text-xs text-gray-500">
+                  Único campo obligatorio. Completá lo que tengas; el paciente se vuelve normal cuando se cargan todos los datos.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="last_name_anon">Apellido <span className="text-gray-400 font-normal">(opcional)</span></Label>
+                <Input
+                  id="last_name_anon"
+                  name="last_name"
+                  value={formData.last_name}
+                  onChange={handleInputChange}
+                  placeholder="Pérez"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="cuil_anon">CUIL <span className="text-gray-400 font-normal">(opcional)</span></Label>
+                <Input
+                  id="cuil_anon"
+                  name="cuil"
+                  value={formatCuilForDisplay(formData.cuil)}
+                  onChange={handleInputChange}
+                  placeholder="20-12345678-4"
+                  maxLength={13}
+                  className="font-mono"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="birth_date_anon">Fecha de nacimiento <span className="text-gray-400 font-normal">(opcional)</span></Label>
+                  <Input
+                    id="birth_date_anon"
+                    name="birth_date"
+                    type="date"
+                    value={formData.birth_date}
+                    onChange={handleInputChange}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="gender_anon">Género <span className="text-gray-400 font-normal">(opcional)</span></Label>
+                  <Select value={formData.gender} onValueChange={(value) => handleSelectChange("gender", value)}>
+                    <SelectTrigger id="gender_anon">
+                      <SelectValue placeholder="Seleccionar" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="M">Masculino</SelectItem>
+                      <SelectItem value="F">Femenino</SelectItem>
+                      <SelectItem value="O">Otro</SelectItem>
+                      <SelectItem value="N">No especificar</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="phone_mobile_anon">Teléfono móvil <span className="text-gray-400 font-normal">(opcional)</span></Label>
+                  <Input
+                    id="phone_mobile_anon"
+                    name="phone_mobile"
+                    value={formData.phone_mobile}
+                    onChange={handleInputChange}
+                    placeholder="Teléfono móvil"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="alt_phone_anon">Teléfono alternativo <span className="text-gray-400 font-normal">(opcional)</span></Label>
+                  <Input
+                    id="alt_phone_anon"
+                    name="alt_phone"
+                    value={formData.alt_phone}
+                    onChange={handleInputChange}
+                    placeholder="Teléfono alternativo"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="email_anon">Email <span className="text-gray-400 font-normal">(opcional)</span></Label>
+                <Input
+                  id="email_anon"
+                  name="email"
+                  type="email"
+                  value={formData.email}
+                  onChange={handleInputChange}
+                  placeholder="correo@ejemplo.com"
+                />
+              </div>
+
+              <div className="grid grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="country_anon">País</Label>
+                  <Input
+                    id="country_anon"
+                    name="country"
+                    value={formData.country}
+                    onChange={handleInputChange}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="province_anon">Provincia</Label>
+                  <Input
+                    id="province_anon"
+                    name="province"
+                    value={formData.province}
+                    onChange={handleInputChange}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="city_anon">Ciudad</Label>
+                  <Input
+                    id="city_anon"
+                    name="city"
+                    value={formData.city}
+                    onChange={handleInputChange}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="address_anon">Dirección <span className="text-gray-400 font-normal">(opcional)</span></Label>
+                <Input
+                  id="address_anon"
+                  name="address"
+                  value={formData.address}
+                  onChange={handleInputChange}
+                  placeholder="Dirección completa"
+                />
+              </div>
+            </>
+          ) : (
+            <>
+              {/* CUIL - Campo principal */}
+              <div className="space-y-2">
+                <Label htmlFor="cuil" className="text-base font-semibold">
+                  CUIL *
+                </Label>
+                <Input
+                  id="cuil"
+                  name="cuil"
+                  value={formatCuilForDisplay(formData.cuil)}
+                  onChange={handleInputChange}
+                  placeholder="20123456784"
+                  maxLength={13}
+                  className={`font-mono text-lg ${getFieldStyle("cuil")}`}
+                  required
+                />
+                {renderFieldMessage("cuil")}
+              </div>
 
           {/* Información personal */}
           <div className="grid grid-cols-2 gap-4">
@@ -487,6 +695,8 @@ export function CreatePatientDialog({ isOpen, onClose, addPatient, apiRequest }:
               placeholder="Dirección completa"
             />
           </div>
+            </>
+          )}
         </div>
         <DialogFooter>
           <DialogClose asChild>

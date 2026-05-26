@@ -29,7 +29,10 @@ import { EditAnalysisCatalogDialog } from "./components/edit-analysis-catalog-di
 import { DeleteAnalysisCatalogDialog } from "./components/delete-analysis-catalog-dialog"
 import { ImportDataDialog } from "./components/import-data-dialog"
 import { AnalysisHistoryDialog } from "./components/analysis-history-dialog"
+import { ClearCatalogDialog } from "./components/clear-catalog-dialog"
 import type { Analysis } from "@/types"
+import { formatBioUnitValues } from "@/lib/catalog-format"
+import { formatApiError, getErrorMessage } from "@/lib/api-error"
 
 export function AnalysisManagement() {
   const { apiRequest } = useApi()
@@ -54,9 +57,11 @@ export function AnalysisManagement() {
   const [isEditAnalysisModalOpen, setIsEditAnalysisModalOpen] = useState(false)
   const [isDeleteAnalysisModalOpen, setIsDeleteAnalysisModalOpen] = useState(false)
   const [isImportModalOpen, setIsImportModalOpen] = useState(false)
+  const [isClearCatalogDialogOpen, setIsClearCatalogDialogOpen] = useState(false)
   const [isHistoryDialogOpen, setIsHistoryDialogOpen] = useState(false)
   const [selectedAnalysisForHistory, setSelectedAnalysisForHistory] = useState<Analysis | null>(null)
   const [selectedAnalysis, setSelectedAnalysis] = useState<Analysis | null>(null)
+  const showDevCatalogTools = import.meta.env.DEV || import.meta.env.VITE_ENABLE_DEV_CATALOG_TOOLS === "true"
 
   const fetchAnalyses = useCallback(
     async (search = "", reset = true, showSearching = false) => {
@@ -104,14 +109,13 @@ export function AnalysisManagement() {
           setAnalysesNextUrl(data.next)
         } else {
           const errorData = await response.json().catch(() => ({}))
-          const errorMessage =
-            errorData.detail || errorData.error || errorData.message || "Error al cargar los análisis."
+          const errorMessage = formatApiError(errorData, "Error al cargar los análisis.")
           setError(errorMessage)
           toastActions.error("Error", { description: errorMessage })
         }
       } catch (err) {
         console.error("Error fetching analyses:", err)
-        const errorMessage = err instanceof Error ? err.message : "Ocurrió un error inesperado al cargar análisis."
+        const errorMessage = getErrorMessage(err, "Ocurrió un error inesperado al cargar análisis.")
         setError(errorMessage)
         toastActions.error("Error", { description: errorMessage })
       } finally {
@@ -169,6 +173,13 @@ export function AnalysisManagement() {
     setRefreshKey((prev) => prev + 1)
   }
 
+  const handleClearCatalogSuccess = () => {
+    setIsClearCatalogDialogOpen(false)
+    setExpandedAnalyses(new Set())
+    setRefreshKey((prev) => prev + 1)
+    fetchAnalyses(searchTerm, true, true)
+  }
+
   const handleEditAnalysisSuccess = () => {
     setIsEditAnalysisModalOpen(false)
     setSelectedAnalysis(null)
@@ -202,6 +213,16 @@ export function AnalysisManagement() {
           </div>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+          {showDevCatalogTools && (
+            <Button
+              variant="outline"
+              className="border-red-600 text-red-600 hover:bg-red-600 hover:text-white bg-transparent w-full sm:w-auto"
+              onClick={() => setIsClearCatalogDialogOpen(true)}
+            >
+              <Trash className="mr-2 h-4 w-4" />
+              Eliminar catálogo completo
+            </Button>
+          )}
           <Button
             variant="outline"
             className="border-purple-600 text-purple-600 hover:bg-purple-600 hover:text-white bg-transparent w-full sm:w-auto"
@@ -284,6 +305,7 @@ export function AnalysisManagement() {
         <div className="space-y-3">
           {analyses.map((analysis) => {
             const isExpanded = expandedAnalyses.has(analysis.id)
+            const bioUnitItems = formatBioUnitValues(analysis.bio_unit_values)
 
             return (
               <div
@@ -328,6 +350,11 @@ export function AnalysisManagement() {
                             </Badge>
                           </span>
                           <span className="truncate hidden sm:inline">UB: {analysis.bio_unit || "N/A"}</span>
+                          {bioUnitItems.length > 0 && (
+                            <span className="truncate hidden md:inline">
+                              UB por año: {bioUnitItems.join(" · ")}
+                            </span>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -378,6 +405,18 @@ export function AnalysisManagement() {
                       onClick={(e) => e.stopPropagation()}
                     >
                       <div className="p-3 md:p-4 bg-blue-50 border-b">
+                        {bioUnitItems.length > 0 && (
+                          <div className="mb-3 rounded-md border border-blue-100 bg-white p-3">
+                            <p className="text-xs font-semibold text-gray-700">Unidades bioquímicas históricas</p>
+                            <div className="mt-2 flex flex-wrap gap-1.5">
+                              {bioUnitItems.map((item) => (
+                                <Badge key={item} variant="outline" className="bg-blue-50 text-[10px] text-blue-700">
+                                  {item}
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                         <Button
                           variant="outline"
                           className="w-full bg-transparent text-xs md:text-sm"
@@ -451,6 +490,12 @@ export function AnalysisManagement() {
         open={isImportModalOpen}
         onOpenChange={setIsImportModalOpen}
         onSuccess={handleImportDataSuccess}
+      />
+
+      <ClearCatalogDialog
+        open={isClearCatalogDialogOpen}
+        onOpenChange={setIsClearCatalogDialogOpen}
+        onSuccess={handleClearCatalogSuccess}
       />
     </div>
   )

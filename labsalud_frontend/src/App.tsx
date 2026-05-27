@@ -100,7 +100,7 @@ function App() {
                   <Route
                     path="/management"
                     element={
-                      <ProtectedRoute requiredPermission={PERMISSIONS.MANAGE_USERS.id}>
+                      <ProtectedRoute requiredPermission={PERMISSIONS.MANAGE_USERS.codename}>
                         <Layout />
                       </ProtectedRoute>
                     }
@@ -160,7 +160,7 @@ function App() {
                   <Route
                     path="/validacion"
                     element={
-                      <ProtectedRoute requiredPermission={PERMISSIONS.VALIDATE_RESULTS.id}>
+                      <ProtectedRoute requiredPermission={PERMISSIONS.VALIDATE_RESULTS.codename}>
                         <Layout />
                       </ProtectedRoute>
                     }
@@ -170,7 +170,7 @@ function App() {
                   <Route
                     path="/facturacion"
                     element={
-                      <ProtectedRoute requiredPermission={PERMISSIONS.MANAGE_BILLING.id}>
+                      <ProtectedRoute requiredPermission={PERMISSIONS.MANAGE_BILLING.codename}>
                         <Layout />
                       </ProtectedRoute>
                     }

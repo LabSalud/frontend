@@ -19,8 +19,8 @@ export const UserDropdown: React.FC<UserDropdownProps> = ({ isMobile = false, on
   const menuRef = useRef<HTMLDivElement>(null)
   const { user, logout, hasPermission } = useAuth()
 
-  const canAccessManagement = hasPermission(PERMISSIONS.MANAGE_USERS.id)
-  const canAccessBilling = hasPermission(PERMISSIONS.MANAGE_BILLING.id)
+  const canAccessManagement = hasPermission(PERMISSIONS.MANAGE_USERS.codename)
+  const canAccessBilling = hasPermission(PERMISSIONS.MANAGE_BILLING.codename)
 
   // Only handle click-outside for desktop dropdown
   useEffect(() => {

@@ -110,10 +110,23 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const hasPermission = useCallback(
     (permission: number | string): boolean => {
       if (!user) return false
+      if (user.is_superuser) return true
+
       const permissionStr = permission.toString()
+      const permissionCodename = permissionStr.split(".").pop() || permissionStr
+
       return user.permissions.some(
-        (perm) =>
-          perm.id.toString() === permissionStr || perm.codename === permissionStr || perm.name === permissionStr,
+        (perm) => {
+          const permCodename = perm.codename.split(".").pop() || perm.codename
+          return (
+            perm.id.toString() === permissionStr ||
+            perm.codename === permissionStr ||
+            perm.codename === permissionCodename ||
+            permCodename === permissionStr ||
+            permCodename === permissionCodename ||
+            perm.name === permissionStr
+          )
+        },
       )
     },
     [user],
@@ -213,8 +226,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
   )
 
   const refreshUser = useCallback(async () => {
-    if (initializationRef.current) return
-
     const tokenValue = getAccessToken()
     const savedUser = getStoredUser<User>()
 

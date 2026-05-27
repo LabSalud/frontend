@@ -22,9 +22,9 @@ export default function ManagementPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const canManageUsers = hasPermission(PERMISSIONS.MANAGE_USERS.id)
-  const canManageRoles = hasPermission(PERMISSIONS.MANAGE_ROLES.id)
-  const canManageTempPermissions = hasPermission(PERMISSIONS.MANAGE_TEMP_PERMISSIONS.id)
+  const canManageUsers = hasPermission(PERMISSIONS.MANAGE_USERS.codename)
+  const canManageRoles = hasPermission(PERMISSIONS.MANAGE_ROLES.codename)
+  const canManageTempPermissions = hasPermission(PERMISSIONS.MANAGE_TEMP_PERMISSIONS.codename)
 
   const canAccessManagement = canManageUsers || canManageRoles || canManageTempPermissions
 

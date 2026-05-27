@@ -8,7 +8,7 @@ import { PERMISSIONS } from "@/config/permissions"
 
 export default function ValidacionPage() {
   const { hasPermission } = useAuth()
-  const canValidateResults = hasPermission(Number(PERMISSIONS.VALIDATE_RESULTS.id))
+  const canValidateResults = hasPermission(PERMISSIONS.VALIDATE_RESULTS.codename)
 
   if (!canValidateResults) {
     return (

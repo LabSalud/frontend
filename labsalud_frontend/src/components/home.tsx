@@ -38,8 +38,8 @@ interface ProtocolsToBillResponse {
 export default function Home() {
   const { user, hasPermission } = useAuth()
   const { error: showErrorToast } = useToast()
-  const canAccessBilling = hasPermission(PERMISSIONS.MANAGE_BILLING.id)
-  const canSeeValidationStats = hasPermission("validar_resultados") || hasPermission(4)
+  const canAccessBilling = hasPermission(PERMISSIONS.MANAGE_BILLING.codename)
+  const canSeeValidationStats = hasPermission(PERMISSIONS.VALIDATE_RESULTS.codename)
 
   const dashboardQuery = useApiQuery<DashboardResponse>({
     queryKey: ["analytics", "dashboard"],

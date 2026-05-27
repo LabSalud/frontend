@@ -39,13 +39,13 @@ export function UserManagement({ users, roles, permissions, setUsers, refreshDat
   const [isRoleRemove, setIsRoleRemove] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
 
-  const canViewUsers = hasPermission(PERMISSIONS.MANAGE_USERS.id)
-  const canCreateUser = hasPermission(PERMISSIONS.MANAGE_USERS.id)
-  const canEditUser = hasPermission(PERMISSIONS.MANAGE_USERS.id)
-  const canDeleteUser = hasPermission(PERMISSIONS.MANAGE_USERS.id)
-  const canAssignRole = hasPermission(PERMISSIONS.MANAGE_ROLES.id)
-  const canRemoveRole = hasPermission(PERMISSIONS.MANAGE_ROLES.id)
-  const canAssignTempPermission = hasPermission(PERMISSIONS.MANAGE_TEMP_PERMISSIONS.id)
+  const canViewUsers = hasPermission(PERMISSIONS.MANAGE_USERS.codename)
+  const canCreateUser = hasPermission(PERMISSIONS.MANAGE_USERS.codename)
+  const canEditUser = hasPermission(PERMISSIONS.MANAGE_USERS.codename)
+  const canDeleteUser = hasPermission(PERMISSIONS.MANAGE_USERS.codename)
+  const canAssignRole = hasPermission(PERMISSIONS.MANAGE_ROLES.codename)
+  const canRemoveRole = hasPermission(PERMISSIONS.MANAGE_ROLES.codename)
+  const canAssignTempPermission = hasPermission(PERMISSIONS.MANAGE_TEMP_PERMISSIONS.codename)
 
   const handleSelectUser = (user: User, action: string) => {
     if (!user || !user.id) {

@@ -50,10 +50,10 @@ export function RoleManagement({ roles, setRoles, refreshData }: RoleManagementP
   const { hasPermission } = useAuth()
   const { apiRequest } = useApi()
 
-  const canView = hasPermission(PERMISSIONS.MANAGE_ROLES.id)
-  const canCreate = hasPermission(PERMISSIONS.MANAGE_ROLES.id)
-  const canEdit = hasPermission(PERMISSIONS.MANAGE_ROLES.id)
-  const canDelete = hasPermission(PERMISSIONS.MANAGE_ROLES.id)
+  const canView = hasPermission(PERMISSIONS.MANAGE_ROLES.codename)
+  const canCreate = hasPermission(PERMISSIONS.MANAGE_ROLES.codename)
+  const canEdit = hasPermission(PERMISSIONS.MANAGE_ROLES.codename)
+  const canDelete = hasPermission(PERMISSIONS.MANAGE_ROLES.codename)
 
   const [allPerms, setAllPerms] = useState<Permission[]>([])
   const [offset, setOffset] = useState(0)

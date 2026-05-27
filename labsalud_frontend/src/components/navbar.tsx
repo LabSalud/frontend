@@ -48,8 +48,8 @@ export const Navbar: React.FC = () => {
   const hamburgerRef = useRef<HTMLButtonElement>(null)
   const userAvatarRef = useRef<HTMLDivElement>(null)
 
-  const canAccessManagement = hasPermission(PERMISSIONS.MANAGE_USERS.id)
-  const canAccessBilling = hasPermission(PERMISSIONS.MANAGE_BILLING.id)
+  const canAccessManagement = hasPermission(PERMISSIONS.MANAGE_USERS.codename)
+  const canAccessBilling = hasPermission(PERMISSIONS.MANAGE_BILLING.codename)
 
   const toggleMobileMenu = () => {
     setIsMobileMenuOpen((prev) => {
@@ -123,7 +123,7 @@ export const Navbar: React.FC = () => {
     {
       path: "/validacion",
       label: "Validación",
-      condition: hasPermission(PERMISSIONS.VALIDATE_RESULTS.id),
+      condition: hasPermission(PERMISSIONS.VALIDATE_RESULTS.codename),
     },
   ]
 

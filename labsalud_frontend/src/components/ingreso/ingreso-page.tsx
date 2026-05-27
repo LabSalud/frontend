@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect } from "react"
 import { FileText } from "lucide-react"
 import { Button } from "../ui/button"
 import { Skeleton } from "../ui/skeleton"
@@ -13,8 +13,10 @@ import { CreateMedicoForm } from "./components/create-medico-form"
 import { CreateObraSocialForm } from "./components/create-obra-social-form"
 import { ProtocolSuccess } from "./components/protocol-success"
 import { useApi } from "../../hooks/use-api"
-import { MEDICAL_ENDPOINTS, PROTOCOL_ENDPOINTS } from "@/config/api"
+import { CATALOG_ENDPOINTS, MEDICAL_ENDPOINTS, PROTOCOL_ENDPOINTS } from "@/config/api"
 import { formatApiError, getErrorMessage } from "@/lib/api-error"
+import type { TrajoOrdenStatus } from "@/lib/protocol-order"
+import { useEndpointProgress } from "@/hooks/use-endpoint-progress"
 import type {
   Patient,
   Doctor,
@@ -24,6 +26,7 @@ import type {
   CreateProtocolInput,
   PaginatedResponse,
   Protocol,
+  PricingConfig,
 } from "../../types"
 
 export default function IngresoPage() {
@@ -41,7 +44,12 @@ export default function IngresoPage() {
   const [patientPaid, setPatientPaid] = useState("")
   const [selectedSendMethod, setSelectedSendMethod] = useState<SendMethod | null>(null)
   const [affiliateNumber, setAffiliateNumber] = useState("")
-  const [trajoOrden, setTrajoOrden] = useState(true)
+  const [trajoOrden, setTrajoOrden] = useState<TrajoOrdenStatus | "">("")
+  const [pricingConfig, setPricingConfig] = useState<PricingConfig | null>(null)
+  const [extraAmounts, setExtraAmounts] = useState({
+    material_descartable_amount: "",
+    derivacion_amount: "",
+  })
   const [isRefund, setIsRefund] = useState(false)
   const [doctors, setDoctors] = useState<Doctor[]>([])
   const [insurances, setInsurances] = useState<Insurance[]>([])
@@ -56,83 +64,22 @@ export default function IngresoPage() {
     insurance: Insurance | null
     sendMethod: SendMethod
   } | null>(null)
-  const [isAnimating, setIsAnimating] = useState(false)
-  const [progress, setProgress] = useState(0)
-  const [animationResult, setAnimationResult] = useState<"success" | "error" | null>(null)
-  const [pendingSuccessData, setPendingSuccessData] = useState<{
-    protocol: Protocol
-    patient: Patient
-    doctor: Doctor
-    insurance: Insurance | null
-    sendMethod: SendMethod
-  } | null>(null)
-
-  const animationRef = useRef<number | null>(null)
+  const createProgress = useEndpointProgress()
 
   useEffect(() => {
     loadInitialData()
   }, [])
-
-  useEffect(() => {
-    if (!isAnimating || animationResult === null) {
-      return
-    }
-
-    const duration = 3000 // 3 seconds total
-    const startTime = performance.now()
-
-    const animate = (currentTime: number) => {
-      const elapsed = currentTime - startTime
-      const linearProgress = Math.min(elapsed / duration, 1)
-
-      // Logarithmic curve: fast at start, slow at end
-      const logProgress = Math.log10(1 + linearProgress * 9) * 100
-
-      setProgress(logProgress)
-
-      if (linearProgress < 1) {
-        animationRef.current = requestAnimationFrame(animate)
-      } else {
-        // Animation complete - show result
-        if (animationResult === "success" && pendingSuccessData) {
-          setSuccessData(pendingSuccessData)
-          setPendingSuccessData(null)
-          toast.success("Protocolo creado exitosamente")
-          handleReset()
-        } else if (animationResult === "error") {
-          toast.error("Error al crear el protocolo")
-        }
-
-        // Reset animation state after a brief delay
-        setTimeout(
-          () => {
-            setIsAnimating(false)
-            setProgress(0)
-            setAnimationResult(null)
-          },
-          animationResult === "error" ? 1500 : 300,
-        )
-      }
-    }
-
-    animationRef.current = requestAnimationFrame(animate)
-
-    return () => {
-      if (animationRef.current) {
-        cancelAnimationFrame(animationRef.current)
-      }
-    }
-  }, [isAnimating, animationResult, pendingSuccessData])
 
   const extractErrorMessage = (errorData: unknown): string => formatApiError(errorData)
 
   const loadInitialData = async () => {
     try {
       setIsLoading(true)
-      const [doctorsResponse, insurancesResponse, sendMethodsResponse] = await Promise.all([
+      const [doctorsResponse, insurancesResponse, sendMethodsResponse, pricingResponse] = await Promise.all([
         apiRequest(`${MEDICAL_ENDPOINTS.DOCTORS}?limit=20&offset=0&is_active=true`),
         apiRequest(`${MEDICAL_ENDPOINTS.INSURANCES}?limit=20&offset=0&is_active=true`),
         apiRequest(PROTOCOL_ENDPOINTS.SEND_METHODS),
+        apiRequest(CATALOG_ENDPOINTS.PRICING_CONFIG),
       ])
 
       if (doctorsResponse.ok) {
@@ -154,12 +101,18 @@ export default function IngresoPage() {
       if (sendMethodsResponse.ok) {
         const sendMethodsData: PaginatedResponse<SendMethod> = await sendMethodsResponse.json()
         setSendMethods(sendMethodsData.results)
-        if (sendMethodsData.results.length > 0) {
-          setSelectedSendMethod(sendMethodsData.results[0])
-        }
       } else {
         const errorData = await sendMethodsResponse.json().catch(() => ({}))
         toast.error("Error al cargar métodos de envío", { description: extractErrorMessage(errorData) })
+      }
+
+      if (pricingResponse.ok) {
+        const data: PricingConfig = await pricingResponse.json()
+        setPricingConfig(data)
+        setExtraAmounts({
+          material_descartable_amount: data.material_descartable_amount || "0.00",
+          derivacion_amount: data.derivacion_amount || "0.00",
+        })
       }
     } catch (error) {
       console.error("Error loading initial data:", error)
@@ -171,7 +124,7 @@ export default function IngresoPage() {
 
   const calculateTotals = () => {
     if (!selectedInsurance || selectedAnalyses.length === 0) {
-      return { authorizedTotal: 0, privateTotal: 0, total: 0, patientOwes: 0, authorizedUb: 0, privateUb: 0 }
+      return { authorizedTotal: 0, privateTotal: 0, total: 0, patientOwes: 0, authorizedUb: 0, privateUb: 0, extrasTotal: 0 }
     }
 
     const insuranceUbValue = Number.parseFloat(selectedInsurance.ub_value) || 0
@@ -193,10 +146,13 @@ export default function IngresoPage() {
 
     const authorizedTotal = authorizedUb * insuranceUbValue
     const privateTotal = privateUb * privateUbValue
-    const total = authorizedTotal + privateTotal
-    const patientOwes = isRefund ? total : privateTotal
+    const material = shouldChargeMaterial ? Number.parseFloat(extraAmounts.material_descartable_amount) || 0 : 0
+    const derivacion = shouldChargeDerivacion ? Number.parseFloat(extraAmounts.derivacion_amount) || 0 : 0
+    const extrasTotal = material + derivacion
+    const total = authorizedTotal + privateTotal + extrasTotal
+    const patientOwes = isRefund ? total : privateTotal + extrasTotal
 
-    return { authorizedTotal, privateTotal, total, patientOwes, authorizedUb, privateUb }
+    return { authorizedTotal, privateTotal, total, patientOwes, authorizedUb, privateUb, extrasTotal }
   }
 
   const handleEditPatient = () => {
@@ -242,8 +198,20 @@ export default function IngresoPage() {
 
   const handleInsuranceCreated = (insurance: Insurance) => {
     setInsurances([...insurances, insurance])
+    setSelectedInsurance(insurance)
     setShowCreateObraSocial(false)
     toast.success("Obra social creada exitosamente")
+  }
+
+  const handleInsuranceSelect = (insurance: Insurance | null) => {
+    setSelectedInsurance(insurance)
+    setAffiliateNumber("")
+    setIsRefund(false)
+    setTrajoOrden("")
+    setExtraAmounts({
+      material_descartable_amount: pricingConfig?.material_descartable_amount || "0.00",
+      derivacion_amount: pricingConfig?.derivacion_amount || "0.00",
+    })
   }
 
   const handleReset = () => {
@@ -257,45 +225,45 @@ export default function IngresoPage() {
     setShowCreateMedico(false)
     setShowCreateObraSocial(false)
     setPatientPaid("")
-    setSelectedSendMethod(sendMethods[0] || null)
+    setSelectedSendMethod(null)
     setAffiliateNumber("")
-    setTrajoOrden(true)
+    setTrajoOrden("")
     setIsRefund(false)
+    setExtraAmounts({
+      material_descartable_amount: pricingConfig?.material_descartable_amount || "0.00",
+      derivacion_amount: pricingConfig?.derivacion_amount || "0.00",
+    })
   }
 
   const isPrivateInsurance = selectedInsurance?.name.toLowerCase() === "particular"
   const isAnonymousPatient = Boolean(currentPatient?.is_anonymous)
   const treatAsPrivate = isPrivateInsurance || (isAnonymousPatient && !selectedInsurance)
+  const hasDerivationAnalysis = selectedAnalyses.some((analysis) => Boolean(analysis.requires_derivacion))
+  const shouldShowOrder = Boolean(selectedInsurance && !isPrivateInsurance)
+  const shouldShowPreauth = Boolean(selectedInsurance && !isPrivateInsurance && selectedInsurance.requires_preauthorization)
+  const shouldChargeMaterial = Boolean(selectedInsurance && !isPrivateInsurance && selectedInsurance.charges_material_descartable)
+  const shouldChargeDerivacion = Boolean(
+    selectedInsurance && !isPrivateInsurance && selectedInsurance.charges_derivacion && hasDerivationAnalysis,
+  )
 
   const handleCreateProtocol = async () => {
-    if (!currentPatient) {
-      toast.error("Seleccione un paciente")
+    const missing: string[] = []
+    if (!currentPatient) missing.push("paciente")
+    if (!selectedDoctor) missing.push("médico")
+    if (!isAnonymousPatient && !selectedInsurance) missing.push("obra social")
+    if (selectedAnalyses.length === 0) missing.push("al menos un análisis")
+    if (!selectedSendMethod) missing.push("método de envío")
+    if (selectedInsurance && !isPrivateInsurance && !affiliateNumber.trim()) missing.push("número de afiliado")
+    if (shouldShowOrder && !trajoOrden) missing.push("estado de la orden médica")
+
+    if (missing.length > 0) {
+      toast.error("Faltan datos para crear el protocolo", {
+        description: `Completá: ${missing.join(", ")}.`,
+      })
       return
     }
 
-    if (!selectedDoctor) {
-      toast.error("Seleccione un médico")
-      return
-    }
-
-    // Para pacientes anónimos, la OOSS es opcional (se asigna Particular automáticamente)
-    if (!isAnonymousPatient && !selectedInsurance) {
-      toast.error("Seleccione una obra social")
-      return
-    }
-
-    if (selectedAnalyses.length === 0) {
-      toast.error("Seleccione al menos un análisis")
-      return
-    }
-
-    if (!selectedSendMethod) {
-      toast.error("Seleccione un método de envío")
-      return
-    }
-
-    if (selectedInsurance && !isPrivateInsurance && !affiliateNumber.trim()) {
-      toast.error("Ingrese el número de afiliado")
+    if (!currentPatient || !selectedDoctor || !selectedSendMethod) {
       return
     }
 
@@ -305,6 +273,7 @@ export default function IngresoPage() {
     const sendMethodForSuccess = selectedSendMethod
 
     try {
+      createProgress.start()
       const currentPatientPaid = Number.parseFloat(patientPaid) || 0
       const totalValuePaid = currentPatientPaid
 
@@ -313,11 +282,22 @@ export default function IngresoPage() {
         doctor: selectedDoctor.id,
         send_method: selectedSendMethod.id,
         value_paid: totalValuePaid.toFixed(2),
-        trajo_orden: trajoOrden,
         details: selectedAnalyses.map((analysis) => ({
           analysis: analysis.id,
           is_authorized: treatAsPrivate ? false : analysis.is_authorized,
         })),
+      }
+
+      if (shouldShowOrder && trajoOrden) {
+        protocolData.trajo_orden = trajoOrden
+      }
+
+      if (shouldChargeMaterial) {
+        protocolData.material_descartable_amount_override = (Number.parseFloat(extraAmounts.material_descartable_amount) || 0).toFixed(2)
+      }
+
+      if (shouldChargeDerivacion) {
+        protocolData.derivacion_amount_override = (Number.parseFloat(extraAmounts.derivacion_amount) || 0).toFixed(2)
       }
 
       // Si hay OOSS seleccionada se manda; si es anónimo sin OOSS, el backend asigna Particular
@@ -338,27 +318,25 @@ export default function IngresoPage() {
         const errorData = await protocolResponse.json()
         console.error("Protocol creation error:", errorData)
         toast.error("Error al crear el protocolo", { description: extractErrorMessage(errorData) })
-        setAnimationResult("error")
-        setIsAnimating(true)
+        createProgress.finish()
         return
       }
 
       const newProtocol = await protocolResponse.json()
-
-      setPendingSuccessData({
+      createProgress.finish()
+      setSuccessData({
         protocol: newProtocol,
         patient: patientForSuccess,
         doctor: doctorForSuccess,
         insurance: insuranceForSuccess,
         sendMethod: sendMethodForSuccess,
       })
-      setAnimationResult("success")
-      setIsAnimating(true)
+      toast.success("Protocolo creado exitosamente")
+      handleReset()
     } catch (error) {
       console.error("Error creating protocol:", error)
       toast.error("Error al crear el protocolo", { description: getErrorMessage(error, "Error de conexión con el servidor") })
-      setAnimationResult("error")
-      setIsAnimating(true)
+      createProgress.finish()
     }
   }
 
@@ -400,7 +378,8 @@ export default function IngresoPage() {
     (isAnonymousPatient || selectedInsurance) &&
     selectedAnalyses.length > 0 &&
     selectedSendMethod &&
-    (treatAsPrivate || !selectedInsurance || affiliateNumber.trim())
+    (treatAsPrivate || !selectedInsurance || affiliateNumber.trim()) &&
+    (!shouldShowOrder || trajoOrden)
 
   return (
     <div className="min-h-screen p-2 sm:p-4 lg:p-6">
@@ -435,10 +414,15 @@ export default function IngresoPage() {
               trajoOrden={trajoOrden}
               isRefund={isRefund}
               isPrivateInsurance={treatAsPrivate}
+              shouldShowOrder={shouldShowOrder}
+              shouldShowPreauth={shouldShowPreauth}
+              shouldChargeMaterial={shouldChargeMaterial}
+              shouldChargeDerivacion={shouldChargeDerivacion}
+              extraAmounts={extraAmounts}
               totals={calculateTotals()}
               onAnalysisChange={setSelectedAnalyses}
               onDoctorSelect={setSelectedDoctor}
-              onInsuranceSelect={setSelectedInsurance}
+              onInsuranceSelect={handleInsuranceSelect}
               onSendMethodSelect={setSelectedSendMethod}
               onPatientFound={handlePatientFound}
               onPatientNotFound={handlePatientNotFound}
@@ -449,6 +433,7 @@ export default function IngresoPage() {
               onPatientPaidChange={setPatientPaid}
               onAffiliateNumberChange={setAffiliateNumber}
               onTrajoOrdenChange={setTrajoOrden}
+              onExtraAmountsChange={setExtraAmounts}
               onRefundChange={setIsRefund}
             />
           </div>
@@ -502,31 +487,27 @@ export default function IngresoPage() {
             >
               <Button
                 onClick={handleCreateProtocol}
-                disabled={!isFormValid || isAnimating}
+                disabled={!currentPatient || createProgress.isRunning}
                 className={`
                   w-full h-12 sm:h-14 lg:h-16 text-white text-base sm:text-lg font-semibold 
                   disabled:opacity-50 disabled:cursor-not-allowed
                   relative overflow-hidden transition-all duration-300
                   ${
-                    isAnimating
-                      ? animationResult === "error" && progress >= 100
-                        ? "bg-gray-300 hover:bg-gray-300"
-                        : "bg-gray-300 hover:bg-gray-300"
+                    createProgress.isRunning
+                      ? "bg-gray-300 hover:bg-gray-300"
                       : "bg-[#204983] hover:bg-[#2d5a9b]"
                   }
                 `}
               >
                 <div
-                  className={`absolute inset-y-0 left-0 transition-colors duration-300 ${
-                    animationResult === "error" && progress >= 100 ? "bg-red-500" : "bg-[#204983]"
-                  }`}
-                  style={{ width: `${progress}%` }}
+                  className="absolute inset-y-0 left-0 bg-[#204983] transition-[width] duration-150"
+                  style={{ width: `${createProgress.progress}%` }}
                 />
 
                 <div className="relative z-10 flex items-center justify-center">
                   <FileText className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
                   <span className="text-sm sm:text-base lg:text-lg">
-                    {isAnimating ? "Creando protocolo..." : "Crear Protocolo"}
+                    {createProgress.isRunning ? "Creando protocolo..." : isFormValid ? "Crear Protocolo" : "Revisar y crear protocolo"}
                   </span>
                 </div>
               </Button>

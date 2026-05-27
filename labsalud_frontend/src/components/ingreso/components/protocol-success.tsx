@@ -7,6 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "../../ui/card"
 import { Badge } from "../../ui/badge"
 import { Separator } from "../../ui/separator"
 import type { Patient, Doctor, Insurance, SendMethod, Protocol } from "../../../types"
+import { getPaymentStatusInfo } from "@/lib/status-styles"
+import { getTrajoOrdenInfo } from "@/lib/protocol-order"
 
 interface ProtocolSuccessProps {
   protocol: Protocol
@@ -19,6 +21,7 @@ interface ProtocolSuccessProps {
 
 export function ProtocolSuccess({ protocol, patient, doctor, insurance, sendMethod, onClose }: ProtocolSuccessProps) {
   const [animationPhase, setAnimationPhase] = useState<"initial" | "expand" | "moveUp" | "showSummary">("initial")
+  const trajoOrdenInfo = getTrajoOrdenInfo(protocol.trajo_orden)
 
   const toNumber = (...values: Array<string | number | undefined | null>) => {
     for (const value of values) {
@@ -38,6 +41,7 @@ export function ProtocolSuccess({ protocol, patient, doctor, insurance, sendMeth
   )
 
   const patientPaid = toNumber(protocol.patient_paid, protocol.value_paid)
+  const paymentStatusInfo = getPaymentStatusInfo(protocol.payment_status)
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
@@ -202,17 +206,13 @@ export function ProtocolSuccess({ protocol, patient, doctor, insurance, sendMeth
               </div>
 
               <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
-                <ClipboardCheck className={protocol.trajo_orden ? "h-4 w-4 text-emerald-600" : "h-4 w-4 text-amber-600"} />
+                <ClipboardCheck className={`h-4 w-4 ${trajoOrdenInfo.iconClassName}`} />
                 <span className="text-gray-600">Orden médica:</span>
                 <Badge
                   variant="outline"
-                  className={
-                    protocol.trajo_orden
-                      ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                      : "border-amber-200 bg-amber-50 text-amber-700"
-                  }
+                  className={trajoOrdenInfo.badgeClassName}
                 >
-                  {protocol.trajo_orden ? "Recibida" : "Pendiente"}
+                  {trajoOrdenInfo.label}
                 </Badge>
               </div>
 
@@ -235,20 +235,15 @@ export function ProtocolSuccess({ protocol, patient, doctor, insurance, sendMeth
                   </div>
                   <div className="space-y-1">
                     <div className="text-xs text-gray-500">Monto Pagado</div>
-                    <div className="font-medium text-green-600">${patientPaid.toFixed(2)}</div>
+                    <div className="font-medium text-emerald-600">${patientPaid.toFixed(2)}</div>
                   </div>
                   <div className="space-y-1">
                     <div className="text-xs text-gray-500">Estado de Pago</div>
                     <Badge 
                       variant="outline" 
-                      className={`text-xs ${
-                        protocol.payment_status?.name?.toLowerCase().includes("pagado") || 
-                        protocol.payment_status?.name?.toLowerCase().includes("completo")
-                          ? "bg-green-50 text-green-700 border-green-200"
-                          : "bg-orange-50 text-orange-700 border-orange-200"
-                      }`}
+                      className={`text-xs ${paymentStatusInfo.badge}`}
                     >
-                      {protocol.payment_status?.name || "Pendiente"}
+                      {paymentStatusInfo.label}
                     </Badge>
                   </div>
                 </div>
@@ -270,7 +265,7 @@ export function ProtocolSuccess({ protocol, patient, doctor, insurance, sendMeth
                         variant="outline" 
                         className={`text-xs ${
                           detail.is_authorized 
-                            ? "bg-green-50 text-green-700 border-green-200"
+                            ? "bg-emerald-50 text-emerald-700 border-emerald-200"
                             : "bg-gray-50 text-gray-700 border-gray-200"
                         }`}
                       >

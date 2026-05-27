@@ -1,6 +1,6 @@
 "use client"
 
-import { User, Stethoscope, Building, TestTube, Send, DollarSign, RefreshCw, ClipboardCheck } from "lucide-react"
+import { User, Stethoscope, Building, TestTube, Send, DollarSign, RefreshCw, ClipboardCheck, ShieldCheck } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "../../ui/card"
 import { Switch } from "../../ui/switch"
 import { Label } from "../../ui/label"
@@ -12,6 +12,7 @@ import { MedicoCombobox } from "./medico-combobox"
 import { ObraSocialCombobox } from "./obra-social-combobox"
 import { AnalysisSearch } from "./analysis-search"
 import { AnalysisTable } from "./analysis-table"
+import { TRAJO_ORDEN_OPTIONS, type TrajoOrdenStatus } from "@/lib/protocol-order"
 import type { Patient, Doctor, Insurance, SelectedAnalysis, SendMethod } from "../../../types"
 
 interface Totals {
@@ -21,6 +22,7 @@ interface Totals {
   patientOwes: number
   authorizedUb: number
   privateUb: number
+  extrasTotal: number
 }
 
 interface ProtocolFormProps {
@@ -34,9 +36,17 @@ interface ProtocolFormProps {
   selectedSendMethod: SendMethod | null
   patientPaid: string
   affiliateNumber: string
-  trajoOrden: boolean
+  trajoOrden: TrajoOrdenStatus | ""
   isRefund: boolean
   isPrivateInsurance: boolean
+  shouldShowOrder: boolean
+  shouldShowPreauth: boolean
+  shouldChargeMaterial: boolean
+  shouldChargeDerivacion: boolean
+  extraAmounts: {
+    material_descartable_amount: string
+    derivacion_amount: string
+  }
   totals: Totals
   onAnalysisChange: (analyses: SelectedAnalysis[]) => void
   onDoctorSelect: (doctor: Doctor | null) => void
@@ -50,7 +60,8 @@ interface ProtocolFormProps {
   onShowCreateObraSocial: () => void
   onPatientPaidChange: (value: string) => void
   onAffiliateNumberChange: (number: string) => void
-  onTrajoOrdenChange: (trajoOrden: boolean) => void
+  onTrajoOrdenChange: (trajoOrden: TrajoOrdenStatus | "") => void
+  onExtraAmountsChange: (amounts: { material_descartable_amount: string; derivacion_amount: string }) => void
   onRefundChange: (isRefund: boolean) => void
 }
 
@@ -68,6 +79,11 @@ export function ProtocolForm({
   trajoOrden,
   isRefund,
   isPrivateInsurance,
+  shouldShowOrder,
+  shouldShowPreauth,
+  shouldChargeMaterial,
+  shouldChargeDerivacion,
+  extraAmounts,
   totals,
   onAnalysisChange,
   onDoctorSelect,
@@ -82,6 +98,7 @@ export function ProtocolForm({
   onPatientPaidChange,
   onAffiliateNumberChange,
   onTrajoOrdenChange,
+  onExtraAmountsChange,
   onRefundChange,
 }: ProtocolFormProps) {
   const isAnonymousPatient = Boolean(patient?.is_anonymous)
@@ -217,23 +234,90 @@ export function ProtocolForm({
           </Select>
         </div>
 
-        <div className="space-y-2 sm:space-y-3">
-          <div className="flex items-center gap-2">
-            <ClipboardCheck className="h-4 w-4 sm:h-5 sm:w-5 text-[#204983]" />
-            <h3 className="text-base sm:text-lg font-semibold text-[#204983]">Orden médica</h3>
-          </div>
-          <div className="flex items-start gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
-            <Switch id="trajo-orden" checked={trajoOrden} onCheckedChange={onTrajoOrdenChange} />
-            <div className="space-y-1">
-              <Label htmlFor="trajo-orden" className="cursor-pointer text-sm sm:text-base">
-                El paciente trajo la orden
+        {shouldShowOrder && (
+          <div className="space-y-2 sm:space-y-3">
+            <div className="flex items-center gap-2">
+              <ClipboardCheck className="h-4 w-4 sm:h-5 sm:w-5 text-[#204983]" />
+              <h3 className="text-base sm:text-lg font-semibold text-[#204983]">Orden médica</h3>
+            </div>
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+              <Label htmlFor="trajo-orden" className="text-sm sm:text-base">
+                Estado de la orden *
               </Label>
-              <p className="text-xs text-gray-500">
-                Si no la trajo, el protocolo quedará marcado con orden pendiente y no podrá completarse el envío hasta recibirla.
+              <Select value={trajoOrden} onValueChange={(value) => onTrajoOrdenChange(value as TrajoOrdenStatus)}>
+                <SelectTrigger id="trajo-orden" className="mt-2 bg-white">
+                  <SelectValue placeholder="Seleccionar estado de orden" />
+                </SelectTrigger>
+                <SelectContent>
+                  {TRAJO_ORDEN_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="mt-2 text-xs text-gray-500">
+                Todas las obras sociales requieren orden. Particular no la solicita.
               </p>
             </div>
           </div>
-        </div>
+        )}
+
+        {(shouldShowPreauth || shouldChargeMaterial || shouldChargeDerivacion) && (
+          <div className="space-y-2 sm:space-y-3">
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="h-4 w-4 sm:h-5 sm:w-5 text-[#204983]" />
+              <h3 className="text-base sm:text-lg font-semibold text-[#204983]">Condiciones de la obra social</h3>
+            </div>
+            <div className="rounded-lg border border-blue-100 bg-blue-50 p-3 space-y-3">
+              {shouldShowPreauth && (
+                <p className="text-xs text-blue-800">
+                  Esta obra social requiere preautorización. Marcá los análisis autorizados en la tabla.
+                </p>
+              )}
+              <div className="grid gap-3 sm:grid-cols-2">
+                {shouldChargeMaterial && (
+                  <div className="space-y-1.5">
+                    <Label htmlFor="material-descartable-protocol">Material descartable</Label>
+                    <Input
+                      id="material-descartable-protocol"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={extraAmounts.material_descartable_amount}
+                      onChange={(event) =>
+                        onExtraAmountsChange({
+                          ...extraAmounts,
+                          material_descartable_amount: event.target.value,
+                        })
+                      }
+                      className="bg-white"
+                    />
+                  </div>
+                )}
+                {shouldChargeDerivacion && (
+                  <div className="space-y-1.5">
+                    <Label htmlFor="derivacion-protocol">Derivación</Label>
+                    <Input
+                      id="derivacion-protocol"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={extraAmounts.derivacion_amount}
+                      onChange={(event) =>
+                        onExtraAmountsChange({
+                          ...extraAmounts,
+                          derivacion_amount: event.target.value,
+                        })
+                      }
+                      className="bg-white"
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Analysis Search */}
         <div className="space-y-2 sm:space-y-3">
@@ -277,6 +361,13 @@ export function ProtocolForm({
                   ${totals.privateTotal.toFixed(2)}
                   <span className="text-xs text-gray-500 ml-1">({totals.privateUb.toFixed(2)} UB)</span>
                 </div>
+
+                {totals.extrasTotal > 0 && (
+                  <>
+                    <div className="text-gray-600">Cobros extra:</div>
+                    <div className="text-right font-medium">${totals.extrasTotal.toFixed(2)}</div>
+                  </>
+                )}
 
                 <div className="text-gray-600 font-semibold border-t pt-2">Total:</div>
                 <div className="text-right font-bold text-[#204983] border-t pt-2">${totals.total.toFixed(2)}</div>

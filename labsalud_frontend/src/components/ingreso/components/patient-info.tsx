@@ -1,6 +1,6 @@
 "use client"
 
-import { User, Calendar, Phone, Mail, MapPin, Edit, UserCog } from "lucide-react"
+import { User, Calendar, Phone, Mail, MapPin, Edit, UserCog, StickyNote } from "lucide-react"
 import { Button } from "../../ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "../../ui/card"
 import { Badge } from "../../ui/badge"
@@ -121,6 +121,12 @@ export function PatientInfo({ patient, onEdit }: PatientInfoProps) {
             <p className="text-xs text-amber-700 mt-2">
               La obra social es opcional. Si no la elegís, se asigna Particular automáticamente.
             </p>
+          )}
+          {patient.observations && (
+            <div className="mt-3 flex items-start justify-center gap-2 rounded-md bg-slate-50 px-3 py-2 text-left text-xs text-slate-700">
+              <StickyNote className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-slate-500" />
+              <span>{patient.observations}</span>
+            </div>
           )}
         </div>
 

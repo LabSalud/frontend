@@ -8,6 +8,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "../../ui/popover"
 import { cn } from "../../../lib/utils"
 import { useApi } from "../../../hooks/use-api"
 import { useDebounce } from "../../../hooks/use-debounce"
+import { getNbuDisplayName, useNbuOptions } from "@/hooks/use-nbu-options"
 import type { Insurance } from "../../../types"
 import { MEDICAL_ENDPOINTS } from "@/config/api"
 
@@ -36,6 +37,7 @@ export function ObraSocialCombobox({
   const [isLoading, setIsLoading] = useState(false)
   const [hasMore, setHasMore] = useState(true)
   const [offset, setOffset] = useState(20)
+  const { nbus } = useNbuOptions()
 
   const debouncedSearchTerm = useDebounce(searchTerm, 300)
 
@@ -124,39 +126,67 @@ export function ObraSocialCombobox({
               </div>
             </CommandEmpty>
             <CommandGroup>
-              {allObrasSociales.map((obraSocial, index) => (
-                <CommandItem
-                  key={obraSocial.id}
-                  value={obraSocial.name}
-                  onSelect={() => {
-                    onObraSocialSelect(selectedObraSocial?.id === obraSocial.id ? null : obraSocial)
-                    setOpen(false)
-                  }}
-                  ref={
-                    index === allObrasSociales.length - 5
-                      ? (el: HTMLDivElement | null) => {
-                          if (el) loadMoreObrasSociales()
-                        }
-                      : undefined
-                  }
-                >
-                  <Check
-                    className={cn(
-                      "mr-2 h-4 w-4",
-                      selectedObraSocial?.id === obraSocial.id ? "opacity-100" : "opacity-0",
-                    )}
-                  />
-                  <div className="flex items-center gap-2 flex-grow">
-                    <Building className="h-4 w-4 text-[#204983]" />
-                    <div className="flex flex-col">
-                      <span>{obraSocial.name}</span>
-                      <span className="text-xs text-gray-500">
-                        UB O.S.: ${obraSocial.ub_value} | UB Part.: ${obraSocial.private_ub_value}
-                      </span>
+              {allObrasSociales.map((obraSocial, index) => {
+                const flags: string[] = []
+                if (obraSocial.charges_coseguro) flags.push("Coseguro")
+                if (obraSocial.charges_material_descartable) flags.push("Mat. desc.")
+                if (obraSocial.charges_derivacion) flags.push("Derivación")
+                if (obraSocial.requires_preauthorization) flags.push("Preauth")
+                const nbuName = obraSocial.nbu ? getNbuDisplayName(obraSocial.nbu, nbus) : null
+
+                return (
+                  <CommandItem
+                    key={obraSocial.id}
+                    value={obraSocial.name}
+                    onSelect={() => {
+                      onObraSocialSelect(selectedObraSocial?.id === obraSocial.id ? null : obraSocial)
+                      setOpen(false)
+                    }}
+                    ref={
+                      index === allObrasSociales.length - 5
+                        ? (el: HTMLDivElement | null) => {
+                            if (el) loadMoreObrasSociales()
+                          }
+                        : undefined
+                    }
+                  >
+                    <Check
+                      className={cn(
+                        "mr-2 h-4 w-4 shrink-0",
+                        selectedObraSocial?.id === obraSocial.id ? "opacity-100" : "opacity-0",
+                      )}
+                    />
+                    <div className="flex items-start gap-2 flex-grow min-w-0">
+                      <Building className="h-4 w-4 text-[#204983] mt-0.5 shrink-0" />
+                      <div className="flex flex-col min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-medium truncate">{obraSocial.name}</span>
+                          {nbuName && (
+                            <span className="text-[10px] font-mono text-[#204983] bg-[#204983]/10 rounded px-1.5 py-0.5">
+                              {nbuName}
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-xs text-gray-500">
+                          UB O.S.: ${obraSocial.ub_value} · UB Part.: ${obraSocial.private_ub_value}
+                        </span>
+                        {flags.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {flags.map((flag) => (
+                              <span
+                                key={flag}
+                                className="inline-block rounded-full bg-amber-100 text-amber-800 text-[10px] px-1.5 py-0.5"
+                              >
+                                {flag}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                </CommandItem>
-              ))}
+                  </CommandItem>
+                )
+              })}
               {isLoading && (
                 <div className="flex items-center justify-center p-2">
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#204983] mr-2" />

@@ -1,11 +1,12 @@
 "use client"
 
-import { ChevronDown, User, CreditCard, Printer, DollarSign, UserCog } from "lucide-react"
+import { ChevronDown, User, CreditCard, Printer, DollarSign, UserCog, ShieldCheck } from "lucide-react"
 import { Badge } from "../../ui/badge"
 import { Button } from "../../ui/button"
 import { AuditAvatars } from "@/components/common/audit-avatars"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import type { PaymentStatus, CreationAudit, LastChangeAudit, ProtocolStatus } from "@/types"
+import type { PaymentStatus, CreationAudit, LastChangeAudit, ProtocolStatus, PreauthStatus } from "@/types"
+import { getPaymentStatusInfo, getPreauthStatusInfo, getProtocolStatusBadgeClass } from "@/lib/status-styles"
 
 interface ProtocolHeaderProps {
   protocolId: number
@@ -15,6 +16,7 @@ interface ProtocolHeaderProps {
   paymentStatus?: PaymentStatus | null
   balance: number
   isPrinted?: boolean
+  preauthStatus?: PreauthStatus
   canRegisterPayment: boolean
   labOwesPatient: boolean
   paymentDisabledReason?: string
@@ -24,39 +26,8 @@ interface ProtocolHeaderProps {
   onRegisterPayment: () => void
 }
 
-// Status IDs: 1=Pendiente de carga, 2=Pendiente de validación, 3=Pago incompleto, 4=Cancelado, 5=Completado, 6=Pendiente de Retiro, 7=Envío fallido, 8=Pendiente de Facturación, 10=Pendiente de envío, 11=Pendiente de revisión, 12=Información faltante
 const getStateColor = (statusId: number) => {
-  const stateColors: Record<number, string> = {
-    1: "bg-yellow-100 text-yellow-800", // Pendiente de carga
-    2: "bg-sky-100 text-sky-800", // Pendiente de validación
-    3: "bg-orange-100 text-orange-800", // Pago incompleto
-    4: "bg-red-100 text-red-800", // Cancelado
-    5: "bg-green-100 text-green-800", // Completado
-    6: "bg-purple-100 text-purple-800", // Pendiente de Retiro
-    7: "bg-pink-100 text-pink-800", // Envío fallido
-    8: "bg-teal-100 text-teal-800", // Pendiente de Facturación
-    10: "bg-indigo-100 text-indigo-800", // Pendiente de envío
-    11: "bg-[#f8e8ee] text-[#800020]", // Pendiente de revisión
-    12: "bg-amber-100 text-amber-800", // Información faltante
-  }
-  return stateColors[statusId] || "bg-gray-100 text-gray-800"
-}
-
-const getPaymentStatusInfo = (paymentStatus?: PaymentStatus | null) => {
-  if (!paymentStatus) {
-    return { color: "text-gray-600", bgColor: "bg-gray-100", label: "Sin estado" }
-  }
-
-  switch (paymentStatus.id) {
-    case 1:
-      return { color: "text-green-600", bgColor: "bg-green-100", label: paymentStatus.name }
-    case 2:
-      return { color: "text-red-600", bgColor: "bg-red-100", label: paymentStatus.name }
-    case 3:
-      return { color: "text-orange-600", bgColor: "bg-orange-100", label: paymentStatus.name }
-    default:
-      return { color: "text-gray-600", bgColor: "bg-gray-100", label: paymentStatus.name }
-  }
+  return getProtocolStatusBadgeClass(statusId)
 }
 
 export function ProtocolHeader({
@@ -67,6 +38,7 @@ export function ProtocolHeader({
   paymentStatus,
   balance,
   isPrinted,
+  preauthStatus,
   canRegisterPayment,
   labOwesPatient,
   paymentDisabledReason,
@@ -81,6 +53,8 @@ export function ProtocolHeader({
   const statusName = status?.name ?? "Desconocido"
 
   const isCancelled = statusId === 4
+  const preauthInfo = getPreauthStatusInfo(preauthStatus)
+  const showPreauthStatus = Boolean(preauthStatus && preauthStatus !== "not_required")
   const showPaymentButton = canRegisterPayment || labOwesPatient || Boolean(paymentDisabledReason)
   const paymentButton = (
     <Button
@@ -147,6 +121,12 @@ export function ProtocolHeader({
                   <Badge variant="outline" className="max-w-full text-xs">
                     <Printer className="h-3 w-3 mr-1" />
                     <span className="hidden sm:inline">Impreso / </span>Enviado
+                  </Badge>
+                )}
+                {showPreauthStatus && (
+                  <Badge variant="outline" className={`max-w-full text-xs ${preauthInfo.badge}`}>
+                    <ShieldCheck className="h-3 w-3 mr-1" />
+                    {preauthInfo.label}
                   </Badge>
                 )}
               </div>

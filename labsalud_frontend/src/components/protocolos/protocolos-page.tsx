@@ -36,6 +36,12 @@ import { toast } from "sonner"
 import { PROTOCOL_ENDPOINTS, ANALYTICS_ENDPOINTS, TOAST_DURATION } from "@/config/api"
 import type { ProtocolListItem, SendMethod } from "@/types"
 import { formatApiError, getErrorMessage } from "@/lib/api-error"
+import {
+  ALLOWED_PROTOCOL_STATUS_FILTERS,
+  PROTOCOL_STATUS_STATS_KEY,
+  getProtocolStatusButtonClass,
+  getProtocolStatusStyle,
+} from "@/lib/status-styles"
 
 interface PaginatedResponse {
   count: number
@@ -53,21 +59,8 @@ interface ProtocolsByStatusResponse {
   }>
 }
 
-const STATUS_ID_MAP: Record<number, string> = {
-  1: "pendingEntry",
-  2: "pendingValidation",
-  3: "incompletePayment",
-  4: "cancelled",
-  5: "completed",
-  6: "pendingRetiro",
-  7: "sendFailed",
-  10: "pendingDelivery",
-  11: "pendingReview",
-  12: "missingInfo",
-}
-
 const STATUS_FILTER_KEY = "labsalud_protocol_status_filters"
-const ALLOWED_STATUS_FILTERS = [1, 2, 3, 4, 5, 6, 7, 10, 11, 12]
+const ALLOWED_STATUS_FILTERS: number[] = [...ALLOWED_PROTOCOL_STATUS_FILTERS]
 
 export default function ProtocolosPage() {
   const { apiRequest } = useApi()
@@ -131,7 +124,7 @@ export default function ProtocolosPage() {
     if (!data) return base
     base.total = data.total_protocols
     data.states.forEach((state) => {
-      const key = STATUS_ID_MAP[state.status_id]
+      const key = PROTOCOL_STATUS_STATS_KEY[state.status_id]
       if (key && key in base) {
         ;(base as Record<string, number>)[key] = state.count
       }
@@ -543,14 +536,14 @@ export default function ProtocolosPage() {
             </CardContent>
           </Card>
 
-          <Card className="bg-purple-50">
+          <Card className={getProtocolStatusStyle(6).card}>
             <CardContent className="flex h-full items-center justify-center px-2 py-1 text-center sm:px-2.5 sm:py-1.5">
               <div className="w-full space-y-0.5 text-center">
                 <div className="flex items-center justify-center gap-1">
-                  <User className="h-5 w-5 sm:h-6 sm:w-6 text-purple-400 flex-shrink-0" />
-                  <p className="text-lg sm:text-2xl font-bold text-purple-600">{stats.pendingRetiro}</p>
+                  <User className={`h-5 w-5 sm:h-6 sm:w-6 ${getProtocolStatusStyle(6).icon} flex-shrink-0`} />
+                  <p className={`text-lg sm:text-2xl font-bold ${getProtocolStatusStyle(6).text}`}>{stats.pendingRetiro}</p>
                 </div>
-                <p className="text-xs sm:text-sm font-medium text-purple-700 text-center break-words">Pend. Retiro</p>
+                <p className={`text-xs sm:text-sm font-medium ${getProtocolStatusStyle(6).text} text-center break-words`}>Pend. Retiro</p>
               </div>
             </CardContent>
           </Card>
@@ -567,38 +560,38 @@ export default function ProtocolosPage() {
             </CardContent>
           </Card>
 
-          <Card className="bg-sky-50">
+          <Card className={getProtocolStatusStyle(2).card}>
             <CardContent className="flex h-full items-center justify-center px-2 py-1 text-center sm:px-2.5 sm:py-1.5">
               <div className="w-full space-y-0.5 text-center">
                 <div className="flex items-center justify-center gap-1">
-                  <Filter className="h-5 w-5 sm:h-6 sm:w-6 text-sky-400 flex-shrink-0" />
-                  <p className="text-lg sm:text-2xl font-bold text-sky-600">{stats.pendingValidation}</p>
+                  <Filter className={`h-5 w-5 sm:h-6 sm:w-6 ${getProtocolStatusStyle(2).icon} flex-shrink-0`} />
+                  <p className={`text-lg sm:text-2xl font-bold ${getProtocolStatusStyle(2).text}`}>{stats.pendingValidation}</p>
                 </div>
-                <p className="text-xs sm:text-sm font-medium text-sky-700 text-center break-words">Pend. Validación</p>
+                <p className={`text-xs sm:text-sm font-medium ${getProtocolStatusStyle(2).text} text-center break-words`}>Pend. Validación</p>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-[#f8e8ee]">
+          <Card className={getProtocolStatusStyle(11).card}>
             <CardContent className="flex h-full items-center justify-center px-2 py-1 text-center sm:px-2.5 sm:py-1.5">
               <div className="w-full space-y-0.5 text-center">
                 <div className="flex items-center justify-center gap-1">
-                  <PenLine className="h-5 w-5 sm:h-6 sm:w-6 text-[#800020] flex-shrink-0" />
-                  <p className="text-lg sm:text-2xl font-bold text-[#800020]">{stats.pendingReview}</p>
+                  <PenLine className={`h-5 w-5 sm:h-6 sm:w-6 ${getProtocolStatusStyle(11).icon} flex-shrink-0`} />
+                  <p className={`text-lg sm:text-2xl font-bold ${getProtocolStatusStyle(11).text}`}>{stats.pendingReview}</p>
                 </div>
-                <p className="text-xs sm:text-sm font-medium text-[#800020] text-center break-words">Pend. Revisión</p>
+                <p className={`text-xs sm:text-sm font-medium ${getProtocolStatusStyle(11).text} text-center break-words`}>Pend. Revisión</p>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-green-50">
+          <Card className={getProtocolStatusStyle(5).card}>
             <CardContent className="flex h-full items-center justify-center px-2 py-1 text-center sm:px-2.5 sm:py-1.5">
               <div className="w-full space-y-0.5 text-center">
                 <div className="flex items-center justify-center gap-1">
-                  <CheckCircle className="h-5 w-5 sm:h-6 sm:w-6 text-green-400 flex-shrink-0" />
-                  <p className="text-lg sm:text-2xl font-bold text-green-600">{stats.completed}</p>
+                  <CheckCircle className={`h-5 w-5 sm:h-6 sm:w-6 ${getProtocolStatusStyle(5).icon} flex-shrink-0`} />
+                  <p className={`text-lg sm:text-2xl font-bold ${getProtocolStatusStyle(5).text}`}>{stats.completed}</p>
                 </div>
-                <p className="text-xs sm:text-sm font-medium text-green-700 text-center break-words">Completados</p>
+                <p className={`text-xs sm:text-sm font-medium ${getProtocolStatusStyle(5).text} text-center break-words`}>Completados</p>
               </div>
             </CardContent>
           </Card>
@@ -615,26 +608,26 @@ export default function ProtocolosPage() {
             </CardContent>
           </Card>
 
-          <Card className="bg-pink-50">
+          <Card className={getProtocolStatusStyle(7).card}>
             <CardContent className="flex h-full items-center justify-center px-2 py-1 text-center sm:px-2.5 sm:py-1.5">
               <div className="w-full space-y-0.5 text-center">
                 <div className="flex items-center justify-center gap-1">
-                  <AlertTriangle className="h-5 w-5 sm:h-6 sm:w-6 text-pink-400 flex-shrink-0" />
-                  <p className="text-lg sm:text-2xl font-bold text-pink-600">{stats.sendFailed}</p>
+                  <AlertTriangle className={`h-5 w-5 sm:h-6 sm:w-6 ${getProtocolStatusStyle(7).icon} flex-shrink-0`} />
+                  <p className={`text-lg sm:text-2xl font-bold ${getProtocolStatusStyle(7).text}`}>{stats.sendFailed}</p>
                 </div>
-                <p className="text-xs sm:text-sm font-medium text-pink-700 text-center break-words">Envío Fallido</p>
+                <p className={`text-xs sm:text-sm font-medium ${getProtocolStatusStyle(7).text} text-center break-words`}>Envío Fallido</p>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-indigo-50">
+          <Card className={getProtocolStatusStyle(10).card}>
             <CardContent className="flex h-full items-center justify-center px-2 py-1 text-center sm:px-2.5 sm:py-1.5">
               <div className="w-full space-y-0.5 text-center">
                 <div className="flex items-center justify-center gap-1">
-                  <Mail className="h-5 w-5 sm:h-6 sm:w-6 text-indigo-400 flex-shrink-0" />
-                  <p className="text-lg sm:text-2xl font-bold text-indigo-600">{stats.pendingDelivery}</p>
+                  <Mail className={`h-5 w-5 sm:h-6 sm:w-6 ${getProtocolStatusStyle(10).icon} flex-shrink-0`} />
+                  <p className={`text-lg sm:text-2xl font-bold ${getProtocolStatusStyle(10).text}`}>{stats.pendingDelivery}</p>
                 </div>
-                <p className="text-xs sm:text-sm font-medium text-indigo-700 text-center break-words">Pend. Envío</p>
+                <p className={`text-xs sm:text-sm font-medium ${getProtocolStatusStyle(10).text} text-center break-words`}>Pend. Envío</p>
               </div>
             </CardContent>
           </Card>
@@ -689,7 +682,7 @@ export default function ProtocolosPage() {
                 variant={selectedStatuses.includes(1) ? "default" : "outline"}
                 size="sm"
                 onClick={() => toggleStatus(1)}
-                className={selectedStatuses.includes(1) ? "bg-yellow-500 hover:bg-yellow-600" : ""}
+                className={getProtocolStatusButtonClass(1, selectedStatuses.includes(1))}
               >
                 <Clock className="h-3 w-3 mr-1" />
                 Pend. Carga
@@ -698,7 +691,7 @@ export default function ProtocolosPage() {
                 variant={selectedStatuses.includes(2) ? "default" : "outline"}
                 size="sm"
                 onClick={() => toggleStatus(2)}
-                className={selectedStatuses.includes(2) ? "bg-sky-500 hover:bg-sky-600" : ""}
+                className={getProtocolStatusButtonClass(2, selectedStatuses.includes(2))}
               >
                 <Filter className="h-3 w-3 mr-1" />
                 Pend. Validación
@@ -707,7 +700,7 @@ export default function ProtocolosPage() {
                 variant={selectedStatuses.includes(11) ? "default" : "outline"}
                 size="sm"
                 onClick={() => toggleStatus(11)}
-                className={selectedStatuses.includes(11) ? "bg-[#800020] hover:bg-[#670019]" : ""}
+                className={getProtocolStatusButtonClass(11, selectedStatuses.includes(11))}
               >
                 <PenLine className="h-3 w-3 mr-1" />
                 Pend. Revisión
@@ -716,7 +709,7 @@ export default function ProtocolosPage() {
                 variant={selectedStatuses.includes(3) ? "default" : "outline"}
                 size="sm"
                 onClick={() => toggleStatus(3)}
-                className={selectedStatuses.includes(3) ? "bg-orange-500 hover:bg-orange-600" : ""}
+                className={getProtocolStatusButtonClass(3, selectedStatuses.includes(3))}
               >
                 <Calendar className="h-3 w-3 mr-1" />
                 Pago Incompleto
@@ -725,7 +718,7 @@ export default function ProtocolosPage() {
                 variant={selectedStatuses.includes(6) ? "default" : "outline"}
                 size="sm"
                 onClick={() => toggleStatus(6)}
-                className={selectedStatuses.includes(6) ? "bg-purple-500 hover:bg-purple-600" : ""}
+                className={getProtocolStatusButtonClass(6, selectedStatuses.includes(6))}
               >
                 <User className="h-3 w-3 mr-1" />
                 Pend. Retiro
@@ -734,7 +727,7 @@ export default function ProtocolosPage() {
                 variant={selectedStatuses.includes(5) ? "default" : "outline"}
                 size="sm"
                 onClick={() => toggleStatus(5)}
-                className={selectedStatuses.includes(5) ? "bg-green-500 hover:bg-green-600" : ""}
+                className={getProtocolStatusButtonClass(5, selectedStatuses.includes(5))}
               >
                 <CheckCircle className="h-3 w-3 mr-1" />
                 Completado
@@ -743,7 +736,7 @@ export default function ProtocolosPage() {
                 variant={selectedStatuses.includes(4) ? "default" : "outline"}
                 size="sm"
                 onClick={() => toggleStatus(4)}
-                className={selectedStatuses.includes(4) ? "bg-red-500 hover:bg-red-600" : ""}
+                className={getProtocolStatusButtonClass(4, selectedStatuses.includes(4))}
               >
                 <Ban className="h-3 w-3 mr-1" />
                 Cancelado
@@ -752,7 +745,7 @@ export default function ProtocolosPage() {
                 variant={selectedStatuses.includes(7) ? "default" : "outline"}
                 size="sm"
                 onClick={() => toggleStatus(7)}
-                className={selectedStatuses.includes(7) ? "bg-pink-500 hover:bg-pink-600" : ""}
+                className={getProtocolStatusButtonClass(7, selectedStatuses.includes(7))}
               >
                 <AlertTriangle className="h-3 w-3 mr-1" />
                 Envío Fallido
@@ -761,7 +754,7 @@ export default function ProtocolosPage() {
                 variant={selectedStatuses.includes(10) ? "default" : "outline"}
                 size="sm"
                 onClick={() => toggleStatus(10)}
-                className={selectedStatuses.includes(10) ? "bg-indigo-500 hover:bg-indigo-600" : ""}
+                className={getProtocolStatusButtonClass(10, selectedStatuses.includes(10))}
               >
                 <Mail className="h-3 w-3 mr-1" />
                 Pend. Envío
@@ -770,7 +763,7 @@ export default function ProtocolosPage() {
                 variant={selectedStatuses.includes(12) ? "default" : "outline"}
                 size="sm"
                 onClick={() => toggleStatus(12)}
-                className={selectedStatuses.includes(12) ? "bg-amber-500 hover:bg-amber-600" : ""}
+                className={getProtocolStatusButtonClass(12, selectedStatuses.includes(12))}
               >
                 <AlertCircle className="h-3 w-3 mr-1" />
                 Info Faltante

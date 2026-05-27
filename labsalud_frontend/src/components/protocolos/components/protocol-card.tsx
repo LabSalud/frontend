@@ -7,6 +7,7 @@ import { Skeleton } from "../../ui/skeleton"
 import { useApi } from "../../../hooks/use-api"
 import { toast } from "sonner"
 import { PROTOCOL_ENDPOINTS, TOAST_DURATION } from "@/config/api"
+import { PERMISSIONS } from "@/config/permissions"
 import { Mail, MessageCircle } from "lucide-react"
 import {
   AlertDialog,
@@ -26,6 +27,7 @@ import type {
   PaymentStatus,
   BillingStatus,
   ProtocolStatus,
+  PreauthStatus,
 } from "@/types"
 
 // Componentes modulares
@@ -46,6 +48,8 @@ import type { ArcaPayload } from "./dialogs"
 import { ProtocolHistoryDialog } from "./dialogs/protocol-history-dialog"
 import { formatApiError, getErrorMessage } from "@/lib/api-error"
 import { useAuth } from "@/contexts/auth-context"
+import { getProtocolStatusStyle } from "@/lib/status-styles"
+import { TRAJO_ORDEN, normalizeTrajoOrden, type TrajoOrdenStatus } from "@/lib/protocol-order"
 
 interface ProtocolDetailResponse {
   id: number
@@ -97,7 +101,8 @@ interface ProtocolDetailResponse {
   payment_status: PaymentStatus
   billing_status?: BillingStatus
   is_printed: boolean
-  trajo_orden: boolean
+  trajo_orden: TrajoOrdenStatus
+  preauth_status?: PreauthStatus
   is_in_patient?: boolean
   is_active: boolean
   created_at?: string
@@ -168,10 +173,15 @@ export function ProtocolCard({
   const [auditDialogOpen, setAuditDialogOpen] = useState(false)
 
   const [editDialogOpen, setEditDialogOpen] = useState(false)
-  const [editFormData, setEditFormData] = useState({
+  const [editFormData, setEditFormData] = useState<{
+    send_method: string
+    affiliate_number: string
+    trajo_orden: TrajoOrdenStatus
+    is_in_patient: boolean
+  }>({
     send_method: "",
     affiliate_number: "",
-    trajo_orden: true,
+    trajo_orden: TRAJO_ORDEN.COMPLETA,
     is_in_patient: false,
   })
   const [isSavingEdit, setIsSavingEdit] = useState(false)
@@ -464,7 +474,7 @@ export function ProtocolCard({
       setEditFormData({
         send_method: detail.send_method.id.toString(),
         affiliate_number: detail.affiliate_number || "",
-        trajo_orden: detail.trajo_orden ?? true,
+        trajo_orden: normalizeTrajoOrden(detail.trajo_orden),
         is_in_patient: detail.is_in_patient ?? false,
       })
     }
@@ -482,7 +492,7 @@ export function ProtocolCard({
       if (editFormData.affiliate_number !== (protocolDetail?.affiliate_number || "")) {
         updateData.affiliate_number = editFormData.affiliate_number.trim()
       }
-      if (editFormData.trajo_orden !== (protocolDetail?.trajo_orden ?? true)) {
+      if (editFormData.trajo_orden !== normalizeTrajoOrden(protocolDetail?.trajo_orden)) {
         updateData.trajo_orden = editFormData.trajo_orden
       }
       if (editFormData.is_in_patient !== (protocolDetail?.is_in_patient ?? false)) {
@@ -601,6 +611,8 @@ export function ProtocolCard({
         const data = await response.json()
         toast.success(data.detail || "Email enviado exitosamente", { duration: TOAST_DURATION })
         setReportDialogOpen(false)
+        await refreshProtocolDetail()
+        onUpdate()
       } else {
         const errorData = await response.json().catch(() => ({}))
         throw new Error(extractErrorMessage(errorData, "Error sending email"))
@@ -623,6 +635,8 @@ export function ProtocolCard({
         const data = await response.json()
         toast.success(data.detail || "WhatsApp enviado exitosamente", { duration: TOAST_DURATION })
         setReportDialogOpen(false)
+        await refreshProtocolDetail()
+        onUpdate()
       } else {
         const errorData = await response.json().catch(() => ({}))
         throw new Error(extractErrorMessage(errorData, "Error sending WhatsApp"))
@@ -669,12 +683,15 @@ export function ProtocolCard({
       })
 
       if (response.ok) {
+        const updatedDetail = await response.json().catch(() => null)
         setProtocolDetails((prev) =>
-          prev.map((d) => (d.id === detail.id ? { ...d, is_authorized: !d.is_authorized } : d)),
+          prev.map((d) => (d.id === detail.id ? { ...d, ...(updatedDetail || {}), is_authorized: !detail.is_authorized } : d)),
         )
         toast.success(`Análisis ${!detail.is_authorized ? "autorizado" : "desautorizado"} exitosamente`, {
           duration: TOAST_DURATION,
         })
+        await refreshProtocolDetail()
+        onUpdate()
       } else {
         const errorData = await response.json().catch(() => ({}))
         throw new Error(extractErrorMessage(errorData, "Error updating authorization"))
@@ -834,7 +851,11 @@ export function ProtocolCard({
   const cancelDisabledReason = !canBeCancelled ? `No se puede cancelar un protocolo en estado "${statusName}".` : undefined
   const reportsDisabledReason = !showReports ? "No se pueden generar ni enviar reportes de un protocolo cancelado." : undefined
   const arcaDisabledReason = isCancelled ? "No se puede facturar ARCA para un protocolo cancelado." : undefined
-  const canUncancel = isCancelled && (user?.is_superuser || hasPermission("descancelar_protocolos") || hasPermission("laboratory_protocols.descancelar_protocolos"))
+  const canUncancel =
+    isCancelled &&
+    (user?.is_superuser ||
+      hasPermission(PERMISSIONS.UNCANCEL_PROTOCOLS.codename) ||
+      hasPermission("laboratory_protocols.descancelar_protocolos"))
   const insuranceChargesCoseguro = Boolean(protocolDetail?.insurance?.charges_coseguro)
   const insuranceRequiresPreauth = Boolean(protocolDetail?.insurance?.requires_preauthorization)
   const showCoseguroAction = !isCancelled && !isCompleted && insuranceChargesCoseguro
@@ -870,20 +891,7 @@ export function ProtocolCard({
       : undefined
 
   const getBorderColor = (statusId: number): string => {
-    const borderColors: Record<number, string> = {
-      1: "border-l-yellow-500", // Pendiente de carga
-      2: "border-l-sky-500", // Pendiente de validación
-      3: "border-l-orange-500", // Pago incompleto
-      4: "border-l-red-500", // Cancelado
-      5: "border-l-green-500", // Completado
-      6: "border-l-purple-500", // Pendiente de Retiro
-      7: "border-l-pink-500", // Envío fallido
-      8: "border-l-teal-500", // Pendiente de Facturación
-      10: "border-l-indigo-500", // Pendiente de envío
-      11: "border-l-[#800020]", // Pendiente de revisión
-      12: "border-l-amber-500", // Información faltante
-    }
-    return borderColors[statusId] || "border-l-gray-500"
+    return getProtocolStatusStyle(statusId).border
   }
 
   return (
@@ -936,6 +944,7 @@ export function ProtocolCard({
                 paymentStatus={protocol.payment_status}
                 balance={balance}
                 isPrinted={protocol.is_printed}
+                preauthStatus={protocol.preauth_status}
                 canRegisterPayment={hasPatientDebt && canBeCancelled}
                 labOwesPatient={labOwesPatient && canBeCancelled}
                 paymentDisabledReason={paymentDisabledReason}
@@ -985,6 +994,7 @@ export function ProtocolCard({
                   privateUbValue={protocolDetail?.private_ub_value}
                   isPrinted={protocolDetail?.is_printed}
                   trajoOrden={protocolDetail?.trajo_orden}
+                  preauthStatus={protocolDetail?.preauth_status}
                   isInPatient={protocolDetail?.is_in_patient}
                   analysesAmountDue={protocolDetail?.analyses_amount_due}
                   coseguroAmount={protocolDetail?.coseguro_amount}

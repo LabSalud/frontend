@@ -1,10 +1,11 @@
 "use client"
 
-import { User, Building, CreditCard, Send, DollarSign, Printer, History, ClipboardCheck, BedDouble, BookOpen } from "lucide-react"
+import { User, Building, CreditCard, Send, DollarSign, Printer, History, ClipboardCheck, BedDouble, BookOpen, ShieldCheck } from "lucide-react"
 import { Badge } from "../../ui/badge"
 import { Button } from "../../ui/button"
-import type { PaymentStatus, Nbu } from "@/types"
-import { getPaymentStatusInfo } from "./protocol-header"
+import type { PaymentStatus, Nbu, TrajoOrdenStatus, PreauthStatus } from "@/types"
+import { getTrajoOrdenInfo } from "@/lib/protocol-order"
+import { getPaymentStatusInfo, getPreauthStatusInfo } from "@/lib/status-styles"
 
 interface ProtocolDetailsSectionProps {
   patientName: string
@@ -21,7 +22,8 @@ interface ProtocolDetailsSectionProps {
   insuranceUbValue?: string
   privateUbValue?: string
   isPrinted?: boolean
-  trajoOrden?: boolean
+  trajoOrden?: TrajoOrdenStatus | boolean
+  preauthStatus?: PreauthStatus
   isInPatient?: boolean
   analysesAmountDue?: string
   coseguroAmount?: string
@@ -43,6 +45,7 @@ export function ProtocolDetailsSection({
   privateUbValue,
   isPrinted,
   trajoOrden,
+  preauthStatus,
   isInPatient,
   analysesAmountDue,
   coseguroAmount,
@@ -69,6 +72,8 @@ export function ProtocolDetailsSection({
   const extras = Number.parseFloat(extrasTotal || "0")
   const hasExtras = coseguro > 0 || material > 0 || derivacion > 0
   const nbuName = nbu && typeof nbu === "object" && "name" in nbu ? nbu.name : null
+  const trajoOrdenInfo = getTrajoOrdenInfo(trajoOrden)
+  const preauthInfo = getPreauthStatusInfo(preauthStatus)
 
   return (
     <div className="space-y-4 mt-4">
@@ -108,26 +113,32 @@ export function ProtocolDetailsSection({
 
         {trajoOrden !== undefined && (
           <div className="flex items-center gap-3 text-sm">
-            <ClipboardCheck className={`h-4 w-4 flex-shrink-0 ${trajoOrden ? "text-emerald-500" : "text-amber-500"}`} />
+            <ClipboardCheck className={`h-4 w-4 flex-shrink-0 ${trajoOrdenInfo.iconClassName}`} />
             <span className="text-gray-600 w-28 flex-shrink-0">Orden médica:</span>
             <Badge
               variant="outline"
-              className={
-                trajoOrden
-                  ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                  : "border-amber-200 bg-amber-50 text-amber-700"
-              }
+              className={trajoOrdenInfo.badgeClassName}
             >
-              {trajoOrden ? "Recibida" : "Pendiente"}
+              {trajoOrdenInfo.label}
+            </Badge>
+          </div>
+        )}
+
+        {preauthStatus && (
+          <div className="flex items-center gap-3 text-sm">
+            <ShieldCheck className={`h-4 w-4 flex-shrink-0 ${preauthInfo.iconClassName}`} />
+            <span className="text-gray-600 w-28 flex-shrink-0">Preauth:</span>
+            <Badge variant="outline" className={preauthInfo.badge}>
+              {preauthInfo.label}
             </Badge>
           </div>
         )}
 
         {isInPatient && (
           <div className="flex items-center gap-3 text-sm">
-            <BedDouble className="h-4 w-4 text-purple-500 flex-shrink-0" />
+            <BedDouble className="h-4 w-4 text-violet-500 flex-shrink-0" />
             <span className="text-gray-600 w-28 flex-shrink-0">Paciente:</span>
-            <Badge className="bg-purple-100 text-purple-700">Internado</Badge>
+            <Badge className="bg-violet-100 text-violet-700">Internado</Badge>
           </div>
         )}
 
@@ -184,22 +195,22 @@ export function ProtocolDetailsSection({
         <div className="flex items-center gap-3 text-sm">
           <DollarSign className="h-4 w-4 text-gray-400 flex-shrink-0" />
           <span className="text-gray-600 w-28 flex-shrink-0">Pagado:</span>
-          <span className="font-medium text-green-600">${paid.toFixed(2)}</span>
+          <span className="font-medium text-emerald-600">${paid.toFixed(2)}</span>
         </div>
 
         {pending > 0 && (
           <div className="flex items-center gap-3 text-sm">
-            <DollarSign className="h-4 w-4 text-yellow-500 flex-shrink-0" />
+            <DollarSign className="h-4 w-4 text-orange-500 flex-shrink-0" />
             <span className="text-gray-600 w-28 flex-shrink-0">Pendiente:</span>
-            <span className="font-medium text-yellow-600">${pending.toFixed(2)}</span>
+            <span className="font-medium text-orange-600">${pending.toFixed(2)}</span>
           </div>
         )}
 
         {toReturn > 0 && (
           <div className="flex items-center gap-3 text-sm">
-            <DollarSign className="h-4 w-4 text-blue-500 flex-shrink-0" />
+            <DollarSign className="h-4 w-4 text-amber-500 flex-shrink-0" />
             <span className="text-gray-600 w-28 flex-shrink-0">A devolver:</span>
-            <span className="font-medium text-blue-600">${toReturn.toFixed(2)}</span>
+            <span className="font-medium text-amber-600">${toReturn.toFixed(2)}</span>
           </div>
         )}
 

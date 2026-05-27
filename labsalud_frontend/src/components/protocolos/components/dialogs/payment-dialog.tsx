@@ -82,10 +82,15 @@ export function PaymentDialog({
 
   const getStatusBadgeColor = (status: string) => {
     const lower = status.toLowerCase()
-    if (lower.includes("completo") || lower.includes("pagado")) return "bg-green-100 text-green-800"
-    if (lower.includes("parcial")) return "bg-yellow-100 text-yellow-800"
-    if (lower.includes("pendiente")) return "bg-red-100 text-red-800"
-    if (lower.includes("devolucion") || lower.includes("devolución")) return "bg-blue-100 text-blue-800"
+    if (lower.includes("cero") || lower.includes("completo") || lower.includes("pagado")) {
+      return "bg-emerald-100 text-emerald-800"
+    }
+    if (lower.includes("incompleto") || lower.includes("parcial") || lower.includes("pendiente")) {
+      return "bg-orange-100 text-orange-800"
+    }
+    if (lower.includes("devolver") || lower.includes("devolucion") || lower.includes("devolución")) {
+      return "bg-amber-100 text-amber-800"
+    }
     return "bg-gray-100 text-gray-800"
   }
 
@@ -94,7 +99,7 @@ export function PaymentDialog({
       <DialogContent className="w-[95vw] max-w-[480px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <DollarSign className="h-5 w-5 text-green-600" />
+            <DollarSign className="h-5 w-5 text-emerald-600" />
             Pagos - Protocolo #{protocolId}
           </DialogTitle>
         </DialogHeader>
@@ -113,17 +118,17 @@ export function PaymentDialog({
                 <p className="text-xs text-gray-500">Total a pagar</p>
                 <p className="text-lg font-bold text-gray-900">${due.toFixed(2)}</p>
               </div>
-              <div className="bg-green-50 rounded-md p-3">
+              <div className="bg-emerald-50 rounded-md p-3">
                 <p className="text-xs text-gray-500">Pagado</p>
-                <p className="text-lg font-bold text-green-700">${paid.toFixed(2)}</p>
+                <p className="text-lg font-bold text-emerald-700">${paid.toFixed(2)}</p>
               </div>
-              <div className="bg-red-50 rounded-md p-3">
+              <div className="bg-orange-50 rounded-md p-3">
                 <p className="text-xs text-gray-500">Pendiente</p>
-                <p className="text-lg font-bold text-red-700">${pending.toFixed(2)}</p>
+                <p className="text-lg font-bold text-orange-700">${pending.toFixed(2)}</p>
               </div>
-              <div className="bg-blue-50 rounded-md p-3">
+              <div className="bg-amber-50 rounded-md p-3">
                 <p className="text-xs text-gray-500">A devolver</p>
-                <p className="text-lg font-bold text-blue-700">${toReturn.toFixed(2)}</p>
+                <p className="text-lg font-bold text-amber-700">${toReturn.toFixed(2)}</p>
               </div>
             </div>
           </div>
@@ -133,7 +138,7 @@ export function PaymentDialog({
             <Button
               variant={operation === "patient_paid" ? "default" : "outline"}
               size="sm"
-              className={`flex-1 ${operation === "patient_paid" ? "bg-green-600 hover:bg-green-700" : ""}`}
+              className={`flex-1 ${operation === "patient_paid" ? "bg-emerald-600 hover:bg-emerald-700" : ""}`}
               onClick={() => {
                 setOperation("patient_paid")
                 setAmount("")
@@ -146,7 +151,7 @@ export function PaymentDialog({
             <Button
               variant={operation === "refunded_to_patient" ? "default" : "outline"}
               size="sm"
-              className={`flex-1 ${operation === "refunded_to_patient" ? "bg-blue-600 hover:bg-blue-700" : ""}`}
+              className={`flex-1 ${operation === "refunded_to_patient" ? "bg-amber-600 hover:bg-amber-700" : ""}`}
               onClick={() => {
                 setOperation("refunded_to_patient")
                 setAmount("")
@@ -211,8 +216,8 @@ export function PaymentDialog({
             disabled={isProcessing || !amount || Number.parseFloat(amount) <= 0 || Number.parseFloat(amount) > maxAmount}
             className={`w-full sm:w-auto ${
               operation === "patient_paid"
-                ? "bg-green-600 hover:bg-green-700"
-                : "bg-blue-600 hover:bg-blue-700"
+                ? "bg-emerald-600 hover:bg-emerald-700"
+                : "bg-amber-600 hover:bg-amber-700"
             }`}
           >
             {isProcessing ? (

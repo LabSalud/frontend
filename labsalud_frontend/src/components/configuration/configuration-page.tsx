@@ -7,13 +7,14 @@ import { MedicosManagement } from "./medicos-management"
 import { ObrasSocialesManagement } from "./obras-sociales-management"
 import { AnalysisManagement } from "./analysis-management"
 import { AuditManagement } from "./audit-management"
+import { NbuManagement } from "./nbu-management"
 
 export default function ConfigurationPage() {
   const [isLoading, setIsLoading] = useState(true)
 
   const [activeTab, setActiveTab] = useState(() => {
     const savedTab = localStorage.getItem("config-active-tab")
-    if (savedTab && ["medicos", "obras-sociales", "analisis", "auditoria"].includes(savedTab)) {
+    if (savedTab && ["medicos", "obras-sociales", "nomencladores", "analisis", "auditoria"].includes(savedTab)) {
       return savedTab
     }
     return "medicos"
@@ -80,6 +81,7 @@ export default function ConfigurationPage() {
           <TabsList className="mb-6">
             <TabsTrigger value="medicos">Médicos</TabsTrigger>
             <TabsTrigger value="obras-sociales">Obras Sociales</TabsTrigger>
+            <TabsTrigger value="nomencladores">Nomencladores</TabsTrigger>
             <TabsTrigger value="analisis">Análisis</TabsTrigger>
             <TabsTrigger value="auditoria">Auditoría</TabsTrigger>
           </TabsList>
@@ -90,6 +92,10 @@ export default function ConfigurationPage() {
 
           <TabsContent value="obras-sociales">
             <ObrasSocialesManagement />
+          </TabsContent>
+
+          <TabsContent value="nomencladores">
+            <NbuManagement />
           </TabsContent>
 
           <TabsContent value="analisis">

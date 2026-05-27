@@ -10,11 +10,14 @@ import { Badge } from "@/components/ui/badge"
 import { AuditAvatars } from "@/components/common/audit-avatars"
 import type { ObraSocial } from "@/types"
 import { useApi } from "@/hooks/use-api"
+import { getNbuDisplayName } from "@/hooks/use-nbu-options"
 import { MEDICAL_ENDPOINTS } from "@/config/api"
 import { ObraSocialHistoryDialog } from "./obra-social-history-dialog"
+import type { NBU } from "@/types"
 
 interface ObraSocialCardProps {
   obraSocial: ObraSocial
+  nbus?: NBU[]
   onEdit?: (os: ObraSocial) => void
   onToggleActive?: (os: ObraSocial, newStatus: boolean) => void
   isToggling?: boolean
@@ -29,7 +32,13 @@ const formatDateShort = (dateString?: string) => {
   })
 }
 
-export const ObraSocialCard: React.FC<ObraSocialCardProps> = ({ obraSocial, onEdit, onToggleActive, isToggling }) => {
+export const ObraSocialCard: React.FC<ObraSocialCardProps> = ({
+  obraSocial,
+  nbus = [],
+  onEdit,
+  onToggleActive,
+  isToggling,
+}) => {
   const [isExpanded, setIsExpanded] = useState(false)
   const [fullDetails, setFullDetails] = useState<ObraSocial | null>(null)
   const [isLoadingDetails, setIsLoadingDetails] = useState(false)
@@ -57,6 +66,7 @@ export const ObraSocialCard: React.FC<ObraSocialCardProps> = ({ obraSocial, onEd
     { label: "Preautorización", active: detailFlags.requires_preauthorization },
   ]
   const hasFlags = charges_coseguro || charges_material_descartable || charges_derivacion || requires_preauthorization
+  const nbuLabel = getNbuDisplayName((fullDetails ?? obraSocial).nbu, nbus)
 
   const handleToggle = (newStatus: boolean) => {
     if (onToggleActive) {
@@ -133,6 +143,11 @@ export const ObraSocialCard: React.FC<ObraSocialCardProps> = ({ obraSocial, onEd
                       • Cobra extras
                     </span>
                   )}
+                  {nbuLabel && (
+                    <span className="text-[10px] md:text-xs text-gray-500 hidden sm:inline">
+                      • {nbuLabel}
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
@@ -196,6 +211,11 @@ export const ObraSocialCard: React.FC<ObraSocialCardProps> = ({ obraSocial, onEd
                   </Badge>
                 ))}
               </div>
+            </div>
+
+            <div className="p-2 md:p-3 bg-blue-50 rounded-md">
+              <p className="text-[10px] md:text-xs text-blue-700 font-medium">Nomenclador</p>
+              <p className="text-xs md:text-sm text-blue-900 font-semibold">{nbuLabel}</p>
             </div>
 
             {(creation || last_change) && (

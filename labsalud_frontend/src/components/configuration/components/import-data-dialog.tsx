@@ -17,8 +17,9 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Loader2, Upload, FileSpreadsheet, AlertCircle, CheckCircle2, Info } from "lucide-react"
+import { Upload, FileSpreadsheet, AlertCircle, CheckCircle2, Info } from "lucide-react"
 import { formatApiError, getErrorMessage } from "@/lib/api-error"
+import { useEndpointProgress } from "@/hooks/use-endpoint-progress"
 
 interface ImportDataDialogProps {
   open: boolean
@@ -32,6 +33,7 @@ export function ImportDataDialog({ open, onOpenChange, onSuccess }: ImportDataDi
   const [file, setFile] = useState<File | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const progress = useEndpointProgress()
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0]
@@ -49,6 +51,7 @@ export function ImportDataDialog({ open, onOpenChange, onSuccess }: ImportDataDi
 
     setIsLoading(true)
     setError(null)
+    progress.start()
 
     try {
       const formData = new FormData()
@@ -70,6 +73,7 @@ export function ImportDataDialog({ open, onOpenChange, onSuccess }: ImportDataDi
             ? `${analysesCreated} análisis creados, ${analysesSkipped} omitidos; ${determinationsCreated} determinaciones creadas, ${determinationsSkipped} omitidas.`
             : data.message || "Los datos se importaron correctamente"
         toast.success(importSummary)
+        progress.finish()
         onOpenChange(false)
         onSuccess()
       } else {
@@ -84,6 +88,7 @@ export function ImportDataDialog({ open, onOpenChange, onSuccess }: ImportDataDi
       toast.error(errorMessage)
     } finally {
       setIsLoading(false)
+      progress.finish()
     }
   }
 
@@ -218,11 +223,15 @@ export function ImportDataDialog({ open, onOpenChange, onSuccess }: ImportDataDi
           <Button
             onClick={handleImport}
             disabled={!file || isLoading}
-            className="bg-[#204983] hover:bg-[#1a3d6f] w-full sm:w-auto"
+            className="relative overflow-hidden bg-[#204983] hover:bg-[#1a3d6f] w-full sm:w-auto"
           >
+            <span
+              className="absolute inset-y-0 left-0 bg-[#1a3d6f] transition-[width] duration-150"
+              style={{ width: `${progress.progress}%` }}
+            />
+            <span className="relative z-10 flex items-center">
             {isLoading ? (
               <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 Importando...
               </>
             ) : (
@@ -231,6 +240,7 @@ export function ImportDataDialog({ open, onOpenChange, onSuccess }: ImportDataDi
                 Importar
               </>
             )}
+            </span>
           </Button>
         </DialogFooter>
       </DialogContent>

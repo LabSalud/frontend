@@ -15,13 +15,13 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { AlertCircle, CheckCircle } from "lucide-react"
 import { useApi } from "@/hooks/use-api"
 import { toast } from "sonner"
 import { MEDICAL_ENDPOINTS, TOAST_DURATION } from "@/config/api"
 import type { ObraSocial } from "@/types"
 import { formatApiError, getErrorMessage } from "@/lib/api-error"
+import { NbuSelect } from "./nbu-select"
 
 interface EditObraSocialDialogProps {
   open: boolean
@@ -34,35 +34,22 @@ interface FormData {
   name: string
   description: string
   ub_value: string
-  nbu_year: string
+  nbu_id: string
   charges_coseguro: boolean
   charges_material_descartable: boolean
   charges_derivacion: boolean
   requires_preauthorization: boolean
 }
 
-const NBU_YEAR_OPTIONS = [
-  { value: "2024", label: "NBU 2024 (más actual)" },
-  { value: "2023", label: "NBU 2023" },
-  { value: "2016", label: "NBU 2016 (principal)" },
-]
-
-const extractNbuYear = (nbu: unknown): string => {
-  if (!nbu) return "2024"
+const extractNbuId = (nbu: unknown): string => {
+  if (!nbu) return ""
   if (typeof nbu === "number") return String(nbu)
-  if (typeof nbu === "string") {
-    const match = nbu.match(/\d{4}/)
-    return match ? match[0] : "2024"
-  }
+  if (typeof nbu === "string") return nbu
   if (typeof nbu === "object" && nbu !== null) {
-    const obj = nbu as { name?: string; year?: number; id?: number }
-    if (obj.year) return String(obj.year)
-    if (obj.name) {
-      const match = obj.name.match(/\d{4}/)
-      return match ? match[0] : "2024"
-    }
+    const obj = nbu as { id?: number }
+    return obj.id ? String(obj.id) : ""
   }
-  return "2024"
+  return ""
 }
 
 interface ValidationState {
@@ -76,7 +63,7 @@ export function EditObraSocialDialog({ open, onOpenChange, obraSocial, onSuccess
     name: "",
     description: "",
     ub_value: "",
-    nbu_year: "2024",
+    nbu_id: "",
     charges_coseguro: false,
     charges_material_descartable: false,
     charges_derivacion: false,
@@ -97,7 +84,7 @@ export function EditObraSocialDialog({ open, onOpenChange, obraSocial, onSuccess
         name: obraSocial.name,
         description: obraSocial.description || "",
         ub_value: obraSocial.ub_value || "",
-        nbu_year: extractNbuYear(obraSocial.nbu),
+        nbu_id: extractNbuId(obraSocial.nbu),
         charges_coseguro: obraSocial.charges_coseguro ?? false,
         charges_material_descartable: obraSocial.charges_material_descartable ?? false,
         charges_derivacion: obraSocial.charges_derivacion ?? false,
@@ -174,8 +161,8 @@ export function EditObraSocialDialog({ open, onOpenChange, obraSocial, onSuccess
     if (formData.requires_preauthorization !== (obraSocial.requires_preauthorization ?? false)) {
       changes.requires_preauthorization = formData.requires_preauthorization
     }
-    if (formData.nbu_year !== extractNbuYear(obraSocial.nbu)) {
-      changes.nbu_year = Number.parseInt(formData.nbu_year, 10)
+    if (formData.nbu_id !== extractNbuId(obraSocial.nbu)) {
+      changes.nbu = formData.nbu_id ? Number.parseInt(formData.nbu_id, 10) : null
     }
     return changes
   }
@@ -301,24 +288,14 @@ export function EditObraSocialDialog({ open, onOpenChange, obraSocial, onSuccess
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="nbu_year">Nomenclador (NBU)</Label>
-              <Select
-                value={formData.nbu_year}
-                onValueChange={(value) => setFormData((prev) => ({ ...prev, nbu_year: value }))}
-              >
-                <SelectTrigger id="nbu_year">
-                  <SelectValue placeholder="Seleccionar año" />
-                </SelectTrigger>
-                <SelectContent>
-                  {NBU_YEAR_OPTIONS.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label htmlFor="nbu_id">Nomenclador (NBU)</Label>
+              <NbuSelect
+                id="nbu_id"
+                value={formData.nbu_id}
+                onValueChange={(value) => setFormData((prev) => ({ ...prev, nbu_id: value }))}
+              />
               <p className="text-xs text-gray-500">
-                Año del nomenclador que usa esta obra social para calcular la UB.
+                Nomenclador que usa esta obra social para calcular la UB.
               </p>
             </div>
 

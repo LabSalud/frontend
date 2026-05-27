@@ -2,18 +2,21 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Building, Save, X } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "../../ui/card"
 import { Button } from "../../ui/button"
 import { Input } from "../../ui/input"
 import { Label } from "../../ui/label"
+import { Switch } from "../../ui/switch"
 import { Textarea } from "../../ui/textarea"
 import { useApi } from "../../../hooks/use-api"
+import { getPreferredNbuId, useNbuOptions } from "@/hooks/use-nbu-options"
 import { toast } from "sonner"
 import type { Insurance } from "../../../types"
 import { MEDICAL_ENDPOINTS } from "@/config/api"
 import { formatApiError } from "@/lib/api-error"
+import { NbuSelect } from "@/components/configuration/components/nbu-select"
 
 interface CreateObraSocialFormProps {
   onObraSocialCreated: (obraSocial: Insurance) => void
@@ -27,9 +30,23 @@ export function CreateObraSocialForm({ onObraSocialCreated, onCancel }: CreateOb
   const [formData, setFormData] = useState({
     name: "",
     ub_value: "",
+    nbu_id: "",
     description: "",
+    charges_coseguro: false,
+    charges_material_descartable: false,
+    charges_derivacion: false,
+    requires_preauthorization: false,
   })
   const [isCreating, setIsCreating] = useState(false)
+  const { nbus } = useNbuOptions()
+
+  useEffect(() => {
+    if (formData.nbu_id || nbus.length === 0) return
+    const preferredNbu = getPreferredNbuId(nbus)
+    if (preferredNbu) {
+      setFormData((prev) => ({ ...prev, nbu_id: preferredNbu }))
+    }
+  }, [formData.nbu_id, nbus])
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
@@ -56,6 +73,11 @@ export function CreateObraSocialForm({ onObraSocialCreated, onCancel }: CreateOb
       const dataToSend = {
         name: formData.name,
         ub_value: formData.ub_value,
+        ...(formData.nbu_id && { nbu: Number.parseInt(formData.nbu_id, 10) }),
+        charges_coseguro: formData.charges_coseguro,
+        charges_material_descartable: formData.charges_material_descartable,
+        charges_derivacion: formData.charges_derivacion,
+        requires_preauthorization: formData.requires_preauthorization,
         ...(formData.description && { description: formData.description }),
       }
 
@@ -123,6 +145,15 @@ export function CreateObraSocialForm({ onObraSocialCreated, onCancel }: CreateOb
         </div>
 
         <div className="space-y-2">
+          <Label htmlFor="quick_nbu_id">Nomenclador (NBU)</Label>
+          <NbuSelect
+            id="quick_nbu_id"
+            value={formData.nbu_id}
+            onValueChange={(value) => setFormData((prev) => ({ ...prev, nbu_id: value }))}
+          />
+        </div>
+
+        <div className="space-y-2">
           <Label htmlFor="description">Descripción (opcional)</Label>
           <Textarea
             id="description"
@@ -132,6 +163,27 @@ export function CreateObraSocialForm({ onObraSocialCreated, onCancel }: CreateOb
             placeholder="Descripción de la obra social..."
             rows={3}
           />
+        </div>
+
+        <div className="rounded-md border border-slate-200 bg-slate-50 p-3 space-y-3">
+          <p className="text-sm font-medium text-slate-700">Cobros y requisitos</p>
+          {[
+            ["charges_coseguro", "Coseguro"],
+            ["charges_material_descartable", "Material descartable"],
+            ["charges_derivacion", "Derivación"],
+            ["requires_preauthorization", "Requiere preautorización"],
+          ].map(([key, label]) => (
+            <div key={key} className="flex items-center justify-between gap-3">
+              <Label htmlFor={`quick-${key}`} className="cursor-pointer text-sm">
+                {label}
+              </Label>
+              <Switch
+                id={`quick-${key}`}
+                checked={Boolean(formData[key as keyof typeof formData])}
+                onCheckedChange={(checked) => setFormData((prev) => ({ ...prev, [key]: checked }))}
+              />
+            </div>
+          ))}
         </div>
 
         <div className="flex flex-col sm:flex-row gap-2 pt-4">

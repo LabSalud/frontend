@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -15,12 +15,13 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { AlertCircle, CheckCircle } from "lucide-react"
 import { useApi } from "@/hooks/use-api"
+import { getPreferredNbuId, useNbuOptions } from "@/hooks/use-nbu-options"
 import { toast } from "sonner"
 import { MEDICAL_ENDPOINTS, TOAST_DURATION } from "@/config/api"
 import { formatApiError, getErrorMessage } from "@/lib/api-error"
+import { NbuSelect } from "./nbu-select"
 
 interface CreateObraSocialDialogProps {
   open: boolean
@@ -32,18 +33,12 @@ interface FormData {
   name: string
   description: string
   ub_value: string
-  nbu_year: string
+  nbu_id: string
   charges_coseguro: boolean
   charges_material_descartable: boolean
   charges_derivacion: boolean
   requires_preauthorization: boolean
 }
-
-const NBU_YEAR_OPTIONS = [
-  { value: "2024", label: "NBU 2024 (más actual)" },
-  { value: "2023", label: "NBU 2023" },
-  { value: "2016", label: "NBU 2016 (principal)" },
-]
 
 interface ValidationState {
   name: { isValid: boolean; message: string }
@@ -55,7 +50,7 @@ const initialFormData: FormData = {
   name: "",
   description: "",
   ub_value: "",
-  nbu_year: "2024",
+  nbu_id: "",
   charges_coseguro: false,
   charges_material_descartable: false,
   charges_derivacion: false,
@@ -72,6 +67,15 @@ export function CreateObraSocialDialog({ open, onOpenChange, onSuccess }: Create
   const [loading, setLoading] = useState(false)
 
   const { apiRequest } = useApi()
+  const { nbus } = useNbuOptions()
+
+  useEffect(() => {
+    if (!open || formData.nbu_id || nbus.length === 0) return
+    const preferredNbu = getPreferredNbuId(nbus)
+    if (preferredNbu) {
+      setFormData((prev) => ({ ...prev, nbu_id: preferredNbu }))
+    }
+  }, [formData.nbu_id, nbus, open])
 
   const validateField = (name: keyof ValidationState, value: string) => {
     let isValid = false
@@ -132,7 +136,7 @@ export function CreateObraSocialDialog({ open, onOpenChange, onSuccess }: Create
       }
       if (formData.description.trim()) body.description = formData.description
       if (formData.ub_value.trim()) body.ub_value = Number.parseFloat(formData.ub_value)
-      if (formData.nbu_year) body.nbu_year = Number.parseInt(formData.nbu_year, 10)
+      if (formData.nbu_id) body.nbu = Number.parseInt(formData.nbu_id, 10)
 
       const response = await apiRequest(MEDICAL_ENDPOINTS.INSURANCES, {
         method: "POST",
@@ -247,24 +251,14 @@ export function CreateObraSocialDialog({ open, onOpenChange, onSuccess }: Create
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="nbu_year">Nomenclador (NBU)</Label>
-              <Select
-                value={formData.nbu_year}
-                onValueChange={(value) => setFormData((prev) => ({ ...prev, nbu_year: value }))}
-              >
-                <SelectTrigger id="nbu_year">
-                  <SelectValue placeholder="Seleccionar año" />
-                </SelectTrigger>
-                <SelectContent>
-                  {NBU_YEAR_OPTIONS.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label htmlFor="nbu_id">Nomenclador (NBU)</Label>
+              <NbuSelect
+                id="nbu_id"
+                value={formData.nbu_id}
+                onValueChange={(value) => setFormData((prev) => ({ ...prev, nbu_id: value }))}
+              />
               <p className="text-xs text-gray-500">
-                Define qué UB usa la obra social. Si un análisis no tiene UB para ese año, sube por la cadena hasta encontrar valor.
+                Define qué UB usa la obra social. Si un análisis no tiene UB propio, sube por la cadena de fallback.
               </p>
             </div>
 

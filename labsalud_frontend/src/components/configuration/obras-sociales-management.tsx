@@ -16,13 +16,12 @@ import { ObraSocialCard } from "./components/obra-social-card"
 import { useToast } from "@/hooks/use-toast"
 import { useInfiniteScroll } from "@/hooks/use-infinite-scroll"
 import { useDebounce } from "@/hooks/use-debounce"
+import { useNbuOptions } from "@/hooks/use-nbu-options"
 import { formatApiError, getErrorMessage } from "@/lib/api-error"
 
 const PAGE_LIMIT = 20
 
-type ObrasSocialesManagementProps = {}
-
-export const ObrasSocialesManagement: React.FC<ObrasSocialesManagementProps> = () => {
+export function ObrasSocialesManagement() {
   const { apiRequest } = useApi()
   const queryClient = useQueryClient()
   const { success, error } = useToast()
@@ -33,6 +32,7 @@ export const ObrasSocialesManagement: React.FC<ObrasSocialesManagementProps> = (
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [selectedObraSocial, setSelectedObraSocial] = useState<ObraSocial | null>(null)
+  const { nbus } = useNbuOptions()
 
   const buildUrl = useCallback(
     (offset: number) => {
@@ -176,6 +176,7 @@ export const ObrasSocialesManagement: React.FC<ObrasSocialesManagementProps> = (
             <ObraSocialCard
               key={os.id}
               obraSocial={os}
+              nbus={nbus}
               onEdit={handleEdit}
               onToggleActive={handleToggleActive}
               isToggling={switchLoading === os.id}

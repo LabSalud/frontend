@@ -248,6 +248,11 @@ export interface Patient {
   address: string
   is_active: boolean
   is_anonymous?: boolean
+  /**
+   * Texto libre. Útil para pacientes anónimos (ej: "Cama 5, hospital X")
+   * o para anotar cualquier observación.
+   */
+  observations?: string
   creation?: CreationAudit
   last_change?: LastChangeAudit
   history?: HistoryEntry[]
@@ -306,6 +311,7 @@ export type Medico = Doctor
 export interface Nbu {
   id: number
   name: string
+  year?: number | null
 }
 
 export interface Insurance {
@@ -354,8 +360,62 @@ export interface Analysis {
 export type AnalysisPanel = Analysis
 
 export interface BioUnitValue {
+  // Nuevo formato (post NBU refactor): incluye id+name del nomenclador
+  nbu_id?: number
+  nbu_name?: string
+  // Legacy / compat: year + value
   year: number
   value: string
+}
+
+export interface NBU {
+  id: number
+  name: string
+  year?: number | null
+  parent_nbu?: number | null
+  parent_nbu_name?: string | null
+  is_default: boolean
+  is_active: boolean
+  children_count?: number
+  insurances_count?: number
+  own_ub_count?: number
+  total_changes?: number
+}
+
+export interface NBUEffectiveUB {
+  analysis_code: number
+  analysis_name: string
+  effective_value: string
+  found_in: {
+    nbu_id: number
+    nbu_name: string
+    is_inherited: boolean
+    inheritance_chain?: string[]
+  }
+}
+
+export interface NBUUbValue {
+  analysis_id: number
+  analysis_code: number
+  analysis_name: string
+  value: string
+}
+
+export interface NBUUbValuesList {
+  nbu_id: number
+  nbu_name: string
+  count: number
+  values: NBUUbValue[]
+}
+
+export interface NBUImportResult {
+  detail: string
+  nbu_id: number
+  nbu_name: string
+  total_filas: number
+  creados: number
+  actualizados: number
+  errores: Array<{ fila: number; codigo: number; motivo: string }>
 }
 
 export type ReferenceValueGroup = "hombre_mayor" | "mujer_mayor" | "nino" | "nina"
@@ -439,6 +499,9 @@ export interface ProtocolStatus {
   name: string
 }
 
+export type TrajoOrdenStatus = "no_trajo" | "incompleta" | "completa"
+export type PreauthStatus = "not_required" | "no_trajo" | "incompleta" | "completa"
+
 export interface ProtocolDetail {
   id: number
   analysis: number
@@ -496,6 +559,7 @@ export interface Protocol {
   amount_pending?: string
   patient_paid?: string
   amount_to_return?: string
+  extra_amounts_overridden?: boolean
   // Pricing breakdown (new fields - May 2026)
   analyses_amount_due?: string
   coseguro_amount?: string
@@ -523,15 +587,14 @@ export interface Protocol {
   arca_cae_due_date?: string
   arca_invoice_pdf_url?: string | null
   is_printed: boolean
-  trajo_orden: boolean
+  trajo_orden: TrajoOrdenStatus
+  preauth_status?: PreauthStatus
   is_in_patient?: boolean
   is_active: boolean
   created_at?: string
   completed_at?: string | null
   previous_status?: ProtocolStatus | null
-  // Información faltante (estado intermedio antes de "Completado")
-  missing_info_notes?: string | null
-  missing_info_at?: string | null
+  missing_info?: string[]
   details: ProtocolDetail[]
   creation?: CreationAudit
   last_change?: LastChangeAudit
@@ -562,9 +625,10 @@ export interface ProtocolListItem {
   payment_status: PaymentStatus
   billing_status?: BillingStatus
   is_printed: boolean
-  trajo_orden: boolean
+  trajo_orden: TrajoOrdenStatus
+  preauth_status?: PreauthStatus
   is_in_patient?: boolean
-  missing_info_notes?: string | null
+  missing_info?: string[]
   created_at?: string
   is_arca_billed?: boolean
   arca_billing_status?: "pendiente" | "emitida" | "error" | "anulada" | string
@@ -590,9 +654,17 @@ export interface CreateProtocolInput {
   affiliate_number?: string
   send_method: number
   value_paid: string
-  trajo_orden?: boolean
+  trajo_orden?: TrajoOrdenStatus
   is_in_patient?: boolean
+  material_descartable_amount_override?: string
+  derivacion_amount_override?: string
   details: ProtocolDetailInput[]
+}
+
+export interface PricingConfig {
+  id: number
+  material_descartable_amount: string
+  derivacion_amount: string
 }
 
 export interface PreauthorizationPayload {
@@ -674,6 +746,8 @@ export interface Result {
     first_name: string
     last_name: string
   } | null
+  validated_at?: string | null
+  date?: string | null
 }
 
 // Response from GET /results/results/by-analysis/{id}/
@@ -944,7 +1018,7 @@ export interface PaginatedResponse<T> {
   results: T[]
 }
 
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
   data?: T
   message?: string
   errors?: FormErrors

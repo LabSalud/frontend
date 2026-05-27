@@ -85,6 +85,18 @@ export const CATALOG_ENDPOINTS = {
   DETERMINATIONS: buildApiUrl("/catalog/determination/"),
   DETERMINATION_DETAIL: (id: number) => buildApiUrl(`/catalog/determination/${id}/`),
   DETERMINATION_AUDIT_TIMELINE: (id: number) => buildApiUrl(`/catalog/determination/${id}/audit-timeline/`),
+  // NBU (Nomenclador Bioquímico Único)
+  NBU: buildApiUrl("/catalog/nbu/"),
+  NBU_DETAIL: (id: number) => buildApiUrl(`/catalog/nbu/${id}/`),
+  NBU_UB_VALUES: (id: number) => buildApiUrl(`/catalog/nbu/${id}/ub-values/`),
+  NBU_UPDATE_UB_VALUE: (id: number) => buildApiUrl(`/catalog/nbu/${id}/update-ub-value/`),
+  NBU_DELETE_UB_VALUE: (nbuId: number, analysisCode: number | string) =>
+    buildApiUrl(`/catalog/nbu/${nbuId}/ub-value/${analysisCode}/`),
+  NBU_IMPORT_UB_VALUES: (id: number) => buildApiUrl(`/catalog/nbu/${id}/import-ub-values/`),
+  NBU_CREATE_WITH_IMPORT: buildApiUrl("/catalog/nbu/create-with-import/"),
+  NBU_EFFECTIVE_UB: (nbuId: number, analysisCode: number | string) =>
+    buildApiUrl(`/catalog/nbu/${nbuId}/effective-ub/${analysisCode}/`),
+  PRICING_CONFIG: buildApiUrl("/catalog/pricing-config/"),
 } as const
 
 // Protocol management endpoints
@@ -135,6 +147,9 @@ export const RESULTS_ENDPOINTS = {
 
 // Reporting endpoints
 export const REPORTING_ENDPOINTS = {
+  PRINT: (id: number) => buildApiUrl(`/reports/protocols/${id}/print/`),
+  SEND_EMAIL: (id: number) => buildApiUrl(`/reports/protocols/${id}/send-email/`),
+  SEND_WHATSAPP: (id: number) => buildApiUrl(`/reports/protocols/${id}/send-whatsapp/`),
   REPORT: (id: number) => buildApiUrl(`/protocols/protocols/${id}/report/`),
   REPORT_BATCH: buildApiUrl("/protocols/protocols/report-batch/"),
 } as const
@@ -145,21 +160,13 @@ export const BILLING_ENDPOINTS = {
   INVOICE_DETAIL: (id: number) => buildApiUrl(`/billing/invoices/${id}/`),
   CREATE_FOR_PROTOCOL: (protocolId: number) =>
     buildApiUrl(`/billing/invoices/create-for-protocol/${protocolId}/`),
-  BY_INSURANCE: (insuranceId: number) =>
-    buildApiUrl(`/billing/invoices/by-insurance/${insuranceId}/`),
   PROTOCOLS_TO_BILL: buildApiUrl("/billing/invoices/protocols-to-bill/"),
   FACTURADOS: buildApiUrl("/billing/invoices/facturados/"),
   CURRENT_TOTAL: buildApiUrl("/billing/invoices/current-total/"),
-  SUMMARY: buildApiUrl("/billing/invoices/summary/"),
-  OOSS_CONTROL: buildApiUrl("/billing/invoices/ooss-control/"),
-  PROTOCOLS_STATUS: buildApiUrl("/billing/invoices/protocols-status/"),
   PRESENTATIONS: buildApiUrl("/billing/presentations/"),
   CLOSED_PRESENTATIONS: buildApiUrl("/billing/presentations/closed/"),
   CLOSE_PRESENTATION: buildApiUrl("/billing/presentations/close-period/"),
-  REGISTER_PRESENTATION_COLLECTION: (id: number) => buildApiUrl(`/billing/presentations/${id}/register-collection/`),
-  PRESENTATION_INVOICES: (id: number) => buildApiUrl(`/billing/presentations/${id}/invoices/`),
   PRESENTATION_PROTOCOLS: (id: number) => buildApiUrl(`/billing/presentations/${id}/protocols/`),
-  PRESENTATIONS_SUMMARY: buildApiUrl("/billing/presentations/summary/"),
 } as const
 
 // Core endpoints
@@ -188,13 +195,13 @@ export const getMultipartHeaders = (token?: string) => ({
 })
 
 // API Response types
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
   data: T
   status: number
   message?: string
 }
 
-export interface PaginatedResponse<T = any> {
+export interface PaginatedResponse<T = unknown> {
   next: string | null
   results: T[]
 }

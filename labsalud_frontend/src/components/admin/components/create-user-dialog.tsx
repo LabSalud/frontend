@@ -55,7 +55,7 @@ export function CreateUserDialog({
       if (savedData) {
         try {
           const parsed = JSON.parse(savedData)
-          setUserData({ ...userData, ...parsed, password: "", confirmPassword: "", photo: null })
+          setUserData((prev) => ({ ...prev, ...parsed, password: "", confirmPassword: "", photo: null }))
         } catch (e) {
           console.error("Error parsing saved user data:", e)
         }
@@ -80,7 +80,13 @@ export function CreateUserDialog({
   }, [open])
 
   const saveUserData = useCallback((data: typeof userData) => {
-    const { password, confirmPassword, photo, ...dataToSave } = data
+    const dataToSave = {
+      username: data.username,
+      email: data.email,
+      first_name: data.first_name,
+      last_name: data.last_name,
+      selectedRoles: data.selectedRoles,
+    }
     localStorage.setItem("create-user-form", JSON.stringify(dataToSave))
   }, [])
 

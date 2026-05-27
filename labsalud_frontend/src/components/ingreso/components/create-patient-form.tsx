@@ -9,6 +9,7 @@ import { Input } from "../../ui/input"
 import { Label } from "../../ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../ui/select"
 import { Switch } from "../../ui/switch"
+import { Textarea } from "../../ui/textarea"
 import { Card, CardContent, CardHeader, CardTitle } from "../../ui/card"
 import { useApi } from "../../../hooks/use-api"
 import { toast } from "sonner"
@@ -48,6 +49,7 @@ export function CreatePatientForm({
     province: "Córdoba",
     city: "Leones",
     address: "",
+    observations: "",
   })
   const [isCreating, setIsCreating] = useState(false)
   const [touched, setTouched] = useState<Record<string, boolean>>({
@@ -101,7 +103,7 @@ export function CreatePatientForm({
     )
   }
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
     setTouched((prev) => ({ ...prev, [name]: true }))
     if (name === "cuil") {
@@ -165,12 +167,27 @@ export function CreatePatientForm({
         if (formData.province.trim()) result.province = formData.province.trim()
         if (formData.city.trim()) result.city = formData.city.trim()
         if (formData.address.trim()) result.address = formData.address.trim()
+        if (formData.observations.trim()) result.observations = formData.observations.trim()
         return result
       }
 
       const payload = isAnonymous
         ? buildAnonymousPayload()
-        : { ...formData, cuil: normalizeCuil(formData.cuil) }
+        : {
+            first_name: formData.first_name.trim(),
+            last_name: formData.last_name.trim(),
+            cuil: normalizeCuil(formData.cuil),
+            birth_date: formData.birth_date,
+            gender: formData.gender,
+            phone_mobile: formData.phone_mobile.trim(),
+            alt_phone: formData.phone_landline.trim(),
+            email: formData.email.trim(),
+            country: formData.country.trim(),
+            province: formData.province.trim(),
+            city: formData.city.trim(),
+            address: formData.address.trim(),
+            observations: formData.observations.trim(),
+          }
 
       const response = await apiRequest(PATIENT_ENDPOINTS.PATIENTS, {
         method: "POST",
@@ -247,7 +264,7 @@ export function CreatePatientForm({
               />
               {renderFieldMessage("first_name")}
               <p className="text-xs text-gray-500">
-                Único campo obligatorio. Completá lo que tengas; el paciente deja de ser anónimo cuando se cargan todos los datos.
+                Único campo obligatorio. Completá lo que tengas; pasa a paciente normal cuando tenga CUIL, apellido, fecha y género.
               </p>
             </div>
 
@@ -542,6 +559,20 @@ export function CreatePatientForm({
             </div>
           </>
         )}
+
+        <div className="space-y-2">
+          <Label htmlFor="observations">
+            Observaciones <span className="text-gray-400 font-normal">(opcional)</span>
+          </Label>
+          <Textarea
+            id="observations"
+            name="observations"
+            value={formData.observations}
+            onChange={handleInputChange}
+            placeholder="Notas internas, cama, institución, aclaraciones de contacto"
+            rows={3}
+          />
+        </div>
 
         <div className="flex gap-2 pt-4">
           <Button

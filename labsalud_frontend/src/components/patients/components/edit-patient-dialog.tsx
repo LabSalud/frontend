@@ -8,9 +8,11 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Textarea } from "@/components/ui/textarea"
 import { toast } from "sonner"
 import { AlertCircle, CheckCircle, UserCog, Sparkles } from "lucide-react"
 import { PATIENT_ENDPOINTS, TOAST_DURATION } from "@/config/api"
+import type { ApiRequestOptions } from "@/hooks/use-api"
 import { formatApiError, getErrorMessage } from "@/lib/api-error"
 import { isValidCuil } from "@/lib/cuil"
 
@@ -19,7 +21,7 @@ interface EditPatientDialogProps {
   onClose: () => void
   patient: Patient | null
   setPatients: React.Dispatch<React.SetStateAction<Patient[]>>
-  apiRequest: (url: string, options?: any) => Promise<Response>
+  apiRequest: (url: string, options?: ApiRequestOptions) => Promise<Response>
 }
 
 interface ValidationState {
@@ -46,6 +48,7 @@ export function EditPatientDialog({ isOpen, onClose, patient, setPatients, apiRe
     province: "",
     city: "",
     address: "",
+    observations: "",
   })
 
   const [validation, setValidation] = useState<ValidationState>({
@@ -184,7 +187,7 @@ export function EditPatientDialog({ isOpen, onClose, patient, setPatients, apiRe
       }
 
       const newFormData = {
-        cuil: patient.cuil,
+        cuil: patient.cuil || "",
         first_name: patient.first_name,
         last_name: patient.last_name,
         birth_date: formatDateForInput(patient.birth_date),
@@ -196,13 +199,21 @@ export function EditPatientDialog({ isOpen, onClose, patient, setPatients, apiRe
         province: patient.province,
         city: patient.city,
         address: patient.address,
+        observations: patient.observations || "",
       }
 
       setFormData(newFormData)
 
       // Validar campos iniciales
       Object.keys(newFormData).forEach((key) => {
-        if (key !== "gender" && key !== "country" && key !== "province" && key !== "city" && key !== "address") {
+        if (
+          key !== "gender" &&
+          key !== "country" &&
+          key !== "province" &&
+          key !== "city" &&
+          key !== "address" &&
+          key !== "observations"
+        ) {
           validateField(key, newFormData[key as keyof typeof newFormData] as string)
         }
       })
@@ -211,7 +222,7 @@ export function EditPatientDialog({ isOpen, onClose, patient, setPatients, apiRe
     }
   }, [patient])
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
 
     if (name === "cuil") {
@@ -242,6 +253,16 @@ export function EditPatientDialog({ isOpen, onClose, patient, setPatients, apiRe
   }
 
   const isFormValid = () => {
+    if (patient?.is_anonymous) {
+      const optionalFieldsValid = ["email", "phone_mobile", "alt_phone"].every((field) => {
+        const fieldValidation = validation[field as keyof ValidationState]
+        return fieldValidation.isValid
+      })
+      const cuilDigits = formData.cuil.replace(/-/g, "")
+      const cuilValid = !cuilDigits || validation.cuil.isValid
+      return formData.first_name.trim().length >= 2 && optionalFieldsValid && cuilValid
+    }
+
     const requiredFields = ["cuil", "first_name", "last_name", "birth_date"]
     const requiredFieldsValid = requiredFields.every((field) => {
       const fieldValidation = validation[field as keyof ValidationState]
@@ -259,7 +280,7 @@ export function EditPatientDialog({ isOpen, onClose, patient, setPatients, apiRe
   const handleUpdatePatient = async () => {
     if (!patient) return
 
-    const requiredFields = ["cuil", "first_name", "last_name", "birth_date"]
+    const requiredFields = patient.is_anonymous ? ["first_name"] : ["cuil", "first_name", "last_name", "birth_date"]
     const newTouched = requiredFields.reduce((acc, field) => ({ ...acc, [field]: true }), touched)
     setTouched(newTouched)
 
@@ -269,7 +290,9 @@ export function EditPatientDialog({ isOpen, onClose, patient, setPatients, apiRe
 
     if (!isFormValid()) {
       toast.error("Formulario inválido", {
-        description: "Por favor, corrige los errores antes de continuar.",
+        description: patient.is_anonymous
+          ? "El identificador debe tener al menos 2 caracteres. Revisá CUIL, email o teléfonos si los cargaste."
+          : "Por favor, corrige los errores antes de continuar.",
         duration: TOAST_DURATION,
       })
       return
@@ -362,8 +385,7 @@ export function EditPatientDialog({ isOpen, onClose, patient, setPatients, apiRe
             <div className="text-xs text-amber-900">
               <p className="font-semibold">Este es un paciente anónimo.</p>
               <p>
-                Cuando completes CUIL, apellido, fecha de nacimiento, género, teléfono móvil, email,
-                provincia, ciudad y dirección, el paciente dejará de ser anónimo automáticamente al guardar.
+                Cuando completes CUIL, apellido, fecha de nacimiento y género, el paciente dejará de ser anónimo automáticamente al guardar.
               </p>
             </div>
           </div>
@@ -372,7 +394,7 @@ export function EditPatientDialog({ isOpen, onClose, patient, setPatients, apiRe
           {/* CUIL - Campo principal */}
           <div className="space-y-2">
             <Label htmlFor="edit-cuil" className="text-base font-semibold">
-              CUIL *
+              CUIL {patient?.is_anonymous ? "" : "*"}
             </Label>
             <Input
               id="edit-cuil"
@@ -404,7 +426,7 @@ export function EditPatientDialog({ isOpen, onClose, patient, setPatients, apiRe
               {renderFieldMessage("first_name")}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="edit-last_name">Apellido *</Label>
+              <Label htmlFor="edit-last_name">Apellido {patient?.is_anonymous ? "" : "*"}</Label>
               <Input
                 id="edit-last_name"
                 name="last_name"
@@ -420,7 +442,7 @@ export function EditPatientDialog({ isOpen, onClose, patient, setPatients, apiRe
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="edit-birth_date">Fecha de nacimiento *</Label>
+              <Label htmlFor="edit-birth_date">Fecha de nacimiento {patient?.is_anonymous ? "" : "*"}</Label>
               <Input
                 id="edit-birth_date"
                 name="birth_date"
@@ -433,7 +455,7 @@ export function EditPatientDialog({ isOpen, onClose, patient, setPatients, apiRe
               {renderFieldMessage("birth_date")}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="edit-gender">Género *</Label>
+              <Label htmlFor="edit-gender">Género {patient?.is_anonymous ? "" : "*"}</Label>
               <Select value={formData.gender} onValueChange={(value) => handleSelectChange("gender", value)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Seleccionar género" />
@@ -532,6 +554,18 @@ export function EditPatientDialog({ isOpen, onClose, patient, setPatients, apiRe
               value={formData.address}
               onChange={handleInputChange}
               placeholder="Dirección completa"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="edit-observations">Observaciones</Label>
+            <Textarea
+              id="edit-observations"
+              name="observations"
+              value={formData.observations}
+              onChange={handleInputChange}
+              placeholder="Notas internas, cama, institución, aclaraciones de contacto"
+              rows={3}
             />
           </div>
         </div>

@@ -55,8 +55,8 @@ export function PatientTable({ patients, onSelectPatient, canEdit, canDelete }: 
     return age
   }
 
-  const formatCuil = (cuil: string) => {
-    const digits = cuil.replace(/-/g, "")
+  const formatCuil = (cuil?: string | null) => {
+    const digits = (cuil || "").replace(/-/g, "")
     if (digits.length === 11) {
       return `${digits.slice(0, 2)}-${digits.slice(2, 10)}-${digits.slice(10)}`
     }
@@ -97,7 +97,7 @@ export function PatientTable({ patients, onSelectPatient, canEdit, canDelete }: 
                 patients.map((patient) => (
                   <TableRow key={patient.id} className="bg-white hover:bg-gray-50/50 border-gray-200">
                     <TableCell className="font-mono font-medium text-[#204983] bg-white">
-                      {formatCuil(patient.cuil)}
+                      {patient.is_anonymous ? "ANÓNIMO" : formatCuil(patient.cuil)}
                     </TableCell>
                     <TableCell className="font-medium bg-white">{`${patient.first_name} ${patient.last_name}`}</TableCell>
                     <TableCell className="bg-white">{calculateAge(patient.birth_date)} años</TableCell>

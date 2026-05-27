@@ -8,17 +8,20 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
+import { Textarea } from "@/components/ui/textarea"
 import { toast } from "sonner"
 import { AlertCircle, CheckCircle, UserCog } from "lucide-react"
 import { PATIENT_ENDPOINTS, TOAST_DURATION } from "@/config/api"
+import type { ApiRequestOptions } from "@/hooks/use-api"
 import { formatApiError, getErrorMessage } from "@/lib/api-error"
 import { formatCuilForDisplay, inferGenderFromCuil, isValidCuil, normalizeCuil } from "@/lib/cuil"
+import type { Patient } from "@/types"
 
 interface CreatePatientDialogProps {
   isOpen: boolean
   onClose: () => void
-  addPatient: (newPatient: any) => void
-  apiRequest: (url: string, options?: any) => Promise<Response>
+  addPatient: (newPatient: Patient) => void
+  apiRequest: (url: string, options?: ApiRequestOptions) => Promise<Response>
 }
 
 interface ValidationState {
@@ -55,6 +58,7 @@ export function CreatePatientDialog({ isOpen, onClose, addPatient, apiRequest }:
     province: "Córdoba",
     city: "Leones",
     address: "",
+    observations: "",
   })
 
   const [isAnonymous, setIsAnonymous] = useState(false)
@@ -167,7 +171,7 @@ export function CreatePatientDialog({ isOpen, onClose, addPatient, apiRequest }:
     }))
   }
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
 
     // Validación especial para CUIL - solo números y guiones
@@ -220,6 +224,7 @@ export function CreatePatientDialog({ isOpen, onClose, addPatient, apiRequest }:
       province: "Córdoba",
       city: "Leones",
       address: "",
+      observations: "",
     })
     setValidation(initialValidation)
     setTouched({})
@@ -275,9 +280,8 @@ export function CreatePatientDialog({ isOpen, onClose, addPatient, apiRequest }:
     try {
       const loadingId = toast.loading(isAnonymous ? "Creando paciente anónimo..." : "Creando paciente...")
 
-      // Para anónimo: enviamos todos los campos completos. El backend desactiva is_anonymous
-      // automáticamente si llegan completos los datos requeridos (cuil, last_name, birth_date,
-      // gender, phone_mobile, email, province, city, address).
+      // Para anónimo: enviamos lo disponible. El backend desactiva is_anonymous
+      // automáticamente si llegan los datos requeridos (cuil, last_name, birth_date, gender).
       const buildAnonymousPayload = () => {
         const payload: Record<string, unknown> = {
           first_name: formData.first_name.trim(),
@@ -295,6 +299,7 @@ export function CreatePatientDialog({ isOpen, onClose, addPatient, apiRequest }:
         if (formData.province.trim()) payload.province = formData.province.trim()
         if (formData.city.trim()) payload.city = formData.city.trim()
         if (formData.address.trim()) payload.address = formData.address.trim()
+        if (formData.observations.trim()) payload.observations = formData.observations.trim()
         return payload
       }
 
@@ -404,7 +409,7 @@ export function CreatePatientDialog({ isOpen, onClose, addPatient, apiRequest }:
                   required
                 />
                 <p className="text-xs text-gray-500">
-                  Único campo obligatorio. Completá lo que tengas; el paciente se vuelve normal cuando se cargan todos los datos.
+                  Único campo obligatorio. Completá lo que tengas; pasa a paciente normal cuando tenga CUIL, apellido, fecha y género.
                 </p>
               </div>
 
@@ -697,6 +702,20 @@ export function CreatePatientDialog({ isOpen, onClose, addPatient, apiRequest }:
           </div>
             </>
           )}
+
+          <div className="space-y-2">
+            <Label htmlFor="observations">
+              Observaciones <span className="text-gray-400 font-normal">(opcional)</span>
+            </Label>
+            <Textarea
+              id="observations"
+              name="observations"
+              value={formData.observations}
+              onChange={handleInputChange}
+              placeholder="Notas internas, cama, institución, aclaraciones de contacto"
+              rows={3}
+            />
+          </div>
         </div>
         <DialogFooter>
           <DialogClose asChild>

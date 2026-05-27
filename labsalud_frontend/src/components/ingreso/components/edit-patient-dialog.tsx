@@ -9,6 +9,7 @@ import { Button } from "../../ui/button"
 import { Input } from "../../ui/input"
 import { Label } from "../../ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../ui/select"
+import { Textarea } from "../../ui/textarea"
 import { useApi } from "../../../hooks/use-api"
 import { toast } from "sonner"
 import type { Patient } from "../../../types"
@@ -37,6 +38,7 @@ export function EditPatientDialog({ isOpen, onClose, patient, onPatientUpdated }
     province: "",
     city: "",
     address: "",
+    observations: "",
   })
   const [isUpdating, setIsUpdating] = useState(false)
 
@@ -55,11 +57,12 @@ export function EditPatientDialog({ isOpen, onClose, patient, onPatientUpdated }
         province: patient.province || "",
         city: patient.city || "",
         address: patient.address || "",
+        observations: patient.observations || "",
       })
     }
   }, [patient])
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
     if (name === "cuil") {
       const cleaned = value.replace(/[^\d-]/g, "")
@@ -76,7 +79,15 @@ export function EditPatientDialog({ isOpen, onClose, patient, onPatientUpdated }
   const handleUpdatePatient = async () => {
     if (!patient) return
 
-    if (!formData.first_name || !formData.last_name || !formData.cuil || !formData.birth_date || !formData.gender) {
+    const isAnonymous = Boolean(patient.is_anonymous)
+    const cuilDigits = formData.cuil.replace(/-/g, "")
+
+    if (!formData.first_name.trim()) {
+      toast.error(isAnonymous ? "Complete el identificador" : "Complete el nombre")
+      return
+    }
+
+    if (!isAnonymous && (!formData.last_name || !cuilDigits || !formData.birth_date || !formData.gender)) {
       toast.error("Complete los campos obligatorios")
       return
     }
@@ -86,8 +97,22 @@ export function EditPatientDialog({ isOpen, onClose, patient, onPatientUpdated }
       console.log("Updating patient with data:", formData)
 
       const response = await apiRequest(PATIENT_ENDPOINTS.PATIENT_DETAIL(patient.id), {
-        method: "PUT",
-        body: { ...formData, cuil: formData.cuil.replace(/-/g, "") },
+        method: "PATCH",
+        body: {
+          first_name: formData.first_name.trim(),
+          last_name: formData.last_name.trim(),
+          cuil: formData.cuil.replace(/-/g, ""),
+          birth_date: formData.birth_date,
+          gender: formData.gender,
+          phone_mobile: formData.phone_mobile.trim(),
+          alt_phone: formData.phone_landline.trim(),
+          email: formData.email.trim(),
+          country: formData.country.trim(),
+          province: formData.province.trim(),
+          city: formData.city.trim(),
+          address: formData.address.trim(),
+          observations: formData.observations.trim(),
+        },
       })
 
       if (response.ok) {
@@ -137,7 +162,7 @@ export function EditPatientDialog({ isOpen, onClose, patient, onPatientUpdated }
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="last_name">Apellido *</Label>
+              <Label htmlFor="last_name">Apellido {patient?.is_anonymous ? "" : "*"}</Label>
               <Input
                 id="last_name"
                 name="last_name"
@@ -150,7 +175,7 @@ export function EditPatientDialog({ isOpen, onClose, patient, onPatientUpdated }
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="cuil">CUIL *</Label>
+            <Label htmlFor="cuil">CUIL {patient?.is_anonymous ? "" : "*"}</Label>
             <Input
               id="cuil"
               name="cuil"
@@ -165,7 +190,7 @@ export function EditPatientDialog({ isOpen, onClose, patient, onPatientUpdated }
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="birth_date">Fecha de nacimiento *</Label>
+              <Label htmlFor="birth_date">Fecha de nacimiento {patient?.is_anonymous ? "" : "*"}</Label>
               <Input
                 id="birth_date"
                 name="birth_date"
@@ -176,7 +201,7 @@ export function EditPatientDialog({ isOpen, onClose, patient, onPatientUpdated }
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="gender">Género *</Label>
+              <Label htmlFor="gender">Género {patient?.is_anonymous ? "" : "*"}</Label>
               <Select value={formData.gender} onValueChange={(value) => handleSelectChange("gender", value)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Seleccionar género" />
@@ -184,6 +209,8 @@ export function EditPatientDialog({ isOpen, onClose, patient, onPatientUpdated }
                 <SelectContent>
                   <SelectItem value="M">Masculino</SelectItem>
                   <SelectItem value="F">Femenino</SelectItem>
+                  <SelectItem value="O">Otro</SelectItem>
+                  <SelectItem value="N">No especificar</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -259,6 +286,18 @@ export function EditPatientDialog({ isOpen, onClose, patient, onPatientUpdated }
               value={formData.address}
               onChange={handleInputChange}
               placeholder="Dirección completa"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="observations">Observaciones</Label>
+            <Textarea
+              id="observations"
+              name="observations"
+              value={formData.observations}
+              onChange={handleInputChange}
+              placeholder="Notas internas, cama, institución, aclaraciones de contacto"
+              rows={3}
             />
           </div>
 

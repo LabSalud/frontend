@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { toast } from "sonner"
 import { PATIENT_ENDPOINTS, TOAST_DURATION } from "@/config/api"
+import type { ApiRequestOptions } from "@/hooks/use-api"
 import { formatApiError, getErrorMessage } from "@/lib/api-error"
 
 interface DeletePatientDialogProps {
@@ -21,7 +22,7 @@ interface DeletePatientDialogProps {
   patient: Patient | null
   /** Callback que se invoca después de eliminar correctamente (la página re-fetchea). */
   setPatients: (patient: Patient) => void
-  apiRequest: (url: string, options?: any) => Promise<Response>
+  apiRequest: (url: string, options?: ApiRequestOptions) => Promise<Response>
 }
 
 export default function DeletePatientDialog({

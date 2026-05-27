@@ -41,6 +41,7 @@ export function CreatePatientDialog({ initialCuil = "", onPatientCreated, onCanc
     province: "",
     city: "",
     address: "",
+    observations: "",
   })
   const [touched, setTouched] = useState<Record<string, boolean>>({
     cuil: Boolean(normalizeCuil(initialCuil)),
@@ -133,7 +134,21 @@ export function CreatePatientDialog({ initialCuil = "", onPatientCreated, onCanc
       setIsCreating(true)
       const response = await apiRequest(PATIENT_ENDPOINTS.PATIENTS, {
         method: "POST",
-        body: { ...formData, cuil: normalizeCuil(formData.cuil) },
+        body: {
+          first_name: formData.first_name.trim(),
+          last_name: formData.last_name.trim(),
+          cuil: normalizeCuil(formData.cuil),
+          birth_date: formData.birth_date,
+          gender: formData.gender,
+          phone_mobile: formData.phone_mobile.trim(),
+          alt_phone: formData.phone_landline.trim(),
+          email: formData.email.trim(),
+          country: formData.country.trim(),
+          province: formData.province.trim(),
+          city: formData.city.trim(),
+          address: formData.address.trim(),
+          observations: formData.observations.trim(),
+        },
       })
 
       if (response.ok) {
@@ -278,6 +293,16 @@ export function CreatePatientDialog({ initialCuil = "", onPatientCreated, onCanc
               value={formData.address}
               onChange={(e) => handleInputChange("address", e.target.value)}
               placeholder="Av. Corrientes 1234"
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="observations">Observaciones</Label>
+            <Input
+              id="observations"
+              value={formData.observations}
+              onChange={(e) => handleInputChange("observations", e.target.value)}
+              placeholder="Notas internas"
             />
           </div>
 

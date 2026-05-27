@@ -1,6 +1,6 @@
-export const normalizeCuil = (value: string): string => value.replace(/\D/g, "").slice(0, 11)
+export const normalizeCuil = (value?: string | null): string => (value || "").replace(/\D/g, "").slice(0, 11)
 
-export const formatCuilForDisplay = (value: string): string => {
+export const formatCuilForDisplay = (value?: string | null): string => {
   const digits = normalizeCuil(value)
 
   if (digits.length <= 2) return digits

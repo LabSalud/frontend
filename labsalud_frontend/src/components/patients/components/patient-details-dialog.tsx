@@ -3,7 +3,7 @@
 import type { Patient } from "@/types"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
-import { Calendar, Mail, Phone, MapPin, User, Clock, CreditCard } from "lucide-react"
+import { Calendar, Mail, Phone, MapPin, User, Clock, CreditCard, StickyNote } from "lucide-react"
 
 interface PatientDetailsDialogProps {
   isOpen: boolean
@@ -111,7 +111,9 @@ export function PatientDetailsDialog({ isOpen, onClose, patient }: PatientDetail
               <CreditCard className="h-4 w-4 text-gray-400" />
               <div>
                 <p className="text-sm font-medium text-gray-500">CUIL</p>
-                <p className="text-lg font-mono font-semibold text-[#204983]">{formatCuil(patient.cuil)}</p>
+                <p className="text-lg font-mono font-semibold text-[#204983]">
+                  {patient.is_anonymous ? "ANÓNIMO" : formatCuil(patient.cuil || "")}
+                </p>
               </div>
             </div>
           </div>
@@ -204,6 +206,16 @@ export function PatientDetailsDialog({ isOpen, onClose, patient }: PatientDetail
               </div>
             </div>
           </div>
+
+          {patient.observations && (
+            <div className="space-y-3">
+              <h3 className="text-lg font-semibold flex items-center space-x-2">
+                <StickyNote className="h-5 w-5" />
+                <span>Observaciones</span>
+              </h3>
+              <p className="rounded-md bg-slate-50 p-3 text-sm text-slate-700">{patient.observations}</p>
+            </div>
+          )}
 
           {/* Información de auditoría */}
           {(patient.creation || patient.last_change) && (

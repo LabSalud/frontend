@@ -75,7 +75,7 @@ export default function PatientsPage() {
   }, [queryClient])
 
   const updatePatient = useCallback(
-    (_updatedPatientData: Patient) => {
+    () => {
       // Editar un paciente desde la card → invalidate full list para refetch limpio.
       invalidatePatients()
     },
@@ -83,7 +83,7 @@ export default function PatientsPage() {
   )
 
   const addPatient = useCallback(
-    (_newPatientData: Patient) => {
+    () => {
       invalidatePatients()
     },
     [invalidatePatients],
@@ -108,14 +108,14 @@ export default function PatientsPage() {
     setIsMerging(false)
   }
 
-  const handleMerged = (_mergedPatient: Patient) => {
+  const handleMerged = () => {
     invalidatePatients()
     closeAllDialogs()
   }
 
   // DeletePatientDialog notifica con el paciente eliminado → invalidamos.
   const legacySetPatients = useCallback(
-    (_patient: Patient) => {
+    () => {
       invalidatePatients()
     },
     [invalidatePatients],

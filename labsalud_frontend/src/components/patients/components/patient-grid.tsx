@@ -1,5 +1,6 @@
 "use client"
 import type { Patient } from "@/types"
+import type { ApiRequestOptions } from "@/hooks/use-api"
 import { PatientCard } from "./patient-card"
 import { AlertCircle } from "lucide-react"
 
@@ -7,7 +8,7 @@ interface PatientGridProps {
   patients: Patient[]
   onSelectPatient: (patient: Patient, action: string) => void
   updatePatient: (updatedPatient: Patient) => void
-  apiRequest: (url: string, options?: any) => Promise<Response>
+  apiRequest: (url: string, options?: ApiRequestOptions) => Promise<Response>
 }
 
 export function PatientGrid({ patients, onSelectPatient, updatePatient, apiRequest }: PatientGridProps) {

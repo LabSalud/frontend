@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Textarea } from "@/components/ui/textarea"
 import {
   Calendar,
   Mail,
@@ -24,9 +25,11 @@ import {
   User,
   History,
   GitMerge,
+  StickyNote,
 } from "lucide-react"
 import { toast } from "sonner"
 import { PATIENT_ENDPOINTS, TOAST_DURATION } from "@/config/api"
+import type { ApiRequestOptions } from "@/hooks/use-api"
 import { PatientHistoryDialog } from "./patient-history-dialog"
 import { AuditAvatars } from "@/components/common/audit-avatars"
 import { formatApiError, getErrorMessage } from "@/lib/api-error"
@@ -35,8 +38,8 @@ import { isValidCuil } from "@/lib/cuil"
 interface PatientCardProps {
   patient: Patient
   onSelectPatient: (patient: Patient, action: string) => void
-  updatePatient: (updatedPatient: any) => void
-  apiRequest: (url: string, options?: any) => Promise<Response>
+  updatePatient: (updatedPatient: Patient) => void
+  apiRequest: (url: string, options?: ApiRequestOptions) => Promise<Response>
 }
 
 export function PatientCard({ patient, onSelectPatient, updatePatient, apiRequest }: PatientCardProps) {
@@ -44,7 +47,7 @@ export function PatientCard({ patient, onSelectPatient, updatePatient, apiReques
   const [isEditing, setIsEditing] = useState(false)
   const [isHistoryOpen, setIsHistoryOpen] = useState(false)
   const [editData, setEditData] = useState({
-    cuil: patient.cuil,
+    cuil: patient.cuil || "",
     first_name: patient.first_name,
     last_name: patient.last_name,
     birth_date: formatDateForInput(patient.birth_date),
@@ -56,6 +59,7 @@ export function PatientCard({ patient, onSelectPatient, updatePatient, apiReques
     province: patient.province,
     city: patient.city,
     address: patient.address,
+    observations: patient.observations || "",
   })
 
   // Función para convertir fecha del backend (dd/mm/yyyy o yyyy/mm/dd) a formato input (yyyy-mm-dd)
@@ -133,7 +137,7 @@ export function PatientCard({ patient, onSelectPatient, updatePatient, apiReques
     return gender
   }
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
 
     if (name === "cuil") {
@@ -159,7 +163,7 @@ export function PatientCard({ patient, onSelectPatient, updatePatient, apiReques
 
   const hasChanges = () => {
     return (
-      editData.cuil !== patient.cuil ||
+      editData.cuil !== (patient.cuil || "") ||
       editData.first_name !== patient.first_name ||
       editData.last_name !== patient.last_name ||
       editData.birth_date !== formatDateForInput(patient.birth_date) ||
@@ -170,7 +174,8 @@ export function PatientCard({ patient, onSelectPatient, updatePatient, apiReques
       editData.country !== patient.country ||
       editData.province !== patient.province ||
       editData.city !== patient.city ||
-      editData.address !== patient.address
+      editData.address !== patient.address ||
+      editData.observations !== (patient.observations || "")
     )
   }
 
@@ -184,9 +189,9 @@ export function PatientCard({ patient, onSelectPatient, updatePatient, apiReques
       return
     }
 
-    // Validación básica antes de enviar
+    // Validación básica antes de enviar. Los anónimos pueden guardarse parciales.
     const cuilDigits = editData.cuil.replace(/-/g, "")
-    if (!cuilDigits.trim() || cuilDigits.length !== 11 || !isValidCuil(cuilDigits)) {
+    if ((!patient.is_anonymous || cuilDigits.trim()) && (!cuilDigits.trim() || cuilDigits.length !== 11 || !isValidCuil(cuilDigits))) {
       toast.error("Error de validación", {
         description: cuilDigits.length !== 11 ? "El CUIL debe tener 11 dígitos." : "El CUIL no es válido.",
         duration: TOAST_DURATION,
@@ -194,9 +199,9 @@ export function PatientCard({ patient, onSelectPatient, updatePatient, apiReques
       return
     }
 
-    if (!editData.first_name.trim() || !editData.last_name.trim()) {
+    if (!editData.first_name.trim() || (!patient.is_anonymous && !editData.last_name.trim())) {
       toast.error("Error de validación", {
-        description: "El nombre y apellido son obligatorios.",
+        description: patient.is_anonymous ? "El identificador es obligatorio." : "El nombre y apellido son obligatorios.",
         duration: TOAST_DURATION,
       })
       return
@@ -251,7 +256,7 @@ export function PatientCard({ patient, onSelectPatient, updatePatient, apiReques
 
   const handleCancel = () => {
     setEditData({
-      cuil: patient.cuil,
+      cuil: patient.cuil || "",
       first_name: patient.first_name,
       last_name: patient.last_name,
       birth_date: formatDateForInput(patient.birth_date),
@@ -263,6 +268,7 @@ export function PatientCard({ patient, onSelectPatient, updatePatient, apiReques
       province: patient.province,
       city: patient.city,
       address: patient.address,
+      observations: patient.observations || "",
     })
     setIsEditing(false)
   }
@@ -278,7 +284,7 @@ export function PatientCard({ patient, onSelectPatient, updatePatient, apiReques
                   <div className="flex items-center space-x-2">
                     <CreditCard className="h-4 w-4 md:h-5 md:w-5 text-[#204983]" />
                     <span className="font-mono font-bold text-lg md:text-xl text-[#204983]">
-                      {patient.is_anonymous ? "ANÓNIMO" : formatCuil(patient.cuil)}
+                      {patient.is_anonymous ? "ANÓNIMO" : formatCuil(patient.cuil || "")}
                     </span>
                   </div>
 
@@ -514,6 +520,17 @@ export function PatientCard({ patient, onSelectPatient, updatePatient, apiReques
                         <Label className="text-sm font-medium">Dirección</Label>
                         <Input name="address" value={editData.address} onChange={handleInputChange} className="mt-1" />
                       </div>
+
+                      <div>
+                        <Label className="text-sm font-medium">Observaciones</Label>
+                        <Textarea
+                          name="observations"
+                          value={editData.observations}
+                          onChange={handleInputChange}
+                          className="mt-1"
+                          rows={3}
+                        />
+                      </div>
                     </div>
                   </>
                 ) : (
@@ -569,6 +586,14 @@ export function PatientCard({ patient, onSelectPatient, updatePatient, apiReques
                           <MapPin className="h-4 w-4 text-gray-500 mr-2 mt-0.5" />
                           <span className="text-gray-600">
                             Dirección: <span className="font-medium">{patient.address}</span>
+                          </span>
+                        </div>
+                      )}
+                      {patient.observations && (
+                        <div className="flex items-start text-sm">
+                          <StickyNote className="h-4 w-4 text-gray-500 mr-2 mt-0.5" />
+                          <span className="text-gray-600">
+                            Observaciones: <span className="font-medium">{patient.observations}</span>
                           </span>
                         </div>
                       )}

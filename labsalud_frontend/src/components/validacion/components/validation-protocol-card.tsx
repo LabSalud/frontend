@@ -349,21 +349,21 @@ export function ValidationProtocolCard({ protocol, onProtocolValidated, isExpand
   return (
     <>
       {hasReviewPending && (
-        <div className="mb-3 rounded-lg border-l-4 border-l-[#800020] bg-[#f8e8ee] p-3 sm:p-4">
+        <div className="mb-3 rounded-lg border-l-4 border-l-fuchsia-500 bg-fuchsia-50 p-3 sm:p-4">
           <div className="flex items-start gap-2">
-            <AlertTriangle className="h-5 w-5 text-[#800020] flex-shrink-0 mt-0.5" />
+            <AlertTriangle className="h-5 w-5 text-fuchsia-500 flex-shrink-0 mt-0.5" />
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-[#800020]">
+              <p className="text-sm font-semibold text-fuchsia-700">
                 Pendiente de revisión: {wrongResults.length} resultado{wrongResults.length === 1 ? "" : "s"} marcado{wrongResults.length === 1 ? "" : "s"} como incorrecto{wrongResults.length === 1 ? "" : "s"}
               </p>
-              <p className="text-xs text-[#800020]/80 mt-1">
+              <p className="text-xs text-fuchsia-700/80 mt-1">
                 El protocolo no puede avanzar hasta que cada resultado sea corregido y validado nuevamente. Editá el valor en el módulo de resultados y volvé a validar acá.
               </p>
               <ul className="mt-2 space-y-0.5">
                 {wrongResults.map((r) => (
-                  <li key={r.id} className="text-xs text-[#800020]">
+                  <li key={r.id} className="text-xs text-fuchsia-700">
                     • {r.determination.name}
-                    {r.notes ? <span className="text-[#800020]/70"> — {r.notes}</span> : null}
+                    {r.notes ? <span className="text-fuchsia-700/70"> — {r.notes}</span> : null}
                   </li>
                 ))}
               </ul>
@@ -528,11 +528,22 @@ export function ValidationProtocolCard({ protocol, onProtocolValidated, isExpand
                               ) : prevResults.length > 0 ? (
                                 <div className="space-y-1 flex-1 overflow-y-auto pr-1">
                                   {prevResults.map((prev, idx) => (
-                                    <div key={idx} className="flex justify-between text-xs p-1.5 bg-white rounded border">
-                                      <span className="font-medium text-[#204983] truncate">
-                                        {prev.value} {prev.determination?.measure_unit}
-                                      </span>
-                                      <span className="text-gray-400 ml-1 flex-shrink-0">#{prev.id}</span>
+                                    <div key={idx} className="text-xs p-1.5 bg-white rounded border">
+                                      <div className="flex justify-between gap-2">
+                                        <span className="font-medium text-[#204983] truncate">
+                                          {prev.value} {prev.determination?.measure_unit}
+                                        </span>
+                                        <span className="text-gray-400 ml-1 flex-shrink-0">
+                                          {prev.validated_at || prev.date
+                                            ? new Date(prev.validated_at || prev.date || "").toLocaleDateString("es-AR")
+                                            : `#${prev.id}`}
+                                        </span>
+                                      </div>
+                                      {prev.validated_by && (
+                                        <p className="mt-0.5 truncate text-[10px] text-gray-500">
+                                          Validador: {prev.validated_by.first_name || prev.validated_by.username} {prev.validated_by.last_name || ""}
+                                        </p>
+                                      )}
                                     </div>
                                   ))}
                                 </div>
@@ -638,11 +649,22 @@ export function ValidationProtocolCard({ protocol, onProtocolValidated, isExpand
                                 ) : prevResults.length > 0 ? (
                                   <div className="space-y-1 max-h-32 overflow-y-auto">
                                     {prevResults.slice(0, 5).map((prev, idx) => (
-                                      <div key={idx} className="flex justify-between text-xs p-1.5 bg-white rounded border">
-                                        <span className="font-medium text-[#204983]">
-                                          {prev.value} {prev.determination?.measure_unit}
-                                        </span>
-                                        <span className="text-gray-400">#{prev.id}</span>
+                                      <div key={idx} className="text-xs p-1.5 bg-white rounded border">
+                                        <div className="flex justify-between gap-2">
+                                          <span className="font-medium text-[#204983]">
+                                            {prev.value} {prev.determination?.measure_unit}
+                                          </span>
+                                          <span className="text-gray-400">
+                                            {prev.validated_at || prev.date
+                                              ? new Date(prev.validated_at || prev.date || "").toLocaleDateString("es-AR")
+                                              : `#${prev.id}`}
+                                          </span>
+                                        </div>
+                                        {prev.validated_by && (
+                                          <p className="mt-0.5 truncate text-[10px] text-gray-500">
+                                            Validador: {prev.validated_by.first_name || prev.validated_by.username} {prev.validated_by.last_name || ""}
+                                          </p>
+                                        )}
                                       </div>
                                     ))}
                                   </div>

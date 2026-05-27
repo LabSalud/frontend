@@ -43,8 +43,10 @@ import {
 import type { BioUnitValue, ReferenceRange, ReferenceRangeEvaluation, ReferenceValues } from "@/types"
 import { applyFormulaCalculations, calculateFormulaValue } from "@/lib/result-formulas"
 import { formatApiError } from "@/lib/api-error"
+import { getProtocolStatusBadgeClass, getProtocolStatusButtonClass } from "@/lib/status-styles"
 
 const RESULTS_ANALYSIS_STATUS_FILTER_KEY = "labsalud_results_analysis_status_filters"
+const RESULTS_VISIBLE_STATUS_IDS = [1, 2, 3, 5, 6, 7, 10, 11, 12]
 
 interface AvailableAnalysis {
   id: number
@@ -133,32 +135,7 @@ interface PreviousResultData {
 }
 
 const getStatusColor = (statusId: number): string => {
-  switch (statusId) {
-    case 1:
-      return "bg-yellow-100 text-yellow-800 border-yellow-300"
-    case 2:
-      return "bg-sky-100 text-sky-800 border-sky-300"
-    case 3:
-      return "bg-orange-100 text-orange-800 border-orange-300"
-    case 4:
-      return "bg-red-100 text-red-800 border-red-300"
-    case 5:
-      return "bg-green-100 text-green-800 border-green-300"
-    case 6:
-      return "bg-purple-100 text-purple-800 border-purple-300"
-    case 7:
-      return "bg-pink-100 text-pink-800 border-pink-300"
-    case 8:
-      return "bg-teal-100 text-teal-800 border-teal-300"
-    case 10:
-      return "bg-indigo-100 text-indigo-800 border-indigo-300"
-    case 11:
-      return "bg-[#f8e8ee] text-[#800020] border-[#800020]"
-    case 12:
-      return "bg-amber-100 text-amber-800 border-amber-300"
-    default:
-      return "bg-gray-100 text-gray-800 border-gray-300"
-  }
+  return getProtocolStatusBadgeClass(statusId, true)
 }
 
 const extractErrorMessage = (errorData: unknown): string => formatApiError(errorData, "Error desconocido")
@@ -181,7 +158,7 @@ export function AnalysisAccordionView() {
   const [selectedStatuses, setSelectedStatuses] = useState<number[]>(() => {
     try {
       const saved = localStorage.getItem(RESULTS_ANALYSIS_STATUS_FILTER_KEY)
-      return saved ? JSON.parse(saved) : []
+      return saved ? JSON.parse(saved).filter((status: number) => RESULTS_VISIBLE_STATUS_IDS.includes(status)) : []
     } catch {
       return []
     }
@@ -227,7 +204,7 @@ export function AnalysisAccordionView() {
         const errorData = await response.json().catch(() => ({}))
         showError(extractErrorMessage(errorData) || "Error al cargar análisis disponibles")
       }
-    } catch (error) {
+    } catch {
       showError("Error al cargar análisis")
     } finally {
       setLoadingAnalysis(false)
@@ -259,7 +236,7 @@ export function AnalysisAccordionView() {
               params.append("status__in", statusesWithoutCancelled.join(","))
             }
           } else {
-            params.append("status__in", "1,2,3,5,7,11")
+            params.append("status__in", RESULTS_VISIBLE_STATUS_IDS.join(","))
           }
           if (params.toString()) {
             url += `?${params.toString()}`
@@ -308,7 +285,7 @@ export function AnalysisAccordionView() {
           const errorData = await response.json().catch(() => ({}))
           showError(extractErrorMessage(errorData) || "Error al cargar resultados")
         }
-      } catch (error) {
+      } catch {
         showError("Error al cargar resultados")
       } finally {
         setLoadingProtocols(false)
@@ -424,7 +401,7 @@ export function AnalysisAccordionView() {
           const errorData = await response.json().catch(() => ({}))
           showError(extractErrorMessage(errorData) || "Error al guardar resultado")
         }
-      } catch (error) {
+      } catch {
         showError("Error al guardar resultado")
       } finally {
         setSavingStates((prev) => ({ ...prev, [resultId]: false }))
@@ -600,15 +577,17 @@ export function AnalysisAccordionView() {
   }, [availableAnalysis, analysisSearchTerm])
 
   const filteredProtocols = useMemo(() => {
-    if (!protocolSearchTerm) return protocolsWithResults
+    const visibleStatuses = selectedStatuses.length > 0 ? selectedStatuses : RESULTS_VISIBLE_STATUS_IDS
+    const filtered = protocolsWithResults.filter((p) => visibleStatuses.includes(p.status.id))
+    if (!protocolSearchTerm) return filtered
     const search = protocolSearchTerm.toLowerCase()
-    return protocolsWithResults.filter(
+    return filtered.filter(
       (p) =>
         p.patient.first_name.toLowerCase().includes(search) ||
         p.patient.last_name.toLowerCase().includes(search) ||
         String(p.id).includes(search),
     )
-  }, [protocolsWithResults, protocolSearchTerm])
+  }, [protocolsWithResults, protocolSearchTerm, selectedStatuses])
 
   if (loadingAnalysis) {
     return (
@@ -751,7 +730,7 @@ export function AnalysisAccordionView() {
               variant={selectedStatuses.includes(1) ? "default" : "outline"}
               size="sm"
               onClick={() => toggleStatus(1)}
-              className={`text-xs ${selectedStatuses.includes(1) ? "bg-yellow-500 hover:bg-yellow-600" : ""}`}
+              className={`text-xs ${getProtocolStatusButtonClass(1, selectedStatuses.includes(1))}`}
             >
               <Clock className="h-3 w-3 mr-1" />
               <span className="hidden sm:inline">Pend.</span> Carga
@@ -760,7 +739,7 @@ export function AnalysisAccordionView() {
               variant={selectedStatuses.includes(2) ? "default" : "outline"}
               size="sm"
               onClick={() => toggleStatus(2)}
-              className={`text-xs ${selectedStatuses.includes(2) ? "bg-sky-500 hover:bg-sky-600" : ""}`}
+              className={`text-xs ${getProtocolStatusButtonClass(2, selectedStatuses.includes(2))}`}
             >
               <Filter className="h-3 w-3 mr-1" />
               <span className="hidden sm:inline">Pend.</span> Valid.
@@ -769,7 +748,7 @@ export function AnalysisAccordionView() {
               variant={selectedStatuses.includes(11) ? "default" : "outline"}
               size="sm"
               onClick={() => toggleStatus(11)}
-              className={`text-xs ${selectedStatuses.includes(11) ? "bg-[#800020] hover:bg-[#670019]" : ""}`}
+              className={`text-xs ${getProtocolStatusButtonClass(11, selectedStatuses.includes(11))}`}
             >
               <AlertTriangle className="h-3 w-3 mr-1" />
               <span className="hidden sm:inline">Pend.</span> Revisión
@@ -778,7 +757,7 @@ export function AnalysisAccordionView() {
               variant={selectedStatuses.includes(3) ? "default" : "outline"}
               size="sm"
               onClick={() => toggleStatus(3)}
-              className={`text-xs ${selectedStatuses.includes(3) ? "bg-orange-500 hover:bg-orange-600" : ""}`}
+              className={`text-xs ${getProtocolStatusButtonClass(3, selectedStatuses.includes(3))}`}
             >
               <Clock className="h-3 w-3 mr-1" />
               Pago <span className="hidden sm:inline">Incomp.</span>
@@ -787,7 +766,7 @@ export function AnalysisAccordionView() {
               variant={selectedStatuses.includes(6) ? "default" : "outline"}
               size="sm"
               onClick={() => toggleStatus(6)}
-              className={`text-xs ${selectedStatuses.includes(6) ? "bg-purple-500 hover:bg-purple-600" : ""}`}
+              className={`text-xs ${getProtocolStatusButtonClass(6, selectedStatuses.includes(6))}`}
             >
               <User className="h-3 w-3 mr-1" />
               <span className="hidden sm:inline">Pend.</span> Retiro
@@ -796,7 +775,7 @@ export function AnalysisAccordionView() {
               variant={selectedStatuses.includes(5) ? "default" : "outline"}
               size="sm"
               onClick={() => toggleStatus(5)}
-              className={`text-xs ${selectedStatuses.includes(5) ? "bg-green-500 hover:bg-green-600" : ""}`}
+              className={`text-xs ${getProtocolStatusButtonClass(5, selectedStatuses.includes(5))}`}
             >
               <CheckCircle className="h-3 w-3 mr-1" />
               <span className="hidden sm:inline">Completado</span>
@@ -806,7 +785,7 @@ export function AnalysisAccordionView() {
               variant={selectedStatuses.includes(7) ? "default" : "outline"}
               size="sm"
               onClick={() => toggleStatus(7)}
-              className={`text-xs ${selectedStatuses.includes(7) ? "bg-pink-500 hover:bg-pink-600" : ""}`}
+              className={`text-xs ${getProtocolStatusButtonClass(7, selectedStatuses.includes(7))}`}
             >
               <AlertTriangle className="h-3 w-3 mr-1" />
               <span className="hidden sm:inline">Envio Fallido</span>
@@ -816,10 +795,19 @@ export function AnalysisAccordionView() {
               variant={selectedStatuses.includes(10) ? "default" : "outline"}
               size="sm"
               onClick={() => toggleStatus(10)}
-              className={`text-xs ${selectedStatuses.includes(10) ? "bg-indigo-500 hover:bg-indigo-600" : ""}`}
+              className={`text-xs ${getProtocolStatusButtonClass(10, selectedStatuses.includes(10))}`}
             >
               <Mail className="h-3 w-3 mr-1" />
               <span className="hidden sm:inline">Pend.</span> Envío
+            </Button>
+            <Button
+              variant={selectedStatuses.includes(12) ? "default" : "outline"}
+              size="sm"
+              onClick={() => toggleStatus(12)}
+              className={`text-xs ${getProtocolStatusButtonClass(12, selectedStatuses.includes(12))}`}
+            >
+              <AlertCircle className="h-3 w-3 mr-1" />
+              Info <span className="hidden sm:inline">Faltante</span>
             </Button>
             {selectedStatuses.length > 0 && (
               <Button

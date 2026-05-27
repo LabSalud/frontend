@@ -43,7 +43,7 @@ interface AnalysisInputProps {
   previousResults: PreviousResult[]
   resultValue: ResultValue
   isSaving: boolean
-  onValueChange: (field: "value" | "is_abnormal" | "note", value: any) => void
+  onValueChange: (field: "value" | "is_abnormal" | "note", value: string | boolean) => void
   onSave: () => void
   onFocus: () => void
   onShowHistory: () => void

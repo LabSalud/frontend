@@ -12,38 +12,10 @@ import { Input } from "@/components/ui/input"
 import type { ProtocolWithLoadedResults } from "@/types"
 import { ValidationProtocolCard } from "./validation-protocol-card"
 import { formatApiError, getErrorMessage } from "@/lib/api-error"
+import { getProtocolStatusBadgeClass, getProtocolStatusButtonClass } from "@/lib/status-styles"
 
 const extractErrorMessage = (error: unknown): string => getErrorMessage(error, "Error desconocido")
 const VALIDATION_STATUS_FILTER_KEY = "labsalud_validation_protocol_status_filters"
-
-const getStatusColor = (statusId: number): string => {
-  switch (statusId) {
-    case 1:
-      return "bg-yellow-100 text-yellow-800 border-yellow-300"
-    case 2:
-      return "bg-sky-100 text-sky-800 border-sky-300"
-    case 3:
-      return "bg-orange-100 text-orange-800 border-orange-300"
-    case 4:
-      return "bg-red-100 text-red-800 border-red-300"
-    case 5:
-      return "bg-green-100 text-green-800 border-green-300"
-    case 6:
-      return "bg-purple-100 text-purple-800 border-purple-300"
-    case 7:
-      return "bg-pink-100 text-pink-800 border-pink-300"
-    case 8:
-      return "bg-teal-100 text-teal-800 border-teal-300"
-    case 10:
-      return "bg-indigo-100 text-indigo-800 border-indigo-300"
-    case 11:
-      return "bg-[#f8e8ee] text-[#800020] border-[#800020]"
-    case 12:
-      return "bg-amber-100 text-amber-800 border-amber-300"
-    default:
-      return "bg-gray-100 text-gray-800 border-gray-300"
-  }
-}
 
 export function ValidationProtocolList() {
   const { apiRequest } = useApi()
@@ -176,7 +148,7 @@ export function ValidationProtocolList() {
             variant={selectedStatuses.includes(1) ? "default" : "outline"}
             size="sm"
             onClick={() => toggleStatus(1)}
-            className={`text-xs ${selectedStatuses.includes(1) ? "bg-yellow-500 hover:bg-yellow-600" : ""}`}
+            className={`text-xs ${getProtocolStatusButtonClass(1, selectedStatuses.includes(1))}`}
           >
             <Clock className="h-3 w-3 mr-1" />
             <span className="hidden sm:inline">Pend.</span> Carga
@@ -185,7 +157,7 @@ export function ValidationProtocolList() {
             variant={selectedStatuses.includes(2) ? "default" : "outline"}
             size="sm"
             onClick={() => toggleStatus(2)}
-            className={`text-xs ${selectedStatuses.includes(2) ? "bg-sky-500 hover:bg-sky-600" : ""}`}
+            className={`text-xs ${getProtocolStatusButtonClass(2, selectedStatuses.includes(2))}`}
           >
             <Filter className="h-3 w-3 mr-1" />
             <span className="hidden sm:inline">Pend.</span> Valid.
@@ -194,7 +166,7 @@ export function ValidationProtocolList() {
             variant={selectedStatuses.includes(11) ? "default" : "outline"}
             size="sm"
             onClick={() => toggleStatus(11)}
-            className={`text-xs ${selectedStatuses.includes(11) ? "bg-[#800020] hover:bg-[#670019]" : ""}`}
+            className={`text-xs ${getProtocolStatusButtonClass(11, selectedStatuses.includes(11))}`}
           >
             <AlertTriangle className="h-3 w-3 mr-1" />
             <span className="hidden sm:inline">Pend.</span> Revisión
@@ -203,7 +175,7 @@ export function ValidationProtocolList() {
             variant={selectedStatuses.includes(3) ? "default" : "outline"}
             size="sm"
             onClick={() => toggleStatus(3)}
-            className={`text-xs ${selectedStatuses.includes(3) ? "bg-orange-500 hover:bg-orange-600" : ""}`}
+            className={`text-xs ${getProtocolStatusButtonClass(3, selectedStatuses.includes(3))}`}
           >
             <Clock className="h-3 w-3 mr-1" />
             Pago <span className="hidden sm:inline">Incomp.</span>
@@ -212,7 +184,7 @@ export function ValidationProtocolList() {
             variant={selectedStatuses.includes(6) ? "default" : "outline"}
             size="sm"
             onClick={() => toggleStatus(6)}
-            className={`text-xs ${selectedStatuses.includes(6) ? "bg-purple-500 hover:bg-purple-600" : ""}`}
+            className={`text-xs ${getProtocolStatusButtonClass(6, selectedStatuses.includes(6))}`}
           >
             <User className="h-3 w-3 mr-1" />
             <span className="hidden sm:inline">Pend.</span> Retiro
@@ -221,7 +193,7 @@ export function ValidationProtocolList() {
             variant={selectedStatuses.includes(10) ? "default" : "outline"}
             size="sm"
             onClick={() => toggleStatus(10)}
-            className={`text-xs ${selectedStatuses.includes(10) ? "bg-indigo-500 hover:bg-indigo-600" : ""}`}
+            className={`text-xs ${getProtocolStatusButtonClass(10, selectedStatuses.includes(10))}`}
           >
             <Mail className="h-3 w-3 mr-1" />
             <span className="hidden sm:inline">Pend.</span> Envío
@@ -230,7 +202,7 @@ export function ValidationProtocolList() {
             variant={selectedStatuses.includes(5) ? "default" : "outline"}
             size="sm"
             onClick={() => toggleStatus(5)}
-            className={`text-xs ${selectedStatuses.includes(5) ? "bg-green-500 hover:bg-green-600" : ""}`}
+            className={`text-xs ${getProtocolStatusButtonClass(5, selectedStatuses.includes(5))}`}
           >
             <CheckCircle className="h-3 w-3 mr-1" />
             <span className="hidden sm:inline">Completado</span>
@@ -240,7 +212,7 @@ export function ValidationProtocolList() {
             variant={selectedStatuses.includes(7) ? "default" : "outline"}
             size="sm"
             onClick={() => toggleStatus(7)}
-            className={`text-xs ${selectedStatuses.includes(7) ? "bg-pink-500 hover:bg-pink-600" : ""}`}
+            className={`text-xs ${getProtocolStatusButtonClass(7, selectedStatuses.includes(7))}`}
           >
             <AlertTriangle className="h-3 w-3 mr-1" />
             <span className="hidden sm:inline">Envío Fallido</span>
@@ -343,7 +315,7 @@ export function ValidationProtocolList() {
               <div className="min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="font-semibold text-gray-900">Protocolo #{protocol.id}</span>
-                  <Badge variant="outline" className={`text-xs ${getStatusColor(protocol.status.id)}`}>
+                  <Badge variant="outline" className={`text-xs ${getProtocolStatusBadgeClass(protocol.status.id, true)}`}>
                     {protocol.status.name}
                   </Badge>
                 </div>

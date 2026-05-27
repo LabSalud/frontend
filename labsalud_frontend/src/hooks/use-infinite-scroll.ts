@@ -8,7 +8,7 @@ interface UseInfiniteScrollOptions {
   onLoadMore: () => void
   threshold?: number
   rootMargin?: string
-  dependencies?: any[]
+  dependencies?: unknown[]
 }
 
 export function useInfiniteScroll({

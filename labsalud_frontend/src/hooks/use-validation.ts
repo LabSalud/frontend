@@ -122,12 +122,12 @@ export const validators = {
 // HOOK DE VALIDACIÓN
 // ============================================================================
 
-export function useValidation<T extends Record<string, any>>(initialState: ValidationState<T>) {
+export function useValidation<T extends Record<string, unknown>>(initialState: ValidationState<T>) {
   const [validation, setValidation] = useState<ValidationState<T>>(initialState)
   const [touched, setTouched] = useState<Record<keyof T, boolean>>({} as Record<keyof T, boolean>)
 
   const validateField = useCallback(
-    (fieldName: keyof T, value: any, validator: (value: any) => ValidationResultType) => {
+    (fieldName: keyof T, value: unknown, validator: (value: unknown) => ValidationResultType) => {
       const result = validator(value)
       setValidation((prev) => ({
         ...prev,
@@ -146,7 +146,7 @@ export function useValidation<T extends Record<string, any>>(initialState: Valid
   }, [])
 
   const isFormValid = useCallback(() => {
-    return Object.values(validation).every((field: any) => field.isValid)
+    return Object.values(validation).every((field) => field.isValid)
   }, [validation])
 
   const getFieldError = useCallback(
@@ -173,7 +173,7 @@ export function useValidation<T extends Record<string, any>>(initialState: Valid
   }, [initialState])
 
   const validateAllFields = useCallback(
-    (data: T, validatorMap: Record<keyof T, (value: any) => ValidationResultType>) => {
+    (data: T, validatorMap: Record<keyof T, (value: unknown) => ValidationResultType>) => {
       const newValidation = { ...validation }
       const newTouched = {} as Record<keyof T, boolean>
 
@@ -189,7 +189,7 @@ export function useValidation<T extends Record<string, any>>(initialState: Valid
       setValidation(newValidation)
       setTouched(newTouched)
 
-      return Object.values(newValidation).every((field: any) => field.isValid)
+      return Object.values(newValidation).every((field) => field.isValid)
     },
     [validation],
   )
@@ -212,7 +212,17 @@ export function useValidation<T extends Record<string, any>>(initialState: Valid
 // ============================================================================
 
 export function usePatientValidation() {
-  const initialState: ValidationState<any> = {
+  type PatientValidationFields = {
+    cuil: string
+    first_name: string
+    last_name: string
+    email: string
+    phone_mobile: string
+    phone_landline: string
+    birth_date: string
+  }
+
+  const initialState: ValidationState<PatientValidationFields> = {
     cuil: { isValid: false, message: "" },
     first_name: { isValid: false, message: "" },
     last_name: { isValid: false, message: "" },
@@ -226,7 +236,13 @@ export function usePatientValidation() {
 }
 
 export function useMedicoValidation() {
-  const initialState: ValidationState<any> = {
+  type MedicoValidationFields = {
+    first_name: string
+    last_name: string
+    license: string
+  }
+
+  const initialState: ValidationState<MedicoValidationFields> = {
     first_name: { isValid: false, message: "" },
     last_name: { isValid: false, message: "" },
     license: { isValid: false, message: "" },

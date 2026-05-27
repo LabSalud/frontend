@@ -136,7 +136,7 @@ export function useErrorHandler() {
     }
 
     return { success: true, data }
-  } catch (error: any) {
+  } catch (error) {
     if (error instanceof Error) {
       handleNetworkError(error)
       return { success: false, error: error.message }

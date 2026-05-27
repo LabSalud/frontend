@@ -13,7 +13,7 @@ export function formatDate(date: Date | string | null | undefined): string {
       month: "long",
       day: "numeric",
     })
-  } catch (error) {
+  } catch {
     return "Fecha inválida"
   }
 }
@@ -35,7 +35,7 @@ export function formatDateTime(date: Date | string | null | undefined): string {
       hour: "2-digit",
       minute: "2-digit",
     })
-  } catch (error) {
+  } catch {
     return "Fecha inválida"
   }
 }
@@ -54,7 +54,7 @@ export function formatTime(date: Date | string | null | undefined): string {
       hour: "2-digit",
       minute: "2-digit",
     })
-  } catch (error) {
+  } catch {
     return "Hora inválida"
   }
 }
@@ -78,12 +78,12 @@ export function calculateAge(birthDate: Date | string | null | undefined): numbe
     }
 
     return age
-  } catch (error) {
+  } catch {
     return 0
   }
 }
 
-export function isValidDate(date: any): boolean {
+export function isValidDate(date: unknown): boolean {
   return date instanceof Date && !isNaN(date.getTime())
 }
 
@@ -91,7 +91,7 @@ export function parseDate(dateString: string): Date | null {
   try {
     const date = new Date(dateString)
     return isValidDate(date) ? date : null
-  } catch (error) {
+  } catch {
     return null
   }
 }

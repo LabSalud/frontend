@@ -46,7 +46,7 @@ interface ValidationErrors {
 const extractErrorMessage = (error: unknown): string => formatApiError(error, "Error desconocido")
 
 export default function ProfilePage() {
-  const { user } = useAuth()
+  const { user, refreshUser } = useAuth()
   const { apiRequest } = useApi()
   const [profileData, setProfileData] = useState<ProfileData | null>(null)
   const [formData, setFormData] = useState<ProfileFormData>({
@@ -199,16 +199,12 @@ export default function ProfilePage() {
               email: updatedProfile.email || currentUser.email,
               photo: updatedProfile.photo !== undefined ? updatedProfile.photo : currentUser.photo,
             })
+            await refreshUser()
           }
 
           toast.success("Perfil actualizado correctamente", {
             duration: TOAST_DURATION,
           })
-
-          // Recargar la página para actualizar el contexto
-          setTimeout(() => {
-            window.location.reload()
-          }, 1000)
 
           // Limpiar campos de contraseña y foto
           setFormData((prev) => ({

@@ -27,6 +27,7 @@ import type {
   PaginatedResponse,
   Protocol,
   PricingConfig,
+  PreauthStatus,
 } from "../../types"
 
 export default function IngresoPage() {
@@ -45,6 +46,7 @@ export default function IngresoPage() {
   const [selectedSendMethod, setSelectedSendMethod] = useState<SendMethod | null>(null)
   const [affiliateNumber, setAffiliateNumber] = useState("")
   const [trajoOrden, setTrajoOrden] = useState<TrajoOrdenStatus | "">("")
+  const [preauthStatus, setPreauthStatus] = useState<PreauthStatus | "">("")
   const [pricingConfig, setPricingConfig] = useState<PricingConfig | null>(null)
   const [extraAmounts, setExtraAmounts] = useState({
     material_descartable_amount: "",
@@ -137,6 +139,8 @@ export default function IngresoPage() {
       const ub = Number.parseFloat(analysis.bio_unit) || 0
       if (selectedInsurance?.name.toLowerCase() === "particular") {
         privateUb += ub
+      } else if (shouldShowPreauth && preauthStatus === "no_trajo") {
+        privateUb += ub
       } else if (analysis.is_authorized) {
         authorizedUb += ub
       } else {
@@ -208,6 +212,7 @@ export default function IngresoPage() {
     setAffiliateNumber("")
     setIsRefund(false)
     setTrajoOrden("")
+    setPreauthStatus("")
     setExtraAmounts({
       material_descartable_amount: pricingConfig?.material_descartable_amount || "0.00",
       derivacion_amount: pricingConfig?.derivacion_amount || "0.00",
@@ -228,6 +233,7 @@ export default function IngresoPage() {
     setSelectedSendMethod(null)
     setAffiliateNumber("")
     setTrajoOrden("")
+    setPreauthStatus("")
     setIsRefund(false)
     setExtraAmounts({
       material_descartable_amount: pricingConfig?.material_descartable_amount || "0.00",
@@ -255,6 +261,7 @@ export default function IngresoPage() {
     if (!selectedSendMethod) missing.push("método de envío")
     if (selectedInsurance && !isPrivateInsurance && !affiliateNumber.trim()) missing.push("número de afiliado")
     if (shouldShowOrder && !trajoOrden) missing.push("estado de la orden médica")
+    if (shouldShowPreauth && !preauthStatus) missing.push("estado de la preautorización")
 
     if (missing.length > 0) {
       toast.error("Faltan datos para crear el protocolo", {
@@ -284,12 +291,16 @@ export default function IngresoPage() {
         value_paid: totalValuePaid.toFixed(2),
         details: selectedAnalyses.map((analysis) => ({
           analysis: analysis.id,
-          is_authorized: treatAsPrivate ? false : analysis.is_authorized,
+          is_authorized: treatAsPrivate || preauthStatus === "no_trajo" ? false : analysis.is_authorized,
         })),
       }
 
       if (shouldShowOrder && trajoOrden) {
         protocolData.trajo_orden = trajoOrden
+      }
+
+      if (shouldShowPreauth && preauthStatus) {
+        protocolData.preauth_status = preauthStatus
       }
 
       if (shouldChargeMaterial) {
@@ -379,7 +390,8 @@ export default function IngresoPage() {
     selectedAnalyses.length > 0 &&
     selectedSendMethod &&
     (treatAsPrivate || !selectedInsurance || affiliateNumber.trim()) &&
-    (!shouldShowOrder || trajoOrden)
+    (!shouldShowOrder || trajoOrden) &&
+    (!shouldShowPreauth || preauthStatus)
 
   return (
     <div className="min-h-screen p-2 sm:p-4 lg:p-6">
@@ -412,6 +424,7 @@ export default function IngresoPage() {
               patientPaid={patientPaid}
               affiliateNumber={affiliateNumber}
               trajoOrden={trajoOrden}
+              preauthStatus={preauthStatus}
               isRefund={isRefund}
               isPrivateInsurance={treatAsPrivate}
               shouldShowOrder={shouldShowOrder}
@@ -433,6 +446,7 @@ export default function IngresoPage() {
               onPatientPaidChange={setPatientPaid}
               onAffiliateNumberChange={setAffiliateNumber}
               onTrajoOrdenChange={setTrajoOrden}
+              onPreauthStatusChange={setPreauthStatus}
               onExtraAmountsChange={setExtraAmounts}
               onRefundChange={setIsRefund}
             />

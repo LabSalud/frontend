@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback, useRef } from "react"
+import { useState, useEffect, useCallback, useMemo, useRef } from "react"
 import {
   Search,
   Plus,
@@ -16,6 +16,7 @@ import {
   Ban,
   AlertTriangle,
   Download,
+  Printer,
   Mail,
   MessageCircle,
   PenLine,
@@ -23,9 +24,16 @@ import {
 } from "lucide-react"
 import { Input } from "../ui/input"
 import { Button } from "../ui/button"
-import { Card, CardContent } from "../ui/card"
 import { Skeleton } from "../ui/skeleton"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "../ui/dropdown-menu"
 import { ProtocolCard } from "./components/protocol-card"
 import { useApi } from "../../hooks/use-api"
 import { useApiQuery } from "@/hooks/use-api-query"
@@ -37,10 +45,8 @@ import { PROTOCOL_ENDPOINTS, ANALYTICS_ENDPOINTS, TOAST_DURATION } from "@/confi
 import type { ProtocolListItem, SendMethod } from "@/types"
 import { formatApiError, getErrorMessage } from "@/lib/api-error"
 import {
-  ALLOWED_PROTOCOL_STATUS_FILTERS,
-  PROTOCOL_STATUS_STATS_KEY,
-  getProtocolStatusButtonClass,
-  getProtocolStatusStyle,
+  getProtocolStatusStyleByName,
+  normalizeProtocolStatusName,
 } from "@/lib/status-styles"
 
 interface PaginatedResponse {
@@ -60,7 +66,34 @@ interface ProtocolsByStatusResponse {
 }
 
 const STATUS_FILTER_KEY = "labsalud_protocol_status_filters"
-const ALLOWED_STATUS_FILTERS: number[] = [...ALLOWED_PROTOCOL_STATUS_FILTERS]
+const HIDDEN_PROTOCOL_STATUS_NAMES = new Set(["pendiente de facturacion", "facturado"])
+type ReportAction = "download" | "email" | "whatsapp"
+type MergeReportAction = "print" | ReportAction
+
+const getStatusIcon = (statusName: string) => {
+  switch (normalizeProtocolStatusName(statusName)) {
+    case "pendiente de validacion":
+      return Filter
+    case "pendiente de revision":
+      return PenLine
+    case "pago incompleto":
+      return Calendar
+    case "pendiente de retiro":
+      return User
+    case "completado":
+      return CheckCircle
+    case "cancelado":
+      return Ban
+    case "envio fallido":
+      return AlertTriangle
+    case "pendiente de envio":
+      return Mail
+    case "informacion faltante":
+      return AlertCircle
+    default:
+      return Clock
+  }
+}
 
 export default function ProtocolosPage() {
   const { apiRequest } = useApi()
@@ -78,7 +111,7 @@ export default function ProtocolosPage() {
     try {
       const saved = localStorage.getItem(STATUS_FILTER_KEY)
       const parsed = saved ? JSON.parse(saved) : []
-      return Array.isArray(parsed) ? parsed.filter((status) => ALLOWED_STATUS_FILTERS.includes(status)) : []
+      return Array.isArray(parsed) ? parsed.filter((status) => Number.isInteger(status)) : []
     } catch {
       return []
     }
@@ -105,36 +138,47 @@ export default function ProtocolosPage() {
     url: ANALYTICS_ENDPOINTS.PROTOCOLS_BY_STATUS,
     staleTime: 30 * 1000,
   })
-
-  const stats = (() => {
-    const base = {
-      total: 0,
-      pendingEntry: 0,
-      pendingRetiro: 0,
-      incompletePayment: 0,
-      pendingValidation: 0,
-      completed: 0,
-      cancelled: 0,
-      sendFailed: 0,
-      pendingDelivery: 0,
-      pendingReview: 0,
-      missingInfo: 0,
-    }
-    const data = stateStatsQuery.data
-    if (!data) return base
-    base.total = data.total_protocols
-    data.states.forEach((state) => {
-      const key = PROTOCOL_STATUS_STATS_KEY[state.status_id]
-      if (key && key in base) {
-        ;(base as Record<string, number>)[key] = state.count
-      }
-    })
-    return base
-  })()
+  const rawStatusItems = useMemo(
+    () =>
+      (stateStatsQuery.data?.states || [])
+        .filter((state) => !HIDDEN_PROTOCOL_STATUS_NAMES.has(normalizeProtocolStatusName(state.status_name)))
+        .map((state) => ({
+          id: state.status_id,
+          name: state.status_name,
+          count: state.count,
+          icon: getStatusIcon(state.status_name),
+        })),
+    [stateStatsQuery.data],
+  )
+  const cancelledStatusId = rawStatusItems.find((item) => normalizeProtocolStatusName(item.name) === "cancelado")?.id
+  const cancelledCountQuery = useApiQuery<{ count: number }>({
+    queryKey: ["protocols", "status-count", "cancelado", cancelledStatusId],
+    url: `${PROTOCOL_ENDPOINTS.PROTOCOLS}?limit=1&status=${cancelledStatusId || ""}`,
+    enabled: Boolean(cancelledStatusId),
+    staleTime: 30 * 1000,
+  })
+  const statusItems = useMemo(
+    () =>
+      rawStatusItems.map((item) =>
+        normalizeProtocolStatusName(item.name) === "cancelado"
+          ? { ...item, count: cancelledCountQuery.data?.count ?? item.count }
+          : item,
+      ),
+    [rawStatusItems, cancelledCountQuery.data],
+  )
+  const availableStatusIds = useMemo(() => statusItems.map((item) => item.id), [statusItems])
+  const activeProtocolsCount = useMemo(() => {
+    const total = stateStatsQuery.data?.total_protocols
+    if (typeof total !== "number") return null
+    const cancelledFromAnalytics =
+      rawStatusItems.find((item) => normalizeProtocolStatusName(item.name) === "cancelado")?.count ?? 0
+    return Math.max(0, total - cancelledFromAnalytics)
+  }, [stateStatsQuery.data, rawStatusItems])
 
   const fetchStateStats = useCallback(() => {
     stateStatsQuery.refetch()
-  }, [stateStatsQuery])
+    if (cancelledStatusId) cancelledCountQuery.refetch()
+  }, [stateStatsQuery, cancelledCountQuery, cancelledStatusId])
 
   // Send methods raramente cambia → cache de 30 minutos
   const sendMethodsQuery = useApiQuery<{ results?: SendMethod[] } | SendMethod[]>({
@@ -263,6 +307,11 @@ export default function ProtocolosPage() {
     localStorage.setItem(STATUS_FILTER_KEY, JSON.stringify(selectedStatuses))
   }, [selectedStatuses])
 
+  useEffect(() => {
+    if (availableStatusIds.length === 0) return
+    setSelectedStatuses((prev) => prev.filter((statusId) => availableStatusIds.includes(statusId)))
+  }, [availableStatusIds])
+
   const clearSearch = () => {
     setSearchTerm("")
     if (searchInputRef.current) {
@@ -283,7 +332,7 @@ export default function ProtocolosPage() {
   }, [fetchProtocolsFromAPI, debouncedSearchTerm, fetchStateStats])
 
   const toggleStatus = (statusId: number) => {
-    if (!ALLOWED_STATUS_FILTERS.includes(statusId)) return
+    if (availableStatusIds.length > 0 && !availableStatusIds.includes(statusId)) return
     setSelectedStatuses((prev) =>
       prev.includes(statusId) ? prev.filter((id) => id !== statusId) : [...prev, statusId],
     )
@@ -309,7 +358,7 @@ export default function ProtocolosPage() {
     setSelectedProtocols(new Set())
   }
 
-  const handleMergeReport = async (action: "download" | "email" | "whatsapp") => {
+  const handleMergeReport = async (action: MergeReportAction) => {
     if (selectedProtocols.size < 2) {
       toast.error("Seleccioná al menos 2 protocolos del mismo paciente.", { duration: TOAST_DURATION })
       return
@@ -325,29 +374,45 @@ export default function ProtocolosPage() {
 
     setIsBatchProcessing(true)
     try {
+      const endpointAction: ReportAction = action === "print" ? "download" : action
       const response = await apiRequest(PROTOCOL_ENDPOINTS.MERGE_REPORT, {
         method: "POST",
         body: {
           protocol_ids: ids,
-          action,
+          action: endpointAction,
           type: batchReportType,
           signed: batchSigned,
         },
       })
 
       if (response.ok) {
-        if (action === "download") {
+        if (action === "print" || action === "download") {
           const blob = await response.blob()
           const url = window.URL.createObjectURL(blob)
-          const a = document.createElement("a")
-          a.href = url
-          const signedSuffix = batchSigned ? "firmado" : "sin_firma"
-          a.download = `reporte_unificado_${batchReportType}_${signedSuffix}_${new Date().toISOString().slice(0, 10)}.pdf`
-          document.body.appendChild(a)
-          a.click()
-          document.body.removeChild(a)
-          window.URL.revokeObjectURL(url)
-          toast.success("Reporte unificado descargado", { duration: TOAST_DURATION })
+
+          if (action === "print") {
+            const previewLink = document.createElement("a")
+            previewLink.href = url
+            previewLink.target = "_blank"
+            previewLink.rel = "noopener noreferrer"
+            document.body.appendChild(previewLink)
+            previewLink.click()
+            previewLink.remove()
+            setTimeout(() => {
+              window.URL.revokeObjectURL(url)
+            }, 30000)
+            toast.success("Reporte unificado listo para imprimir", { duration: TOAST_DURATION })
+          } else {
+            const a = document.createElement("a")
+            a.href = url
+            const signedSuffix = batchSigned ? "firmado" : "sin_firma"
+            a.download = `reporte_unificado_${batchReportType}_${signedSuffix}_${new Date().toISOString().slice(0, 10)}.pdf`
+            document.body.appendChild(a)
+            a.click()
+            document.body.removeChild(a)
+            window.URL.revokeObjectURL(url)
+            toast.success("Reporte unificado descargado", { duration: TOAST_DURATION })
+          }
         } else {
           const data = await response.json().catch(() => ({}))
           toast.success(data.detail || "Reporte unificado enviado", { duration: TOAST_DURATION })
@@ -365,7 +430,7 @@ export default function ProtocolosPage() {
     }
   }
 
-  const handleBatchAction = async (action: "download" | "email" | "whatsapp") => {
+  const handleBatchAction = async (action: ReportAction) => {
     if (selectedProtocols.size === 0) return
 
     setIsBatchProcessing(true)
@@ -509,141 +574,52 @@ export default function ProtocolosPage() {
         </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-md p-4 md:p-6 mb-4 md:mb-6">
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-3">
-          <Card>
-            <CardContent className="flex h-full items-center justify-center px-2 py-1 text-center sm:px-2.5 sm:py-1.5">
-              <div className="w-full space-y-0.5 text-center">
-                <div className="flex items-center justify-center gap-1">
-                  <FileText className="h-5 w-5 sm:h-6 sm:w-6 text-gray-400 flex-shrink-0" />
-                  <p className="text-lg sm:text-2xl font-bold text-gray-900">{stats.total}</p>
-                </div>
-                <p className="text-xs sm:text-sm font-medium text-gray-600 text-center break-words">Total</p>
+      <div className="mb-3">
+        <div className="rounded-lg bg-white/95 p-3 shadow-md">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="rounded-md border border-gray-200 bg-gray-50 px-3 py-2">
+              <p className="text-[11px] font-medium text-gray-500">Protocolos activos</p>
+              <p className="text-lg font-bold text-gray-900">{activeProtocolsCount ?? "-"}</p>
+            </div>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {stateStatsQuery.isLoading ? (
+              <div className="flex gap-2">
+                {Array.from({ length: 6 }).map((_, index) => (
+                  <Skeleton key={index} className="h-8 w-32 rounded-full" />
+                ))}
               </div>
-            </CardContent>
-          </Card>
+            ) : (
+              statusItems.map((item) => {
+              const style = getProtocolStatusStyleByName(item.name)
+              const selected = selectedStatuses.includes(item.id)
+              const Icon = item.icon
 
-          <Card className="bg-yellow-50">
-            <CardContent className="flex h-full items-center justify-center px-2 py-1 text-center sm:px-2.5 sm:py-1.5">
-              <div className="w-full space-y-0.5 text-center">
-                <div className="flex items-center justify-center gap-1">
-                  <Clock className="h-5 w-5 sm:h-6 sm:w-6 text-yellow-400 flex-shrink-0" />
-                  <p className="text-lg sm:text-2xl font-bold text-yellow-600">{stats.pendingEntry}</p>
-                </div>
-                <p className="text-xs sm:text-sm font-medium text-yellow-700 text-center break-words">Pend. Carga</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className={getProtocolStatusStyle(6).card}>
-            <CardContent className="flex h-full items-center justify-center px-2 py-1 text-center sm:px-2.5 sm:py-1.5">
-              <div className="w-full space-y-0.5 text-center">
-                <div className="flex items-center justify-center gap-1">
-                  <User className={`h-5 w-5 sm:h-6 sm:w-6 ${getProtocolStatusStyle(6).icon} flex-shrink-0`} />
-                  <p className={`text-lg sm:text-2xl font-bold ${getProtocolStatusStyle(6).text}`}>{stats.pendingRetiro}</p>
-                </div>
-                <p className={`text-xs sm:text-sm font-medium ${getProtocolStatusStyle(6).text} text-center break-words`}>Pend. Retiro</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-orange-50">
-            <CardContent className="flex h-full items-center justify-center px-2 py-1 text-center sm:px-2.5 sm:py-1.5">
-              <div className="w-full space-y-0.5 text-center">
-                <div className="flex items-center justify-center gap-1">
-                  <Calendar className="h-5 w-5 sm:h-6 sm:w-6 text-orange-400 flex-shrink-0" />
-                  <p className="text-lg sm:text-2xl font-bold text-orange-600">{stats.incompletePayment}</p>
-                </div>
-                <p className="text-xs sm:text-sm font-medium text-orange-700 text-center break-words">Pago Incompleto</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className={getProtocolStatusStyle(2).card}>
-            <CardContent className="flex h-full items-center justify-center px-2 py-1 text-center sm:px-2.5 sm:py-1.5">
-              <div className="w-full space-y-0.5 text-center">
-                <div className="flex items-center justify-center gap-1">
-                  <Filter className={`h-5 w-5 sm:h-6 sm:w-6 ${getProtocolStatusStyle(2).icon} flex-shrink-0`} />
-                  <p className={`text-lg sm:text-2xl font-bold ${getProtocolStatusStyle(2).text}`}>{stats.pendingValidation}</p>
-                </div>
-                <p className={`text-xs sm:text-sm font-medium ${getProtocolStatusStyle(2).text} text-center break-words`}>Pend. Validación</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className={getProtocolStatusStyle(11).card}>
-            <CardContent className="flex h-full items-center justify-center px-2 py-1 text-center sm:px-2.5 sm:py-1.5">
-              <div className="w-full space-y-0.5 text-center">
-                <div className="flex items-center justify-center gap-1">
-                  <PenLine className={`h-5 w-5 sm:h-6 sm:w-6 ${getProtocolStatusStyle(11).icon} flex-shrink-0`} />
-                  <p className={`text-lg sm:text-2xl font-bold ${getProtocolStatusStyle(11).text}`}>{stats.pendingReview}</p>
-                </div>
-                <p className={`text-xs sm:text-sm font-medium ${getProtocolStatusStyle(11).text} text-center break-words`}>Pend. Revisión</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className={getProtocolStatusStyle(5).card}>
-            <CardContent className="flex h-full items-center justify-center px-2 py-1 text-center sm:px-2.5 sm:py-1.5">
-              <div className="w-full space-y-0.5 text-center">
-                <div className="flex items-center justify-center gap-1">
-                  <CheckCircle className={`h-5 w-5 sm:h-6 sm:w-6 ${getProtocolStatusStyle(5).icon} flex-shrink-0`} />
-                  <p className={`text-lg sm:text-2xl font-bold ${getProtocolStatusStyle(5).text}`}>{stats.completed}</p>
-                </div>
-                <p className={`text-xs sm:text-sm font-medium ${getProtocolStatusStyle(5).text} text-center break-words`}>Completados</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-red-50">
-            <CardContent className="flex h-full items-center justify-center px-2 py-1 text-center sm:px-2.5 sm:py-1.5">
-              <div className="w-full space-y-0.5 text-center">
-                <div className="flex items-center justify-center gap-1">
-                  <Ban className="h-5 w-5 sm:h-6 sm:w-6 text-red-400 flex-shrink-0" />
-                  <p className="text-lg sm:text-2xl font-bold text-red-600">{stats.cancelled}</p>
-                </div>
-                <p className="text-xs sm:text-sm font-medium text-red-700 text-center break-words">Cancelados</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className={getProtocolStatusStyle(7).card}>
-            <CardContent className="flex h-full items-center justify-center px-2 py-1 text-center sm:px-2.5 sm:py-1.5">
-              <div className="w-full space-y-0.5 text-center">
-                <div className="flex items-center justify-center gap-1">
-                  <AlertTriangle className={`h-5 w-5 sm:h-6 sm:w-6 ${getProtocolStatusStyle(7).icon} flex-shrink-0`} />
-                  <p className={`text-lg sm:text-2xl font-bold ${getProtocolStatusStyle(7).text}`}>{stats.sendFailed}</p>
-                </div>
-                <p className={`text-xs sm:text-sm font-medium ${getProtocolStatusStyle(7).text} text-center break-words`}>Envío Fallido</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className={getProtocolStatusStyle(10).card}>
-            <CardContent className="flex h-full items-center justify-center px-2 py-1 text-center sm:px-2.5 sm:py-1.5">
-              <div className="w-full space-y-0.5 text-center">
-                <div className="flex items-center justify-center gap-1">
-                  <Mail className={`h-5 w-5 sm:h-6 sm:w-6 ${getProtocolStatusStyle(10).icon} flex-shrink-0`} />
-                  <p className={`text-lg sm:text-2xl font-bold ${getProtocolStatusStyle(10).text}`}>{stats.pendingDelivery}</p>
-                </div>
-                <p className={`text-xs sm:text-sm font-medium ${getProtocolStatusStyle(10).text} text-center break-words`}>Pend. Envío</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-amber-50">
-            <CardContent className="flex h-full items-center justify-center px-2 py-1 text-center sm:px-2.5 sm:py-1.5">
-              <div className="w-full space-y-0.5 text-center">
-                <div className="flex items-center justify-center gap-1">
-                  <AlertCircle className="h-5 w-5 sm:h-6 sm:w-6 text-amber-500 flex-shrink-0" />
-                  <p className="text-lg sm:text-2xl font-bold text-amber-700">{stats.missingInfo}</p>
-                </div>
-                <p className="text-xs sm:text-sm font-medium text-amber-800 text-center break-words">Info Faltante</p>
-              </div>
-            </CardContent>
-          </Card>
-
+              return (
+                <Button
+                  key={item.id}
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => toggleStatus(item.id)}
+                  className={`h-8 shrink-0 rounded-full border px-3 text-xs ${
+                    selected ? `${style.solid} text-white` : `${style.badgeOutline} hover:bg-white`
+                  }`}
+                >
+                  <Icon className="h-3.5 w-3.5 mr-1" />
+                  {style.shortLabel}
+                  <span className="ml-1 rounded-full bg-white/70 px-1.5 text-[11px] text-gray-700">{item.count}</span>
+                </Button>
+              )
+            })
+            )}
+            {selectedStatuses.length > 0 && (
+              <Button variant="ghost" size="sm" onClick={() => setSelectedStatuses([])} className="h-8 shrink-0 rounded-full text-gray-500">
+                <X className="h-3 w-3 mr-1" />
+                Limpiar
+              </Button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -673,108 +649,6 @@ export default function ProtocolosPage() {
                 <Skeleton className="h-4 w-4 rounded-full" />
               </div>
             )}
-          </div>
-
-          <div className="space-y-2">
-            <p className="text-sm font-medium text-gray-700">Filtrar por estado:</p>
-            <div className="flex flex-wrap gap-2">
-              <Button
-                variant={selectedStatuses.includes(1) ? "default" : "outline"}
-                size="sm"
-                onClick={() => toggleStatus(1)}
-                className={getProtocolStatusButtonClass(1, selectedStatuses.includes(1))}
-              >
-                <Clock className="h-3 w-3 mr-1" />
-                Pend. Carga
-              </Button>
-              <Button
-                variant={selectedStatuses.includes(2) ? "default" : "outline"}
-                size="sm"
-                onClick={() => toggleStatus(2)}
-                className={getProtocolStatusButtonClass(2, selectedStatuses.includes(2))}
-              >
-                <Filter className="h-3 w-3 mr-1" />
-                Pend. Validación
-              </Button>
-              <Button
-                variant={selectedStatuses.includes(11) ? "default" : "outline"}
-                size="sm"
-                onClick={() => toggleStatus(11)}
-                className={getProtocolStatusButtonClass(11, selectedStatuses.includes(11))}
-              >
-                <PenLine className="h-3 w-3 mr-1" />
-                Pend. Revisión
-              </Button>
-              <Button
-                variant={selectedStatuses.includes(3) ? "default" : "outline"}
-                size="sm"
-                onClick={() => toggleStatus(3)}
-                className={getProtocolStatusButtonClass(3, selectedStatuses.includes(3))}
-              >
-                <Calendar className="h-3 w-3 mr-1" />
-                Pago Incompleto
-              </Button>
-              <Button
-                variant={selectedStatuses.includes(6) ? "default" : "outline"}
-                size="sm"
-                onClick={() => toggleStatus(6)}
-                className={getProtocolStatusButtonClass(6, selectedStatuses.includes(6))}
-              >
-                <User className="h-3 w-3 mr-1" />
-                Pend. Retiro
-              </Button>
-              <Button
-                variant={selectedStatuses.includes(5) ? "default" : "outline"}
-                size="sm"
-                onClick={() => toggleStatus(5)}
-                className={getProtocolStatusButtonClass(5, selectedStatuses.includes(5))}
-              >
-                <CheckCircle className="h-3 w-3 mr-1" />
-                Completado
-              </Button>
-              <Button
-                variant={selectedStatuses.includes(4) ? "default" : "outline"}
-                size="sm"
-                onClick={() => toggleStatus(4)}
-                className={getProtocolStatusButtonClass(4, selectedStatuses.includes(4))}
-              >
-                <Ban className="h-3 w-3 mr-1" />
-                Cancelado
-              </Button>
-              <Button
-                variant={selectedStatuses.includes(7) ? "default" : "outline"}
-                size="sm"
-                onClick={() => toggleStatus(7)}
-                className={getProtocolStatusButtonClass(7, selectedStatuses.includes(7))}
-              >
-                <AlertTriangle className="h-3 w-3 mr-1" />
-                Envío Fallido
-              </Button>
-              <Button
-                variant={selectedStatuses.includes(10) ? "default" : "outline"}
-                size="sm"
-                onClick={() => toggleStatus(10)}
-                className={getProtocolStatusButtonClass(10, selectedStatuses.includes(10))}
-              >
-                <Mail className="h-3 w-3 mr-1" />
-                Pend. Envío
-              </Button>
-              <Button
-                variant={selectedStatuses.includes(12) ? "default" : "outline"}
-                size="sm"
-                onClick={() => toggleStatus(12)}
-                className={getProtocolStatusButtonClass(12, selectedStatuses.includes(12))}
-              >
-                <AlertCircle className="h-3 w-3 mr-1" />
-                Info Faltante
-              </Button>
-              {selectedStatuses.length > 0 && (
-                <Button variant="ghost" size="sm" onClick={() => setSelectedStatuses([])} className="text-gray-500">
-                  <X className="h-3 w-3 mr-1" />
-                  Limpiar
-                </Button>
-              )}
-            </div>
           </div>
 
           <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 flex-wrap">
@@ -952,17 +826,44 @@ export default function ProtocolosPage() {
                 <MessageCircle className="h-4 w-4 mr-1" />
                 WhatsApp
               </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={selectedProtocols.size < 2 || isBatchProcessing}
-                onClick={() => handleMergeReport("download")}
-                className="flex-1 sm:flex-initial border-[#204983] text-[#204983] hover:bg-[#204983] hover:text-white"
-                title="Combinar varios protocolos del mismo paciente en un único reporte"
-              >
-                <GitMerge className="h-4 w-4 mr-1" />
-                Unificar
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={selectedProtocols.size < 2 || isBatchProcessing}
+                    className="flex-1 sm:flex-initial border-[#204983] text-[#204983] hover:bg-[#204983] hover:text-white"
+                    title="Combinar varios protocolos del mismo paciente en un único reporte"
+                  >
+                    {isBatchProcessing ? (
+                      <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                    ) : (
+                      <GitMerge className="h-4 w-4 mr-1" />
+                    )}
+                    Unificar
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuLabel>Reporte unificado</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => handleMergeReport("print")}>
+                    <Printer className="h-4 w-4 mr-2" />
+                    Imprimir
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleMergeReport("download")}>
+                    <Download className="h-4 w-4 mr-2" />
+                    Descargar PDF
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleMergeReport("email")}>
+                    <Mail className="h-4 w-4 mr-2" />
+                    Enviar por email
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleMergeReport("whatsapp")}>
+                    <MessageCircle className="h-4 w-4 mr-2" />
+                    Enviar por WhatsApp
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
         </div>

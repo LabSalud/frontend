@@ -42,13 +42,14 @@ import {
   ReportDialog,
   CoseguroDialog,
   PreauthorizationDialog,
+  OrderStatusDialog,
   ArcaBillingDialog,
 } from "./dialogs"
 import type { ArcaPayload } from "./dialogs"
 import { ProtocolHistoryDialog } from "./dialogs/protocol-history-dialog"
 import { formatApiError, getErrorMessage } from "@/lib/api-error"
 import { useAuth } from "@/contexts/auth-context"
-import { getProtocolStatusStyle } from "@/lib/status-styles"
+import { getProtocolStatusStyleByName } from "@/lib/status-styles"
 import { TRAJO_ORDEN, normalizeTrajoOrden, type TrajoOrdenStatus } from "@/lib/protocol-order"
 
 interface ProtocolDetailResponse {
@@ -103,6 +104,8 @@ interface ProtocolDetailResponse {
   is_printed: boolean
   trajo_orden: TrajoOrdenStatus
   preauth_status?: PreauthStatus
+  preauth_reference?: string
+  preauth_notes?: string
   is_in_patient?: boolean
   is_active: boolean
   created_at?: string
@@ -161,6 +164,8 @@ export function ProtocolCard({
   const [isProcessingCoseguro, setIsProcessingCoseguro] = useState(false)
   const [preauthDialogOpen, setPreauthDialogOpen] = useState(false)
   const [isProcessingPreauth, setIsProcessingPreauth] = useState(false)
+  const [orderStatusDialogOpen, setOrderStatusDialogOpen] = useState(false)
+  const [isProcessingOrderStatus, setIsProcessingOrderStatus] = useState(false)
   const [arcaDialogOpen, setArcaDialogOpen] = useState(false)
 
   // Dialog states
@@ -269,7 +274,7 @@ export function ProtocolCard({
       }
 
       const errorData = await response.json().catch(() => ({}))
-      throw new Error(extractErrorMessage(errorData, "Error fetching protocol details"))
+      throw new Error(extractErrorMessage(errorData, "Error al cargar los análisis del protocolo"))
     } catch (error) {
       console.error("Error fetching protocol details:", error)
       const message = getErrorMessage(error, "Error al cargar los análisis del protocolo")
@@ -305,7 +310,7 @@ export function ProtocolCard({
         return data
       } else {
         const errorData = await response.json().catch(() => ({}))
-        throw new Error(extractErrorMessage(errorData, "Error fetching protocol detail"))
+        throw new Error(extractErrorMessage(errorData, "Error al cargar el detalle del protocolo"))
       }
     } catch (error) {
       console.error("Error fetching protocol detail:", error)
@@ -449,14 +454,14 @@ export function ProtocolCard({
       })
 
       if (response.ok) {
-        const label = operation === "patient_paid" ? "Pago" : "Devolucion"
+        const label = operation === "patient_paid" ? "Pago" : "Devolución"
         toast.success(`${label} de $${amount.toFixed(2)} registrado exitosamente`, { duration: TOAST_DURATION })
         await refreshProtocolDetail()
         onUpdate()
         return true
       } else {
         const errorData = await response.json().catch(() => ({}))
-        throw new Error(extractErrorMessage(errorData, `Error al registrar ${operation === "patient_paid" ? "pago" : "devolucion"}`))
+        throw new Error(extractErrorMessage(errorData, `Error al registrar ${operation === "patient_paid" ? "pago" : "devolución"}`))
       }
     } catch (error) {
       console.error("Error regularize balance:", error)
@@ -517,7 +522,7 @@ export function ProtocolCard({
         onUpdate()
       } else {
         const errorData = await response.json().catch(() => ({}))
-        throw new Error(extractErrorMessage(errorData, "Error updating protocol"))
+        throw new Error(extractErrorMessage(errorData, "Error al actualizar el protocolo"))
       }
     } catch (error) {
       console.error("Error updating protocol:", error)
@@ -555,7 +560,7 @@ export function ProtocolCard({
         setReportDialogOpen(false)
       } else {
         const errorData = await response.json().catch(() => ({}))
-        throw new Error(extractErrorMessage(errorData, "Error generating report"))
+        throw new Error(extractErrorMessage(errorData, "Error al generar el reporte"))
       }
     } catch (error) {
       console.error("Error generating report:", error)
@@ -591,7 +596,7 @@ export function ProtocolCard({
         setReportDialogOpen(false)
       } else {
         const errorData = await response.json().catch(() => ({}))
-        throw new Error(extractErrorMessage(errorData, "Error downloading report"))
+        throw new Error(extractErrorMessage(errorData, "Error al descargar el reporte"))
       }
     } catch (error) {
       console.error("Error downloading report:", error)
@@ -615,7 +620,7 @@ export function ProtocolCard({
         onUpdate()
       } else {
         const errorData = await response.json().catch(() => ({}))
-        throw new Error(extractErrorMessage(errorData, "Error sending email"))
+        throw new Error(extractErrorMessage(errorData, "Error al enviar el email"))
       }
     } catch (error) {
       console.error("Error sending email:", error)
@@ -639,7 +644,7 @@ export function ProtocolCard({
         onUpdate()
       } else {
         const errorData = await response.json().catch(() => ({}))
-        throw new Error(extractErrorMessage(errorData, "Error sending WhatsApp"))
+        throw new Error(extractErrorMessage(errorData, "Error al enviar el WhatsApp"))
       }
     } catch (error) {
       console.error("Error sending WhatsApp:", error)
@@ -694,7 +699,7 @@ export function ProtocolCard({
         onUpdate()
       } else {
         const errorData = await response.json().catch(() => ({}))
-        throw new Error(extractErrorMessage(errorData, "Error updating authorization"))
+        throw new Error(extractErrorMessage(errorData, "Error al actualizar la autorización"))
       }
     } catch (error) {
       console.error("Error updating authorization:", error)
@@ -768,43 +773,80 @@ export function ProtocolCard({
     }
   }
 
+  const handleOpenOrderStatusDialog = async () => {
+    const detail = protocolDetail || (await fetchProtocolDetail())
+    if (!detail) return
+
+    if (detail.insurance?.name?.toLowerCase() === "particular") {
+      toast.info("Los protocolos particulares no requieren estado de orden médica.", { duration: TOAST_DURATION })
+      return
+    }
+
+    setOrderStatusDialogOpen(true)
+  }
+
+  const handleUpdateOrderStatus = async (status: TrajoOrdenStatus): Promise<boolean> => {
+    const currentStatus = normalizeTrajoOrden(protocolDetail?.trajo_orden ?? protocol.trajo_orden)
+    if (status === currentStatus) {
+      toast.info("La orden ya tiene ese estado", { duration: TOAST_DURATION })
+      return true
+    }
+
+    setIsProcessingOrderStatus(true)
+    try {
+      const response = await apiRequest(PROTOCOL_ENDPOINTS.PROTOCOL_DETAIL(protocol.id), {
+        method: "PATCH",
+        body: { trajo_orden: status },
+      })
+
+      if (response.ok) {
+        toast.success("Estado de orden actualizado correctamente", { duration: TOAST_DURATION })
+        await refreshProtocolDetail()
+        onUpdate()
+        return true
+      }
+
+      const errorData = await response.json().catch(() => ({}))
+      throw new Error(extractErrorMessage(errorData, "No se pudo actualizar la orden"))
+    } catch (error) {
+      console.error("Error updating order status:", error)
+      toast.error(getErrorMessage(error, "Error al actualizar la orden"), { duration: TOAST_DURATION })
+      return false
+    } finally {
+      setIsProcessingOrderStatus(false)
+    }
+  }
+
   const handleOpenPreauthDialog = async () => {
-    const analyses = await loadProtocolAnalyses()
-    if (!analyses) return
     if (!protocolDetail) {
-      await fetchProtocolDetail()
+      const detail = await fetchProtocolDetail()
+      if (!detail) return
     }
     setPreauthDialogOpen(true)
   }
 
   const handleApplyPreauthorization = async (payload: {
-    authorized_analysis_ids: number[]
-    brought: boolean
-    reference?: string
-    notes?: string
+    preauth_status: Exclude<PreauthStatus, "not_required">
+    preauth_reference?: string
+    preauth_notes?: string
   }): Promise<boolean> => {
     setIsProcessingPreauth(true)
     try {
-      const response = await apiRequest(PROTOCOL_ENDPOINTS.APPLY_PREAUTHORIZATION, {
-        method: "POST",
-        body: {
-          protocol_ids: [protocol.id],
-          ...payload,
-        },
+      const response = await apiRequest(PROTOCOL_ENDPOINTS.PROTOCOL_DETAIL(protocol.id), {
+        method: "PATCH",
+        body: payload,
       })
       if (response.ok) {
-        const data = await response.json().catch(() => ({}))
-        toast.success(data.detail || "Preautorización aplicada correctamente", { duration: TOAST_DURATION })
-        setProtocolDetails([])
+        toast.success("Preautorización actualizada correctamente", { duration: TOAST_DURATION })
         await refreshProtocolDetail()
         onUpdate()
         return true
       }
       const errorData = await response.json().catch(() => ({}))
-      throw new Error(extractErrorMessage(errorData, "No se pudo aplicar la preautorización"))
+      throw new Error(extractErrorMessage(errorData, "No se pudo actualizar la preautorización"))
     } catch (error) {
-      console.error("Error applying preauthorization:", error)
-      toast.error(getErrorMessage(error, "Error al aplicar la preautorización"), { duration: TOAST_DURATION })
+      console.error("Error updating preauthorization:", error)
+      toast.error(getErrorMessage(error, "Error al actualizar la preautorización"), { duration: TOAST_DURATION })
       return false
     } finally {
       setIsProcessingPreauth(false)
@@ -856,13 +898,19 @@ export function ProtocolCard({
     (user?.is_superuser ||
       hasPermission(PERMISSIONS.UNCANCEL_PROTOCOLS.codename) ||
       hasPermission("laboratory_protocols.descancelar_protocolos"))
+  const isPrivateProtocol = protocolDetail?.insurance?.name?.toLowerCase() === "particular"
   const insuranceChargesCoseguro = Boolean(protocolDetail?.insurance?.charges_coseguro)
   const insuranceRequiresPreauth = Boolean(protocolDetail?.insurance?.requires_preauthorization)
+  const showOrderAction = !isCancelled && !isCompleted && !isPrivateProtocol
+  const orderDisabledReason = isCancelled || isCompleted
+    ? `No se puede modificar la orden en estado "${statusName}".`
+    : undefined
   const showCoseguroAction = !isCancelled && !isCompleted && insuranceChargesCoseguro
   const coseguroDisabledReason = isCancelled || isCompleted
     ? `No se puede cargar coseguro en estado "${statusName}".`
     : undefined
-  const showPreauthAction = !isCancelled && !isCompleted && insuranceRequiresPreauth
+  const hasPreauthStatus = Boolean(protocol.preauth_status && protocol.preauth_status !== "not_required")
+  const showPreauthAction = !isCancelled && !isCompleted && (insuranceRequiresPreauth || hasPreauthStatus)
   const preauthDisabledReason = isCancelled || isCompleted
     ? `No se puede aplicar preautorización en estado "${statusName}".`
     : undefined
@@ -890,8 +938,8 @@ export function ProtocolCard({
       ? "No se puede enviar por WhatsApp porque el paciente no tiene teléfono cargado."
       : undefined
 
-  const getBorderColor = (statusId: number): string => {
-    return getProtocolStatusStyle(statusId).border
+  const getBorderColor = (statusName: string): string => {
+    return getProtocolStatusStyleByName(statusName).border
   }
 
   return (
@@ -899,7 +947,7 @@ export function ProtocolCard({
       <Card
         className={`transition-all duration-300 shadow-sm hover:shadow-lg cursor-pointer bg-white ${
           isExpanded ? "ring-2 ring-[#204983] ring-opacity-20" : ""
-        } ${isSelected ? "ring-2 ring-[#204983]" : ""} border-l-4 ${getBorderColor(statusId)}`}
+        } ${isSelected ? "ring-2 ring-[#204983]" : ""} border-l-4 ${getBorderColor(statusName)}`}
         onClick={handleCardClick}
       >
         <CardContent className="px-4 py-2.5 sm:py-3">
@@ -944,7 +992,6 @@ export function ProtocolCard({
                 paymentStatus={protocol.payment_status}
                 balance={balance}
                 isPrinted={protocol.is_printed}
-                preauthStatus={protocol.preauth_status}
                 canRegisterPayment={hasPatientDebt && canBeCancelled}
                 labOwesPatient={labOwesPatient && canBeCancelled}
                 paymentDisabledReason={paymentDisabledReason}
@@ -1002,7 +1049,13 @@ export function ProtocolCard({
                   derivacionAmount={protocolDetail?.derivacion_amount}
                   extrasTotal={protocolDetail?.extras_total}
                   nbu={protocolDetail?.nbu}
+                  showOrderButton={showOrderAction}
+                  orderDisabledReason={orderDisabledReason}
+                  showPreauthButton={showPreauthAction}
+                  preauthDisabledReason={preauthDisabledReason}
                   onOpenHistoryDialog={() => setHistoryDialogOpen(true)}
+                  onSetOrder={handleOpenOrderStatusDialog}
+                  onApplyPreauthorization={handleOpenPreauthDialog}
                 />
                 <ProtocolActions
                   protocolId={protocol.id}
@@ -1012,13 +1065,11 @@ export function ProtocolCard({
                   isEditable={isEditable}
                   showReports={showReports}
                   showCoseguro={showCoseguroAction}
-                  showPreauth={showPreauthAction}
                   editDisabledReason={editDisabledReason}
                   reportsDisabledReason={reportsDisabledReason}
                   cancelDisabledReason={cancelDisabledReason}
                   arcaDisabledReason={arcaDisabledReason}
                   coseguroDisabledReason={coseguroDisabledReason}
-                  preauthDisabledReason={preauthDisabledReason}
                   isCancelling={isCancelling}
                   isUncancelling={isUncancelling}
                   isArcaBilling={isArcaBilling}
@@ -1029,7 +1080,6 @@ export function ProtocolCard({
                   onUncancel={handleUncancelProtocol}
                   onArcaBilling={handleOpenArcaDialog}
                   onSetCoseguro={handleOpenCoseguroDialog}
-                  onApplyPreauthorization={handleOpenPreauthDialog}
                 />
               </>
             )}
@@ -1187,11 +1237,22 @@ export function ProtocolCard({
         isProcessing={isProcessingCoseguro}
       />
 
+      <OrderStatusDialog
+        open={orderStatusDialogOpen}
+        onOpenChange={setOrderStatusDialogOpen}
+        protocolId={protocol.id}
+        currentStatus={protocolDetail?.trajo_orden ?? protocol.trajo_orden}
+        onConfirm={handleUpdateOrderStatus}
+        isProcessing={isProcessingOrderStatus}
+      />
+
       <PreauthorizationDialog
         open={preauthDialogOpen}
         onOpenChange={setPreauthDialogOpen}
         protocolId={protocol.id}
-        details={protocolDetails}
+        currentStatus={protocolDetail?.preauth_status}
+        currentReference={protocolDetail?.preauth_reference}
+        currentNotes={protocolDetail?.preauth_notes}
         onConfirm={handleApplyPreauthorization}
         isProcessing={isProcessingPreauth}
       />

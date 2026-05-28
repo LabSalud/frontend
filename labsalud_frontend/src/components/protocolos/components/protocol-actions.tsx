@@ -1,7 +1,17 @@
 "use client"
 
 import type React from "react"
-import { Loader2, TestTube, Edit, X, AlertTriangle, FileText, Landmark, RefreshCw, ShieldCheck, Wallet } from "lucide-react"
+import {
+  Loader2,
+  TestTube,
+  Edit,
+  X,
+  AlertTriangle,
+  FileText,
+  Landmark,
+  RefreshCw,
+  Wallet,
+} from "lucide-react"
 import { Button } from "../../ui/button"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import {
@@ -24,13 +34,11 @@ interface ProtocolActionsProps {
   isEditable?: boolean
   showReports?: boolean
   showCoseguro?: boolean
-  showPreauth?: boolean
   editDisabledReason?: string
   reportsDisabledReason?: string
   cancelDisabledReason?: string
   arcaDisabledReason?: string
   coseguroDisabledReason?: string
-  preauthDisabledReason?: string
   isCancelling: boolean
   isUncancelling?: boolean
   isArcaBilling?: boolean
@@ -41,7 +49,6 @@ interface ProtocolActionsProps {
   onUncancel?: () => void
   onArcaBilling: () => void
   onSetCoseguro?: () => void
-  onApplyPreauthorization?: () => void
 }
 
 export function ProtocolActions({
@@ -52,13 +59,11 @@ export function ProtocolActions({
   isEditable = true,
   showReports = true,
   showCoseguro = false,
-  showPreauth = false,
   editDisabledReason,
   reportsDisabledReason,
   cancelDisabledReason,
   arcaDisabledReason,
   coseguroDisabledReason,
-  preauthDisabledReason,
   isCancelling,
   isUncancelling = false,
   isArcaBilling = false,
@@ -69,7 +74,6 @@ export function ProtocolActions({
   onUncancel,
   onArcaBilling,
   onSetCoseguro,
-  onApplyPreauthorization,
 }: ProtocolActionsProps) {
   const renderDisabledTooltip = (reason: string | undefined, children: React.ReactNode) => {
     if (!reason) return children
@@ -168,23 +172,6 @@ export function ProtocolActions({
           >
             <Wallet className="h-4 w-4 mr-1" />
             Coseguro
-          </Button>,
-        )}
-        {showPreauth && renderDisabledTooltip(
-          preauthDisabledReason,
-          <Button
-            size="sm"
-            variant="outline"
-            className="text-indigo-700 border-indigo-600 hover:bg-indigo-600 hover:text-white bg-transparent"
-            disabled={Boolean(preauthDisabledReason)}
-            onClick={(e) => {
-              e.stopPropagation()
-              if (preauthDisabledReason) return
-              onApplyPreauthorization?.()
-            }}
-          >
-            <ShieldCheck className="h-4 w-4 mr-1" />
-            Preautorización
           </Button>,
         )}
         {isCancelled && canUncancel ? (

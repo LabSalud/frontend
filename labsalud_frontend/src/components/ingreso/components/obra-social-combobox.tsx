@@ -131,7 +131,7 @@ export function ObraSocialCombobox({
                 if (obraSocial.charges_coseguro) flags.push("Coseguro")
                 if (obraSocial.charges_material_descartable) flags.push("Mat. desc.")
                 if (obraSocial.charges_derivacion) flags.push("Derivación")
-                if (obraSocial.requires_preauthorization) flags.push("Preauth")
+                if (obraSocial.requires_preauthorization) flags.push("Preautorización")
                 const nbuName = obraSocial.nbu ? getNbuDisplayName(obraSocial.nbu, nbus) : null
 
                 return (

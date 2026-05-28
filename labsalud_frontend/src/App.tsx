@@ -61,7 +61,7 @@ function App() {
             <img
               src="/logo.svg"
               alt="Background Logo"
-              className="w-[100vw] h-[100vh] max-w-[1300px] max-h-[1200px] object-contain opacity-65 blur-lg"
+              className="w-[95vw] h-[95vh] max-w-[1500px] object-contain opacity-65 blur-lg"
               onError={(e) => {
                 const target = e.target as HTMLImageElement
                 target.src = "/placeholder.svg?height=800&width=800&text=LOGO&bg=f3f4f6&color=9ca3af"

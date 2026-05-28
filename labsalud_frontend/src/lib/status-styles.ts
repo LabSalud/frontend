@@ -193,6 +193,27 @@ export const PROTOCOL_STATUS_STATS_KEY: Record<number, string> = Object.fromEntr
 
 export const ALLOWED_PROTOCOL_STATUS_FILTERS = PROTOCOL_STATUS_IDS.filter((id) => id !== 8)
 
+export const normalizeProtocolStatusName = (name?: string | null) =>
+  (name || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase()
+
+const PROTOCOL_STATUS_ID_BY_NAME: Record<string, ProtocolStatusId> = {
+  "pendiente de carga": 1,
+  "pendiente de validacion": 2,
+  "pago incompleto": 3,
+  cancelado: 4,
+  completado: 5,
+  "pendiente de retiro": 6,
+  "pendiente de envio": 10,
+  "envio fallido": 7,
+  "pendiente de facturacion": 8,
+  "pendiente de revision": 11,
+  "informacion faltante": 12,
+}
+
 export const getProtocolStatusStyle = (statusId?: number | null) => {
   if (statusId && statusId in PROTOCOL_STATUS_STYLES) {
     return PROTOCOL_STATUS_STYLES[statusId as ProtocolStatusId]
@@ -200,8 +221,18 @@ export const getProtocolStatusStyle = (statusId?: number | null) => {
   return fallbackProtocolStatusStyle
 }
 
+export const getProtocolStatusStyleByName = (statusName?: string | null) => {
+  const statusId = PROTOCOL_STATUS_ID_BY_NAME[normalizeProtocolStatusName(statusName)]
+  return getProtocolStatusStyle(statusId)
+}
+
 export const getProtocolStatusBadgeClass = (statusId?: number | null, outlined = false) => {
   const style = getProtocolStatusStyle(statusId)
+  return outlined ? style.badgeOutline : style.badge
+}
+
+export const getProtocolStatusBadgeClassByName = (statusName?: string | null, outlined = false) => {
+  const style = getProtocolStatusStyleByName(statusName)
   return outlined ? style.badgeOutline : style.badge
 }
 
@@ -259,31 +290,31 @@ export const getPreauthStatusInfo = (status?: PreauthStatus | null) => {
   switch (status) {
     case "completa":
       return {
-        label: "Preauth completa",
+        label: "Preautorización completa",
         badge: "bg-emerald-50 text-emerald-700 border-emerald-200",
         iconClassName: "text-emerald-500",
       }
     case "incompleta":
       return {
-        label: "Preauth incompleta",
+        label: "Preautorización incompleta",
         badge: "bg-amber-50 text-amber-700 border-amber-200",
         iconClassName: "text-amber-500",
       }
     case "no_trajo":
       return {
-        label: "Sin preauth",
+        label: "Sin preautorización",
         badge: "bg-red-50 text-red-700 border-red-200",
         iconClassName: "text-red-500",
       }
     case "not_required":
       return {
-        label: "Preauth no requerida",
+        label: "Preautorización no requerida",
         badge: "bg-gray-50 text-gray-700 border-gray-200",
         iconClassName: "text-gray-400",
       }
     default:
       return {
-        label: "Preauth sin estado",
+        label: "Preautorización sin estado",
         badge: "bg-gray-50 text-gray-700 border-gray-200",
         iconClassName: "text-gray-400",
       }

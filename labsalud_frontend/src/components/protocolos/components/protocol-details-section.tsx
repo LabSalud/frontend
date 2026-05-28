@@ -1,8 +1,10 @@
 "use client"
 
+import type React from "react"
 import { User, Building, CreditCard, Send, DollarSign, Printer, History, ClipboardCheck, BedDouble, BookOpen, ShieldCheck } from "lucide-react"
 import { Badge } from "../../ui/badge"
 import { Button } from "../../ui/button"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import type { PaymentStatus, Nbu, TrajoOrdenStatus, PreauthStatus } from "@/types"
 import { getTrajoOrdenInfo } from "@/lib/protocol-order"
 import { getPaymentStatusInfo, getPreauthStatusInfo } from "@/lib/status-styles"
@@ -31,7 +33,13 @@ interface ProtocolDetailsSectionProps {
   derivacionAmount?: string
   extrasTotal?: string
   nbu?: Nbu | null
+  showOrderButton?: boolean
+  orderDisabledReason?: string
+  showPreauthButton?: boolean
+  preauthDisabledReason?: string
   onOpenHistoryDialog: () => void
+  onSetOrder?: () => void
+  onApplyPreauthorization?: () => void
 }
 
 export function ProtocolDetailsSection({
@@ -53,7 +61,13 @@ export function ProtocolDetailsSection({
   derivacionAmount,
   extrasTotal,
   nbu,
+  showOrderButton = false,
+  orderDisabledReason,
+  showPreauthButton = false,
+  preauthDisabledReason,
   onOpenHistoryDialog,
+  onSetOrder,
+  onApplyPreauthorization,
   amountDue,
   amountPending,
   patientPaid,
@@ -74,6 +88,20 @@ export function ProtocolDetailsSection({
   const nbuName = nbu && typeof nbu === "object" && "name" in nbu ? nbu.name : null
   const trajoOrdenInfo = getTrajoOrdenInfo(trajoOrden)
   const preauthInfo = getPreauthStatusInfo(preauthStatus)
+  const renderDisabledTooltip = (reason: string | undefined, children: React.ReactNode) => {
+    if (!reason) return children
+
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className="inline-flex">{children}</span>
+        </TooltipTrigger>
+        <TooltipContent className="max-w-[260px] bg-slate-900 text-white">
+          <p>{reason}</p>
+        </TooltipContent>
+      </Tooltip>
+    )
+  }
 
   return (
     <div className="space-y-4 mt-4">
@@ -112,25 +140,61 @@ export function ProtocolDetailsSection({
         </div>
 
         {trajoOrden !== undefined && (
-          <div className="flex items-center gap-3 text-sm">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm">
             <ClipboardCheck className={`h-4 w-4 flex-shrink-0 ${trajoOrdenInfo.iconClassName}`} />
             <span className="text-gray-600 w-28 flex-shrink-0">Orden médica:</span>
             <Badge
               variant="outline"
-              className={trajoOrdenInfo.badgeClassName}
+              className={`${trajoOrdenInfo.badgeClassName}`}
             >
               {trajoOrdenInfo.label}
             </Badge>
+            {showOrderButton && renderDisabledTooltip(
+              orderDisabledReason,
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={Boolean(orderDisabledReason)}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  if (orderDisabledReason) return
+                  onSetOrder?.()
+                }}
+                className="h-7 border-[#204983] bg-white px-2 text-xs text-[#204983] hover:bg-[#204983] hover:text-white disabled:opacity-60"
+                data-no-expand
+              >
+                <ClipboardCheck className="h-3 w-3 mr-1" />
+                Modificar
+              </Button>,
+            )}
           </div>
         )}
 
         {preauthStatus && (
-          <div className="flex items-center gap-3 text-sm">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm">
             <ShieldCheck className={`h-4 w-4 flex-shrink-0 ${preauthInfo.iconClassName}`} />
-            <span className="text-gray-600 w-28 flex-shrink-0">Preauth:</span>
-            <Badge variant="outline" className={preauthInfo.badge}>
+            <span className="text-gray-600 w-28 flex-shrink-0 whitespace-nowrap">Preautorización:</span>
+            <Badge variant="outline" className={`${preauthInfo.badge}`}>
               {preauthInfo.label}
             </Badge>
+            {showPreauthButton && renderDisabledTooltip(
+              preauthDisabledReason,
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={Boolean(preauthDisabledReason)}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  if (preauthDisabledReason) return
+                  onApplyPreauthorization?.()
+                }}
+                className="h-7 border-indigo-600 bg-white px-2 text-xs text-indigo-700 hover:bg-indigo-600 hover:text-white disabled:opacity-60"
+                data-no-expand
+              >
+                <ShieldCheck className="h-3 w-3 mr-1" />
+                Modificar
+              </Button>,
+            )}
           </div>
         )}
 
@@ -152,7 +216,7 @@ export function ProtocolDetailsSection({
 
         {(analyses > 0 || hasExtras) && (
           <div className="rounded-md border border-gray-200 bg-gray-50 p-3 space-y-1.5">
-            <p className="text-xs font-semibold text-gray-700">Desglose de pricing</p>
+            <p className="text-xs font-semibold text-gray-700">Desglose de importes</p>
             {analyses > 0 && (
               <div className="flex items-center justify-between text-xs">
                 <span className="text-gray-600">Análisis particulares</span>

@@ -181,12 +181,12 @@ function ReportCustomizationDrawer({
   return (
     <div className="pointer-events-none absolute inset-y-0 left-0 h-full w-[1208px] overflow-visible">
       <div
-        className={`pointer-events-auto absolute inset-y-0 left-[80px] z-10 flex h-full w-[540px] flex-col overflow-hidden rounded-r-2xl border border-l-0 border-slate-200 bg-slate-50 shadow-[18px_0_35px_rgba(15,23,42,0.16)] transition-transform duration-300 ease-out ${
-          open ? "translate-x-[540px]" : "translate-x-0"
+        className={`pointer-events-auto absolute inset-y-0 left-[80px] z-10 flex h-full w-[540px] flex-col overflow-hidden rounded-r-xl border border-l-0 border-slate-200 bg-white shadow-[18px_0_35px_rgba(15,23,42,0.16)] transition-transform duration-300 ease-out ${
+          open ? "translate-x-[528px]" : "translate-x-0"
         }`}
       >
         <div className="flex h-full flex-col pl-6 pr-12">
-          <div className="flex items-center justify-between border-b border-slate-200 bg-white/95 px-4 py-4">
+          <div className="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-4">
             <div>
               <p className="text-sm font-semibold text-slate-800">Personalizar reporte</p>
               <p className="text-xs text-slate-500">
@@ -203,7 +203,7 @@ function ReportCustomizationDrawer({
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto px-4 py-4">
+          <div className="flex-1 overflow-y-auto bg-slate-50 px-4 py-4">
             {visibleAnalyses.length === 0 ? (
               <div className="rounded-lg border border-dashed border-slate-300 bg-white p-4 text-sm text-slate-500">
                 No hay análisis disponibles para personalizar.
@@ -283,8 +283,8 @@ function ReportCustomizationDrawer({
       <button
         type="button"
         onClick={() => onToggleOpen(!open)}
-        className={`pointer-events-auto absolute left-[608px] top-0 z-10 h-full w-16 rounded-r-2xl border border-l-0 border-slate-200 bg-slate-50 shadow-[12px_0_24px_rgba(15,23,42,0.14)] transition-transform duration-300 ease-out transition-colors hover:bg-slate-100 ${
-          open ? "translate-x-[540px]" : "translate-x-0"
+        className={`pointer-events-auto absolute left-[608px] top-0 z-10 h-full w-16 rounded-r-xl border border-l-0 border-slate-200 bg-white shadow-[12px_0_24px_rgba(15,23,42,0.14)] transition-transform duration-300 ease-out transition-colors hover:bg-slate-50 ${
+          open ? "translate-x-[528px]" : "translate-x-0"
         }`}
       >
         <div className="ml-3 flex h-full flex-col items-center justify-center gap-2 px-1 py-3">
@@ -411,7 +411,7 @@ export function ReportDialog({
   const dialogContentClass = isMobileViewport
     ? "w-[95vw] max-w-[380px] gap-0 overflow-visible border-0 bg-transparent p-0 shadow-none rounded-none translate-x-[-50%]"
     : `w-[620px] max-w-[620px] gap-0 overflow-visible rounded-none border-0 bg-transparent p-0 shadow-none transition-transform duration-300 ease-out ${
-        customizationOpen ? "translate-x-[calc(-50%-270px)]" : "translate-x-[-50%]"
+        customizationOpen ? "translate-x-[calc(-50%-264px)]" : "translate-x-[-50%]"
       }`
 
   return (
@@ -420,14 +420,21 @@ export function ReportDialog({
         <button
           type="button"
           onClick={() => onOpenChange(false)}
-          className="absolute right-3 top-3 z-[70] hidden h-8 w-8 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-500 shadow-sm transition-colors hover:bg-slate-100 hover:text-slate-700 pointer-events-auto md:inline-flex"
+          style={{
+            transform: !isMobileViewport && customizationOpen ? "translateX(528px)" : "translateX(0)",
+          }}
+          className="absolute right-3 top-3 z-[70] hidden h-8 w-8 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-500 shadow-sm transition-transform duration-300 ease-out hover:bg-slate-100 hover:text-slate-700 pointer-events-auto md:inline-flex"
           aria-label="Cerrar"
         >
           <X className="h-4 w-4" />
         </button>
 
         <div className="relative hidden min-h-[640px] w-[620px] flex-col overflow-visible md:flex">
-          <div className="relative z-20 flex flex-1 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl">
+          <div
+            className={`relative z-20 flex flex-1 flex-col overflow-hidden rounded-xl border bg-white shadow-2xl transition-colors duration-300 ease-out ${
+              customizationOpen ? "border-slate-200 border-r-0" : "border-slate-200"
+            }`}
+          >
             <div className="px-6 pt-6 pb-4">
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2 text-base">

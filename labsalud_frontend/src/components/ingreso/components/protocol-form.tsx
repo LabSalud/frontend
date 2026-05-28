@@ -1,6 +1,20 @@
 "use client"
 
-import { User, Stethoscope, Building, TestTube, Send, DollarSign, RefreshCw, ClipboardCheck, ShieldCheck } from "lucide-react"
+import type { KeyboardEvent } from "react"
+import {
+  AlertTriangle,
+  CheckCircle2,
+  CircleX,
+  User,
+  Stethoscope,
+  Building,
+  TestTube,
+  Send,
+  DollarSign,
+  RefreshCw,
+  ClipboardCheck,
+  ShieldCheck,
+} from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "../../ui/card"
 import { Switch } from "../../ui/switch"
 import { Label } from "../../ui/label"
@@ -13,7 +27,134 @@ import { ObraSocialCombobox } from "./obra-social-combobox"
 import { AnalysisSearch } from "./analysis-search"
 import { AnalysisTable } from "./analysis-table"
 import { TRAJO_ORDEN_OPTIONS, type TrajoOrdenStatus } from "@/lib/protocol-order"
-import type { Patient, Doctor, Insurance, SelectedAnalysis, SendMethod } from "../../../types"
+import type { Patient, Doctor, Insurance, SelectedAnalysis, SendMethod, PreauthStatus } from "../../../types"
+
+type CreationPreauthStatus = Exclude<PreauthStatus, "not_required">
+type StatusOption<T extends string> = { value: T; label: string; description: string }
+type StatusTone = "complete" | "partial" | "missing"
+
+const PREAUTH_OPTIONS: Array<StatusOption<CreationPreauthStatus>> = [
+  {
+    value: "completa",
+    label: "Completa",
+    description: "El paciente trajo la preautorización final. Los análisis no cubiertos se cobran particular.",
+  },
+  {
+    value: "incompleta",
+    label: "Incompleta",
+    description: "Falta gestionar o traer otra preautorización para análisis pendientes.",
+  },
+  {
+    value: "no_trajo",
+    label: "No la trajo",
+    description: "No hay preautorización presentada todavía; se cobra como particular hasta regularizar.",
+  },
+]
+
+const getStatusTone = (value: string): StatusTone => {
+  if (value === "completa") return "complete"
+  if (value === "incompleta") return "partial"
+  return "missing"
+}
+
+const toneClasses: Record<StatusTone, { selected: string; unselected: string; icon: string }> = {
+  complete: {
+    selected: "border-emerald-600 bg-emerald-50 text-emerald-900 ring-2 ring-emerald-200",
+    unselected: "border-gray-200 bg-white text-gray-700 hover:border-emerald-300 hover:bg-emerald-50/60",
+    icon: "text-emerald-600",
+  },
+  partial: {
+    selected: "border-amber-600 bg-amber-50 text-amber-900 ring-2 ring-amber-200",
+    unselected: "border-gray-200 bg-white text-gray-700 hover:border-amber-300 hover:bg-amber-50/60",
+    icon: "text-amber-600",
+  },
+  missing: {
+    selected: "border-red-600 bg-red-50 text-red-900 ring-2 ring-red-200",
+    unselected: "border-gray-200 bg-white text-gray-700 hover:border-red-300 hover:bg-red-50/60",
+    icon: "text-red-600",
+  },
+}
+
+const statusIcons = {
+  complete: CheckCircle2,
+  partial: AlertTriangle,
+  missing: CircleX,
+}
+
+function StatusButtonGroup<T extends string>({
+  labelId,
+  options,
+  value,
+  onChange,
+}: {
+  labelId: string
+  options: Array<StatusOption<T>>
+  value: T | ""
+  onChange: (value: T) => void
+}) {
+  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (!["ArrowRight", "ArrowDown", "ArrowLeft", "ArrowUp", "Home", "End"].includes(event.key)) return
+    event.preventDefault()
+    const currentIndex = Math.max(0, options.findIndex((option) => option.value === value))
+    const lastIndex = options.length - 1
+    const nextIndex =
+      event.key === "Home"
+        ? 0
+        : event.key === "End"
+          ? lastIndex
+          : event.key === "ArrowLeft" || event.key === "ArrowUp"
+            ? currentIndex === 0
+              ? lastIndex
+              : currentIndex - 1
+            : currentIndex === lastIndex
+              ? 0
+              : currentIndex + 1
+
+    onChange(options[nextIndex].value)
+  }
+
+  return (
+    <div
+      role="radiogroup"
+      aria-labelledby={labelId}
+      className="grid gap-2 sm:grid-cols-3"
+      onKeyDown={handleKeyDown}
+    >
+      {options.map((option, optionIndex) => {
+        const tone = getStatusTone(option.value)
+        const Icon = statusIcons[tone]
+        const isSelected = value === option.value
+        const descriptionId = `${labelId}-${option.value}-description`
+
+        return (
+          <Button
+            key={option.value}
+            type="button"
+            variant="outline"
+            role="radio"
+            aria-checked={isSelected}
+            aria-describedby={descriptionId}
+            tabIndex={isSelected || (!value && optionIndex === 0) ? 0 : -1}
+            onClick={() => onChange(option.value)}
+            className={`h-auto min-h-24 justify-start whitespace-normal rounded-md border p-3 text-left transition ${
+              isSelected ? toneClasses[tone].selected : toneClasses[tone].unselected
+            }`}
+          >
+            <span className="flex w-full items-start gap-2">
+              <Icon className={`mt-0.5 h-4 w-4 flex-shrink-0 ${toneClasses[tone].icon}`} aria-hidden="true" />
+              <span className="min-w-0">
+                <span className="block text-sm font-semibold leading-tight">{option.label}</span>
+                <span id={descriptionId} className="mt-1 block text-xs leading-snug opacity-80">
+                  {option.description}
+                </span>
+              </span>
+            </span>
+          </Button>
+        )
+      })}
+    </div>
+  )
+}
 
 interface Totals {
   authorizedTotal: number
@@ -37,6 +178,7 @@ interface ProtocolFormProps {
   patientPaid: string
   affiliateNumber: string
   trajoOrden: TrajoOrdenStatus | ""
+  preauthStatus: PreauthStatus | ""
   isRefund: boolean
   isPrivateInsurance: boolean
   shouldShowOrder: boolean
@@ -61,6 +203,7 @@ interface ProtocolFormProps {
   onPatientPaidChange: (value: string) => void
   onAffiliateNumberChange: (number: string) => void
   onTrajoOrdenChange: (trajoOrden: TrajoOrdenStatus | "") => void
+  onPreauthStatusChange: (status: PreauthStatus | "") => void
   onExtraAmountsChange: (amounts: { material_descartable_amount: string; derivacion_amount: string }) => void
   onRefundChange: (isRefund: boolean) => void
 }
@@ -77,6 +220,7 @@ export function ProtocolForm({
   patientPaid,
   affiliateNumber,
   trajoOrden,
+  preauthStatus,
   isRefund,
   isPrivateInsurance,
   shouldShowOrder,
@@ -98,6 +242,7 @@ export function ProtocolForm({
   onPatientPaidChange,
   onAffiliateNumberChange,
   onTrajoOrdenChange,
+  onPreauthStatusChange,
   onExtraAmountsChange,
   onRefundChange,
 }: ProtocolFormProps) {
@@ -241,22 +386,18 @@ export function ProtocolForm({
               <h3 className="text-base sm:text-lg font-semibold text-[#204983]">Orden médica</h3>
             </div>
             <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-              <Label htmlFor="trajo-orden" className="text-sm sm:text-base">
+              <Label id="trajo-orden-label" className="text-sm sm:text-base">
                 Estado de la orden *
               </Label>
-              <Select value={trajoOrden} onValueChange={(value) => onTrajoOrdenChange(value as TrajoOrdenStatus)}>
-                <SelectTrigger id="trajo-orden" className="mt-2 bg-white">
-                  <SelectValue placeholder="Seleccionar estado de orden" />
-                </SelectTrigger>
-                <SelectContent>
-                  {TRAJO_ORDEN_OPTIONS.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <p className="mt-2 text-xs text-gray-500">
+              <div className="mt-2">
+                <StatusButtonGroup
+                  labelId="trajo-orden-label"
+                  options={TRAJO_ORDEN_OPTIONS}
+                  value={trajoOrden}
+                  onChange={onTrajoOrdenChange}
+                />
+              </div>
+              <p className="mt-3 text-xs text-gray-500">
                 Todas las obras sociales requieren orden. Particular no la solicita.
               </p>
             </div>
@@ -271,9 +412,26 @@ export function ProtocolForm({
             </div>
             <div className="rounded-lg border border-blue-100 bg-blue-50 p-3 space-y-3">
               {shouldShowPreauth && (
-                <p className="text-xs text-blue-800">
-                  Esta obra social requiere preautorización. Marcá los análisis autorizados en la tabla.
-                </p>
+                <div className="space-y-2">
+                  <Label id="preauth-status-label" className="text-sm sm:text-base">
+                    Estado de la preautorización *
+                  </Label>
+                  <StatusButtonGroup
+                    labelId="preauth-status-label"
+                    options={PREAUTH_OPTIONS}
+                    value={preauthStatus === "not_required" ? "" : preauthStatus}
+                    onChange={onPreauthStatusChange}
+                  />
+                  <p className="text-xs text-blue-800">
+                    Marcá en la tabla qué análisis cubre la OOSS. Los no cubiertos se cobran particular y no vuelven
+                    incompleta la preautorización.
+                  </p>
+                  {preauthStatus && (
+                    <p className="text-xs text-gray-600">
+                      {PREAUTH_OPTIONS.find((option) => option.value === preauthStatus)?.description}
+                    </p>
+                  )}
+                </div>
               )}
               <div className="grid gap-3 sm:grid-cols-2">
                 {shouldChargeMaterial && (
@@ -334,6 +492,7 @@ export function ProtocolForm({
           onAnalysisChange={onAnalysisChange}
           selectedInsurance={selectedInsurance}
           isPrivateInsurance={isPrivateInsurance}
+          forcePrivateAnalyses={shouldShowPreauth && preauthStatus === "no_trajo"}
         />
 
         {selectedAnalyses.length > 0 && selectedInsurance && (

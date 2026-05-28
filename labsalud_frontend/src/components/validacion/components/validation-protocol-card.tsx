@@ -504,55 +504,61 @@ export function ValidationProtocolCard({ protocol, onProtocolValidated, isExpand
                         </div>
 
                         {/* Panel de resultados previos en desktop: columna lateral de alto completo */}
-                        {validationStatus === "pending" && (
-                          <div
-                            style={{
-                              maxWidth: isHistoryExpanded ? "176px" : "0px",
-                              opacity: isHistoryExpanded ? 1 : 0,
-                            }}
-                            className="hidden sm:flex flex-col overflow-hidden transition-[max-width,opacity] duration-300 ease-out border-l border-gray-200 bg-gray-50"
-                            onMouseEnter={() => handleButtonZoneEnter(result.id, result.determination.id)}
-                            onMouseLeave={(e) => handleButtonZoneLeave(e, result.id)}
-                          >
-                            <div className="w-44 h-[190px] p-3 flex flex-col">
-                              <div className="flex items-center gap-1 text-xs font-medium text-gray-500 mb-2 whitespace-nowrap">
-                                <History className="h-3 w-3 flex-shrink-0" />
-                                Resultados previos
+                        <div
+                          style={{
+                            maxWidth: isHistoryExpanded ? "232px" : "0px",
+                            opacity: isHistoryExpanded ? 1 : 0,
+                          }}
+                          className="hidden sm:flex flex-col overflow-hidden transition-[max-width,opacity] duration-300 ease-out border-l border-gray-200 bg-gray-50"
+                          onMouseEnter={() => handleButtonZoneEnter(result.id, result.determination.id)}
+                          onMouseLeave={(e) => handleButtonZoneLeave(e, result.id)}
+                        >
+                          <div className="w-[232px] h-full max-h-[260px] p-3 flex flex-col">
+                            <div className="flex items-center gap-1 text-xs font-medium text-gray-500 mb-2 whitespace-nowrap">
+                              <History className="h-3 w-3 flex-shrink-0" />
+                              Resultados previos
+                            </div>
+                            {isLoadingHistory ? (
+                              <div className="space-y-1 overflow-y-auto">
+                                {[...Array(3)].map((_, i) => (
+                                  <Skeleton key={i} className="h-6 w-full rounded" />
+                                ))}
                               </div>
-                              {isLoadingHistory ? (
-                                <div className="space-y-1 overflow-y-auto">
-                                  {[...Array(3)].map((_, i) => (
-                                    <Skeleton key={i} className="h-6 w-full rounded" />
-                                  ))}
-                                </div>
-                              ) : prevResults.length > 0 ? (
-                                <div className="space-y-1 flex-1 overflow-y-auto pr-1">
-                                  {prevResults.map((prev, idx) => (
+                            ) : prevResults.length > 0 ? (
+                              <div className="space-y-1 flex-1 overflow-y-auto pr-1">
+                                {prevResults.map((prev, idx) => {
+                                  const prevProtocolId = (prev as Result & { protocol_id?: number }).protocol_id
+                                  return (
                                     <div key={idx} className="text-xs p-1.5 bg-white rounded border">
-                                      <div className="flex justify-between gap-2">
-                                        <span className="font-medium text-[#204983] truncate">
+                                      <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5">
+                                        <span className="font-medium text-[#204983] break-words">
                                           {prev.value} {prev.determination?.measure_unit}
                                         </span>
-                                        <span className="text-gray-400 ml-1 flex-shrink-0">
+                                        <span className="text-gray-400 text-[10px] flex-shrink-0">
                                           {prev.validated_at || prev.date
                                             ? new Date(prev.validated_at || prev.date || "").toLocaleDateString("es-AR")
                                             : `#${prev.id}`}
                                         </span>
                                       </div>
+                                      {prevProtocolId !== undefined && (
+                                        <p className="mt-0.5 text-[10px] font-medium text-slate-500">
+                                          Protocolo #{prevProtocolId}
+                                        </p>
+                                      )}
                                       {prev.validated_by && (
-                                        <p className="mt-0.5 truncate text-[10px] text-gray-500">
+                                        <p className="mt-0.5 text-[10px] text-gray-500 break-words">
                                           Validador: {prev.validated_by.first_name || prev.validated_by.username} {prev.validated_by.last_name || ""}
                                         </p>
                                       )}
                                     </div>
-                                  ))}
-                                </div>
-                              ) : (
-                                <p className="text-xs text-gray-400 italic whitespace-nowrap">Sin resultados previos</p>
-                              )}
-                            </div>
+                                  )
+                                })}
+                              </div>
+                            ) : (
+                              <p className="text-xs text-gray-400 italic">Sin resultados previos</p>
+                            )}
                           </div>
-                        )}
+                        </div>
 
                         {/* Zona de botones */}
                         <div
@@ -648,25 +654,33 @@ export function ValidationProtocolCard({ protocol, onProtocolValidated, isExpand
                                   </div>
                                 ) : prevResults.length > 0 ? (
                                   <div className="space-y-1 max-h-32 overflow-y-auto">
-                                    {prevResults.slice(0, 5).map((prev, idx) => (
-                                      <div key={idx} className="text-xs p-1.5 bg-white rounded border">
-                                        <div className="flex justify-between gap-2">
-                                          <span className="font-medium text-[#204983]">
-                                            {prev.value} {prev.determination?.measure_unit}
-                                          </span>
-                                          <span className="text-gray-400">
-                                            {prev.validated_at || prev.date
-                                              ? new Date(prev.validated_at || prev.date || "").toLocaleDateString("es-AR")
-                                              : `#${prev.id}`}
-                                          </span>
+                                    {prevResults.slice(0, 5).map((prev, idx) => {
+                                      const prevProtocolId = (prev as Result & { protocol_id?: number }).protocol_id
+                                      return (
+                                        <div key={idx} className="text-xs p-1.5 bg-white rounded border">
+                                          <div className="flex justify-between gap-2">
+                                            <span className="font-medium text-[#204983]">
+                                              {prev.value} {prev.determination?.measure_unit}
+                                            </span>
+                                            <span className="text-gray-400">
+                                              {prev.validated_at || prev.date
+                                                ? new Date(prev.validated_at || prev.date || "").toLocaleDateString("es-AR")
+                                                : `#${prev.id}`}
+                                            </span>
+                                          </div>
+                                          {prevProtocolId !== undefined && (
+                                            <p className="mt-0.5 text-[10px] font-medium text-slate-500">
+                                              Protocolo #{prevProtocolId}
+                                            </p>
+                                          )}
+                                          {prev.validated_by && (
+                                            <p className="mt-0.5 truncate text-[10px] text-gray-500">
+                                              Validador: {prev.validated_by.first_name || prev.validated_by.username} {prev.validated_by.last_name || ""}
+                                            </p>
+                                          )}
                                         </div>
-                                        {prev.validated_by && (
-                                          <p className="mt-0.5 truncate text-[10px] text-gray-500">
-                                            Validador: {prev.validated_by.first_name || prev.validated_by.username} {prev.validated_by.last_name || ""}
-                                          </p>
-                                        )}
-                                      </div>
-                                    ))}
+                                      )
+                                    })}
                                   </div>
                                 ) : (
                                   <p className="text-xs text-gray-400 italic">Sin resultados previos</p>

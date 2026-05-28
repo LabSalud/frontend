@@ -14,6 +14,7 @@ interface AnalysisTableProps {
   onAnalysisChange: (analyses: SelectedAnalysis[]) => void
   selectedInsurance: Insurance | null
   isPrivateInsurance?: boolean
+  forcePrivateAnalyses?: boolean
 }
 
 export function AnalysisTable({
@@ -21,6 +22,7 @@ export function AnalysisTable({
   onAnalysisChange,
   selectedInsurance,
   isPrivateInsurance = false,
+  forcePrivateAnalyses = false,
 }: AnalysisTableProps) {
   const handleRemoveAnalysis = (analysisId: number) => {
     const analysis = selectedAnalyses.find((a) => a.id === analysisId)
@@ -41,7 +43,7 @@ export function AnalysisTable({
   const calculatePrice = (analysis: SelectedAnalysis): number => {
     if (!selectedInsurance) return 0
     const ub = Number.parseFloat(analysis.bio_unit) || 0
-    if (isPrivateInsurance) {
+    if (isPrivateInsurance || forcePrivateAnalyses) {
       return ub * (selectedInsurance.private_ub_value || 0)
     }
     if (analysis.is_authorized) {
@@ -51,7 +53,7 @@ export function AnalysisTable({
   }
 
   const totalUb = selectedAnalyses.reduce((sum, a) => sum + (Number.parseFloat(a.bio_unit) || 0), 0)
-  const authorizedCount = isPrivateInsurance ? 0 : selectedAnalyses.filter((a) => a.is_authorized).length
+  const authorizedCount = isPrivateInsurance || forcePrivateAnalyses ? 0 : selectedAnalyses.filter((a) => a.is_authorized).length
 
   return (
     <div className="space-y-4">
@@ -65,7 +67,7 @@ export function AnalysisTable({
             {selectedAnalyses.length > 0 && !isPrivateInsurance && (
               <div className="flex gap-2 text-xs font-normal">
                 <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                  {authorizedCount} autorizados
+                  {authorizedCount} cubiertos OOSS
                 </Badge>
                 <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200">
                   {selectedAnalyses.length - authorizedCount} particulares
@@ -122,7 +124,7 @@ export function AnalysisTable({
                           Precio:{" "}
                           <strong
                             className={
-                              !isPrivateInsurance && analysis.is_authorized
+                              !isPrivateInsurance && !forcePrivateAnalyses && analysis.is_authorized
                                 ? "text-green-600"
                                 : "text-orange-600"
                             }
@@ -133,9 +135,10 @@ export function AnalysisTable({
                       )}
                       {!isPrivateInsurance && (
                         <div className="flex items-center gap-1.5">
-                          <span>Autorizado:</span>
+                          <span>Cubre OOSS:</span>
                           <Switch
-                            checked={analysis.is_authorized}
+                            checked={!forcePrivateAnalyses && analysis.is_authorized}
+                            disabled={forcePrivateAnalyses}
                             onCheckedChange={() =>
                               handleToggleAuthorization(analysis.id)
                             }
@@ -157,7 +160,7 @@ export function AnalysisTable({
                       <TableHead className="text-xs lg:text-sm text-center whitespace-nowrap w-20 lg:w-24">Código</TableHead>
                       <TableHead className="text-xs lg:text-sm text-center w-12 lg:w-16">UB</TableHead>
                       {!isPrivateInsurance && (
-                        <TableHead className="text-xs lg:text-sm text-center w-16 lg:w-24">Autoriz.</TableHead>
+                        <TableHead className="text-xs lg:text-sm text-center w-16 lg:w-24">OOSS</TableHead>
                       )}
                       {selectedInsurance && (
                         <TableHead className="text-xs lg:text-sm text-right w-16 lg:w-24">Precio</TableHead>
@@ -185,7 +188,8 @@ export function AnalysisTable({
                         {!isPrivateInsurance && (
                           <TableCell className="text-center p-2 align-top">
                             <Switch
-                              checked={analysis.is_authorized}
+                              checked={!forcePrivateAnalyses && analysis.is_authorized}
+                              disabled={forcePrivateAnalyses}
                               onCheckedChange={() => handleToggleAuthorization(analysis.id)}
                               className="data-[state=checked]:bg-green-500 scale-90"
                             />
@@ -195,7 +199,7 @@ export function AnalysisTable({
                           <TableCell className="text-right p-2 align-top">
                             <span
                               className={`text-xs lg:text-sm font-medium ${
-                                !isPrivateInsurance && analysis.is_authorized ? "text-green-600" : "text-orange-600"
+                              !isPrivateInsurance && !forcePrivateAnalyses && analysis.is_authorized ? "text-green-600" : "text-orange-600"
                               }`}
                             >
                               ${calculatePrice(analysis).toFixed(2)}
@@ -241,4 +245,3 @@ export function AnalysisTable({
     </div>
   )
 }
-

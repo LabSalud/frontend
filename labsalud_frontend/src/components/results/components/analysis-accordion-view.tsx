@@ -46,7 +46,7 @@ import { formatApiError } from "@/lib/api-error"
 import { getProtocolStatusBadgeClass, getProtocolStatusButtonClass } from "@/lib/status-styles"
 
 const RESULTS_ANALYSIS_STATUS_FILTER_KEY = "labsalud_results_analysis_status_filters"
-const RESULTS_VISIBLE_STATUS_IDS = [1, 2, 3, 5, 6, 7, 10, 11, 12]
+const RESULTS_VISIBLE_STATUS_IDS = [1, 2, 3, 4, 5, 6, 7, 10, 11, 12]
 
 interface AvailableAnalysis {
   id: number
@@ -96,6 +96,7 @@ interface Result {
   is_active: boolean
   analysis: AnalysisInfo
   validated_by?: ValidatedBy | null
+  validated_at?: string | null
 }
 
 interface ProtocolWithResults {
@@ -231,10 +232,7 @@ export function AnalysisAccordionView() {
         if (isInitial) {
           const params = new URLSearchParams()
           if (selectedStatuses.length > 0) {
-            const statusesWithoutCancelled = selectedStatuses.filter((s) => s !== 4)
-            if (statusesWithoutCancelled.length > 0) {
-              params.append("status__in", statusesWithoutCancelled.join(","))
-            }
+            params.append("status__in", selectedStatuses.join(","))
           } else {
             params.append("status__in", RESULTS_VISIBLE_STATUS_IDS.join(","))
           }
@@ -809,6 +807,15 @@ export function AnalysisAccordionView() {
               <AlertCircle className="h-3 w-3 mr-1" />
               Info <span className="hidden sm:inline">Faltante</span>
             </Button>
+            <Button
+              variant={selectedStatuses.includes(4) ? "default" : "outline"}
+              size="sm"
+              onClick={() => toggleStatus(4)}
+              className={`text-xs ${getProtocolStatusButtonClass(4, selectedStatuses.includes(4))}`}
+            >
+              <X className="h-3 w-3 mr-1" />
+              Cancelado
+            </Button>
             {selectedStatuses.length > 0 && (
               <Button
                 variant="ghost"
@@ -821,7 +828,6 @@ export function AnalysisAccordionView() {
               </Button>
             )}
           </div>
-          <p className="text-xs text-gray-500">Los protocolos cancelados no se muestran.</p>
         </div>
       </div>
 
@@ -975,7 +981,6 @@ export function AnalysisAccordionView() {
                                   )}
                                 </div>
                               )}
-                              {isValidated && <Badge className="mt-2 bg-green-600 text-white">Validado</Badge>}
                               {isWrong && (
                                 <Badge variant="destructive" className="mt-2">
                                   No válido
@@ -983,11 +988,24 @@ export function AnalysisAccordionView() {
                               )}
                               {isValidated && result.validated_by && (
                                 <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded">
-                                  <div className="flex items-center gap-1 text-xs text-green-700">
-                                    <ShieldCheck className="h-3 w-3" />
-                                    <span>
-                                      Validado por: {result.validated_by.first_name} {result.validated_by.last_name}
-                                    </span>
+                                  <div className="flex items-start gap-1 text-xs text-green-700">
+                                    <ShieldCheck className="mt-0.5 h-3 w-3 flex-shrink-0" />
+                                    <div className="flex flex-col">
+                                      <span>
+                                        Validado por: {result.validated_by.first_name} {result.validated_by.last_name}
+                                      </span>
+                                      {result.validated_at && (
+                                        <span className="text-[11px] text-green-600">
+                                          {new Date(result.validated_at).toLocaleString("es-AR", {
+                                            day: "2-digit",
+                                            month: "2-digit",
+                                            year: "numeric",
+                                            hour: "2-digit",
+                                            minute: "2-digit",
+                                          })}
+                                        </span>
+                                      )}
+                                    </div>
                                   </div>
                                 </div>
                               )}
@@ -1116,13 +1134,18 @@ export function AnalysisAccordionView() {
                                   {prevResults.map((prev, idx) => (
                                     <div
                                       key={idx}
-                                      className="flex items-center justify-between p-2 bg-white border border-gray-100 rounded"
+                                      className="flex flex-col gap-1 p-2 bg-white border border-gray-100 rounded"
                                     >
-                                      <div className="flex items-center gap-3">
+                                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                                         <span className="text-lg font-semibold text-[#204983]">{prev.value}</span>
                                         <span className="text-xs text-gray-500">
                                           {result.determination.measure_unit}
                                         </span>
+                                        {prev.protocol_id !== undefined && (
+                                          <Badge variant="outline" className="text-[10px] font-medium">
+                                            Protocolo #{prev.protocol_id}
+                                          </Badge>
+                                        )}
                                         {prev.date && (
                                           <span className="text-xs text-gray-400">
                                             {new Date(prev.date).toLocaleDateString("es-AR", {
@@ -1135,10 +1158,10 @@ export function AnalysisAccordionView() {
                                           </span>
                                         )}
                                       </div>
-                                      {prev.is_valid && (
-                                        <Badge variant="outline" className="bg-green-50 text-green-700 text-xs">
-                                          Validado
-                                        </Badge>
+                                      {prev.validated_by && (
+                                        <span className="text-xs text-gray-500">
+                                          Validador: {prev.validated_by.first_name || prev.validated_by.username} {prev.validated_by.last_name || ""}
+                                        </span>
                                       )}
                                     </div>
                                   ))}

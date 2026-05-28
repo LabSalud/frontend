@@ -219,10 +219,19 @@ export function ValidationProtocolList() {
             <span className="sm:hidden">Fallido</span>
           </Button>
           <Button
+            variant={selectedStatuses.includes(12) ? "default" : "outline"}
+            size="sm"
+            onClick={() => toggleStatus(12)}
+            className={`text-xs ${getProtocolStatusButtonClass(12, selectedStatuses.includes(12))}`}
+          >
+            <AlertCircle className="h-3 w-3 mr-1" />
+            Info <span className="hidden sm:inline">Faltante</span>
+          </Button>
+          <Button
             variant={selectedStatuses.includes(4) ? "default" : "outline"}
             size="sm"
             onClick={() => toggleStatus(4)}
-            className={`text-xs ${selectedStatuses.includes(4) ? "bg-red-500 hover:bg-red-600" : ""}`}
+            className={`text-xs ${getProtocolStatusButtonClass(4, selectedStatuses.includes(4))}`}
           >
             <X className="h-3 w-3 mr-1" />
             Cancelado

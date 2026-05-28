@@ -589,6 +589,8 @@ export interface Protocol {
   is_printed: boolean
   trajo_orden: TrajoOrdenStatus
   preauth_status?: PreauthStatus
+  preauth_reference?: string
+  preauth_notes?: string
   is_in_patient?: boolean
   is_active: boolean
   created_at?: string
@@ -627,6 +629,8 @@ export interface ProtocolListItem {
   is_printed: boolean
   trajo_orden: TrajoOrdenStatus
   preauth_status?: PreauthStatus
+  preauth_reference?: string
+  preauth_notes?: string
   is_in_patient?: boolean
   missing_info?: string[]
   created_at?: string
@@ -655,6 +659,9 @@ export interface CreateProtocolInput {
   send_method: number
   value_paid: string
   trajo_orden?: TrajoOrdenStatus
+  preauth_status?: PreauthStatus
+  preauth_reference?: string
+  preauth_notes?: string
   is_in_patient?: boolean
   material_descartable_amount_override?: string
   derivacion_amount_override?: string
@@ -669,16 +676,16 @@ export interface PricingConfig {
 
 export interface PreauthorizationPayload {
   protocol_ids: number[]
+  preauth_status?: Exclude<PreauthStatus, "not_required">
   authorized_analysis_ids: number[]
   reference?: string
-  brought?: boolean
   notes?: string
 }
 
 export interface PreauthorizationResponse {
   detail: string
-  preauthorization_id: number
-  brought: boolean
+  preauthorization_id: number | null
+  preauth_status?: PreauthStatus
   protocols: number[]
   authorized_analysis_ids: number[]
 }

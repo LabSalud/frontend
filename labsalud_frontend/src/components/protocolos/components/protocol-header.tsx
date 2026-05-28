@@ -1,12 +1,13 @@
 "use client"
 
-import { ChevronDown, User, CreditCard, Printer, DollarSign, UserCog, ShieldCheck } from "lucide-react"
+import type React from "react"
+import { ChevronDown, User, CreditCard, Printer, DollarSign, UserCog } from "lucide-react"
 import { Badge } from "../../ui/badge"
 import { Button } from "../../ui/button"
 import { AuditAvatars } from "@/components/common/audit-avatars"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import type { PaymentStatus, CreationAudit, LastChangeAudit, ProtocolStatus, PreauthStatus } from "@/types"
-import { getPaymentStatusInfo, getPreauthStatusInfo, getProtocolStatusBadgeClass } from "@/lib/status-styles"
+import type { PaymentStatus, CreationAudit, LastChangeAudit, ProtocolStatus } from "@/types"
+import { getPaymentStatusInfo, getProtocolStatusBadgeClassByName } from "@/lib/status-styles"
 
 interface ProtocolHeaderProps {
   protocolId: number
@@ -16,7 +17,6 @@ interface ProtocolHeaderProps {
   paymentStatus?: PaymentStatus | null
   balance: number
   isPrinted?: boolean
-  preauthStatus?: PreauthStatus
   canRegisterPayment: boolean
   labOwesPatient: boolean
   paymentDisabledReason?: string
@@ -26,8 +26,8 @@ interface ProtocolHeaderProps {
   onRegisterPayment: () => void
 }
 
-const getStateColor = (statusId: number) => {
-  return getProtocolStatusBadgeClass(statusId)
+const getStateColor = (statusName: string) => {
+  return getProtocolStatusBadgeClassByName(statusName)
 }
 
 export function ProtocolHeader({
@@ -38,7 +38,6 @@ export function ProtocolHeader({
   paymentStatus,
   balance,
   isPrinted,
-  preauthStatus,
   canRegisterPayment,
   labOwesPatient,
   paymentDisabledReason,
@@ -53,9 +52,22 @@ export function ProtocolHeader({
   const statusName = status?.name ?? "Desconocido"
 
   const isCancelled = statusId === 4
-  const preauthInfo = getPreauthStatusInfo(preauthStatus)
-  const showPreauthStatus = Boolean(preauthStatus && preauthStatus !== "not_required")
   const showPaymentButton = canRegisterPayment || labOwesPatient || Boolean(paymentDisabledReason)
+  const renderButtonTooltip = (reason: string | undefined, children: React.ReactNode) => {
+    if (!reason) return children
+
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className="inline-flex">{children}</span>
+        </TooltipTrigger>
+        <TooltipContent className="max-w-[260px] bg-slate-900 text-white">
+          <p>{reason}</p>
+        </TooltipContent>
+      </Tooltip>
+    )
+  }
+
   const paymentButton = (
     <Button
       size="sm"
@@ -92,23 +104,12 @@ export function ProtocolHeader({
                 {/* // Responsive button layout */}
                 <div className="flex flex-wrap gap-1 min-w-0 max-w-full">
                   {showPaymentButton && (
-                    paymentDisabledReason ? (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <span className="inline-flex">{paymentButton}</span>
-                        </TooltipTrigger>
-                        <TooltipContent className="max-w-[260px] bg-slate-900 text-white">
-                          <p>{paymentDisabledReason}</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    ) : (
-                      paymentButton
-                    )
+                    renderButtonTooltip(paymentDisabledReason, paymentButton)
                   )}
                 </div>
               </div>
               <div className="flex items-center flex-wrap gap-1 max-w-full min-w-0">
-                <Badge className={getStateColor(statusId)} variant="secondary">
+                <Badge className={getStateColor(statusName)} variant="secondary">
                   {statusName}
                 </Badge>
                 {isAnonymousPatient && (
@@ -121,12 +122,6 @@ export function ProtocolHeader({
                   <Badge variant="outline" className="max-w-full text-xs">
                     <Printer className="h-3 w-3 mr-1" />
                     <span className="hidden sm:inline">Impreso / </span>Enviado
-                  </Badge>
-                )}
-                {showPreauthStatus && (
-                  <Badge variant="outline" className={`max-w-full text-xs ${preauthInfo.badge}`}>
-                    <ShieldCheck className="h-3 w-3 mr-1" />
-                    {preauthInfo.label}
                   </Badge>
                 )}
               </div>
@@ -197,5 +192,3 @@ export function ProtocolHeader({
     </>
   )
 }
-
-export { getStateColor, getPaymentStatusInfo }

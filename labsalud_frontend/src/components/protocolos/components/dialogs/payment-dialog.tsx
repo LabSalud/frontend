@@ -159,7 +159,7 @@ export function PaymentDialog({
               disabled={toReturn <= 0}
             >
               <ArrowUpRight className="h-4 w-4 mr-1" />
-              Registrar Devolucion
+            Registrar devolución
             </Button>
           </div>
 
@@ -175,7 +175,7 @@ export function PaymentDialog({
                 step="0.01"
                 min="0.01"
                 max={maxAmount}
-                placeholder={`Maximo: $${maxAmount.toFixed(2)}`}
+                placeholder={`Máximo: $${maxAmount.toFixed(2)}`}
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 disabled={maxAmount <= 0}
@@ -228,7 +228,7 @@ export function PaymentDialog({
             ) : (
               <>
                 <DollarSign className="mr-2 h-4 w-4" />
-                {operation === "patient_paid" ? "Confirmar Pago" : "Confirmar Devolucion"}
+                {operation === "patient_paid" ? "Confirmar pago" : "Confirmar devolución"}
               </>
             )}
           </Button>

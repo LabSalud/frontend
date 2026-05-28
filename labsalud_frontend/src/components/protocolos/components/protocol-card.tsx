@@ -28,6 +28,7 @@ import type {
   BillingStatus,
   ProtocolStatus,
   PreauthStatus,
+  ReportSignature,
 } from "@/types"
 
 // Componentes modulares
@@ -139,6 +140,7 @@ interface ProtocolCardProps {
   protocol: ProtocolListItem
   onUpdate: () => void
   sendMethods?: SendMethod[]
+  reportSignatures?: ReportSignature[]
   isSelected?: boolean
   onToggleSelection?: (id: number) => void
 }
@@ -147,6 +149,7 @@ export function ProtocolCard({
   protocol,
   onUpdate,
   sendMethods = [],
+  reportSignatures = [],
   isSelected = false,
   onToggleSelection,
 }: ProtocolCardProps) {
@@ -193,7 +196,8 @@ export function ProtocolCard({
 
   const [reportDialogOpen, setReportDialogOpen] = useState(false)
   const [reportType, setReportType] = useState<"full" | "summary">("full")
-  const [reportSigned, setReportSigned] = useState(false)
+  const [reportSigned, setReportSigned] = useState(true)
+  const [reportSignatureId, setReportSignatureId] = useState("default")
   const [reportDate, setReportDate] = useState("")
   const [reportTime, setReportTime] = useState("")
   const [reportCustomizationOpen, setReportCustomizationOpen] = useState(false)
@@ -215,6 +219,11 @@ export function ProtocolCard({
     setReportTime("")
   }
 
+  const handleReportTypeChange = (type: "full" | "summary") => {
+    setReportType(type)
+    setReportSigned(type === "full")
+  }
+
   const extractErrorMessage = (error: unknown, defaultMessage: string): string => {
     return formatApiError(error, defaultMessage)
   }
@@ -234,6 +243,9 @@ export function ProtocolCard({
       signed: reportSigned,
       analysis_ids: includedAnalysisIds,
       exclude_analysis_ids: excludedAnalysisIds,
+    }
+    if (reportSigned && reportSignatureId !== "default") {
+      body.signature_id = Number(reportSignatureId)
     }
     if (date) body.protocol_date = date
     if (time) body.protocol_time = time
@@ -351,6 +363,8 @@ export function ProtocolCard({
     }
 
     setSelectedReportAnalysisIds(analyses.filter(isSelectableForReport).map((analysis) => analysis.id))
+    setReportType("full")
+    setReportSigned(true)
     setReportCustomizationOpen(false)
     setReportDialogOpen(true)
   }
@@ -1140,9 +1154,12 @@ export function ProtocolCard({
         onOpenChange={handleReportDialogOpenChange}
         protocolId={protocol.id}
         reportType={reportType}
-        onReportTypeChange={setReportType}
+        onReportTypeChange={handleReportTypeChange}
         signed={reportSigned}
         onSignedChange={setReportSigned}
+        signatureId={reportSignatureId}
+        onSignatureIdChange={setReportSignatureId}
+        signatures={reportSignatures}
         reportDate={reportDate}
         onReportDateChange={handleReportDateChange}
         reportTime={reportTime}

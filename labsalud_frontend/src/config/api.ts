@@ -152,6 +152,10 @@ export const REPORTING_ENDPOINTS = {
   SEND_WHATSAPP: (id: number) => buildApiUrl(`/reports/protocols/${id}/send-whatsapp/`),
   REPORT: (id: number) => buildApiUrl(`/protocols/protocols/${id}/report/`),
   REPORT_BATCH: buildApiUrl("/protocols/protocols/report-batch/"),
+  SIGNATURES: buildApiUrl("/reports/signatures/"),
+  SIGNATURE_DETAIL: (id: number) => buildApiUrl(`/reports/signatures/${id}/`),
+  SIGNATURE_SET_DEFAULT: (id: number) => buildApiUrl(`/reports/signatures/${id}/set-default/`),
+  SIGNATURE_AUDIT_TIMELINE: (id: number) => buildApiUrl(`/reports/signatures/${id}/audit-timeline/`),
 } as const
 
 // Billing endpoints

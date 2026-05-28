@@ -74,16 +74,16 @@ export default function ConfigurationPage() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto py-6">
-      <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-md p-6">
-        <h1 className="text-2xl font-bold text-gray-800 mb-6">Configuración del Sistema</h1>
+    <div className="max-w-6xl mx-auto py-4 sm:py-6 px-3 sm:px-4">
+      <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-md p-4 sm:p-6">
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-800 mb-4 sm:mb-6">Configuración del Sistema</h1>
         <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-          <TabsList className="mb-6">
-            <TabsTrigger value="medicos">Médicos</TabsTrigger>
-            <TabsTrigger value="obras-sociales">Obras Sociales</TabsTrigger>
-            <TabsTrigger value="nomencladores">Nomencladores</TabsTrigger>
-            <TabsTrigger value="analisis">Análisis</TabsTrigger>
-            <TabsTrigger value="auditoria">Auditoría</TabsTrigger>
+          <TabsList className="mb-6 flex h-auto w-full flex-wrap justify-start gap-1">
+            <TabsTrigger value="medicos" className="flex-shrink-0">Médicos</TabsTrigger>
+            <TabsTrigger value="obras-sociales" className="flex-shrink-0">Obras Sociales</TabsTrigger>
+            <TabsTrigger value="nomencladores" className="flex-shrink-0">Nomencladores</TabsTrigger>
+            <TabsTrigger value="analisis" className="flex-shrink-0">Análisis</TabsTrigger>
+            <TabsTrigger value="auditoria" className="flex-shrink-0">Auditoría</TabsTrigger>
           </TabsList>
 
           <TabsContent value="medicos">

@@ -9,13 +9,11 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Skeleton } from "@/components/ui/skeleton"
-import { User, Mail, Lock, Camera, AlertCircle, CheckCircle, Eye, EyeOff, Clock, Shield, History } from "lucide-react"
+import { User, Mail, Lock, Camera, AlertCircle, CheckCircle, Eye, EyeOff, Clock, Shield } from "lucide-react"
 import { toast } from "sonner"
 import { USER_ENDPOINTS, TOAST_DURATION } from "@/config/api"
-import type { HistoryEntry, ActiveTempPermission } from "@/types"
-import { HistoryList } from "@/components/common/history-list"
+import type { ActiveTempPermission } from "@/types"
 import { formatApiError } from "@/lib/api-error"
 import { getStoredUser, setStoredUser } from "@/lib/auth-storage"
 
@@ -26,8 +24,6 @@ interface ProfileData {
   first_name: string
   last_name: string
   photo?: string
-  history: HistoryEntry[]
-  total_changes: number
   active_temp_permissions: ActiveTempPermission[]
 }
 
@@ -58,7 +54,6 @@ export default function ProfilePage() {
   const [showPassword, setShowPassword] = useState(false)
   const [photoPreview, setPhotoPreview] = useState<string | null>(null)
   const [isLoadingProfile, setIsLoadingProfile] = useState(true)
-  const [showAuditDialog, setShowAuditDialog] = useState(false)
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -189,7 +184,7 @@ export default function ProfilePage() {
 
         if (response.ok) {
           const updatedProfile: ProfileData = await response.json()
-          setProfileData(updatedProfile)
+          setProfileData((prev) => ({ ...prev, ...updatedProfile }))
 
           // Actualizar el usuario almacenado con los campos que pueden haber cambiado
           const currentUser = getStoredUser<{ email?: string; photo?: string | null; [key: string]: unknown }>()
@@ -310,25 +305,10 @@ export default function ProfilePage() {
         {/* Información Personal */}
         <Card>
           <CardHeader className="p-4 sm:p-6">
-            <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center space-x-2 text-base sm:text-lg">
-                <User className="h-4 w-4 sm:h-5 sm:w-5" />
-                <span>Información Personal</span>
-              </CardTitle>
-              {profileData && profileData.history.length > 0 && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowAuditDialog(true)}
-                  className="text-xs sm:text-sm flex items-center gap-1"
-                >
-                  <History className="h-3 w-3 sm:h-4 sm:w-4" />
-                  <span className="hidden sm:inline">Ver Auditoría</span>
-                  <span className="sm:hidden">Auditoría</span>
-                </Button>
-              )}
-            </div>
+            <CardTitle className="flex items-center space-x-2 text-base sm:text-lg">
+              <User className="h-4 w-4 sm:h-5 sm:w-5" />
+              <span>Información Personal</span>
+            </CardTitle>
           </CardHeader>
           <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0 space-y-4">
             <div className="flex flex-col sm:flex-row items-center gap-4">
@@ -494,25 +474,6 @@ export default function ProfilePage() {
           </Card>
         )}
       </form>
-
-      <Dialog open={showAuditDialog} onOpenChange={setShowAuditDialog}>
-        <DialogContent className="w-[95vw] max-w-5xl max-h-[85vh] overflow-x-hidden overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-base sm:text-lg">
-              <History className="h-4 w-4 sm:h-5 sm:w-5" />
-              Historial Completo de Cambios
-            </DialogTitle>
-          </DialogHeader>
-          <div className="mt-4 min-w-0">
-            {profileData && (
-              <>
-                <p className="text-xs sm:text-sm text-gray-500 mb-4">Total de cambios: {profileData.total_changes}</p>
-                <HistoryList history={profileData.history} />
-              </>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }

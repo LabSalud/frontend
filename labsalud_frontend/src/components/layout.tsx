@@ -10,11 +10,11 @@ interface LayoutProps {
 
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
   return (
-    <div className="min-h-screen relative">
+    <div className="relative min-h-screen overflow-x-hidden">
       {/* Content */}
       <div className="relative z-10">
         <Navbar />
-        <main className="px-4 pt-4">{children || <Outlet />}</main>
+        <main className="px-2 pt-4 sm:px-4">{children || <Outlet />}</main>
       </div>
     </div>
   )

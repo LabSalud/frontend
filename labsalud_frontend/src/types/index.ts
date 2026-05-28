@@ -697,8 +697,26 @@ export interface MergeReportPayload {
   protocol_date?: string
   protocol_time?: string
   signed?: boolean
+  signature_id?: number
   email?: string
   phone_number?: string
+}
+
+export interface ReportSignature {
+  id: number
+  name: string
+  image?: string
+  image_url?: string
+  biochemist_name?: string
+  biochemist_mp?: string
+  is_default: boolean
+  is_active: boolean
+  uploaded_by?: {
+    id: number
+    username: string
+    photo?: string | null
+  } | null
+  created_at?: string
 }
 
 export interface ProtocolSummary {

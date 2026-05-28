@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge"
 import { Clock, User, ArrowRight } from "lucide-react"
 import type { HistoryEntry } from "@/types"
 import { formatUtcDateTime } from "@/lib/format-utils"
+import { getProtocolStatusBadgeClassByName } from "@/lib/status-styles"
 
 interface HistoryListProps {
   history: HistoryEntry[]
@@ -80,18 +81,62 @@ const getActionBadgeVariant = (action: string): string => {
   return "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200"
 }
 
-export const CATEGORY_META: Record<string, { label: string; className: string }> = {
-  protocol: { label: "Protocolo", className: "bg-sky-100 text-sky-800 dark:bg-sky-900 dark:text-sky-200" },
-  result: { label: "Resultado", className: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200" },
-  validation: { label: "Validación", className: "bg-violet-100 text-violet-800 dark:bg-violet-900 dark:text-violet-200" },
-  payment: { label: "Pago", className: "bg-amber-100 text-amber-900 dark:bg-amber-900 dark:text-amber-200" },
-  state: { label: "Estado", className: "bg-rose-100 text-rose-800 dark:bg-rose-900 dark:text-rose-200" },
-  doctor: { label: "Médico", className: "bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-200" },
-  insurance: { label: "Obra Social", className: "bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200" },
-  analysis: { label: "Análisis", className: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200" },
-  user: { label: "Usuario", className: "bg-fuchsia-100 text-fuchsia-800 dark:bg-fuchsia-900 dark:text-fuchsia-200" },
-  patient: { label: "Paciente", className: "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200" },
-  system: { label: "Sistema", className: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200" },
+export const CATEGORY_META: Record<string, { label: string; className: string; borderClassName: string }> = {
+  protocol: {
+    label: "Protocolo",
+    className: "bg-sky-100 text-sky-800 dark:bg-sky-900 dark:text-sky-200",
+    borderClassName: "border-l-sky-500 dark:border-l-sky-600",
+  },
+  result: {
+    label: "Resultado",
+    className: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200",
+    borderClassName: "border-l-emerald-500 dark:border-l-emerald-600",
+  },
+  validation: {
+    label: "Validación",
+    className: "bg-violet-100 text-violet-800 dark:bg-violet-900 dark:text-violet-200",
+    borderClassName: "border-l-violet-500 dark:border-l-violet-600",
+  },
+  payment: {
+    label: "Pago",
+    className: "bg-amber-100 text-amber-900 dark:bg-amber-900 dark:text-amber-200",
+    borderClassName: "border-l-amber-500 dark:border-l-amber-600",
+  },
+  state: {
+    label: "Estado",
+    className: "bg-rose-100 text-rose-800 dark:bg-rose-900 dark:text-rose-200",
+    borderClassName: "border-l-rose-500 dark:border-l-rose-600",
+  },
+  doctor: {
+    label: "Médico",
+    className: "bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-200",
+    borderClassName: "border-l-cyan-500 dark:border-l-cyan-600",
+  },
+  insurance: {
+    label: "Obra Social",
+    className: "bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200",
+    borderClassName: "border-l-teal-500 dark:border-l-teal-600",
+  },
+  analysis: {
+    label: "Análisis",
+    className: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200",
+    borderClassName: "border-l-indigo-500 dark:border-l-indigo-600",
+  },
+  user: {
+    label: "Usuario",
+    className: "bg-fuchsia-100 text-fuchsia-800 dark:bg-fuchsia-900 dark:text-fuchsia-200",
+    borderClassName: "border-l-fuchsia-500 dark:border-l-fuchsia-600",
+  },
+  patient: {
+    label: "Paciente",
+    className: "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200",
+    borderClassName: "border-l-orange-500 dark:border-l-orange-600",
+  },
+  system: {
+    label: "Sistema",
+    className: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200",
+    borderClassName: "border-l-slate-500 dark:border-l-slate-600",
+  },
 }
 
 const formatActionName = (name?: string): string => {
@@ -112,11 +157,12 @@ export function HistoryList({ history, emptyMessage = "No hay historial disponib
         const timestamp = entry.date || entry.created_at || null
         const categoryMeta = entry.category ? CATEGORY_META[entry.category] : undefined
         const hasStateTransition = entry.state_from && entry.state_to
+        const borderClassName = categoryMeta?.borderClassName || getActionBorderColor(entry.action || "")
 
         return (
           <Card
             key={entry.event_id || `${entry.version}-${index}`}
-            className={`border-l-4 w-full min-w-0 overflow-hidden ${getActionBorderColor(entry.action || "")}`}
+            className={`border-l-4 w-full min-w-0 overflow-hidden ${borderClassName}`}
           >
             <CardContent className="p-2 sm:p-3 min-w-0">
               <div className="flex flex-col sm:flex-row sm:items-start gap-2 min-w-0">
@@ -173,11 +219,17 @@ export function HistoryList({ history, emptyMessage = "No hay historial disponib
 
                   {hasStateTransition && (
                     <div className="flex items-center gap-1.5 flex-wrap text-xs">
-                      <Badge variant="outline" className="text-[10px] sm:text-xs px-1.5 py-0">
+                      <Badge
+                        variant="outline"
+                        className={`text-[10px] sm:text-xs px-1.5 py-0 ${getProtocolStatusBadgeClassByName(
+                          entry.state_from,
+                          true,
+                        )}`}
+                      >
                         {entry.state_from}
                       </Badge>
                       <ArrowRight className="h-3 w-3 text-slate-400 shrink-0" />
-                      <Badge className="text-[10px] sm:text-xs px-1.5 py-0 bg-rose-100 text-rose-800">
+                      <Badge className={`text-[10px] sm:text-xs px-1.5 py-0 ${getProtocolStatusBadgeClassByName(entry.state_to)}`}>
                         {entry.state_to}
                       </Badge>
                     </div>

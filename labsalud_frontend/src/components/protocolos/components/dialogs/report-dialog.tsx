@@ -11,7 +11,7 @@ import { Label } from "../../../ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../ui/select"
 import { Separator } from "../../../ui/separator"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import type { ProtocolDetail } from "@/types"
+import type { ProtocolDetail, ReportSignature } from "@/types"
 
 type ReportProtocolAnalysis = ProtocolDetail & {
   is_sent?: boolean
@@ -26,6 +26,9 @@ interface ReportDialogProps {
   onReportTypeChange: (type: "full" | "summary") => void
   signed: boolean
   onSignedChange: (signed: boolean) => void
+  signatureId: string
+  onSignatureIdChange: (signatureId: string) => void
+  signatures: ReportSignature[]
   reportDate: string
   onReportDateChange: (date: string) => void
   reportTime: string
@@ -301,6 +304,43 @@ function ReportCustomizationDrawer({
   )
 }
 
+function SignatureSelector({
+  signed,
+  signatureId,
+  onSignatureIdChange,
+  signatures,
+}: {
+  signed: boolean
+  signatureId: string
+  onSignatureIdChange: (signatureId: string) => void
+  signatures: ReportSignature[]
+}) {
+  if (!signed) return null
+
+  return (
+    <div className="flex flex-col gap-2">
+      <Label className="text-sm font-medium">Firma a utilizar</Label>
+      <Select value={signatureId} onValueChange={onSignatureIdChange}>
+        <SelectTrigger className="w-full">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="default">Firma predeterminada</SelectItem>
+          {signatures.map((signature) => (
+            <SelectItem key={signature.id} value={signature.id.toString()}>
+              {signature.name}
+              {signature.is_default ? " (predeterminada)" : ""}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <p className="text-xs text-muted-foreground">
+        Si no elegís una firma específica, el sistema usa la predeterminada del catálogo.
+      </p>
+    </div>
+  )
+}
+
 export function ReportDialog({
   open,
   onOpenChange,
@@ -309,6 +349,9 @@ export function ReportDialog({
   onReportTypeChange,
   signed,
   onSignedChange,
+  signatureId,
+  onSignatureIdChange,
+  signatures,
   reportDate,
   onReportDateChange,
   reportTime,
@@ -342,7 +385,7 @@ export function ReportDialog({
   const backScrollRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
-    const media = window.matchMedia("(max-width: 767px)")
+    const media = window.matchMedia("(max-width: 1023px)")
     const apply = () => setIsMobileViewport(media.matches)
 
     apply()
@@ -408,9 +451,12 @@ export function ReportDialog({
   const downloadDisabledReason = commonDisabledReason
   const emailActionDisabledReason = emailDisabledReason || commonDisabledReason
   const whatsappActionDisabledReason = whatsappDisabledReason || commonDisabledReason
+  const signatureDescription = signed
+    ? "Se incluirá firma digital del bioquímico"
+    : "Se incluirá línea para firma física"
   const dialogContentClass = isMobileViewport
-    ? "w-[95vw] max-w-[380px] gap-0 overflow-visible border-0 bg-transparent p-0 shadow-none rounded-none translate-x-[-50%]"
-    : `w-[620px] max-w-[620px] gap-0 overflow-visible rounded-none border-0 bg-transparent p-0 shadow-none transition-transform duration-300 ease-out ${
+    ? "w-[95vw] max-w-[380px] sm:max-w-[380px] gap-0 overflow-visible border-0 bg-transparent p-0 shadow-none rounded-none translate-x-[-50%]"
+    : `w-[620px] max-w-[620px] sm:max-w-[620px] gap-0 overflow-visible rounded-none border-0 bg-transparent p-0 shadow-none transition-transform duration-300 ease-out ${
         customizationOpen ? "translate-x-[calc(-50%-264px)]" : "translate-x-[-50%]"
       }`
 
@@ -420,16 +466,13 @@ export function ReportDialog({
         <button
           type="button"
           onClick={() => onOpenChange(false)}
-          style={{
-            transform: !isMobileViewport && customizationOpen ? "translateX(528px)" : "translateX(0)",
-          }}
-          className="absolute right-3 top-3 z-[70] hidden h-8 w-8 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-500 shadow-sm transition-transform duration-300 ease-out hover:bg-slate-100 hover:text-slate-700 pointer-events-auto md:inline-flex"
+          className="absolute right-3 top-3 z-[70] hidden h-8 w-8 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-500 shadow-sm transition-colors hover:bg-slate-100 hover:text-slate-700 pointer-events-auto lg:inline-flex"
           aria-label="Cerrar"
         >
           <X className="h-4 w-4" />
         </button>
 
-        <div className="relative hidden min-h-[640px] w-[620px] flex-col overflow-visible md:flex">
+        <div className="relative hidden min-h-[640px] w-[620px] flex-col overflow-visible lg:flex">
           <div
             className={`relative z-20 flex flex-1 flex-col overflow-hidden rounded-xl border bg-white shadow-2xl transition-colors duration-300 ease-out ${
               customizationOpen ? "border-slate-200 border-r-0" : "border-slate-200"
@@ -476,11 +519,22 @@ export function ReportDialog({
                 <div className="flex flex-col min-w-0">
                   <span className="text-sm font-medium leading-tight">Firma digital</span>
                   <span className="text-xs opacity-70 leading-tight mt-0.5">
-                    {signed ? "Se incluirá firma digital del bioquímico" : "Se incluirá línea para firma física"}
+                    {signatureDescription}
                   </span>
                 </div>
-                <Checkbox checked={signed} onCheckedChange={onSignedChange} className="ml-auto shrink-0" />
+                <Checkbox
+                  checked={signed}
+                  onCheckedChange={(checked) => onSignedChange(checked === true)}
+                  className="ml-auto shrink-0"
+                />
               </button>
+
+              <SignatureSelector
+                signed={signed}
+                signatureId={signatureId}
+                onSignatureIdChange={onSignatureIdChange}
+                signatures={signatures}
+              />
 
               <div className="flex flex-col gap-1.5">
                 <Label className="text-sm font-medium">Fecha del reporte (opcional)</Label>
@@ -570,7 +624,7 @@ export function ReportDialog({
           />
         </div>
 
-        <div className="md:hidden">
+        <div className="lg:hidden">
           <div
             className="mx-auto w-full max-w-[360px] [perspective:1400px]"
             onTouchStart={handleMobileTouchStart}
@@ -651,11 +705,22 @@ export function ReportDialog({
                           <div className="flex flex-col min-w-0">
                             <span className="text-sm font-medium leading-tight">Firma digital</span>
                             <span className="text-xs opacity-70 leading-tight mt-0.5">
-                              {signed ? "Se incluirá firma digital del bioquímico" : "Se incluirá línea para firma física"}
+                              {signatureDescription}
                             </span>
                           </div>
-                          <Checkbox checked={signed} onCheckedChange={onSignedChange} className="ml-auto shrink-0" />
+                          <Checkbox
+                            checked={signed}
+                            onCheckedChange={(checked) => onSignedChange(checked === true)}
+                            className="ml-auto shrink-0"
+                          />
                         </button>
+
+                        <SignatureSelector
+                          signed={signed}
+                          signatureId={signatureId}
+                          onSignatureIdChange={onSignatureIdChange}
+                          signatures={signatures}
+                        />
 
                         <div className="flex flex-col gap-1.5">
                           <Label className="text-sm font-medium">Fecha del reporte (opcional)</Label>

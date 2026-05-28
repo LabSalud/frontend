@@ -41,8 +41,8 @@ import { useInfiniteScroll } from "../../hooks/use-infinite-scroll"
 import { useDebounce } from "../../hooks/use-debounce"
 import { useNavigate } from "react-router-dom"
 import { toast } from "sonner"
-import { PROTOCOL_ENDPOINTS, ANALYTICS_ENDPOINTS, TOAST_DURATION } from "@/config/api"
-import type { ProtocolListItem, SendMethod } from "@/types"
+import { PROTOCOL_ENDPOINTS, ANALYTICS_ENDPOINTS, REPORTING_ENDPOINTS, TOAST_DURATION } from "@/config/api"
+import type { ProtocolListItem, SendMethod, ReportSignature } from "@/types"
 import { formatApiError, getErrorMessage } from "@/lib/api-error"
 import {
   getProtocolStatusStyleByName,
@@ -69,6 +69,7 @@ const STATUS_FILTER_KEY = "labsalud_protocol_status_filters"
 const HIDDEN_PROTOCOL_STATUS_NAMES = new Set(["pendiente de facturacion", "facturado"])
 type ReportAction = "download" | "email" | "whatsapp"
 type MergeReportAction = "print" | ReportAction
+type BatchReportAction = "print" | ReportAction
 
 const getStatusIcon = (statusName: string) => {
   switch (normalizeProtocolStatusName(statusName)) {
@@ -126,7 +127,8 @@ export default function ProtocolosPage() {
   const [selectedProtocols, setSelectedProtocols] = useState<Set<number>>(new Set())
   const isSelectionMode = selectedProtocols.size > 0
   const [batchReportType, setBatchReportType] = useState<"full" | "summary">("full")
-  const [batchSigned, setBatchSigned] = useState(false)
+  const [batchSigned, setBatchSigned] = useState(true)
+  const [batchSignatureId, setBatchSignatureId] = useState("default")
   const [isBatchProcessing, setIsBatchProcessing] = useState(false)
 
   // Debounce para la búsqueda
@@ -189,6 +191,15 @@ export default function ProtocolosPage() {
   const sendMethods: SendMethod[] = Array.isArray(sendMethodsQuery.data)
     ? sendMethodsQuery.data
     : sendMethodsQuery.data?.results || []
+
+  const signaturesQuery = useApiQuery<{ results?: ReportSignature[] } | ReportSignature[]>({
+    queryKey: ["reporting", "signatures"],
+    url: REPORTING_ENDPOINTS.SIGNATURES,
+    staleTime: 5 * 60 * 1000,
+  })
+  const reportSignatures: ReportSignature[] = Array.isArray(signaturesQuery.data)
+    ? signaturesQuery.data
+    : signaturesQuery.data?.results || []
 
   const buildUrl = useCallback(
     (search = "", offset = 0) => {
@@ -358,6 +369,14 @@ export default function ProtocolosPage() {
     setSelectedProtocols(new Set())
   }
 
+  const handleBatchReportTypeChange = (type: "full" | "summary") => {
+    setBatchReportType(type)
+    setBatchSigned(type === "full")
+  }
+
+  const getBatchSignaturePayload = () =>
+    batchSigned && batchSignatureId !== "default" ? { signature_id: Number(batchSignatureId) } : {}
+
   const handleMergeReport = async (action: MergeReportAction) => {
     if (selectedProtocols.size < 2) {
       toast.error("Seleccioná al menos 2 protocolos del mismo paciente.", { duration: TOAST_DURATION })
@@ -382,6 +401,7 @@ export default function ProtocolosPage() {
           action: endpointAction,
           type: batchReportType,
           signed: batchSigned,
+          ...getBatchSignaturePayload(),
         },
       })
 
@@ -430,34 +450,51 @@ export default function ProtocolosPage() {
     }
   }
 
-  const handleBatchAction = async (action: ReportAction) => {
+  const handleBatchAction = async (action: BatchReportAction) => {
     if (selectedProtocols.size === 0) return
 
     setIsBatchProcessing(true)
     try {
+      const endpointAction: ReportAction = action === "print" ? "download" : action
       const response = await apiRequest(PROTOCOL_ENDPOINTS.REPORT_BATCH, {
         method: "POST",
         body: {
           protocol_ids: Array.from(selectedProtocols),
-          action,
+          action: endpointAction,
           type: batchReportType,
           signed: batchSigned,
+          ...getBatchSignaturePayload(),
         },
       })
 
       if (response.ok) {
-        if (action === "download") {
+        if (action === "print" || action === "download") {
           const blob = await response.blob()
           const url = window.URL.createObjectURL(blob)
-          const a = document.createElement("a")
-          a.href = url
-          const signedSuffix = batchSigned ? "firmado" : "sin_firma"
-          a.download = `protocolos_${batchReportType}_${signedSuffix}_${new Date().toISOString().slice(0, 10)}.pdf`
-          document.body.appendChild(a)
-          a.click()
-          document.body.removeChild(a)
-          window.URL.revokeObjectURL(url)
-          toast.success("Reportes descargados exitosamente", { duration: TOAST_DURATION })
+
+          if (action === "print") {
+            const previewLink = document.createElement("a")
+            previewLink.href = url
+            previewLink.target = "_blank"
+            previewLink.rel = "noopener noreferrer"
+            document.body.appendChild(previewLink)
+            previewLink.click()
+            previewLink.remove()
+            setTimeout(() => {
+              window.URL.revokeObjectURL(url)
+            }, 30000)
+            toast.success("Reportes listos para imprimir", { duration: TOAST_DURATION })
+          } else {
+            const a = document.createElement("a")
+            a.href = url
+            const signedSuffix = batchSigned ? "firmado" : "sin_firma"
+            a.download = `protocolos_${batchReportType}_${signedSuffix}_${new Date().toISOString().slice(0, 10)}.pdf`
+            document.body.appendChild(a)
+            a.click()
+            document.body.removeChild(a)
+            window.URL.revokeObjectURL(url)
+            toast.success("Reportes descargados exitosamente", { duration: TOAST_DURATION })
+          }
         } else {
           const data = await response.json()
           const successCount = data.successes?.length || 0
@@ -720,6 +757,7 @@ export default function ProtocolosPage() {
                   protocol={protocol}
                   onUpdate={refreshProtocols}
                   sendMethods={sendMethods}
+                  reportSignatures={reportSignatures}
                   isSelected={selectedProtocols.has(protocol.id)}
                   onToggleSelection={toggleProtocolSelection}
                 />
@@ -751,12 +789,12 @@ export default function ProtocolosPage() {
 
       {/* Floating Batch Action Bar */}
       {isSelectionMode && (
-        <div className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 shadow-lg px-4 py-3">
-          <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center gap-3">
-            {/* Selection info + select/deselect all */}
-            <div className="flex items-center gap-3 w-full sm:w-auto">
-              <span className="text-sm font-medium text-gray-700">
-                {selectedProtocols.size} seleccionado{selectedProtocols.size !== 1 ? "s" : ""}
+        <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-gray-200 bg-white px-3 py-3 shadow-lg sm:px-4">
+          <div className="mx-auto flex max-w-7xl flex-col gap-3 lg:flex-row lg:items-center lg:gap-4">
+            {/* Fila 1: selección + opciones (tipo, firma) */}
+            <div className="flex flex-wrap items-center gap-2 lg:flex-nowrap lg:gap-3">
+              <span className="text-sm font-medium text-gray-700 whitespace-nowrap">
+                {selectedProtocols.size} sel.
               </span>
               <Button variant="ghost" size="sm" onClick={selectAll} className="text-xs">
                 Todos
@@ -764,54 +802,84 @@ export default function ProtocolosPage() {
               <Button variant="ghost" size="sm" onClick={deselectAll} className="text-xs">
                 Ninguno
               </Button>
+
+              <Select value={batchReportType} onValueChange={handleBatchReportTypeChange}>
+                <SelectTrigger className="h-9 w-[140px] sm:w-[160px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="full">Reporte completo</SelectItem>
+                  <SelectItem value="summary">Resumen</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <button
+                type="button"
+                onClick={() => setBatchSigned(!batchSigned)}
+                className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-xs transition-colors sm:text-sm ${
+                  batchSigned
+                    ? "border-[#204983] bg-blue-50 text-[#204983]"
+                    : "border-gray-200 bg-white text-gray-700 hover:border-gray-300"
+                }`}
+              >
+                <PenLine className="h-4 w-4 shrink-0" />
+                <span className="font-medium whitespace-nowrap">
+                  <span className="hidden sm:inline">{batchSigned ? "Firma digital" : "Sin firma digital"}</span>
+                  <span className="sm:hidden">{batchSigned ? "Firmado" : "Sin firma"}</span>
+                </span>
+              </button>
+
+              {batchSigned && (
+                <Select value={batchSignatureId} onValueChange={setBatchSignatureId}>
+                  <SelectTrigger className="h-9 w-[170px] sm:w-[210px]">
+                    <SelectValue placeholder="Firma" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="default">Firma predeterminada</SelectItem>
+                    {reportSignatures.map((signature) => (
+                      <SelectItem key={signature.id} value={signature.id.toString()}>
+                        {signature.name}
+                        {signature.is_default ? " (predeterminada)" : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
 
-            {/* Report type selector */}
-            <Select value={batchReportType} onValueChange={(v: "full" | "summary") => setBatchReportType(v)}>
-              <SelectTrigger className="w-full sm:w-[160px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="full">Reporte completo</SelectItem>
-                <SelectItem value="summary">Resumen</SelectItem>
-              </SelectContent>
-            </Select>
-
-            {/* Signed toggle */}
-            <button
-              type="button"
-              onClick={() => setBatchSigned(!batchSigned)}
-              className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors whitespace-nowrap ${
-                batchSigned
-                  ? "border-[#204983] bg-blue-50 text-[#204983]"
-                  : "border-gray-200 bg-white text-gray-700 hover:border-gray-300"
-              }`}
-            >
-              <PenLine className="h-4 w-4 shrink-0" />
-              <span className="font-medium">{batchSigned ? "Firma digital" : "Sin firma digital"}</span>
-            </button>
-
-            {/* Action buttons */}
-            <div className="flex items-center gap-2 w-full sm:w-auto">
+            {/* Fila 2: acciones */}
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-5 lg:ml-auto lg:flex lg:w-auto lg:items-center">
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={selectedProtocols.size === 0 || isBatchProcessing}
+                onClick={() => handleBatchAction("print")}
+              >
+                {isBatchProcessing ? (
+                  <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                ) : (
+                  <Printer className="h-4 w-4 mr-1" />
+                )}
+                <span className="truncate">Imprimir</span>
+              </Button>
               <Button
                 size="sm"
                 disabled={selectedProtocols.size === 0 || isBatchProcessing}
                 onClick={() => handleBatchAction("download")}
-                className="bg-[#204983] flex-1 sm:flex-initial"
+                className="bg-[#204983]"
               >
                 {isBatchProcessing ? (
                   <Loader2 className="h-4 w-4 mr-1 animate-spin" />
                 ) : (
                   <Download className="h-4 w-4 mr-1" />
                 )}
-                Descargar
+                <span className="truncate">Descargar</span>
               </Button>
               <Button
                 size="sm"
                 variant="outline"
                 disabled={selectedProtocols.size === 0 || isBatchProcessing}
                 onClick={() => handleBatchAction("email")}
-                className="flex-1 sm:flex-initial"
               >
                 <Mail className="h-4 w-4 mr-1" />
                 Email
@@ -821,7 +889,6 @@ export default function ProtocolosPage() {
                 variant="outline"
                 disabled={selectedProtocols.size === 0 || isBatchProcessing}
                 onClick={() => handleBatchAction("whatsapp")}
-                className="flex-1 sm:flex-initial"
               >
                 <MessageCircle className="h-4 w-4 mr-1" />
                 WhatsApp
@@ -832,7 +899,7 @@ export default function ProtocolosPage() {
                     size="sm"
                     variant="outline"
                     disabled={selectedProtocols.size < 2 || isBatchProcessing}
-                    className="flex-1 sm:flex-initial border-[#204983] text-[#204983] hover:bg-[#204983] hover:text-white"
+                    className="border-[#204983] text-[#204983] hover:bg-[#204983] hover:text-white"
                     title="Combinar varios protocolos del mismo paciente en un único reporte"
                   >
                     {isBatchProcessing ? (

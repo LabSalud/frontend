@@ -155,7 +155,7 @@ export const Navbar: React.FC = () => {
                   <img
                     src="/logo_icono.svg"
                     alt="Logo"
-                    className="h-9 w-auto object-contain"
+                    className="h-8 w-auto object-contain"
                     onError={(e) => {
                       const target = e.target as HTMLImageElement
                       target.src = "/placeholder.svg?height=48&width=160&text=LOGO"

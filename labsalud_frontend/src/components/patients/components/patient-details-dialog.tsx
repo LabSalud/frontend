@@ -1,9 +1,12 @@
 "use client"
 
+import { useState } from "react"
 import type { Patient } from "@/types"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
-import { Calendar, Mail, Phone, MapPin, User, Clock, CreditCard, StickyNote } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Calendar, Mail, Phone, MapPin, User, CreditCard, StickyNote, History } from "lucide-react"
+import { PatientHistoryDialog } from "./patient-history-dialog"
 
 interface PatientDetailsDialogProps {
   isOpen: boolean
@@ -12,6 +15,7 @@ interface PatientDetailsDialogProps {
 }
 
 export function PatientDetailsDialog({ isOpen, onClose, patient }: PatientDetailsDialogProps) {
+  const [historyOpen, setHistoryOpen] = useState(false)
   if (!patient) return null
 
   // Reemplazar la función formatDateForDisplay con esta versión corregida:
@@ -39,11 +43,7 @@ export function PatientDetailsDialog({ isOpen, onClose, patient }: PatientDetail
     return dateString
   }
 
-  const formatDateTime = (dateString: string) => {
-    return new Date(dateString).toLocaleString("es-ES")
-  }
-
-  // Reemplazar la función calculateAge con esta versión corregida:
+  // Calcula edad a partir de la fecha de nacimiento.
   const calculateAge = (birthDate: string) => {
     if (!birthDate) return 0
 
@@ -217,42 +217,21 @@ export function PatientDetailsDialog({ isOpen, onClose, patient }: PatientDetail
             </div>
           )}
 
-          {/* Información de auditoría */}
-          {(patient.creation || patient.last_change) && (
-            <div className="space-y-3 border-t pt-4">
-              <h3 className="text-lg font-semibold flex items-center space-x-2">
-                <Clock className="h-5 w-5" />
-                <span>Información de Auditoría</span>
-              </h3>
-
-              <div className="grid grid-cols-1 gap-4">
-                {patient.creation && (
-                  <div>
-                    <p className="text-sm font-medium text-gray-500">Creado por</p>
-                    <p>{patient.creation.user?.username || "Sistema"}</p>
-                    <p className="text-xs text-gray-400">{formatDateTime(patient.creation.date)}</p>
-                  </div>
-                )}
-
-                {patient.last_change && (
-                  <div>
-                    <p className="text-sm font-medium text-gray-500">Última modificación</p>
-                    <p>{patient.last_change.user?.username || "Sistema"}</p>
-                    <p className="text-xs text-gray-400">{formatDateTime(patient.last_change.date)}</p>
-                    {patient.last_change.changes && patient.last_change.changes.length > 0 && (
-                      <div className="mt-1 text-xs text-gray-500">
-                        {patient.last_change.changes.map((change: string, index: number) => (
-                          <p key={index}>• {change}</p>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
+          <div className="border-t pt-4">
+            <Button variant="outline" className="w-full" onClick={() => setHistoryOpen(true)}>
+              <History className="h-4 w-4 mr-2 text-[#204983]" />
+              Ver Historial de Cambios
+            </Button>
+          </div>
         </div>
       </DialogContent>
+
+      <PatientHistoryDialog
+        open={historyOpen}
+        onOpenChange={setHistoryOpen}
+        patientId={patient.id}
+        patientName={`${patient.first_name} ${patient.last_name}`}
+      />
     </Dialog>
   )
 }

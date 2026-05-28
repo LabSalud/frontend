@@ -8,14 +8,8 @@ import { Loader2, Search, Filter, X } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Label } from "@/components/ui/label"
 import { useDebounce } from "@/hooks/use-debounce"
 import type { AuditEntry, AuditCategory, AuditActionType } from "@/types"
 import { AuditCard } from "./components/audit-card"
@@ -35,13 +29,13 @@ const CATEGORY_OPTIONS: Array<{ value: AuditCategory; label: string }> = [
   { value: "system", label: CATEGORY_META.system.label },
 ]
 
-const ACTION_TYPE_OPTIONS: Array<{ value: AuditActionType; label: string }> = [
-  { value: "create", label: "Creación" },
-  { value: "update", label: "Actualización" },
-  { value: "delete", label: "Eliminación" },
-  { value: "business", label: "Negocio" },
-  { value: "auth", label: "Autenticación" },
-  { value: "system", label: "Sistema" },
+const ACTION_TYPE_OPTIONS: Array<{ value: AuditActionType; label: string; className: string }> = [
+  { value: "create", label: "Creación", className: "bg-green-100 text-green-800 border-green-200" },
+  { value: "update", label: "Actualización", className: "bg-yellow-100 text-yellow-800 border-yellow-200" },
+  { value: "delete", label: "Eliminación", className: "bg-red-100 text-red-800 border-red-200" },
+  { value: "business", label: "Negocio", className: "bg-blue-100 text-blue-800 border-blue-200" },
+  { value: "auth", label: "Autenticación", className: "bg-indigo-100 text-indigo-800 border-indigo-200" },
+  { value: "system", label: "Sistema", className: "bg-slate-100 text-slate-800 border-slate-200" },
 ]
 
 export function AuditManagement() {
@@ -169,112 +163,181 @@ export function AuditManagement() {
 
   return (
     <div className="space-y-4">
-      <div className="rounded-lg border border-gray-200 bg-gray-50/50 p-3 sm:p-4 space-y-3">
-        <div className="flex items-center justify-between gap-2 flex-wrap">
-          <div className="flex items-center gap-2 text-sm font-medium text-slate-700">
-            <Filter className="h-4 w-4 text-[#204983]" />
-            Filtros de auditoría
+      <div className="rounded-xl border border-gray-200 bg-white p-3 shadow-sm sm:p-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-2 text-sm font-semibold text-slate-800">
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#204983]/10 text-[#204983]">
+              <Filter className="h-4 w-4" />
+            </span>
+            Auditoría completa
           </div>
           {activeFilters.length > 0 && (
-            <Button variant="ghost" size="sm" onClick={clearAllFilters} className="h-7 text-xs">
+            <Button variant="outline" size="sm" onClick={clearAllFilters} className="h-8 w-full text-xs sm:w-auto">
               Limpiar todos
             </Button>
           )}
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-            <Input
-              type="text"
-              placeholder="Buscar (objeto, usuario, mensaje)"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-9"
-            />
+        <div className="mt-4 space-y-4">
+          <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(260px,1fr)_180px_minmax(230px,300px)]">
+            <div className="space-y-1.5">
+              <Label htmlFor="audit-search" className="text-xs font-medium text-slate-600">
+                Buscar
+              </Label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                <Input
+                  id="audit-search"
+                  type="text"
+                  placeholder="Objeto, usuario o mensaje"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="audit-protocol" className="text-xs font-medium text-slate-600">
+                Protocolo
+              </Label>
+              <Input
+                id="audit-protocol"
+                type="number"
+                placeholder="Número"
+                value={relatedProtocolId}
+                onChange={(e) => setRelatedProtocolId(e.target.value)}
+              />
+            </div>
+
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="audit-date-from" className="text-xs font-medium text-slate-600">
+                  Desde
+                </Label>
+                <Input
+                  id="audit-date-from"
+                  type="date"
+                  value={dateFrom}
+                  onChange={(e) => setDateFrom(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="audit-date-to" className="text-xs font-medium text-slate-600">
+                  Hasta
+                </Label>
+                <Input
+                  id="audit-date-to"
+                  type="date"
+                  value={dateTo}
+                  onChange={(e) => setDateTo(e.target.value)}
+                />
+              </div>
+            </div>
           </div>
 
-          <Select value={category} onValueChange={(v) => setCategory(v as AuditCategory | "all")}>
-            <SelectTrigger>
-              <SelectValue placeholder="Categoría" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todas las categorías</SelectItem>
-              {CATEGORY_OPTIONS.map((opt) => (
-                <SelectItem key={opt.value} value={opt.value}>
-                  {opt.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <Select value={actionType} onValueChange={(v) => setActionType(v as AuditActionType | "all")}>
-            <SelectTrigger>
-              <SelectValue placeholder="Tipo de acción" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos los tipos</SelectItem>
-              {ACTION_TYPE_OPTIONS.map((opt) => (
-                <SelectItem key={opt.value} value={opt.value}>
-                  {opt.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <Input
-            type="text"
-            placeholder="action_name (ej: laboratory.protocol.cancel)"
-            value={actionName}
-            onChange={(e) => setActionName(e.target.value)}
-          />
-
-          <Input
-            type="number"
-            placeholder="ID de protocolo relacionado"
-            value={relatedProtocolId}
-            onChange={(e) => setRelatedProtocolId(e.target.value)}
-          />
-
-          <div className="grid grid-cols-2 gap-2">
-            <Input
-              type="date"
-              placeholder="Desde"
-              value={dateFrom}
-              onChange={(e) => setDateFrom(e.target.value)}
-              title="Desde"
-            />
-            <Input
-              type="date"
-              placeholder="Hasta"
-              value={dateTo}
-              onChange={(e) => setDateTo(e.target.value)}
-              title="Hasta"
-            />
-          </div>
-        </div>
-
-        {activeFilters.length > 0 && (
-          <div className="flex items-center gap-1.5 flex-wrap">
-            {activeFilters.map((filter, idx) => (
-              <Badge
-                key={idx}
-                variant="secondary"
-                className="text-xs gap-1 pl-2 pr-1 py-1"
+          <div className="space-y-2">
+            <Label className="text-xs font-medium text-slate-600">Categoría</Label>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setCategory("all")}
+                className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+                  category === "all"
+                    ? "border-[#204983] bg-[#204983] text-white"
+                    : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"
+                }`}
               >
-                {filter.label}
+                Todas
+              </button>
+              {CATEGORY_OPTIONS.map((opt) => {
+                const meta = CATEGORY_META[opt.value]
+                const isActive = category === opt.value
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setCategory(isActive ? "all" : opt.value)}
+                    className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+                      isActive ? `${meta.className} border-transparent` : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 xl:grid-cols-[1fr_minmax(240px,340px)]">
+            <div className="space-y-2">
+              <Label className="text-xs font-medium text-slate-600">Tipo de acción</Label>
+              <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
-                  onClick={filter.clear}
-                  className="hover:bg-slate-300 rounded p-0.5"
-                  aria-label={`Quitar filtro ${filter.label}`}
+                  onClick={() => setActionType("all")}
+                  className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+                    actionType === "all"
+                      ? "border-[#204983] bg-[#204983] text-white"
+                      : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"
+                  }`}
                 >
-                  <X className="h-3 w-3" />
+                  Todos
                 </button>
-              </Badge>
-            ))}
+                {ACTION_TYPE_OPTIONS.map((opt) => {
+                  const isActive = actionType === opt.value
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setActionType(isActive ? "all" : opt.value)}
+                      className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+                        isActive ? opt.className : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="audit-action-name" className="text-xs font-medium text-slate-600">
+                Acción técnica
+              </Label>
+              <Input
+                id="audit-action-name"
+                type="text"
+                placeholder="Nombre interno"
+                value={actionName}
+                onChange={(e) => setActionName(e.target.value)}
+              />
+            </div>
           </div>
-        )}
+
+          {activeFilters.length > 0 && (
+            <div className="flex items-center gap-1.5 flex-wrap border-t border-gray-100 pt-3">
+              {activeFilters.map((filter, idx) => (
+                <Badge
+                  key={idx}
+                  variant="secondary"
+                  className="max-w-full gap-1 pl-2 pr-1 py-1 text-xs"
+                >
+                  <span className="truncate">{filter.label}</span>
+                  <button
+                    type="button"
+                    onClick={filter.clear}
+                    className="rounded p-0.5 hover:bg-slate-300"
+                    aria-label={`Quitar filtro ${filter.label}`}
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </Badge>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {loading ? (

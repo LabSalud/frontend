@@ -7,10 +7,13 @@ import { Skeleton } from "../ui/skeleton"
 import { toast } from "sonner"
 import { ProtocolForm } from "./components/protocol-form"
 import { PatientInfo } from "./components/patient-info"
+import { DoctorInfo, InsuranceInfo } from "./components/selection-info"
 import { CreatePatientForm } from "./components/create-patient-form"
 import { EditPatientDialog } from "./components/edit-patient-dialog"
 import { CreateMedicoForm } from "./components/create-medico-form"
 import { CreateObraSocialForm } from "./components/create-obra-social-form"
+import { EditMedicoDialog } from "../configuration/components/edit-medico-dialog"
+import { EditObraSocialDialog } from "../configuration/components/edit-obra-social-dialog"
 import { ProtocolSuccess } from "./components/protocol-success"
 import { useApi } from "../../hooks/use-api"
 import { CATALOG_ENDPOINTS, MEDICAL_ENDPOINTS, PROTOCOL_ENDPOINTS } from "@/config/api"
@@ -42,6 +45,8 @@ export default function IngresoPage() {
   const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null)
   const [selectedInsurance, setSelectedInsurance] = useState<Insurance | null>(null)
   const [showEditPatient, setShowEditPatient] = useState(false)
+  const [showEditDoctor, setShowEditDoctor] = useState(false)
+  const [showEditInsurance, setShowEditInsurance] = useState(false)
   const [patientPaid, setPatientPaid] = useState("")
   const [selectedSendMethod, setSelectedSendMethod] = useState<SendMethod | null>(null)
   const [affiliateNumber, setAffiliateNumber] = useState("")
@@ -247,10 +252,54 @@ export default function IngresoPage() {
   const hasDerivationAnalysis = selectedAnalyses.some((analysis) => Boolean(analysis.requires_derivacion))
   const shouldShowOrder = Boolean(selectedInsurance && !isPrivateInsurance)
   const shouldShowPreauth = Boolean(selectedInsurance && !isPrivateInsurance && selectedInsurance.requires_preauthorization)
-  const shouldChargeMaterial = Boolean(selectedInsurance && !isPrivateInsurance && selectedInsurance.charges_material_descartable)
+  const shouldChargeMaterial = Boolean(selectedInsurance && selectedInsurance.charges_material_descartable)
   const shouldChargeDerivacion = Boolean(
-    selectedInsurance && !isPrivateInsurance && selectedInsurance.charges_derivacion && hasDerivationAnalysis,
+    selectedInsurance && selectedInsurance.charges_derivacion && hasDerivationAnalysis,
   )
+
+  const handleDoctorUpdated = async () => {
+    if (!selectedDoctor) return
+
+    try {
+      const response = await apiRequest(MEDICAL_ENDPOINTS.DOCTOR_DETAIL(selectedDoctor.id))
+      if (!response.ok) {
+        toast.error("No se pudo actualizar la vista del médico")
+        setShowEditDoctor(false)
+        return
+      }
+      const updatedDoctor: Doctor = await response.json()
+      setSelectedDoctor(updatedDoctor)
+      setDoctors((prev) => prev.map((doctor) => (doctor.id === updatedDoctor.id ? updatedDoctor : doctor)))
+    } catch (error) {
+      console.error("Error refreshing doctor:", error)
+      toast.error("No se pudo actualizar la vista del médico")
+    } finally {
+      setShowEditDoctor(false)
+    }
+  }
+
+  const handleInsuranceUpdated = async () => {
+    if (!selectedInsurance) return
+
+    try {
+      const response = await apiRequest(MEDICAL_ENDPOINTS.INSURANCE_DETAIL(selectedInsurance.id))
+      if (!response.ok) {
+        toast.error("No se pudo actualizar la vista de la obra social")
+        setShowEditInsurance(false)
+        return
+      }
+      const updatedInsurance: Insurance = await response.json()
+      setSelectedInsurance(updatedInsurance)
+      setInsurances((prev) =>
+        prev.map((insurance) => (insurance.id === updatedInsurance.id ? updatedInsurance : insurance)),
+      )
+    } catch (error) {
+      console.error("Error refreshing insurance:", error)
+      toast.error("No se pudo actualizar la vista de la obra social")
+    } finally {
+      setShowEditInsurance(false)
+    }
+  }
 
   const handleCreateProtocol = async () => {
     const missing: string[] = []
@@ -382,7 +431,13 @@ export default function IngresoPage() {
     )
   }
 
-  const showRightPanel = currentPatient || patientNotFound || showCreateMedico || showCreateObraSocial
+  const showRightPanel =
+    currentPatient ||
+    patientNotFound ||
+    selectedDoctor ||
+    selectedInsurance ||
+    showCreateMedico ||
+    showCreateObraSocial
   const isFormValid =
     currentPatient &&
     selectedDoctor &&
@@ -464,6 +519,10 @@ export default function IngresoPage() {
           >
             <div className="space-y-4">
               {currentPatient && <PatientInfo patient={currentPatient} onEdit={handleEditPatient} />}
+              {selectedDoctor && <DoctorInfo doctor={selectedDoctor} onEdit={() => setShowEditDoctor(true)} />}
+              {selectedInsurance && (
+                <InsuranceInfo insurance={selectedInsurance} onEdit={() => setShowEditInsurance(true)} />
+              )}
 
               {patientNotFound && (
                 <CreatePatientForm
@@ -535,6 +594,24 @@ export default function IngresoPage() {
           patient={currentPatient}
           onPatientUpdated={handlePatientUpdated}
         />
+
+        {selectedDoctor && (
+          <EditMedicoDialog
+            isOpen={showEditDoctor}
+            medico={selectedDoctor}
+            onClose={() => setShowEditDoctor(false)}
+            onSuccess={handleDoctorUpdated}
+          />
+        )}
+
+        {selectedInsurance && (
+          <EditObraSocialDialog
+            open={showEditInsurance}
+            onOpenChange={setShowEditInsurance}
+            obraSocial={selectedInsurance}
+            onSuccess={handleInsuranceUpdated}
+          />
+        )}
 
         {successData && (
           <ProtocolSuccess

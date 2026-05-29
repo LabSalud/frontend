@@ -74,10 +74,10 @@ export default function ConfigurationPage() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto py-4 sm:py-6 px-3 sm:px-4">
-      <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-md p-4 sm:p-6">
+    <div className="mx-auto w-full max-w-6xl overflow-x-hidden px-3 py-4 sm:px-4 sm:py-6">
+      <div className="min-w-0 max-w-full overflow-hidden rounded-lg bg-white/95 p-4 shadow-md backdrop-blur-sm sm:p-6">
         <h1 className="text-xl sm:text-2xl font-bold text-gray-800 mb-4 sm:mb-6">Configuración del Sistema</h1>
-        <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full min-w-0">
           <TabsList className="mb-6 flex h-auto w-full flex-wrap justify-start gap-1">
             <TabsTrigger value="medicos" className="flex-shrink-0">Médicos</TabsTrigger>
             <TabsTrigger value="obras-sociales" className="flex-shrink-0">Obras Sociales</TabsTrigger>
@@ -86,23 +86,23 @@ export default function ConfigurationPage() {
             <TabsTrigger value="auditoria" className="flex-shrink-0">Auditoría</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="medicos">
+          <TabsContent value="medicos" className="min-w-0">
             <MedicosManagement />
           </TabsContent>
 
-          <TabsContent value="obras-sociales">
+          <TabsContent value="obras-sociales" className="min-w-0">
             <ObrasSocialesManagement />
           </TabsContent>
 
-          <TabsContent value="nomencladores">
+          <TabsContent value="nomencladores" className="min-w-0">
             <NbuManagement />
           </TabsContent>
 
-          <TabsContent value="analisis">
+          <TabsContent value="analisis" className="min-w-0">
             <AnalysisManagement />
           </TabsContent>
 
-          <TabsContent value="auditoria">
+          <TabsContent value="auditoria" className="min-w-0">
             <AuditManagement />
           </TabsContent>
         </Tabs>

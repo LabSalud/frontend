@@ -314,7 +314,7 @@ export function NbuManagement() {
   }
 
   return (
-    <div className="space-y-4 md:space-y-6">
+    <div className="w-full min-w-0 max-w-full space-y-4 md:space-y-6 overflow-x-hidden">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h3 className="text-base md:text-lg font-medium text-gray-900">Nomencladores</h3>
@@ -326,14 +326,14 @@ export function NbuManagement() {
         </Button>
       </div>
 
-      <Card>
+      <Card className="min-w-0 max-w-full overflow-hidden">
         <CardHeader className="pb-2">
           <h4 className="flex items-center gap-2 text-sm font-semibold text-gray-800">
             <Settings2 className="h-4 w-4 text-[#204983]" />
             Montos globales
           </h4>
         </CardHeader>
-        <CardContent>
+        <CardContent className="min-w-0">
           {loadingPricing && !pricingConfig ? (
             <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
               <Skeleton className="h-10 rounded" />
@@ -341,7 +341,7 @@ export function NbuManagement() {
               <Skeleton className="h-10 rounded" />
             </div>
           ) : (
-            <form onSubmit={handleSavePricing} className="grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
+            <form onSubmit={handleSavePricing} className="grid grid-cols-1 gap-3 min-w-0 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
               <div className="space-y-1.5">
                 <Label htmlFor="material-descartable">Material descartable</Label>
                 <Input
@@ -377,31 +377,31 @@ export function NbuManagement() {
         </CardContent>
       </Card>
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.2fr)]">
-        <div className="space-y-4">
-          <Card>
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.2fr)]">
+        <div className="min-w-0 space-y-4">
+          <Card className="min-w-0 max-w-full overflow-hidden">
             <CardHeader className="pb-2">
               <h4 className="text-sm font-semibold text-gray-800">Listado</h4>
             </CardHeader>
-            <CardContent className="space-y-2">
+            <CardContent className="min-w-0 space-y-2">
               {nbus.map((nbu) => (
                 <button
                   key={nbu.id}
                   type="button"
                   onClick={() => setSelectedId(nbu.id)}
-                  className={`w-full rounded-md border p-3 text-left transition-colors ${
+                  className={`w-full min-w-0 max-w-full overflow-hidden rounded-md border p-3 text-left transition-colors ${
                     selectedNbu?.id === nbu.id ? "border-[#204983] bg-blue-50" : "border-gray-200 bg-white hover:bg-gray-50"
                   }`}
                 >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold text-gray-900">{nbu.name}</p>
-                      <p className="text-xs text-gray-500">
+                  <div className="flex items-start justify-between gap-2 min-w-0">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold text-gray-900 break-words">{nbu.name}</p>
+                      <p className="text-xs text-gray-500 break-words">
                         {nbu.parent_nbu_name ? `Padre: ${nbu.parent_nbu_name}` : "Sin padre"}
                         {nbu.year ? ` · ${nbu.year}` : ""}
                       </p>
                     </div>
-                    {nbu.is_default && <Badge className="bg-emerald-100 text-emerald-800">Principal</Badge>}
+                    {nbu.is_default && <Badge className="shrink-0 bg-emerald-100 text-emerald-800">Principal</Badge>}
                   </div>
                   <div className="mt-2 flex flex-wrap gap-1.5">
                     <Badge variant="outline" className="text-[10px]">
@@ -420,15 +420,15 @@ export function NbuManagement() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="min-w-0 max-w-full overflow-hidden">
             <CardHeader className="pb-2">
               <h4 className="flex items-center gap-2 text-sm font-semibold text-gray-800">
                 <Plus className="h-4 w-4 text-[#204983]" />
                 Nueva actualización
               </h4>
             </CardHeader>
-            <CardContent>
-              <form onSubmit={handleCreate} className="space-y-3">
+            <CardContent className="min-w-0">
+              <form onSubmit={handleCreate} className="min-w-0 space-y-3">
                 <div className="space-y-1.5">
                   <Label htmlFor="nbu_name">Nombre *</Label>
                   <Input
@@ -438,7 +438,7 @@ export function NbuManagement() {
                     placeholder="Actualización 2026"
                   />
                 </div>
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_120px]">
+                <div className="grid grid-cols-1 gap-3 min-w-0 sm:grid-cols-[minmax(0,1fr)_120px]">
                   <div className="space-y-1.5">
                     <Label htmlFor="parent_nbu">Cuelga de *</Label>
                     <NbuSelect
@@ -484,6 +484,7 @@ export function NbuManagement() {
                     type="file"
                     accept=".xlsx,.xls,.csv"
                     onChange={(event) => setCreateFile(event.target.files?.[0] || null)}
+                    className="min-w-0 max-w-full"
                   />
                 )}
                 <Button type="submit" className="relative w-full overflow-hidden bg-[#204983] hover:bg-[#1a3d6f]" disabled={isCreating}>
@@ -503,15 +504,15 @@ export function NbuManagement() {
           </Card>
         </div>
 
-        <Card>
+        <Card className="min-w-0 max-w-full overflow-hidden">
           <CardHeader className="flex flex-col gap-2 pb-2 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <h4 className="flex items-center gap-2 text-sm font-semibold text-gray-800">
-                <BookOpen className="h-4 w-4 text-[#204983]" />
-                {selectedNbu?.name || "Detalle"}
+            <div className="min-w-0 flex-1">
+              <h4 className="flex items-start gap-2 text-sm font-semibold text-gray-800 min-w-0">
+                <BookOpen className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#204983]" />
+                <span className="min-w-0 break-words">{selectedNbu?.name || "Detalle"}</span>
               </h4>
               {selectedNbu && (
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-gray-500 break-words">
                   {ubValues?.count ?? selectedNbu.own_ub_count ?? 0} UB propios
                   {selectedNbu.parent_nbu_name ? ` · Hereda de ${selectedNbu.parent_nbu_name}` : ""}
                 </p>
@@ -524,11 +525,11 @@ export function NbuManagement() {
               </Button>
             )}
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="min-w-0 space-y-4">
             {selectedNbu ? (
               <>
-                <form onSubmit={handleSaveUb} className="rounded-md border border-gray-200 bg-gray-50 p-3">
-                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_1fr_auto]">
+                <form onSubmit={handleSaveUb} className="min-w-0 rounded-md border border-gray-200 bg-gray-50 p-3">
+                  <div className="grid grid-cols-1 gap-2 min-w-0 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
                     <Input
                       type="number"
                       value={analysisCode}
@@ -541,19 +542,21 @@ export function NbuManagement() {
                     </Button>
                   </div>
                   {selectedNbu.is_default && (
-                    <p className="mt-2 text-xs text-amber-700">El NBU principal no permite quitar UB; usá una actualización para overrides.</p>
+                    <p className="mt-2 text-xs text-amber-700 break-words">
+                      El NBU principal no permite quitar UB; usá una actualización para overrides.
+                    </p>
                   )}
                 </form>
 
-                <form onSubmit={handleImport} className="rounded-md border border-blue-100 bg-blue-50 p-3">
-                  <div className="flex flex-col gap-2 sm:flex-row">
+                <form onSubmit={handleImport} className="min-w-0 rounded-md border border-blue-100 bg-blue-50 p-3">
+                  <div className="flex min-w-0 flex-col gap-2 sm:flex-row">
                     <Input
                       type="file"
                       accept=".xlsx,.xls,.csv"
                       onChange={(event) => setImportFile(event.target.files?.[0] || null)}
-                      className="bg-white"
+                      className="min-w-0 max-w-full bg-white"
                     />
-                    <Button type="submit" disabled={!importFile || isImporting} className="relative overflow-hidden bg-[#204983]">
+                    <Button type="submit" disabled={!importFile || isImporting} className="relative overflow-hidden bg-[#204983] shrink-0">
                       <span
                         className="absolute inset-y-0 left-0 bg-[#1a3d6f] transition-[width] duration-150"
                         style={{ width: `${importProgress.progress}%` }}
@@ -578,45 +581,83 @@ export function NbuManagement() {
                     ))}
                   </div>
                 ) : (
-                  <div className="max-h-[420px] overflow-auto rounded-md border border-gray-200">
-                    <table className="w-full text-sm">
-                      <thead className="sticky top-0 bg-gray-50 text-xs text-gray-500">
-                        <tr>
-                          <th className="px-3 py-2 text-left">Código</th>
-                          <th className="px-3 py-2 text-left">Análisis</th>
-                          <th className="px-3 py-2 text-right">UB</th>
-                          <th className="px-3 py-2 text-right">Acción</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {(ubValues?.values || []).map((item) => (
-                          <tr key={`${item.analysis_id}-${item.analysis_code}`} className="border-t">
-                            <td className="px-3 py-2 font-mono text-xs">{item.analysis_code}</td>
-                            <td className="px-3 py-2">{item.analysis_name}</td>
-                            <td className="px-3 py-2 text-right font-semibold">{item.value}</td>
-                            <td className="px-3 py-2 text-right">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-7 text-red-700 hover:bg-red-50"
-                                disabled={selectedNbu.is_default}
-                                onClick={() => handleRemoveUb(item.analysis_code)}
-                              >
-                                Quitar
-                              </Button>
-                            </td>
-                          </tr>
-                        ))}
-                        {(ubValues?.values || []).length === 0 && (
+                  <>
+                    {/* Mobile: cards stacked */}
+                    <div className="space-y-2 sm:hidden max-h-[420px] w-full max-w-full overflow-x-hidden overflow-y-auto rounded-md border border-gray-200 p-2">
+                      {(ubValues?.values || []).length === 0 ? (
+                        <p className="px-3 py-6 text-center text-sm text-gray-500">
+                          Este nomenclador no tiene UB propios cargados.
+                        </p>
+                      ) : (
+                        (ubValues?.values || []).map((item) => (
+                          <div
+                            key={`${item.analysis_id}-${item.analysis_code}`}
+                            className="w-full min-w-0 max-w-full overflow-hidden rounded-md border border-gray-200 bg-white p-2"
+                          >
+                            <div className="flex min-w-0 items-start justify-between gap-2">
+                              <div className="min-w-0 flex-1">
+                                <p className="font-mono text-[11px] text-gray-500">{item.analysis_code}</p>
+                                <p className="text-sm text-gray-900 break-words">{item.analysis_name}</p>
+                              </div>
+                              <div className="shrink-0 text-right">
+                                <p className="text-sm font-semibold text-gray-900">UB {item.value}</p>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="mt-1 h-7 px-2 text-xs text-red-700 hover:bg-red-50"
+                                  disabled={selectedNbu.is_default}
+                                  onClick={() => handleRemoveUb(item.analysis_code)}
+                                >
+                                  Quitar
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+
+                    {/* Desktop: table */}
+                    <div className="hidden sm:block max-h-[420px] w-full max-w-full overflow-auto rounded-md border border-gray-200">
+                      <table className="w-full text-sm table-fixed">
+                        <thead className="sticky top-0 bg-gray-50 text-xs text-gray-500">
                           <tr>
-                            <td colSpan={4} className="px-3 py-8 text-center text-sm text-gray-500">
-                              Este nomenclador no tiene UB propios cargados.
-                            </td>
+                            <th className="w-24 px-3 py-2 text-left">Código</th>
+                            <th className="px-3 py-2 text-left">Análisis</th>
+                            <th className="w-20 px-3 py-2 text-right">UB</th>
+                            <th className="w-20 px-3 py-2 text-right">Acción</th>
                           </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
+                        </thead>
+                        <tbody>
+                          {(ubValues?.values || []).map((item) => (
+                            <tr key={`${item.analysis_id}-${item.analysis_code}`} className="border-t">
+                              <td className="px-3 py-2 font-mono text-xs">{item.analysis_code}</td>
+                              <td className="px-3 py-2 break-words">{item.analysis_name}</td>
+                              <td className="px-3 py-2 text-right font-semibold">{item.value}</td>
+                              <td className="px-3 py-2 text-right">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 text-red-700 hover:bg-red-50"
+                                  disabled={selectedNbu.is_default}
+                                  onClick={() => handleRemoveUb(item.analysis_code)}
+                                >
+                                  Quitar
+                                </Button>
+                              </td>
+                            </tr>
+                          ))}
+                          {(ubValues?.values || []).length === 0 && (
+                            <tr>
+                              <td colSpan={4} className="px-3 py-8 text-center text-sm text-gray-500">
+                                Este nomenclador no tiene UB propios cargados.
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
                 )}
               </>
             ) : (

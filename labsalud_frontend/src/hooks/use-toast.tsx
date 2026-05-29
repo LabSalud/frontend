@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback } from "react"
+import { useMemo } from "react"
 import { toast } from "sonner"
 
 type ToastOptions = {
@@ -13,30 +14,40 @@ type ToastOptions = {
 }
 
 export function useToast() {
-  const showToast = {
-    success: useCallback((title: string, options?: ToastOptions) => {
-      toast.success(title, options)
-    }, []),
-    error: useCallback((title: string, options?: ToastOptions) => {
-      toast.error(title, options)
-    }, []),
-    warning: useCallback((title: string, options?: ToastOptions) => {
-      toast.warning(title, options)
-    }, []),
-    info: useCallback((title: string, options?: ToastOptions) => {
-      toast.info(title, options)
-    }, []),
-    loading: useCallback((title: string, options?: ToastOptions) => {
-      return toast.loading(title, options)
-    }, []),
-    dismiss: useCallback((toastId?: string) => {
-      if (toastId) {
-        toast.dismiss(toastId)
-      } else {
-        toast.dismiss()
-      }
-    }, []),
-  }
+  const success = useCallback((title: string, options?: ToastOptions) => {
+    toast.success(title, options)
+  }, [])
+  const error = useCallback((title: string, options?: ToastOptions) => {
+    toast.error(title, options)
+  }, [])
+  const warning = useCallback((title: string, options?: ToastOptions) => {
+    toast.warning(title, options)
+  }, [])
+  const info = useCallback((title: string, options?: ToastOptions) => {
+    toast.info(title, options)
+  }, [])
+  const loading = useCallback((title: string, options?: ToastOptions) => {
+    return toast.loading(title, options)
+  }, [])
+  const dismiss = useCallback((toastId?: string) => {
+    if (toastId) {
+      toast.dismiss(toastId)
+    } else {
+      toast.dismiss()
+    }
+  }, [])
+
+  const showToast = useMemo(
+    () => ({
+      success,
+      error,
+      warning,
+      info,
+      loading,
+      dismiss,
+    }),
+    [success, error, warning, info, loading, dismiss],
+  )
 
   return showToast
 }

@@ -26,16 +26,16 @@ const ResultadosPage = lazy(() => import("./components/results/results-page"))
 const ValidacionPage = lazy(() => import("./components/validacion/validacion-page"))
 const FacturacionPage = lazy(() => import("./components/facturacion/facturacion-page"))
 
-// React Query client compartido. Cache de 1 min para listados pesados (protocolos, pacientes)
-// y refetch al volver a la ventana. Reintentos en mutaciones desactivados (errores 4xx no son
+// React Query client compartido. Cache de 1 min para listados pesados (protocolos, pacientes).
+// Reintentos en mutaciones desactivados (errores 4xx no son
 // retryables — el helper de api-error se encarga del manejo de 401 con refresh).
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 60 * 1000,
       gcTime: 5 * 60 * 1000,
-      refetchOnWindowFocus: true,
-      retry: 1,
+      refetchOnWindowFocus: false,
+      retry: false,
     },
     mutations: {
       retry: 0,

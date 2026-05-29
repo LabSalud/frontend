@@ -24,18 +24,21 @@ interface ProfileData {
   first_name: string
   last_name: string
   photo?: string
+  inactivity_logout_minutes?: number | null
   active_temp_permissions: ActiveTempPermission[]
 }
 
 interface ProfileFormData {
   email: string
   password: string
+  inactivity_logout_minutes: string
   photo?: File
 }
 
 interface ValidationErrors {
   email?: string
   password?: string
+  inactivity_logout_minutes?: string
   photo?: string
 }
 
@@ -48,6 +51,7 @@ export default function ProfilePage() {
   const [formData, setFormData] = useState<ProfileFormData>({
     email: "",
     password: "",
+    inactivity_logout_minutes: "30",
   })
   const [errors, setErrors] = useState<ValidationErrors>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -68,6 +72,7 @@ export default function ProfilePage() {
           setFormData((prev) => ({
             ...prev,
             email: data.email || "",
+            inactivity_logout_minutes: String(data.inactivity_logout_minutes ?? 30),
           }))
         } else {
           const errorData = await response.json().catch(() => ({}))
@@ -102,7 +107,12 @@ export default function ProfilePage() {
     if (!formData.email.trim()) {
       newErrors.email = "El email es requerido"
     } else if (!validateEmail(formData.email)) {
-      newErrors.email = "Ingresa un email válido"
+      newErrors.email = "Ingresá un email válido"
+    }
+
+    const inactivityMinutes = Number(formData.inactivity_logout_minutes)
+    if (!Number.isInteger(inactivityMinutes) || inactivityMinutes < 1) {
+      newErrors.inactivity_logout_minutes = "Ingresá un valor de al menos 1 minuto"
     }
 
     // Validar foto
@@ -171,12 +181,21 @@ export default function ProfilePage() {
         formDataToSend.append("password", formData.password)
       }
 
+      if (Number(formData.inactivity_logout_minutes) !== Number(profileData?.inactivity_logout_minutes ?? 30)) {
+        formDataToSend.append("inactivity_logout_minutes", formData.inactivity_logout_minutes)
+      }
+
       if (formData.photo) {
         formDataToSend.append("photo", formData.photo)
       }
 
       // Solo hacer la petición si hay algo que actualizar
-      if (formDataToSend.has("email") || formDataToSend.has("password") || formDataToSend.has("photo")) {
+      if (
+        formDataToSend.has("email") ||
+        formDataToSend.has("password") ||
+        formDataToSend.has("inactivity_logout_minutes") ||
+        formDataToSend.has("photo")
+      ) {
         const response = await apiRequest(USER_ENDPOINTS.ME, {
           method: "PATCH",
           body: formDataToSend,
@@ -187,12 +206,19 @@ export default function ProfilePage() {
           setProfileData((prev) => ({ ...prev, ...updatedProfile }))
 
           // Actualizar el usuario almacenado con los campos que pueden haber cambiado
-          const currentUser = getStoredUser<{ email?: string; photo?: string | null; [key: string]: unknown }>()
+          const currentUser = getStoredUser<{
+            email?: string
+            photo?: string | null
+            inactivity_logout_minutes?: number | null
+            [key: string]: unknown
+          }>()
           if (currentUser) {
             setStoredUser({
               ...currentUser,
               email: updatedProfile.email || currentUser.email,
               photo: updatedProfile.photo !== undefined ? updatedProfile.photo : currentUser.photo,
+              inactivity_logout_minutes:
+                updatedProfile.inactivity_logout_minutes ?? currentUser.inactivity_logout_minutes,
             })
             await refreshUser()
           }
@@ -205,6 +231,7 @@ export default function ProfilePage() {
           setFormData((prev) => ({
             ...prev,
             password: "",
+            inactivity_logout_minutes: String(updatedProfile.inactivity_logout_minutes ?? formData.inactivity_logout_minutes),
             photo: undefined,
           }))
           setPhotoPreview(null)
@@ -297,7 +324,7 @@ export default function ProfilePage() {
       <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-md p-4 sm:p-6">
         <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-800">Mi Perfil</h1>
         <p className="text-sm sm:text-base text-gray-600 mt-1">
-          Gestiona tu información personal y configuración de cuenta
+          Gestioná tu información personal y configuración de cuenta
         </p>
       </div>
 
@@ -428,7 +455,35 @@ export default function ProfilePage() {
                   )}
                 </button>
               </div>
-              <p className="text-xs text-gray-500 mt-1">Deja el campo vacío si no deseas cambiar tu contraseña</p>
+              <p className="text-xs text-gray-500 mt-1">Dejá el campo vacío si no querés cambiar tu contraseña</p>
+            </div>
+
+            <div>
+              <Label htmlFor="inactivity_logout_minutes" className="text-sm">
+                Tiempo de inactividad
+              </Label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Clock className="h-4 w-4 text-gray-400" />
+                </div>
+                <Input
+                  id="inactivity_logout_minutes"
+                  type="number"
+                  min={1}
+                  step={1}
+                  value={formData.inactivity_logout_minutes}
+                  onChange={(e) => handleInputChange("inactivity_logout_minutes", e.target.value)}
+                  className={`pl-10 ${errors.inactivity_logout_minutes ? "border-red-300 focus:ring-red-500" : ""}`}
+                />
+              </div>
+              {errors.inactivity_logout_minutes ? (
+                <div className="flex items-center space-x-1 mt-1">
+                  <AlertCircle className="h-4 w-4 text-red-500" />
+                  <span className="text-sm text-red-600">{errors.inactivity_logout_minutes}</span>
+                </div>
+              ) : (
+                <p className="text-xs text-gray-500 mt-1">Minutos sin actividad antes de cerrar sesión.</p>
+              )}
             </div>
 
             <Button type="submit" disabled={isSubmitting} className="w-full bg-[#204983] hover:bg-[#1a3d6f] mt-4">
@@ -438,7 +493,7 @@ export default function ProfilePage() {
                   Guardando...
                 </>
               ) : (
-                "Guardar Cambios"
+                "Guardar cambios"
               )}
             </Button>
           </CardContent>

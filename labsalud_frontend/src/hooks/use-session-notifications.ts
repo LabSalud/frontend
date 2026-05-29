@@ -74,6 +74,27 @@ export function useSessionNotifications() {
     activeNotificationRef.current = notification
   }, [closeActiveNotification])
 
+  const notifySessionExpired = useCallback((message?: string) => {
+    if (typeof window === "undefined" || !("Notification" in window)) return
+    if (!getNotificationsEnabled() || Notification.permission !== "granted") return
+
+    closeActiveNotification()
+
+    const notification = new Notification("Sesión expirada", {
+      body: message || "Tu sesión de LabSalud se cerró. Volvé a iniciar sesión para continuar.",
+      icon: "/logo_icono.svg",
+      tag: "labsalud-session-expired",
+      requireInteraction: true,
+    })
+
+    notification.onclick = () => {
+      window.focus()
+      notification.close()
+    }
+
+    activeNotificationRef.current = notification
+  }, [closeActiveNotification])
+
   return {
     permission,
     enabled,
@@ -81,6 +102,7 @@ export function useSessionNotifications() {
     requestPermission,
     disableNotifications,
     notifyIdleWarning,
+    notifySessionExpired,
     closeActiveNotification,
   }
 }

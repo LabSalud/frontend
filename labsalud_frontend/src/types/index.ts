@@ -184,6 +184,7 @@ export interface User {
   first_name: string
   last_name: string
   photo?: string
+  inactivity_logout_minutes?: number | null
   roles?: Role[] | undefined
   groups?: Group[]
   permissions: Permission[]

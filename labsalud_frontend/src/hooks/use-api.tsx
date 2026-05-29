@@ -10,6 +10,7 @@ import {
   setAccessToken,
   setRefreshToken,
 } from "@/lib/auth-storage"
+import { dispatchSessionExpiredEvent } from "@/lib/session-events"
 
 // JSDoc documentation for ApiRequestOptions and useApi hook
 /**
@@ -60,39 +61,6 @@ export const useApi = () => {
       console.error("[v0] Token refresh error:", error)
       return false
     }
-  }, [])
-
-  const showSessionExpiredModal = useCallback(() => {
-    const modal = document.createElement("div")
-    modal.className = "fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-    modal.innerHTML = `
-      <div class="bg-white rounded-lg shadow-lg p-6 max-w-md mx-4">
-        <div class="flex items-center gap-3 mb-4">
-          <div class="flex-shrink-0 w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
-            <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.268 18.5c-.77.833.192 2.5 1.732 2.5z"></path>
-            </svg>
-          </div>
-          <div>
-            <h3 class="text-lg font-semibold text-gray-900">Sesión Expirada</h3>
-            <p class="text-sm text-gray-600">Su sesión ha expirado. Por favor, vuelva a iniciar sesión.</p>
-          </div>
-        </div>
-        <div class="flex justify-end">
-          <button id="relogin-btn" class="px-4 py-2 bg-[#204983] text-white rounded-md hover:bg-[#1a3d6f] transition-colors">
-            Volver a Login
-          </button>
-        </div>
-      </div>
-    `
-
-    document.body.appendChild(modal)
-
-    const reloginBtn = modal.querySelector("#relogin-btn")
-    reloginBtn?.addEventListener("click", () => {
-      clearSession()
-      window.location.reload()
-    })
   }, [])
 
   const apiRequest = useCallback(
@@ -178,7 +146,11 @@ export const useApi = () => {
             response = await makeRequest()
           } else {
             console.error("[v0] Token refresh failed. Session expired.")
-            showSessionExpiredModal()
+            clearSession()
+            dispatchSessionExpiredEvent({
+              reason: "refresh_failed",
+              message: "Tu sesión expiró. Volvé a iniciar sesión para continuar.",
+            })
             throw new Error("Sesión expirada")
           }
         }
@@ -191,7 +163,7 @@ export const useApi = () => {
         if (loadingKey) setLoading(loadingKey, false)
       }
     },
-    [setLoading, refreshToken, showSessionExpiredModal],
+    [setLoading, refreshToken],
   )
 
   return { apiRequest }

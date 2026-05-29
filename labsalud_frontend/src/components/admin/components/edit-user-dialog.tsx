@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast"
 import type { ApiRequestOptions } from "@/hooks/use-api"
 import { USER_ENDPOINTS, AC_ENDPOINTS } from "@/config/api"
 import { formatApiError } from "@/lib/api-error"
+import { Camera, Clock } from "lucide-react"
 
 const extractErrorMessage = (errorData: unknown): string => formatApiError(errorData, "Error desconocido")
 
@@ -40,7 +41,10 @@ export function EditUserDialog({
     email: "",
     first_name: "",
     last_name: "",
+    inactivity_logout_minutes: "30",
   })
+  const [photo, setPhoto] = useState<File | null>(null)
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null)
   const [selectedRoles, setSelectedRoles] = useState<number[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -52,7 +56,9 @@ export function EditUserDialog({
         email: user.email || "",
         first_name: user.first_name || "",
         last_name: user.last_name || "",
+        inactivity_logout_minutes: String(user.inactivity_logout_minutes ?? 30),
       })
+      setPhoto(null)
       setSelectedRoles(userGroups.map((group: Group) => group.id))
     } else if (!open) {
       setUserData({
@@ -60,11 +66,25 @@ export function EditUserDialog({
         email: "",
         first_name: "",
         last_name: "",
+        inactivity_logout_minutes: "30",
       })
+      setPhoto(null)
       setSelectedRoles([])
       setIsSubmitting(false)
     }
   }, [open, user])
+
+  useEffect(() => {
+    if (!photo) {
+      setPhotoPreview(null)
+      return
+    }
+
+    const previewUrl = URL.createObjectURL(photo)
+    setPhotoPreview(previewUrl)
+
+    return () => URL.revokeObjectURL(previewUrl)
+  }, [photo])
 
   const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target
@@ -78,6 +98,10 @@ export function EditUserDialog({
     setSelectedRoles((prev) => (checked ? [...prev, roleId] : prev.filter((id) => id !== roleId)))
   }, [])
 
+  const handlePhotoChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setPhoto(e.target.files?.[0] ?? null)
+  }, [])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!user) return
@@ -85,9 +109,28 @@ export function EditUserDialog({
     setIsSubmitting(true)
 
     try {
+      const inactivityMinutes = Number(userData.inactivity_logout_minutes)
+      if (!Number.isInteger(inactivityMinutes) || inactivityMinutes < 1) {
+        showError("Tiempo de inactividad inválido", {
+          description: "Ingresá un valor de al menos 1 minuto.",
+        })
+        setIsSubmitting(false)
+        return
+      }
+
+      const formData = new FormData()
+      formData.append("username", userData.username)
+      formData.append("email", userData.email)
+      formData.append("first_name", userData.first_name)
+      formData.append("last_name", userData.last_name)
+      formData.append("inactivity_logout_minutes", String(inactivityMinutes))
+      if (photo) {
+        formData.append("photo", photo)
+      }
+
       const response = await apiRequest(USER_ENDPOINTS.USER_DETAIL(user.id), {
         method: "PATCH",
-        body: userData,
+        body: formData,
       })
 
       if (!response.ok) {
@@ -192,6 +235,50 @@ export function EditUserDialog({
                 onChange={handleChange}
                 placeholder="Pérez"
               />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="inactivity_logout_minutes">Tiempo de inactividad *</Label>
+            <div className="relative">
+              <Clock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+              <Input
+                id="inactivity_logout_minutes"
+                name="inactivity_logout_minutes"
+                type="number"
+                min={1}
+                step={1}
+                value={userData.inactivity_logout_minutes}
+                onChange={handleChange}
+                required
+                className="pl-10"
+              />
+            </div>
+            <p className="text-xs text-gray-500">Minutos sin actividad antes de cerrar sesión.</p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="photo">Foto de perfil</Label>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+              <div className="h-14 w-14 overflow-hidden rounded-full border border-gray-200 bg-gray-50 flex items-center justify-center">
+                {photoPreview ? (
+                  <img
+                    src={photoPreview}
+                    alt="Nueva foto seleccionada"
+                    className="h-full w-full object-cover"
+                  />
+                ) : user.photo ? (
+                  <img src={user.photo} alt={user.username} className="h-full w-full object-cover" />
+                ) : (
+                  <Camera className="h-5 w-5 text-gray-400" />
+                )}
+              </div>
+              <div className="flex-1 space-y-1">
+                <Input id="photo" name="photo" type="file" accept="image/*" onChange={handlePhotoChange} />
+                <p className="text-xs text-gray-500">
+                  {photo ? `Archivo seleccionado: ${photo.name}` : "Dejá vacío para conservar la foto actual."}
+                </p>
+              </div>
             </div>
           </div>
 

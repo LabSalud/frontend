@@ -149,6 +149,10 @@ export function UserTable({
                     Sin rol
                   </Badge>
                 )}
+                <Badge variant="outline" className="text-xs text-gray-600">
+                  <Clock className="h-3 w-3 mr-1" />
+                  {user.inactivity_logout_minutes ?? 30} min
+                </Badge>
               </div>
 
               <div className="flex flex-wrap gap-2">
@@ -205,6 +209,7 @@ export function UserTable({
               <TableHead className="font-semibold text-gray-900">Usuario</TableHead>
               <TableHead className="font-semibold text-gray-900">Email</TableHead>
               <TableHead className="font-semibold text-gray-900">Roles</TableHead>
+              <TableHead className="font-semibold text-gray-900">Inactividad</TableHead>
               <TableHead className="font-semibold text-gray-900">Creado</TableHead>
               <TableHead className="font-semibold text-gray-900">Último Cambio</TableHead>
               <TableHead className="text-right font-semibold text-gray-900">Acciones</TableHead>
@@ -276,6 +281,13 @@ export function UserTable({
                           +{activeRoles.length - 2}
                         </Badge>
                       )}
+                    </div>
+                  </TableCell>
+
+                  <TableCell className="bg-white text-sm text-gray-600">
+                    <div className="inline-flex items-center gap-1 rounded-full border border-gray-200 px-2 py-1 text-xs">
+                      <Clock className="h-3 w-3 text-gray-400" />
+                      {user.inactivity_logout_minutes ?? 30} min
                     </div>
                   </TableCell>
 

@@ -141,6 +141,19 @@ export function ViewUserDialog({ open, onOpenChange, userId, apiRequest }: ViewU
               </div>
             </div>
 
+            <div className="space-y-3">
+              <h4 className="font-semibold text-gray-900 flex items-center text-sm sm:text-base">
+                <Clock className="h-4 w-4 mr-2" />
+                Seguridad de sesión
+              </h4>
+              <div className="bg-gray-50 rounded-lg p-3">
+                <div className="flex flex-col sm:flex-row sm:items-center text-sm">
+                  <span className="text-gray-600 sm:w-40">Inactividad:</span>
+                  <span className="text-gray-900">{userData.inactivity_logout_minutes ?? 30} minutos</span>
+                </div>
+              </div>
+            </div>
+
             {/* Roles */}
             <div className="space-y-3">
               <h4 className="font-semibold text-gray-900 flex items-center text-sm sm:text-base">

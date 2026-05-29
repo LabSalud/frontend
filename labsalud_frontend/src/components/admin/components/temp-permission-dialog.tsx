@@ -24,6 +24,7 @@ interface TempPermissionDialogProps {
   apiRequest: (url: string, options?: ApiRequestOptions) => Promise<Response>
   permissions?: Permission[]
   mode?: "assign" | "revoke"
+  refreshData?: () => Promise<void>
 }
 
 interface TempPermissionItem {
@@ -43,6 +44,7 @@ export function TempPermissionDialog({
   user,
   apiRequest,
   mode = "assign",
+  refreshData,
 }: TempPermissionDialogProps) {
   const { success, error: showError } = useToast()
 
@@ -148,8 +150,8 @@ export function TempPermissionDialog({
 
       if (res.ok) {
         success("Permiso temporal asignado correctamente")
+        await refreshData?.()
         onOpenChange(false)
-        window.location.reload()
       } else {
         const err = await res.json().catch(() => ({ detail: "Error desconocido" }))
         showError("No se pudo asignar el permiso", { description: extractErrorMessage(err) })
@@ -176,8 +178,8 @@ export function TempPermissionDialog({
 
       if (res.ok) {
         success("Permiso temporal revocado correctamente")
+        await refreshData?.()
         onOpenChange(false)
-        window.location.reload()
       } else {
         const err = await res.json().catch(() => ({ detail: "Error desconocido" }))
         showError("No se pudo revocar el permiso", { description: extractErrorMessage(err) })

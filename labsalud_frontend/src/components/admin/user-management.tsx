@@ -167,6 +167,7 @@ export function UserManagement({ users, roles, permissions, setUsers, refreshDat
         setUsers={setUsers}
         apiRequest={apiRequest}
         mode="assign"
+        refreshData={refreshData}
       />
 
       <TempPermissionDialog
@@ -177,6 +178,7 @@ export function UserManagement({ users, roles, permissions, setUsers, refreshDat
         setUsers={setUsers}
         apiRequest={apiRequest}
         mode="revoke"
+        refreshData={refreshData}
       />
 
       <RoleAssignDialog

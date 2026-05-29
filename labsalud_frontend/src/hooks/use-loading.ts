@@ -23,23 +23,31 @@ export function useLoading(initialKeys: string[] = []) {
 
   const timeoutRefs = useRef<{ [key: string]: NodeJS.Timeout }>({})
   const toastRefs = useRef<{ [key: string]: string | number }>({})
+  const startTimeRefs = useRef<{ [key: string]: number }>({})
 
   const setLoading = useCallback((key: string, isLoading: boolean, options?: LoadingOptions) => {
     const { showToast = false, toastMessage = "Cargando...", minDuration = 300 } = options || {}
 
     if (isLoading) {
-      // Iniciar loading
+      if (timeoutRefs.current[key]) {
+        clearTimeout(timeoutRefs.current[key])
+        delete timeoutRefs.current[key]
+      }
+
+      startTimeRefs.current[key] = Date.now()
       setLoadingStates((prev) => ({ ...prev, [key]: true }))
 
       if (showToast) {
+        if (toastRefs.current[key]) toast.dismiss(toastRefs.current[key])
         toastRefs.current[key] = toast.loading(toastMessage)
       }
     } else {
-      // Finalizar loading con duración mínima
-      const startTime = Date.now()
+      const startTime = startTimeRefs.current[key] ?? Date.now()
 
       const finishLoading = () => {
         setLoadingStates((prev) => ({ ...prev, [key]: false }))
+        delete startTimeRefs.current[key]
+        delete timeoutRefs.current[key]
 
         if (toastRefs.current[key]) {
           toast.dismiss(toastRefs.current[key])
@@ -67,45 +75,40 @@ export function useLoading(initialKeys: string[] = []) {
     return Object.values(loadingStates).some(Boolean)
   }, [loadingStates])
 
-  const withLoading = useCallback(async <T>(
-    key: string,
-    operation: () => Promise<T>,
-    options?: LoadingOptions
-  ): Promise<T> => {
-    setLoading(key, true, options)
-  try {
-    const result = await operation()
-    return result
-  } finally {
-    setLoading(key, false)
-  }
-}
-, [setLoading])
+  const withLoading = useCallback(
+    async <T,>(key: string, operation: () => Promise<T>, options?: LoadingOptions): Promise<T> => {
+      setLoading(key, true, options)
+      try {
+        return await operation()
+      } finally {
+        setLoading(key, false, options)
+      }
+    },
+    [setLoading],
+  )
 
-const clearAllLoading = useCallback(() => {
-  // Limpiar todos los timeouts
-  Object.values(timeoutRefs.current).forEach((timeout) => {
-    clearTimeout(timeout)
-  })
-  timeoutRefs.current = {}
+  const clearAllLoading = useCallback(() => {
+    Object.values(timeoutRefs.current).forEach((timeout) => {
+      clearTimeout(timeout)
+    })
+    timeoutRefs.current = {}
+    startTimeRefs.current = {}
 
-  // Limpiar todos los toasts
-  Object.values(toastRefs.current).forEach((toastId) => {
-    toast.dismiss(toastId)
-  })
-  toastRefs.current = {}
+    Object.values(toastRefs.current).forEach((toastId) => {
+      toast.dismiss(toastId)
+    })
+    toastRefs.current = {}
 
-  // Limpiar estados
-  setLoadingStates({})
-}, [])
+    setLoadingStates({})
+  }, [])
 
-return {
+  return {
     loadingStates,
     setLoading,
     isLoading,
     isAnyLoading,
     withLoading,
-    clearAllLoading
+    clearAllLoading,
   }
 }
 

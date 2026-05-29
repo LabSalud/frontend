@@ -12,7 +12,7 @@ import { useToast } from "@/hooks/use-toast"
 import type { ApiRequestOptions } from "@/hooks/use-api"
 import { USER_ENDPOINTS, AC_ENDPOINTS } from "@/config/api"
 import { formatApiError } from "@/lib/api-error"
-import { Eye, EyeOff } from "lucide-react"
+import { Clock, Eye, EyeOff } from "lucide-react"
 
 interface CreateUserDialogProps {
   open: boolean
@@ -41,6 +41,7 @@ export function CreateUserDialog({
     last_name: "",
     password: "",
     confirmPassword: "",
+    inactivity_logout_minutes: "5",
     photo: null as File | null,
     selectedRoles: [] as number[],
   })
@@ -68,6 +69,7 @@ export function CreateUserDialog({
         last_name: "",
         password: "",
         confirmPassword: "",
+        inactivity_logout_minutes: "5",
         photo: null,
         selectedRoles: [],
       })
@@ -85,6 +87,7 @@ export function CreateUserDialog({
       email: data.email,
       first_name: data.first_name,
       last_name: data.last_name,
+      inactivity_logout_minutes: data.inactivity_logout_minutes,
       selectedRoles: data.selectedRoles,
     }
     localStorage.setItem("create-user-form", JSON.stringify(dataToSave))
@@ -139,6 +142,14 @@ export function CreateUserDialog({
       return
     }
 
+    const inactivityMinutes = Number(userData.inactivity_logout_minutes)
+    if (!Number.isInteger(inactivityMinutes) || inactivityMinutes < 1) {
+      showError("Tiempo de inactividad inválido", {
+        description: "Ingresá un valor de al menos 1 minuto.",
+      })
+      return
+    }
+
     setIsSubmitting(true)
 
     try {
@@ -148,6 +159,7 @@ export function CreateUserDialog({
       formData.append("email", userData.email)
       formData.append("first_name", userData.first_name)
       formData.append("last_name", userData.last_name)
+      formData.append("inactivity_logout_minutes", String(inactivityMinutes))
       if (userData.photo) {
         formData.append("photo", userData.photo)
       }
@@ -335,6 +347,25 @@ export function CreateUserDialog({
             {userData.photo && (
               <p className="text-sm text-muted-foreground">Archivo seleccionado: {userData.photo.name}</p>
             )}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="inactivity_logout_minutes">Tiempo de inactividad *</Label>
+            <div className="relative">
+              <Clock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+              <Input
+                id="inactivity_logout_minutes"
+                name="inactivity_logout_minutes"
+                type="number"
+                min={1}
+                step={1}
+                value={userData.inactivity_logout_minutes}
+                onChange={handleChange}
+                required
+                className="pl-10"
+              />
+            </div>
+            <p className="text-xs text-gray-500">Minutos sin actividad antes de cerrar sesión.</p>
           </div>
 
           <div className="space-y-2">

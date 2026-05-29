@@ -17,6 +17,7 @@ interface AnalysisDialogProps {
   onToggleAuthorization: (detail: ProtocolDetail) => void
   isEditable?: boolean
   readOnlyReason?: string
+  isPrivateProtocol?: boolean
 }
 
 export function AnalysisDialog({
@@ -29,6 +30,7 @@ export function AnalysisDialog({
   onToggleAuthorization,
   isEditable = true,
   readOnlyReason = "No se puede modificar la autorización en el estado actual del protocolo.",
+  isPrivateProtocol = false,
 }: AnalysisDialogProps) {
   const getAuthorizationDisabledReason = (detail: ProtocolDetail) => {
     if (!isEditable) return readOnlyReason
@@ -73,9 +75,11 @@ export function AnalysisDialog({
             Análisis del Protocolo #{protocolNumber}
           </DialogTitle>
           <DialogDescription>
-            {isEditable
-              ? "Puede cambiar la autorización de cada análisis. Esto puede afectar el costo total del protocolo."
-              : "Vista de solo lectura. El protocolo está completado o cancelado."}
+            {isPrivateProtocol
+              ? "Protocolo particular: los análisis no requieren autorización; el paciente los paga directamente."
+              : isEditable
+                ? "Puede cambiar la autorización de cada análisis. Esto puede afectar el costo total del protocolo."
+                : "Vista de solo lectura. El protocolo está completado o cancelado."}
           </DialogDescription>
         </DialogHeader>
 
@@ -114,11 +118,13 @@ export function AnalysisDialog({
                   </div>
                   <div className="flex justify-between items-center text-sm">
                     <span className="text-gray-500">UB: {detail.ub}</span>
-                    <div className="flex items-center gap-2">
-                      <span className="text-gray-500 text-xs">Autorizado:</span>
-                      {renderAuthorizationSwitch(detail)}
-                      {updatingDetailId === detail.id && <Loader2 className="h-4 w-4 animate-spin" />}
-                    </div>
+                    {!isPrivateProtocol && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-gray-500 text-xs">Autorizado:</span>
+                        {renderAuthorizationSwitch(detail)}
+                        {updatingDetailId === detail.id && <Loader2 className="h-4 w-4 animate-spin" />}
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
@@ -132,7 +138,9 @@ export function AnalysisDialog({
                     <th className="px-2 lg:px-3 py-2.5 text-left text-xs font-medium text-gray-500 uppercase w-16 lg:w-20">Código</th>
                     <th className="px-2 lg:px-3 py-2.5 text-left text-xs font-medium text-gray-500 uppercase">Análisis</th>
                     <th className="px-2 lg:px-3 py-2.5 text-left text-xs font-medium text-gray-500 uppercase w-12 lg:w-14">UB</th>
-                    <th className="px-2 lg:px-3 py-2.5 text-center text-xs font-medium text-gray-500 uppercase w-20 lg:w-24">Autoriz.</th>
+                    {!isPrivateProtocol && (
+                      <th className="px-2 lg:px-3 py-2.5 text-center text-xs font-medium text-gray-500 uppercase w-20 lg:w-24">Autoriz.</th>
+                    )}
                     <th className="px-2 lg:px-3 py-2.5 text-center text-xs font-medium text-gray-500 uppercase w-16 lg:w-20">Urg.</th>
                   </tr>
                 </thead>
@@ -144,12 +152,14 @@ export function AnalysisDialog({
                         <div className="break-words leading-tight">{detail.name}</div>
                       </td>
                       <td className="px-2 lg:px-3 py-2.5 text-xs lg:text-sm">{detail.ub}</td>
-                      <td className="px-2 lg:px-3 py-2.5 text-center">
-                        <div className="flex items-center justify-center gap-1">
-                          {renderAuthorizationSwitch(detail, "scale-90")}
-                          {updatingDetailId === detail.id && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                        </div>
-                      </td>
+                      {!isPrivateProtocol && (
+                        <td className="px-2 lg:px-3 py-2.5 text-center">
+                          <div className="flex items-center justify-center gap-1">
+                            {renderAuthorizationSwitch(detail, "scale-90")}
+                            {updatingDetailId === detail.id && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                          </div>
+                        </td>
+                      )}
                       <td className="px-2 lg:px-3 py-2.5 text-center">
                         {detail.is_urgent && (
                           <Badge variant="destructive" className="text-[10px] lg:text-xs px-1.5">

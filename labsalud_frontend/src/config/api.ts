@@ -164,6 +164,8 @@ export const BILLING_ENDPOINTS = {
   INVOICE_DETAIL: (id: number) => buildApiUrl(`/billing/invoices/${id}/`),
   CREATE_FOR_PROTOCOL: (protocolId: number) =>
     buildApiUrl(`/billing/invoices/create-for-protocol/${protocolId}/`),
+  UNBILL_PROTOCOL: (protocolId: number) =>
+    buildApiUrl(`/billing/invoices/unbill/${protocolId}/`),
   PROTOCOLS_TO_BILL: buildApiUrl("/billing/invoices/protocols-to-bill/"),
   FACTURADOS: buildApiUrl("/billing/invoices/facturados/"),
   CURRENT_TOTAL: buildApiUrl("/billing/invoices/current-total/"),

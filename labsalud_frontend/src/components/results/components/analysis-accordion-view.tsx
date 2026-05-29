@@ -31,6 +31,7 @@ import {
   Mail,
 } from "lucide-react"
 import { useApi } from "../../../hooks/use-api"
+import { useDebounce } from "../../../hooks/use-debounce"
 import { RESULTS_ENDPOINTS } from "../../../config/api"
 import { useToast } from "../../../hooks/use-toast"
 import {
@@ -47,6 +48,19 @@ import { getProtocolStatusBadgeClass, getProtocolStatusButtonClass } from "@/lib
 
 const RESULTS_ANALYSIS_STATUS_FILTER_KEY = "labsalud_results_analysis_status_filters"
 const RESULTS_VISIBLE_STATUS_IDS = [1, 2, 3, 4, 5, 6, 7, 10, 11, 12]
+
+const STATUS_CHIPS: Array<{ id: number; icon: typeof Clock; long: string; short: string }> = [
+  { id: 1, icon: Clock, long: "Pend. Carga", short: "Carga" },
+  { id: 2, icon: Filter, long: "Pend. Valid.", short: "Valid." },
+  { id: 11, icon: AlertTriangle, long: "Pend. Revisión", short: "Revisión" },
+  { id: 3, icon: Clock, long: "Pago Incomp.", short: "Pago" },
+  { id: 6, icon: User, long: "Pend. Retiro", short: "Retiro" },
+  { id: 5, icon: CheckCircle, long: "Completado", short: "Compl." },
+  { id: 7, icon: AlertTriangle, long: "Envío Fallido", short: "Fallido" },
+  { id: 10, icon: Mail, long: "Pend. Envío", short: "Envío" },
+  { id: 12, icon: AlertCircle, long: "Info Faltante", short: "Info" },
+  { id: 4, icon: X, long: "Cancelado", short: "Cancel." },
+]
 
 interface AvailableAnalysis {
   id: number
@@ -105,6 +119,7 @@ interface ProtocolWithResults {
     id: number
     first_name: string
     last_name: string
+    age?: number | null
   }
   status: {
     id: number
@@ -155,13 +170,22 @@ export function AnalysisAccordionView() {
   const [protocolsWithResults, setProtocolsWithResults] = useState<ProtocolWithResults[]>([])
   const [loadingProtocols, setLoadingProtocols] = useState(false)
   const [protocolSearchTerm, setProtocolSearchTerm] = useState("")
+  const debouncedProtocolSearch = useDebounce(protocolSearchTerm, 300)
 
-  const [selectedStatuses, setSelectedStatuses] = useState<number[]>(() => {
+  type StatusFilterState = { include: number[]; exclude: number[] }
+  const [statusFilter, setStatusFilter] = useState<StatusFilterState>(() => {
     try {
       const saved = localStorage.getItem(RESULTS_ANALYSIS_STATUS_FILTER_KEY)
-      return saved ? JSON.parse(saved).filter((status: number) => RESULTS_VISIBLE_STATUS_IDS.includes(status)) : []
+      if (!saved) return { include: [], exclude: [] }
+      const parsed = JSON.parse(saved)
+      if (Array.isArray(parsed)) {
+        return { include: parsed.filter((s: unknown) => Number.isInteger(s) && RESULTS_VISIBLE_STATUS_IDS.includes(s as number)), exclude: [] }
+      }
+      const include = Array.isArray(parsed.include) ? parsed.include.filter((s: unknown) => Number.isInteger(s)) : []
+      const exclude = Array.isArray(parsed.exclude) ? parsed.exclude.filter((s: unknown) => Number.isInteger(s)) : []
+      return { include, exclude }
     } catch {
-      return []
+      return { include: [], exclude: [] }
     }
   })
 
@@ -186,8 +210,8 @@ export function AnalysisAccordionView() {
   const [focusedInput, setFocusedInput] = useState<number | null>(null)
 
   useEffect(() => {
-    localStorage.setItem(RESULTS_ANALYSIS_STATUS_FILTER_KEY, JSON.stringify(selectedStatuses))
-  }, [selectedStatuses])
+    localStorage.setItem(RESULTS_ANALYSIS_STATUS_FILTER_KEY, JSON.stringify(statusFilter))
+  }, [statusFilter])
 
   // Fetch available analysis on mount
   useEffect(() => {
@@ -213,12 +237,14 @@ export function AnalysisAccordionView() {
   }, [apiRequest, showError])
 
   const fetchResultsByAnalysis = useCallback(
-    async (analysisId: number, isInitial = true) => {
+    async (analysisId: number, isInitial = true, silent = false) => {
       if (isInitial) {
-        setLoadingProtocols(true)
-        setProtocolsWithResults([])
-        setResultValues({})
-        setExpandedProtocols([])
+        if (!silent) {
+          setLoadingProtocols(true)
+          setProtocolsWithResults([])
+          setResultValues({})
+          setExpandedProtocols([])
+        }
         setNextUrl(null)
         setHasMore(true)
       } else {
@@ -231,14 +257,19 @@ export function AnalysisAccordionView() {
 
         if (isInitial) {
           const params = new URLSearchParams()
-          if (selectedStatuses.length > 0) {
-            params.append("status__in", selectedStatuses.join(","))
+          params.set("limit", "20")
+          if (statusFilter.include.length > 0) {
+            params.append("status", statusFilter.include.join(","))
           } else {
-            params.append("status__in", RESULTS_VISIBLE_STATUS_IDS.join(","))
+            params.append("status", RESULTS_VISIBLE_STATUS_IDS.join(","))
           }
-          if (params.toString()) {
-            url += `?${params.toString()}`
+          if (statusFilter.exclude.length > 0) {
+            params.append("exclude_status", statusFilter.exclude.join(","))
           }
+          if (debouncedProtocolSearch.trim()) {
+            params.append("search", debouncedProtocolSearch.trim())
+          }
+          url += `?${params.toString()}`
         }
 
         const response = await apiRequest(url)
@@ -290,7 +321,7 @@ export function AnalysisAccordionView() {
         setIsLoadingMore(false)
       }
     },
-    [apiRequest, showError, nextUrl, selectedStatuses, protocolsWithResults],
+    [apiRequest, showError, nextUrl, statusFilter, protocolsWithResults, debouncedProtocolSearch],
   )
 
   useEffect(() => {
@@ -337,21 +368,30 @@ export function AnalysisAccordionView() {
     setHasMore(true)
   }, [])
 
+  // Defer formula recalc para evitar lag por keystroke.
+  const pendingFormulaProtocolsRef = useRef<Set<number>>(new Set())
+  const formulaTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const handleValueChange = useCallback(
     (resultId: number, field: "value" | "notes", value: string, protocolId: number) => {
-      setResultValues((prev) => {
-        const updatedValues = {
-          ...prev,
-          [resultId]: {
-            ...prev[resultId],
-            [field]: value,
-          },
-        }
-
-        if (field !== "value") return updatedValues
-        const protocol = protocolsWithResults.find((item) => item.id === protocolId)
-        return protocol ? applyFormulaCalculations(protocol.results, updatedValues) : updatedValues
-      })
+      setResultValues((prev) => ({
+        ...prev,
+        [resultId]: { ...prev[resultId], [field]: value },
+      }))
+      if (field !== "value") return
+      pendingFormulaProtocolsRef.current.add(protocolId)
+      if (formulaTimerRef.current) clearTimeout(formulaTimerRef.current)
+      formulaTimerRef.current = setTimeout(() => {
+        const protocolsToRecalc = Array.from(pendingFormulaProtocolsRef.current)
+        pendingFormulaProtocolsRef.current.clear()
+        setResultValues((prev) => {
+          let next = prev
+          for (const pid of protocolsToRecalc) {
+            const protocol = protocolsWithResults.find((item) => item.id === pid)
+            if (protocol) next = applyFormulaCalculations(protocol.results, next)
+          }
+          return next
+        })
+      }, 250)
     },
     [protocolsWithResults],
   )
@@ -557,16 +597,28 @@ export function AnalysisAccordionView() {
   }, [])
 
   const toggleStatus = (statusId: number) => {
-    setSelectedStatuses((prev) =>
-      prev.includes(statusId) ? prev.filter((id) => id !== statusId) : [...prev, statusId],
-    )
+    setStatusFilter((prev) => {
+      const inInclude = prev.include.includes(statusId)
+      const inExclude = prev.exclude.includes(statusId)
+      if (!inInclude && !inExclude) return { ...prev, include: [...prev.include, statusId] }
+      if (inInclude) return { include: prev.include.filter((id) => id !== statusId), exclude: [...prev.exclude, statusId] }
+      return { ...prev, exclude: prev.exclude.filter((id) => id !== statusId) }
+    })
   }
+  const getFilterState = (id: number): "neutral" | "include" | "exclude" =>
+    statusFilter.include.includes(id) ? "include" : statusFilter.exclude.includes(id) ? "exclude" : "neutral"
+  const hasAnyStatusFilter = statusFilter.include.length > 0 || statusFilter.exclude.length > 0
 
+  // Cambio de filtro de estado o search: refetch silent (mantiene lista visible).
+  const lastFilteredAnalysisRef = useRef<number | null>(null)
   useEffect(() => {
     if (selectedAnalysis) {
-      fetchResultsByAnalysis(selectedAnalysis.id, true)
+      const silent = lastFilteredAnalysisRef.current === selectedAnalysis.id
+      lastFilteredAnalysisRef.current = selectedAnalysis.id
+      fetchResultsByAnalysis(selectedAnalysis.id, true, silent)
     }
-  }, [selectedStatuses])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [statusFilter, debouncedProtocolSearch])
 
   const filteredAnalysis = useMemo(() => {
     if (!analysisSearchTerm) return availableAnalysis
@@ -574,18 +626,9 @@ export function AnalysisAccordionView() {
     return availableAnalysis.filter((a) => a.name.toLowerCase().includes(search) || String(a.code).includes(search))
   }, [availableAnalysis, analysisSearchTerm])
 
-  const filteredProtocols = useMemo(() => {
-    const visibleStatuses = selectedStatuses.length > 0 ? selectedStatuses : RESULTS_VISIBLE_STATUS_IDS
-    const filtered = protocolsWithResults.filter((p) => visibleStatuses.includes(p.status.id))
-    if (!protocolSearchTerm) return filtered
-    const search = protocolSearchTerm.toLowerCase()
-    return filtered.filter(
-      (p) =>
-        p.patient.first_name.toLowerCase().includes(search) ||
-        p.patient.last_name.toLowerCase().includes(search) ||
-        String(p.id).includes(search),
-    )
-  }, [protocolsWithResults, protocolSearchTerm, selectedStatuses])
+  // Filtros aplicados server-side (status + search) en fetchResultsByAnalysis.
+  // Acá solo pasa la lista tal cual del backend, ya filtrada.
+  const filteredProtocols = protocolsWithResults
 
   if (loadingAnalysis) {
     return (
@@ -722,105 +765,44 @@ export function AnalysisAccordionView() {
         </div>
 
         <div className="space-y-2">
-          <p className="text-xs sm:text-sm font-medium text-gray-700">Filtrar por estado:</p>
+          <p className="text-xs sm:text-sm font-medium text-gray-700">
+            Filtrar por estado <span className="text-gray-500">(click: incluir → excluir → quitar)</span>:
+          </p>
           <div className="flex flex-wrap gap-1.5 sm:gap-2">
-            <Button
-              variant={selectedStatuses.includes(1) ? "default" : "outline"}
-              size="sm"
-              onClick={() => toggleStatus(1)}
-              className={`text-xs ${getProtocolStatusButtonClass(1, selectedStatuses.includes(1))}`}
-            >
-              <Clock className="h-3 w-3 mr-1" />
-              <span className="hidden sm:inline">Pend.</span> Carga
-            </Button>
-            <Button
-              variant={selectedStatuses.includes(2) ? "default" : "outline"}
-              size="sm"
-              onClick={() => toggleStatus(2)}
-              className={`text-xs ${getProtocolStatusButtonClass(2, selectedStatuses.includes(2))}`}
-            >
-              <Filter className="h-3 w-3 mr-1" />
-              <span className="hidden sm:inline">Pend.</span> Valid.
-            </Button>
-            <Button
-              variant={selectedStatuses.includes(11) ? "default" : "outline"}
-              size="sm"
-              onClick={() => toggleStatus(11)}
-              className={`text-xs ${getProtocolStatusButtonClass(11, selectedStatuses.includes(11))}`}
-            >
-              <AlertTriangle className="h-3 w-3 mr-1" />
-              <span className="hidden sm:inline">Pend.</span> Revisión
-            </Button>
-            <Button
-              variant={selectedStatuses.includes(3) ? "default" : "outline"}
-              size="sm"
-              onClick={() => toggleStatus(3)}
-              className={`text-xs ${getProtocolStatusButtonClass(3, selectedStatuses.includes(3))}`}
-            >
-              <Clock className="h-3 w-3 mr-1" />
-              Pago <span className="hidden sm:inline">Incomp.</span>
-            </Button>
-            <Button
-              variant={selectedStatuses.includes(6) ? "default" : "outline"}
-              size="sm"
-              onClick={() => toggleStatus(6)}
-              className={`text-xs ${getProtocolStatusButtonClass(6, selectedStatuses.includes(6))}`}
-            >
-              <User className="h-3 w-3 mr-1" />
-              <span className="hidden sm:inline">Pend.</span> Retiro
-            </Button>
-            <Button
-              variant={selectedStatuses.includes(5) ? "default" : "outline"}
-              size="sm"
-              onClick={() => toggleStatus(5)}
-              className={`text-xs ${getProtocolStatusButtonClass(5, selectedStatuses.includes(5))}`}
-            >
-              <CheckCircle className="h-3 w-3 mr-1" />
-              <span className="hidden sm:inline">Completado</span>
-              <span className="sm:hidden">Compl.</span>
-            </Button>
-            <Button
-              variant={selectedStatuses.includes(7) ? "default" : "outline"}
-              size="sm"
-              onClick={() => toggleStatus(7)}
-              className={`text-xs ${getProtocolStatusButtonClass(7, selectedStatuses.includes(7))}`}
-            >
-              <AlertTriangle className="h-3 w-3 mr-1" />
-              <span className="hidden sm:inline">Envio Fallido</span>
-              <span className="sm:hidden">Fallido</span>
-            </Button>
-            <Button
-              variant={selectedStatuses.includes(10) ? "default" : "outline"}
-              size="sm"
-              onClick={() => toggleStatus(10)}
-              className={`text-xs ${getProtocolStatusButtonClass(10, selectedStatuses.includes(10))}`}
-            >
-              <Mail className="h-3 w-3 mr-1" />
-              <span className="hidden sm:inline">Pend.</span> Envío
-            </Button>
-            <Button
-              variant={selectedStatuses.includes(12) ? "default" : "outline"}
-              size="sm"
-              onClick={() => toggleStatus(12)}
-              className={`text-xs ${getProtocolStatusButtonClass(12, selectedStatuses.includes(12))}`}
-            >
-              <AlertCircle className="h-3 w-3 mr-1" />
-              Info <span className="hidden sm:inline">Faltante</span>
-            </Button>
-            <Button
-              variant={selectedStatuses.includes(4) ? "default" : "outline"}
-              size="sm"
-              onClick={() => toggleStatus(4)}
-              className={`text-xs ${getProtocolStatusButtonClass(4, selectedStatuses.includes(4))}`}
-            >
-              <X className="h-3 w-3 mr-1" />
-              Cancelado
-            </Button>
-            {selectedStatuses.length > 0 && (
+            {STATUS_CHIPS.map(({ id, icon: Icon, long, short }) => {
+              const fs = getFilterState(id)
+              const cls =
+                fs === "include"
+                  ? `${getProtocolStatusButtonClass(id, true)}`
+                  : fs === "exclude"
+                    ? "bg-red-100 text-red-700 border border-red-300 line-through"
+                    : "bg-white"
+              const title =
+                fs === "include"
+                  ? "Incluido. Click para excluir."
+                  : fs === "exclude"
+                    ? "Excluido. Click para quitar filtro."
+                    : "Sin filtro. Click para incluir."
+              return (
+                <Button
+                  key={id}
+                  variant={fs === "include" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => toggleStatus(id)}
+                  title={title}
+                  className={`text-xs ${cls}`}
+                >
+                  {fs === "exclude" ? <X className="h-3 w-3 mr-1" /> : <Icon className="h-3 w-3 mr-1" />}
+                  <span className="hidden sm:inline">{long}</span>
+                  <span className="sm:hidden">{short}</span>
+                </Button>
+              )
+            })}
+            {hasAnyStatusFilter && (
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => setSelectedStatuses([])}
+                onClick={() => setStatusFilter({ include: [], exclude: [] })}
                 className="text-gray-500 text-xs"
               >
                 <X className="h-3 w-3 mr-1" />
@@ -872,6 +854,9 @@ export function AnalysisAccordionView() {
                       <User className="h-4 w-4 text-gray-600" />
                       <span className="font-medium text-gray-900">
                         {protocol.patient.first_name} {protocol.patient.last_name}
+                        {typeof protocol.patient.age === "number" && (
+                          <span className="ml-1 text-xs text-gray-500">· {protocol.patient.age} años</span>
+                        )}
                       </span>
                     </div>
                     <Badge variant="outline" className={getStatusColor(protocol.status.id)}>

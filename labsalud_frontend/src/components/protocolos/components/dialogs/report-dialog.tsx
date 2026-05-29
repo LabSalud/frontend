@@ -537,17 +537,24 @@ export function ReportDialog({
               />
 
               <div className="flex flex-col gap-1.5">
-                <Label className="text-sm font-medium">Fecha del reporte (opcional)</Label>
+                <Label htmlFor="report_date" className="text-sm font-medium">Fecha del reporte (opcional)</Label>
                 <Input
+                  id="report_date"
+                  name="report_date"
                   type="date"
-                  className="min-w-0 w-full"
                   value={reportDate}
                   onChange={(e) => onReportDateChange(e.target.value)}
-                  placeholder="YYYY-MM-DD"
                 />
 
-                <Label className="text-sm font-medium mt-2">Horario del reporte (opcional)</Label>
-                <Input type="time" className="min-w-0 w-full" value={reportTime} onChange={(e) => onReportTimeChange(e.target.value)} step={60} />
+                <Label htmlFor="report_time" className="text-sm font-medium mt-2">Horario del reporte (opcional)</Label>
+                <Input
+                  id="report_time"
+                  name="report_time"
+                  type="time"
+                  value={reportTime}
+                  onChange={(e) => onReportTimeChange(e.target.value)}
+                  step={60}
+                />
                 <div className="flex justify-start pt-1">
                   <Button type="button" variant="outline" size="sm" onClick={onClearDateTime}>
                     Limpiar fecha y hora
@@ -723,11 +730,24 @@ export function ReportDialog({
                         />
 
                         <div className="flex flex-col gap-1.5">
-                          <Label className="text-sm font-medium">Fecha del reporte (opcional)</Label>
-                          <Input type="date" className="min-w-0 w-full" value={reportDate} onChange={(e) => onReportDateChange(e.target.value)} />
+                          <Label htmlFor="report_date_mobile" className="text-sm font-medium">Fecha del reporte (opcional)</Label>
+                          <Input
+                            id="report_date_mobile"
+                            name="report_date"
+                            type="date"
+                            value={reportDate}
+                            onChange={(e) => onReportDateChange(e.target.value)}
+                          />
 
-                          <Label className="mt-2 text-sm font-medium">Horario del reporte (opcional)</Label>
-                          <Input type="time" className="min-w-0 w-full" value={reportTime} onChange={(e) => onReportTimeChange(e.target.value)} step={60} />
+                          <Label htmlFor="report_time_mobile" className="mt-2 text-sm font-medium">Horario del reporte (opcional)</Label>
+                          <Input
+                            id="report_time_mobile"
+                            name="report_time"
+                            type="time"
+                            value={reportTime}
+                            onChange={(e) => onReportTimeChange(e.target.value)}
+                            step={60}
+                          />
 
                           <div className="flex justify-start pt-1">
                             <Button type="button" variant="outline" size="sm" onClick={onClearDateTime}>

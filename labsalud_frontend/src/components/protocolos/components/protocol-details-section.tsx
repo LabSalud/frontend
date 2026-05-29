@@ -88,6 +88,7 @@ export function ProtocolDetailsSection({
   const nbuName = nbu && typeof nbu === "object" && "name" in nbu ? nbu.name : null
   const trajoOrdenInfo = getTrajoOrdenInfo(trajoOrden)
   const preauthInfo = getPreauthStatusInfo(preauthStatus)
+  const isPrivateInsurance = (insuranceName || "").trim().toLowerCase() === "particular"
   const renderDisabledTooltip = (reason: string | undefined, children: React.ReactNode) => {
     if (!reason) return children
 
@@ -139,7 +140,7 @@ export function ProtocolDetailsSection({
           <span className="font-medium">{sendMethodName}</span>
         </div>
 
-        {trajoOrden !== undefined && (
+        {trajoOrden !== undefined && !isPrivateInsurance && (
           <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm">
             <ClipboardCheck className={`h-4 w-4 flex-shrink-0 ${trajoOrdenInfo.iconClassName}`} />
             <span className="text-gray-600 w-28 flex-shrink-0">Orden médica:</span>

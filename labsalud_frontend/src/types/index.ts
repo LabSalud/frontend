@@ -841,6 +841,7 @@ export interface ProtocolWithLoadedResults {
     cuil: string
     first_name: string
     last_name: string
+    age?: number | null
   }
   status: {
     id: number

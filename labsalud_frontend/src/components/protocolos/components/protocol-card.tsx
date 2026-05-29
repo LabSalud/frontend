@@ -1126,6 +1126,7 @@ export function ProtocolCard({
         onToggleAuthorization={handleToggleAuthorization}
         isEditable={isEditable}
         readOnlyReason={editDisabledReason}
+        isPrivateProtocol={isPrivateProtocol}
       />
 
       <AuditDialog

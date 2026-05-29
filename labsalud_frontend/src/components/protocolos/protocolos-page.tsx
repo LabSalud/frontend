@@ -108,13 +108,21 @@ export default function ProtocolosPage() {
   const [isSearching, setIsSearching] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
-  const [selectedStatuses, setSelectedStatuses] = useState<number[]>(() => {
+  type StatusFilterState = { include: number[]; exclude: number[] }
+  const [statusFilter, setStatusFilter] = useState<StatusFilterState>(() => {
     try {
       const saved = localStorage.getItem(STATUS_FILTER_KEY)
-      const parsed = saved ? JSON.parse(saved) : []
-      return Array.isArray(parsed) ? parsed.filter((status) => Number.isInteger(status)) : []
+      if (!saved) return { include: [], exclude: [] }
+      const parsed = JSON.parse(saved)
+      // Compat: previously stored as number[] (only includes)
+      if (Array.isArray(parsed)) {
+        return { include: parsed.filter((s) => Number.isInteger(s)), exclude: [] }
+      }
+      const include = Array.isArray(parsed.include) ? parsed.include.filter((s: unknown) => Number.isInteger(s)) : []
+      const exclude = Array.isArray(parsed.exclude) ? parsed.exclude.filter((s: unknown) => Number.isInteger(s)) : []
+      return { include, exclude }
     } catch {
-      return []
+      return { include: [], exclude: [] }
     }
   })
   const [paymentStatusFilter, setPaymentStatusFilter] = useState<string>("all")
@@ -214,8 +222,11 @@ export default function ProtocolosPage() {
         params.append("search", search.trim())
       }
 
-      if (selectedStatuses.length > 0) {
-        params.append("status__in", selectedStatuses.join(","))
+      if (statusFilter.include.length > 0) {
+        params.append("status", statusFilter.include.join(","))
+      }
+      if (statusFilter.exclude.length > 0) {
+        params.append("exclude_status", statusFilter.exclude.join(","))
       }
 
       if (paymentStatusFilter !== "all") {
@@ -228,7 +239,7 @@ export default function ProtocolosPage() {
 
       return `${baseEndpoint}?${params.toString()}`
     },
-    [selectedStatuses, paymentStatusFilter, isPrintedFilter],
+    [statusFilter, paymentStatusFilter, isPrintedFilter],
   )
 
   // Función para cargar protocolos desde la API
@@ -302,11 +313,15 @@ export default function ProtocolosPage() {
   }, [])
 
   useEffect(() => {
-    setAllProtocols([])
     setNextUrl(null)
     setHasMore(true)
-    fetchProtocolsFromAPI()
-  }, [selectedStatuses, paymentStatusFilter, isPrintedFilter])
+    // No vaciar `allProtocols` ni mostrar skeleton de página completa.
+    // Refetch con `showSearching=true` -> isSearching=true muestra spinner sutil sin
+    // resetear toda la UI; al llegar la respuesta, `setAllProtocols(data.results)`
+    // reemplaza la lista atómicamente.
+    fetchProtocolsFromAPI(debouncedSearchTerm, true, true)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [statusFilter, paymentStatusFilter, isPrintedFilter])
 
   useEffect(() => {
     if (debouncedSearchTerm !== searchTerm) return
@@ -315,12 +330,15 @@ export default function ProtocolosPage() {
   }, [debouncedSearchTerm])
 
   useEffect(() => {
-    localStorage.setItem(STATUS_FILTER_KEY, JSON.stringify(selectedStatuses))
-  }, [selectedStatuses])
+    localStorage.setItem(STATUS_FILTER_KEY, JSON.stringify(statusFilter))
+  }, [statusFilter])
 
   useEffect(() => {
     if (availableStatusIds.length === 0) return
-    setSelectedStatuses((prev) => prev.filter((statusId) => availableStatusIds.includes(statusId)))
+    setStatusFilter((prev) => ({
+      include: prev.include.filter((id) => availableStatusIds.includes(id)),
+      exclude: prev.exclude.filter((id) => availableStatusIds.includes(id)),
+    }))
   }, [availableStatusIds])
 
   const clearSearch = () => {
@@ -344,10 +362,29 @@ export default function ProtocolosPage() {
 
   const toggleStatus = (statusId: number) => {
     if (availableStatusIds.length > 0 && !availableStatusIds.includes(statusId)) return
-    setSelectedStatuses((prev) =>
-      prev.includes(statusId) ? prev.filter((id) => id !== statusId) : [...prev, statusId],
-    )
+    setStatusFilter((prev) => {
+      const inInclude = prev.include.includes(statusId)
+      const inExclude = prev.exclude.includes(statusId)
+      // neutral → include → exclude → neutral
+      if (!inInclude && !inExclude) {
+        return { ...prev, include: [...prev.include, statusId] }
+      }
+      if (inInclude) {
+        return {
+          include: prev.include.filter((id) => id !== statusId),
+          exclude: [...prev.exclude, statusId],
+        }
+      }
+      // inExclude
+      return { ...prev, exclude: prev.exclude.filter((id) => id !== statusId) }
+    })
   }
+  const getStatusFilterState = (statusId: number): "neutral" | "include" | "exclude" => {
+    if (statusFilter.include.includes(statusId)) return "include"
+    if (statusFilter.exclude.includes(statusId)) return "exclude"
+    return "neutral"
+  }
+  const hasAnyStatusFilter = statusFilter.include.length > 0 || statusFilter.exclude.length > 0
 
   const toggleProtocolSelection = useCallback((id: number) => {
     setSelectedProtocols((prev) => {
@@ -629,8 +666,20 @@ export default function ProtocolosPage() {
             ) : (
               statusItems.map((item) => {
               const style = getProtocolStatusStyleByName(item.name)
-              const selected = selectedStatuses.includes(item.id)
+              const filterState = getStatusFilterState(item.id)
               const Icon = item.icon
+              const stateClass =
+                filterState === "include"
+                  ? `${style.solid} text-white`
+                  : filterState === "exclude"
+                    ? "bg-red-100 text-red-700 border-red-300 line-through"
+                    : `${style.badgeOutline} hover:bg-white`
+              const titleByState =
+                filterState === "include"
+                  ? "Incluido. Click para excluir."
+                  : filterState === "exclude"
+                    ? "Excluido. Click para quitar filtro."
+                    : "Sin filtro. Click para incluir."
 
               return (
                 <Button
@@ -639,19 +688,27 @@ export default function ProtocolosPage() {
                   variant="outline"
                   size="sm"
                   onClick={() => toggleStatus(item.id)}
-                  className={`h-8 shrink-0 rounded-full border px-3 text-xs ${
-                    selected ? `${style.solid} text-white` : `${style.badgeOutline} hover:bg-white`
-                  }`}
+                  title={titleByState}
+                  className={`h-8 shrink-0 rounded-full border px-3 text-xs ${stateClass}`}
                 >
-                  <Icon className="h-3.5 w-3.5 mr-1" />
+                  {filterState === "exclude" ? (
+                    <X className="h-3.5 w-3.5 mr-1" />
+                  ) : (
+                    <Icon className="h-3.5 w-3.5 mr-1" />
+                  )}
                   {style.shortLabel}
                   <span className="ml-1 rounded-full bg-white/70 px-1.5 text-[11px] text-gray-700">{item.count}</span>
                 </Button>
               )
             })
             )}
-            {selectedStatuses.length > 0 && (
-              <Button variant="ghost" size="sm" onClick={() => setSelectedStatuses([])} className="h-8 shrink-0 rounded-full text-gray-500">
+            {hasAnyStatusFilter && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setStatusFilter({ include: [], exclude: [] })}
+                className="h-8 shrink-0 rounded-full text-gray-500"
+              >
                 <X className="h-3 w-3 mr-1" />
                 Limpiar
               </Button>
@@ -715,7 +772,7 @@ export default function ProtocolosPage() {
 
           <div className="flex items-center justify-between">
             <p className="text-xs md:text-sm text-gray-500">Búsqueda por ID, nombre de paciente o estado</p>
-            {(searchTerm || selectedStatuses.length > 0) && (
+            {(searchTerm || hasAnyStatusFilter) && (
               <p className="text-xs text-[#204983] font-medium">
                 {allProtocols.length} resultado{allProtocols.length !== 1 ? "s" : ""}
               </p>
@@ -731,7 +788,7 @@ export default function ProtocolosPage() {
             <FileText className="h-12 w-12 sm:h-16 sm:w-16 text-gray-300 mx-auto mb-4" />
             <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-2">No se encontraron protocolos</h3>
             <p className="text-sm sm:text-base text-gray-600 mb-6">
-              {searchTerm || selectedStatuses.length > 0 || paymentStatusFilter !== "all" || isPrintedFilter !== "all"
+              {searchTerm || hasAnyStatusFilter || paymentStatusFilter !== "all" || isPrintedFilter !== "all"
                 ? "Intenta ajustar los filtros de búsqueda"
                 : "Aún no hay protocolos registrados en el sistema"}
             </p>

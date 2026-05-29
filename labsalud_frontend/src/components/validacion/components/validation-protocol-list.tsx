@@ -1,11 +1,11 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { Loader2, CheckCircle, AlertCircle, RefreshCcw, Search, Clock, Filter, User, AlertTriangle, Mail, X } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useApi } from "@/hooks/use-api"
 import { useInfiniteScroll } from "@/hooks/use-infinite-scroll"
-import { PROTOCOL_ENDPOINTS } from "@/config/api"
+import { RESULTS_ENDPOINTS } from "@/config/api"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
@@ -27,18 +27,26 @@ export function ValidationProtocolList() {
   const [nextUrl, setNextUrl] = useState<string | null>(null)
   const [expandedProtocolId, setExpandedProtocolId] = useState<number | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
-  const [selectedStatuses, setSelectedStatuses] = useState<number[]>(() => {
+  type StatusFilterState = { include: number[]; exclude: number[] }
+  const [statusFilter, setStatusFilter] = useState<StatusFilterState>(() => {
     try {
       const saved = localStorage.getItem(VALIDATION_STATUS_FILTER_KEY)
-      return saved ? JSON.parse(saved) : []
+      if (!saved) return { include: [], exclude: [] }
+      const parsed = JSON.parse(saved)
+      if (Array.isArray(parsed)) {
+        return { include: parsed.filter((s) => Number.isInteger(s)), exclude: [] }
+      }
+      const include = Array.isArray(parsed.include) ? parsed.include.filter((s: unknown) => Number.isInteger(s)) : []
+      const exclude = Array.isArray(parsed.exclude) ? parsed.exclude.filter((s: unknown) => Number.isInteger(s)) : []
+      return { include, exclude }
     } catch {
-      return []
+      return { include: [], exclude: [] }
     }
   })
 
   useEffect(() => {
-    localStorage.setItem(VALIDATION_STATUS_FILTER_KEY, JSON.stringify(selectedStatuses))
-  }, [selectedStatuses])
+    localStorage.setItem(VALIDATION_STATUS_FILTER_KEY, JSON.stringify(statusFilter))
+  }, [statusFilter])
 
   const buildUrl = useCallback(() => {
     const params = new URLSearchParams({
@@ -46,24 +54,29 @@ export function ValidationProtocolList() {
       offset: "0",
     })
 
-    if (selectedStatuses.length > 0) {
-      params.append("status__in", selectedStatuses.join(","))
+    if (statusFilter.include.length > 0) {
+      params.append("status", statusFilter.include.join(","))
+    }
+    if (statusFilter.exclude.length > 0) {
+      params.append("exclude_status", statusFilter.exclude.join(","))
     }
 
     if (searchTerm.trim()) {
       params.append("search", searchTerm.trim())
     }
 
-    return `${PROTOCOL_ENDPOINTS.PROTOCOLS}?${params.toString()}`
-  }, [selectedStatuses, searchTerm])
+    return `${RESULTS_ENDPOINTS.PROTOCOLS_WITH_LOADED_RESULTS}?${params.toString()}`
+  }, [statusFilter, searchTerm])
 
-  const fetchProtocols = useCallback(async (url: string, reset = true) => {
+  const fetchProtocols = useCallback(async (url: string, reset = true, silent = false) => {
     try {
       setError(null)
-      if (reset) {
-        setLoadingProtocols(true)
-      } else {
+      if (!reset) {
         setLoadingMore(true)
+      } else if (silent) {
+        setRefreshing(true)
+      } else {
+        setLoadingProtocols(true)
       }
 
       const response = await apiRequest(url)
@@ -90,10 +103,13 @@ export function ValidationProtocolList() {
     }
   }, [apiRequest])
 
+  // Mount: skeleton entera. Cambios de filtro/búsqueda: silent (mantiene lista visible).
+  const hasLoadedOnceRef = useRef(false)
   useEffect(() => {
-    setProtocols([])
     setNextUrl(null)
-    void fetchProtocols(buildUrl(), true)
+    const silent = hasLoadedOnceRef.current
+    if (!silent) hasLoadedOnceRef.current = true
+    void fetchProtocols(buildUrl(), true, silent)
   }, [fetchProtocols, buildUrl])
 
   const loadMoreSentinelRef = useInfiniteScroll({
@@ -124,10 +140,30 @@ export function ValidationProtocolList() {
   }
 
   const toggleStatus = (statusId: number) => {
-    setSelectedStatuses((prev) =>
-      prev.includes(statusId) ? prev.filter((id) => id !== statusId) : [...prev, statusId],
-    )
+    setStatusFilter((prev) => {
+      const inInclude = prev.include.includes(statusId)
+      const inExclude = prev.exclude.includes(statusId)
+      if (!inInclude && !inExclude) return { ...prev, include: [...prev.include, statusId] }
+      if (inInclude) return { include: prev.include.filter((id) => id !== statusId), exclude: [...prev.exclude, statusId] }
+      return { ...prev, exclude: prev.exclude.filter((id) => id !== statusId) }
+    })
   }
+  const getFilterState = (id: number): "neutral" | "include" | "exclude" =>
+    statusFilter.include.includes(id) ? "include" : statusFilter.exclude.includes(id) ? "exclude" : "neutral"
+  const hasAnyStatusFilter = statusFilter.include.length > 0 || statusFilter.exclude.length > 0
+
+  const STATUS_CHIPS: Array<{ id: number; icon: typeof Clock; long: string; short: string }> = [
+    { id: 1, icon: Clock, long: "Pend. Carga", short: "Carga" },
+    { id: 2, icon: Filter, long: "Pend. Valid.", short: "Valid." },
+    { id: 11, icon: AlertTriangle, long: "Pend. Revisión", short: "Revisión" },
+    { id: 3, icon: Clock, long: "Pago Incomp.", short: "Pago" },
+    { id: 6, icon: User, long: "Pend. Retiro", short: "Retiro" },
+    { id: 10, icon: Mail, long: "Pend. Envío", short: "Envío" },
+    { id: 5, icon: CheckCircle, long: "Completado", short: "Compl." },
+    { id: 7, icon: AlertTriangle, long: "Envío Fallido", short: "Fallido" },
+    { id: 12, icon: AlertCircle, long: "Info Faltante", short: "Info" },
+    { id: 4, icon: X, long: "Cancelado", short: "Cancel." },
+  ]
 
   const filtersPanel = (
     <div className="flex flex-col gap-3 sm:gap-4 rounded-lg border border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50 p-3 sm:p-4">
@@ -142,102 +178,46 @@ export function ValidationProtocolList() {
       </div>
 
       <div className="space-y-2">
-        <p className="text-xs sm:text-sm font-medium text-gray-700">Filtrar por estado:</p>
+        <p className="text-xs sm:text-sm font-medium text-gray-700">
+          Filtrar por estado <span className="text-gray-500">(click: incluir → excluir → quitar)</span>:
+        </p>
         <div className="flex flex-wrap gap-1.5 sm:gap-2">
-          <Button
-            variant={selectedStatuses.includes(1) ? "default" : "outline"}
-            size="sm"
-            onClick={() => toggleStatus(1)}
-            className={`text-xs ${getProtocolStatusButtonClass(1, selectedStatuses.includes(1))}`}
-          >
-            <Clock className="h-3 w-3 mr-1" />
-            <span className="hidden sm:inline">Pend.</span> Carga
-          </Button>
-          <Button
-            variant={selectedStatuses.includes(2) ? "default" : "outline"}
-            size="sm"
-            onClick={() => toggleStatus(2)}
-            className={`text-xs ${getProtocolStatusButtonClass(2, selectedStatuses.includes(2))}`}
-          >
-            <Filter className="h-3 w-3 mr-1" />
-            <span className="hidden sm:inline">Pend.</span> Valid.
-          </Button>
-          <Button
-            variant={selectedStatuses.includes(11) ? "default" : "outline"}
-            size="sm"
-            onClick={() => toggleStatus(11)}
-            className={`text-xs ${getProtocolStatusButtonClass(11, selectedStatuses.includes(11))}`}
-          >
-            <AlertTriangle className="h-3 w-3 mr-1" />
-            <span className="hidden sm:inline">Pend.</span> Revisión
-          </Button>
-          <Button
-            variant={selectedStatuses.includes(3) ? "default" : "outline"}
-            size="sm"
-            onClick={() => toggleStatus(3)}
-            className={`text-xs ${getProtocolStatusButtonClass(3, selectedStatuses.includes(3))}`}
-          >
-            <Clock className="h-3 w-3 mr-1" />
-            Pago <span className="hidden sm:inline">Incomp.</span>
-          </Button>
-          <Button
-            variant={selectedStatuses.includes(6) ? "default" : "outline"}
-            size="sm"
-            onClick={() => toggleStatus(6)}
-            className={`text-xs ${getProtocolStatusButtonClass(6, selectedStatuses.includes(6))}`}
-          >
-            <User className="h-3 w-3 mr-1" />
-            <span className="hidden sm:inline">Pend.</span> Retiro
-          </Button>
-          <Button
-            variant={selectedStatuses.includes(10) ? "default" : "outline"}
-            size="sm"
-            onClick={() => toggleStatus(10)}
-            className={`text-xs ${getProtocolStatusButtonClass(10, selectedStatuses.includes(10))}`}
-          >
-            <Mail className="h-3 w-3 mr-1" />
-            <span className="hidden sm:inline">Pend.</span> Envío
-          </Button>
-          <Button
-            variant={selectedStatuses.includes(5) ? "default" : "outline"}
-            size="sm"
-            onClick={() => toggleStatus(5)}
-            className={`text-xs ${getProtocolStatusButtonClass(5, selectedStatuses.includes(5))}`}
-          >
-            <CheckCircle className="h-3 w-3 mr-1" />
-            <span className="hidden sm:inline">Completado</span>
-            <span className="sm:hidden">Compl.</span>
-          </Button>
-          <Button
-            variant={selectedStatuses.includes(7) ? "default" : "outline"}
-            size="sm"
-            onClick={() => toggleStatus(7)}
-            className={`text-xs ${getProtocolStatusButtonClass(7, selectedStatuses.includes(7))}`}
-          >
-            <AlertTriangle className="h-3 w-3 mr-1" />
-            <span className="hidden sm:inline">Envío Fallido</span>
-            <span className="sm:hidden">Fallido</span>
-          </Button>
-          <Button
-            variant={selectedStatuses.includes(12) ? "default" : "outline"}
-            size="sm"
-            onClick={() => toggleStatus(12)}
-            className={`text-xs ${getProtocolStatusButtonClass(12, selectedStatuses.includes(12))}`}
-          >
-            <AlertCircle className="h-3 w-3 mr-1" />
-            Info <span className="hidden sm:inline">Faltante</span>
-          </Button>
-          <Button
-            variant={selectedStatuses.includes(4) ? "default" : "outline"}
-            size="sm"
-            onClick={() => toggleStatus(4)}
-            className={`text-xs ${getProtocolStatusButtonClass(4, selectedStatuses.includes(4))}`}
-          >
-            <X className="h-3 w-3 mr-1" />
-            Cancelado
-          </Button>
-          {selectedStatuses.length > 0 && (
-            <Button variant="ghost" size="sm" onClick={() => setSelectedStatuses([])} className="text-gray-500 text-xs">
+          {STATUS_CHIPS.map(({ id, icon: Icon, long, short }) => {
+            const fs = getFilterState(id)
+            const cls =
+              fs === "include"
+                ? `${getProtocolStatusButtonClass(id, true)}`
+                : fs === "exclude"
+                  ? "bg-red-100 text-red-700 border border-red-300 line-through"
+                  : "bg-white"
+            const title =
+              fs === "include"
+                ? "Incluido. Click para excluir."
+                : fs === "exclude"
+                  ? "Excluido. Click para quitar filtro."
+                  : "Sin filtro. Click para incluir."
+            return (
+              <Button
+                key={id}
+                variant={fs === "include" ? "default" : "outline"}
+                size="sm"
+                onClick={() => toggleStatus(id)}
+                title={title}
+                className={`text-xs ${cls}`}
+              >
+                {fs === "exclude" ? <X className="h-3 w-3 mr-1" /> : <Icon className="h-3 w-3 mr-1" />}
+                <span className="hidden sm:inline">{long}</span>
+                <span className="sm:hidden">{short}</span>
+              </Button>
+            )
+          })}
+          {hasAnyStatusFilter && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setStatusFilter({ include: [], exclude: [] })}
+              className="text-gray-500 text-xs"
+            >
               <X className="h-3 w-3 mr-1" />
               Limpiar
             </Button>
@@ -329,7 +309,9 @@ export function ValidationProtocolList() {
                   </Badge>
                 </div>
                 <p className="text-sm text-gray-600 mt-1">
-                  {protocol.patient.first_name} {protocol.patient.last_name} · CUIL {protocol.patient.cuil}
+                  {protocol.patient.first_name} {protocol.patient.last_name}
+                  {typeof protocol.patient.age === "number" && ` · ${protocol.patient.age} años`}
+                  {" · CUIL "}{protocol.patient.cuil}
                 </p>
               </div>
               <span className="text-sm font-medium text-[#204983] whitespace-nowrap">

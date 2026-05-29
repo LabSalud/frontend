@@ -116,6 +116,7 @@ export default function FacturacionPage() {
   const [closeDateTo, setCloseDateTo] = useState("")
   const [closeNotes, setCloseNotes] = useState("")
   const [closingPresentation, setClosingPresentation] = useState(false)
+  const [unbillingProtocolId, setUnbillingProtocolId] = useState<number | null>(null)
 
   const fetchProtocolsToBill = useCallback(async () => {
     try {
@@ -180,6 +181,28 @@ export default function FacturacionPage() {
   const refreshCurrent = useCallback(async () => {
     await Promise.all([fetchProtocolsToBill(), fetchCurrentBilled(), fetchCurrentTotal()])
   }, [fetchProtocolsToBill, fetchCurrentBilled, fetchCurrentTotal])
+
+  const handleUnbillProtocol = useCallback(
+    async (protocolId: number) => {
+      try {
+        setUnbillingProtocolId(protocolId)
+        const response = await apiRequest(BILLING_ENDPOINTS.UNBILL_PROTOCOL(protocolId), {
+          method: "POST",
+        })
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}))
+          throw new Error(formatApiError(errorData, "No se pudo desfacturar el protocolo"))
+        }
+        toast.success(`Protocolo #${protocolId} desfacturado`, { duration: TOAST_DURATION })
+        await refreshCurrent()
+      } catch (error) {
+        toast.error(getErrorMessage(error, "Error al desfacturar el protocolo"), { duration: TOAST_DURATION })
+      } finally {
+        setUnbillingProtocolId(null)
+      }
+    },
+    [apiRequest, refreshCurrent],
+  )
 
   const refreshHistory = useCallback(async () => {
     await fetchClosedPresentations()
@@ -385,12 +408,29 @@ export default function FacturacionPage() {
                       <div className="space-y-2 mt-3">
                         {currentBilled.map((invoice) => (
                           <div key={invoice.id} className="border border-slate-200 rounded-lg p-2 text-sm">
-                            <p className="font-medium text-slate-800">
-                              Protocolo #{invoice.protocol_id} · {invoice.insurance_name}
-                            </p>
-                            <p className="text-xs text-slate-500 mt-1">
-                              Factura #{invoice.id} · Esperado {formatCurrency(invoice.total_amount)}
-                            </p>
+                            <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
+                              <div className="min-w-0">
+                                <p className="font-medium text-slate-800">
+                                  Protocolo #{invoice.protocol_id} · {invoice.insurance_name}
+                                </p>
+                                <p className="text-xs text-slate-500 mt-1">
+                                  Factura #{invoice.id} · Esperado {formatCurrency(invoice.total_amount)}
+                                </p>
+                              </div>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="self-start text-xs text-red-600 hover:bg-red-50 hover:text-red-700 border-red-200"
+                                disabled={unbillingProtocolId === invoice.protocol_id}
+                                onClick={() => handleUnbillProtocol(invoice.protocol_id)}
+                                title="Anular esta factura: el protocolo vuelve a Pendiente de facturación"
+                              >
+                                {unbillingProtocolId === invoice.protocol_id ? (
+                                  <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                ) : null}
+                                Desfacturar
+                              </Button>
+                            </div>
                           </div>
                         ))}
                       </div>

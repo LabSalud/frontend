@@ -36,6 +36,14 @@ interface CurrentTotalResponse {
   }>
 }
 
+interface DailyBillingSeries {
+  from: string
+  to: string
+  days: number
+  series: Array<{ date: string; particular: string; oss: string; total: string }>
+  totals: { particular: string; oss: string; total: string }
+}
+
 interface ClosedPresentation {
   id: number
   reference: string
@@ -117,6 +125,8 @@ export default function FacturacionPage() {
   const [closeNotes, setCloseNotes] = useState("")
   const [closingPresentation, setClosingPresentation] = useState(false)
   const [unbillingProtocolId, setUnbillingProtocolId] = useState<number | null>(null)
+  const [dailySeries, setDailySeries] = useState<DailyBillingSeries | null>(null)
+  const [loadingDailySeries, setLoadingDailySeries] = useState(false)
 
   const fetchProtocolsToBill = useCallback(async () => {
     try {
@@ -164,6 +174,24 @@ export default function FacturacionPage() {
     }
   }, [apiRequest])
 
+  const fetchDailySeries = useCallback(async (days = 14) => {
+    try {
+      setLoadingDailySeries(true)
+      const response = await apiRequest(`${BILLING_ENDPOINTS.ANALYTICS_DAILY}?days=${days}`)
+      if (!response.ok) {
+        setDailySeries(null)
+        return
+      }
+      const data: DailyBillingSeries = await response.json()
+      setDailySeries(data)
+    } catch (error) {
+      console.error("Error fetching daily billing series:", error)
+      setDailySeries(null)
+    } finally {
+      setLoadingDailySeries(false)
+    }
+  }, [apiRequest])
+
   const fetchClosedPresentations = useCallback(async () => {
     try {
       setLoadingClosedPresentations(true)
@@ -179,8 +207,13 @@ export default function FacturacionPage() {
   }, [apiRequest])
 
   const refreshCurrent = useCallback(async () => {
-    await Promise.all([fetchProtocolsToBill(), fetchCurrentBilled(), fetchCurrentTotal()])
-  }, [fetchProtocolsToBill, fetchCurrentBilled, fetchCurrentTotal])
+    await Promise.all([
+      fetchProtocolsToBill(),
+      fetchCurrentBilled(),
+      fetchCurrentTotal(),
+      fetchDailySeries(14),
+    ])
+  }, [fetchProtocolsToBill, fetchCurrentBilled, fetchCurrentTotal, fetchDailySeries])
 
   const handleUnbillProtocol = useCallback(
     async (protocolId: number) => {
@@ -333,6 +366,74 @@ export default function FacturacionPage() {
                       <p className="text-sm font-semibold text-slate-800 mt-1">Presentación abierta</p>
                     </div>
                   </div>
+                </CardContent>
+              </Card>
+
+              {/* Serie diaria facturación particular vs OOSS (últimos 14 días) */}
+              <Card className="border-slate-200">
+                <CardContent className="p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                    <p className="text-sm font-semibold text-slate-800">Facturación diaria (últimos 14 días)</p>
+                    <div className="flex items-center gap-3 text-xs">
+                      <span className="flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded-sm bg-sky-500" />Particular</span>
+                      <span className="flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded-sm bg-violet-500" />OOSS</span>
+                    </div>
+                  </div>
+                  {loadingDailySeries && !dailySeries ? (
+                    <Skeleton className="h-40 w-full rounded" />
+                  ) : !dailySeries || dailySeries.series.length === 0 ? (
+                    <p className="text-xs text-slate-500">Sin datos en el período.</p>
+                  ) : (
+                    (() => {
+                      const max = Math.max(
+                        1,
+                        ...dailySeries.series.map((d) => Number.parseFloat(d.particular) + Number.parseFloat(d.oss) || 0),
+                      )
+                      return (
+                        <>
+                          <div className="flex h-40 items-end gap-1 overflow-x-auto pb-1">
+                            {dailySeries.series.map((d) => {
+                              const part = Number.parseFloat(d.particular) || 0
+                              const oss = Number.parseFloat(d.oss) || 0
+                              const partH = (part / max) * 100
+                              const ossH = (oss / max) * 100
+                              return (
+                                <div key={d.date} className="flex min-w-[28px] flex-1 flex-col items-center gap-1">
+                                  <div className="flex w-full flex-1 flex-col-reverse">
+                                    <div
+                                      className="w-full bg-sky-500"
+                                      style={{ height: `${partH}%` }}
+                                      title={`Particular: ${formatCurrency(part)}`}
+                                    />
+                                    <div
+                                      className="w-full bg-violet-500"
+                                      style={{ height: `${ossH}%` }}
+                                      title={`OOSS: ${formatCurrency(oss)}`}
+                                    />
+                                  </div>
+                                  <span className="text-[9px] text-slate-500">{d.date.slice(5)}</span>
+                                </div>
+                              )
+                            })}
+                          </div>
+                          <div className="mt-2 grid grid-cols-3 gap-2 rounded-md bg-slate-50 px-3 py-2 text-xs">
+                            <div className="flex flex-col">
+                              <span className="text-slate-500">Particular</span>
+                              <span className="font-semibold text-sky-700">{formatCurrency(dailySeries.totals.particular)}</span>
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-slate-500">OOSS</span>
+                              <span className="font-semibold text-violet-700">{formatCurrency(dailySeries.totals.oss)}</span>
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-slate-500">Total</span>
+                              <span className="font-semibold text-slate-800">{formatCurrency(dailySeries.totals.total)}</span>
+                            </div>
+                          </div>
+                        </>
+                      )
+                    })()
+                  )}
                 </CardContent>
               </Card>
 

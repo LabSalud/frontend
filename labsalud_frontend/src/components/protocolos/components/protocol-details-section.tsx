@@ -39,6 +39,10 @@ interface ProtocolDetailsSectionProps {
   preauthDisabledReason?: string
   showCoseguroButton?: boolean
   coseguroDisabledReason?: string
+  unplannedTransactions?: import("@/types").UnplannedTransaction[]
+  unplannedChargesTotal?: string
+  unplannedPaymentsTotal?: string
+  onOpenUnplanned?: () => void
   onOpenHistoryDialog: () => void
   onSetOrder?: () => void
   onApplyPreauthorization?: () => void
@@ -70,6 +74,10 @@ export function ProtocolDetailsSection({
   preauthDisabledReason,
   showCoseguroButton = false,
   coseguroDisabledReason,
+  unplannedTransactions = [],
+  unplannedChargesTotal,
+  unplannedPaymentsTotal,
+  onOpenUnplanned,
   onOpenHistoryDialog,
   onSetOrder,
   onApplyPreauthorization,
@@ -280,6 +288,66 @@ export function ProtocolDetailsSection({
               <div className="flex items-center justify-between text-xs pt-1 border-t border-gray-200">
                 <span className="text-gray-600">Total extras</span>
                 <span className="font-medium">${extras.toFixed(2)}</span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Transacciones no contempladas (cargos/pagos extra). Siempre permitimos
+            abrir el gestor con onOpenUnplanned, aún sin transacciones cargadas. */}
+        {onOpenUnplanned && (
+          <div className="rounded-lg border border-violet-100 bg-violet-50/40 p-3 space-y-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-xs font-semibold text-gray-700">Cobros / pagos no contemplados</p>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-7 border-violet-600 bg-white px-2 text-xs text-violet-700 hover:bg-violet-600 hover:text-white"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onOpenUnplanned()
+                }}
+                data-no-expand
+              >
+                {unplannedTransactions.length > 0 ? "Gestionar" : "Agregar"}
+              </Button>
+            </div>
+            {unplannedTransactions.length === 0 ? (
+              <p className="text-xs text-gray-500">Sin movimientos cargados.</p>
+            ) : (
+              <div className="space-y-1">
+                {unplannedTransactions.map((tx) => (
+                  <div key={tx.id} className="flex items-start justify-between gap-2 text-xs">
+                    <div className="min-w-0 flex-1">
+                      <span
+                        className={`mr-1 font-semibold uppercase ${
+                          tx.kind === "charge" ? "text-rose-700" : "text-emerald-700"
+                        }`}
+                      >
+                        {tx.kind === "charge" ? "Cobro" : "Pago"}
+                      </span>
+                      <span className="text-gray-700 break-words">{tx.description}</span>
+                    </div>
+                    <span className="shrink-0 font-medium text-gray-900">
+                      ${Number.parseFloat(tx.amount).toFixed(2)}
+                    </span>
+                  </div>
+                ))}
+                {(unplannedChargesTotal || unplannedPaymentsTotal) && (
+                  <div className="flex flex-wrap items-center justify-between gap-1 pt-1 border-t border-violet-200 text-xs">
+                    {unplannedChargesTotal && (
+                      <span className="text-gray-600">
+                        Cobros: <strong className="text-rose-700">${Number.parseFloat(unplannedChargesTotal).toFixed(2)}</strong>
+                      </span>
+                    )}
+                    {unplannedPaymentsTotal && (
+                      <span className="text-gray-600">
+                        Pagos: <strong className="text-emerald-700">${Number.parseFloat(unplannedPaymentsTotal).toFixed(2)}</strong>
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </div>

@@ -114,6 +114,9 @@ export const PROTOCOL_ENDPOINTS = {
   REGULARIZE_BALANCE: (id: number) => buildApiUrl(`/protocols/protocols/${id}/regularize-balance/`),
   UNCANCEL: (id: number) => buildApiUrl(`/protocols/protocols/${id}/uncancel/`),
   SET_COSEGURO: (id: number) => buildApiUrl(`/protocols/protocols/${id}/set-coseguro/`),
+  UNPLANNED_LIST: (protocolId: number) => buildApiUrl(`/protocols/protocols/${protocolId}/unplanned/`),
+  UNPLANNED_ITEM: (protocolId: number, txId: number) =>
+    buildApiUrl(`/protocols/protocols/${protocolId}/unplanned/${txId}/`),
   APPLY_PREAUTHORIZATION: buildApiUrl("/protocols/protocols/apply-preauthorization/"),
   MERGE_REPORT: buildApiUrl("/protocols/protocols/merge-report/"),
   AUDIT_TIMELINE: (id: number) => buildApiUrl(`/protocols/protocols/${id}/audit-timeline/`),
@@ -173,6 +176,7 @@ export const BILLING_ENDPOINTS = {
   CLOSED_PRESENTATIONS: buildApiUrl("/billing/presentations/closed/"),
   CLOSE_PRESENTATION: buildApiUrl("/billing/presentations/close-period/"),
   PRESENTATION_PROTOCOLS: (id: number) => buildApiUrl(`/billing/presentations/${id}/protocols/`),
+  ANALYTICS_DAILY: buildApiUrl("/billing/analytics/daily/"),
 } as const
 
 // Core endpoints

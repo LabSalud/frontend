@@ -233,7 +233,12 @@ export function CreatePatientDialog({ isOpen, onClose, addPatient, apiRequest }:
 
   const isFormValid = () => {
     if (isAnonymous) {
-      return formData.first_name.trim().length >= 2
+      const firstName = formData.first_name.trim()
+      const lastName = formData.last_name.trim()
+      const observations = formData.observations.trim()
+      if (!firstName && !lastName) return false
+      if ((!firstName || !lastName) && !observations) return false
+      return true
     }
     const requiredFields = ["cuil", "first_name", "last_name", "birth_date"]
     const requiredFieldsValid = requiredFields.every((field) => {
@@ -251,10 +256,21 @@ export function CreatePatientDialog({ isOpen, onClose, addPatient, apiRequest }:
 
   const handleCreatePatient = async () => {
     if (isAnonymous) {
-      if (formData.first_name.trim().length < 2) {
-        setTouched((prev) => ({ ...prev, first_name: true }))
+      const firstName = formData.first_name.trim()
+      const lastName = formData.last_name.trim()
+      const observations = formData.observations.trim()
+      if (!firstName && !lastName) {
+        setTouched((prev) => ({ ...prev, first_name: true, last_name: true }))
         toast.error("Formulario inválido", {
-          description: "Ingresá un identificador (ej: 'Internado Cama 4').",
+          description: "Ingresá al menos nombre o apellido.",
+          duration: TOAST_DURATION,
+        })
+        return
+      }
+      if ((!firstName || !lastName) && !observations) {
+        setTouched((prev) => ({ ...prev, observations: true }))
+        toast.error("Falta observación", {
+          description: "Si no tenés nombre y apellido, agregá una observación que identifique al paciente.",
           duration: TOAST_DURATION,
         })
         return
@@ -284,9 +300,9 @@ export function CreatePatientDialog({ isOpen, onClose, addPatient, apiRequest }:
       // automáticamente si llegan los datos requeridos (cuil, last_name, birth_date, gender).
       const buildAnonymousPayload = () => {
         const payload: Record<string, unknown> = {
-          first_name: formData.first_name.trim(),
           is_anonymous: true,
         }
+        if (formData.first_name.trim()) payload.first_name = formData.first_name.trim()
         const cuilDigits = normalizeCuil(formData.cuil)
         if (cuilDigits) payload.cuil = cuilDigits
         if (formData.last_name.trim()) payload.last_name = formData.last_name.trim()
@@ -382,7 +398,7 @@ export function CreatePatientDialog({ isOpen, onClose, addPatient, apiRequest }:
                   Paciente anónimo
                 </Label>
                 <p className="text-xs text-amber-800">
-                  Para pacientes sin datos completos. Solo requiere un identificador; el resto es opcional y se puede ir completando.
+                  Para pacientes sin datos completos. Requiere al menos nombre o apellido. Si falta alguno, agregá una observación.
                 </p>
               </div>
             </div>
@@ -395,34 +411,35 @@ export function CreatePatientDialog({ isOpen, onClose, addPatient, apiRequest }:
 
           {isAnonymous ? (
             <>
-              <div className="space-y-2">
-                <Label htmlFor="first_name" className="text-base font-semibold">
-                  Identificador *
-                </Label>
-                <Input
-                  id="first_name"
-                  name="first_name"
-                  value={formData.first_name}
-                  onChange={handleInputChange}
-                  placeholder="Internado Cama 4 / Juan"
-                  className={getFieldStyle("first_name")}
-                  required
-                />
-                <p className="text-xs text-gray-500">
-                  Único campo obligatorio. Completá lo que tengas; pasa a paciente normal cuando tenga CUIL, apellido, fecha y género.
-                </p>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="first_name" className="text-sm font-semibold">
+                    Nombre <span className="text-gray-400 font-normal">(o apellido)</span>
+                  </Label>
+                  <Input
+                    id="first_name"
+                    name="first_name"
+                    value={formData.first_name}
+                    onChange={handleInputChange}
+                    placeholder="Juan"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="last_name_anon" className="text-sm font-semibold">
+                    Apellido <span className="text-gray-400 font-normal">(o nombre)</span>
+                  </Label>
+                  <Input
+                    id="last_name_anon"
+                    name="last_name"
+                    value={formData.last_name}
+                    onChange={handleInputChange}
+                    placeholder="Pérez"
+                  />
+                </div>
               </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="last_name_anon">Apellido <span className="text-gray-400 font-normal">(opcional)</span></Label>
-                <Input
-                  id="last_name_anon"
-                  name="last_name"
-                  value={formData.last_name}
-                  onChange={handleInputChange}
-                  placeholder="Pérez"
-                />
-              </div>
+              <p className="text-xs text-gray-500">
+                Al menos uno (nombre o apellido). Si falta alguno, la observación abajo es obligatoria.
+              </p>
 
               <div className="space-y-2">
                 <Label htmlFor="cuil_anon">CUIL <span className="text-gray-400 font-normal">(opcional)</span></Label>
@@ -705,14 +722,19 @@ export function CreatePatientDialog({ isOpen, onClose, addPatient, apiRequest }:
 
           <div className="space-y-2">
             <Label htmlFor="observations">
-              Observaciones <span className="text-gray-400 font-normal">(opcional)</span>
+              Observaciones{" "}
+              {isAnonymous && (!formData.first_name.trim() || !formData.last_name.trim()) ? (
+                <span className="text-red-600 font-normal">*</span>
+              ) : (
+                <span className="text-gray-400 font-normal">(opcional)</span>
+              )}
             </Label>
             <Textarea
               id="observations"
               name="observations"
               value={formData.observations}
               onChange={handleInputChange}
-              placeholder="Notas internas, cama, institución, aclaraciones de contacto"
+              placeholder="Cama 5, internado UTI, hijo de paciente X, etc."
               rows={3}
             />
           </div>

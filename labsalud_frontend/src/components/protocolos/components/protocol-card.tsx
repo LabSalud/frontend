@@ -45,6 +45,7 @@ import {
   PreauthorizationDialog,
   OrderStatusDialog,
   ArcaBillingDialog,
+  UnplannedTransactionsDialog,
 } from "./dialogs"
 import type { ArcaPayload } from "./dialogs"
 import { ProtocolHistoryDialog } from "./dialogs/protocol-history-dialog"
@@ -98,6 +99,9 @@ interface ProtocolDetailResponse {
   material_descartable_amount?: string
   derivacion_amount?: string
   extras_total?: string
+  unplanned_transactions?: import("@/types").UnplannedTransaction[]
+  unplanned_charges_total?: string
+  unplanned_payments_total?: string
   private_amount_due?: string
   nbu?: { id: number; name: string } | null
   payment_status: PaymentStatus
@@ -165,6 +169,7 @@ export function ProtocolCard({
   const [isArcaBilling, setIsArcaBilling] = useState(false)
   const [coseguroDialogOpen, setCoseguroDialogOpen] = useState(false)
   const [isProcessingCoseguro, setIsProcessingCoseguro] = useState(false)
+  const [unplannedDialogOpen, setUnplannedDialogOpen] = useState(false)
   const [preauthDialogOpen, setPreauthDialogOpen] = useState(false)
   const [isProcessingPreauth, setIsProcessingPreauth] = useState(false)
   const [orderStatusDialogOpen, setOrderStatusDialogOpen] = useState(false)
@@ -1070,6 +1075,10 @@ export function ProtocolCard({
                   preauthDisabledReason={preauthDisabledReason}
                   showCoseguroButton={showCoseguroAction}
                   coseguroDisabledReason={coseguroDisabledReason}
+                  unplannedTransactions={protocolDetail?.unplanned_transactions}
+                  unplannedChargesTotal={protocolDetail?.unplanned_charges_total}
+                  unplannedPaymentsTotal={protocolDetail?.unplanned_payments_total}
+                  onOpenUnplanned={() => setUnplannedDialogOpen(true)}
                   onOpenHistoryDialog={() => setHistoryDialogOpen(true)}
                   onSetOrder={handleOpenOrderStatusDialog}
                   onApplyPreauthorization={handleOpenPreauthDialog}
@@ -1257,6 +1266,16 @@ export function ProtocolCard({
         insuranceChargesCoseguro={insuranceChargesCoseguro}
         onConfirm={handleSetCoseguro}
         isProcessing={isProcessingCoseguro}
+      />
+
+      <UnplannedTransactionsDialog
+        open={unplannedDialogOpen}
+        onOpenChange={setUnplannedDialogOpen}
+        protocolId={protocol.id}
+        isEditable={isEditable}
+        onChanged={() => {
+          void refreshProtocolDetail()
+        }}
       />
 
       <OrderStatusDialog

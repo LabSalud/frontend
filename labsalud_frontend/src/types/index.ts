@@ -599,10 +599,29 @@ export interface Protocol {
   previous_status?: ProtocolStatus | null
   missing_info?: string[]
   details: ProtocolDetail[]
+  unplanned_transactions?: UnplannedTransaction[]
+  unplanned_charges_total?: string
+  unplanned_payments_total?: string
   creation?: CreationAudit
   last_change?: LastChangeAudit
   history?: HistoryEntry[]
   total_changes?: number
+}
+
+export interface UnplannedTransaction {
+  id: number
+  protocol: number
+  kind: "charge" | "payment"
+  description: string
+  amount: string
+  created_by?: {
+    id: number
+    username: string
+    first_name?: string
+    last_name?: string
+  } | null
+  created_at?: string
+  is_active?: boolean
 }
 
 export interface ProtocolListItem {

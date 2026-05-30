@@ -58,6 +58,20 @@ interface DashboardResponse {
     incompleta?: number
     completa?: number
   }
+  today_cash_revenue?: {
+    protocols_count?: number
+    total_paid?: string
+    total_due?: string
+    pending_to_collect?: string
+    breakdown?: {
+      analyses_amount_due?: string
+      coseguro?: string
+      material_descartable?: string
+      derivacion?: string
+      unplanned_charges?: string
+      unplanned_payments_today?: string
+    }
+  }
 }
 
 interface ProtocolsToBillResponse {
@@ -127,6 +141,12 @@ export default function Home() {
   const preauth = dashboard?.preauth_breakdown
   const arca = dashboard?.arca_month
   const pendingBilling = Number(protocolsToBillQuery.data?.count || 0)
+  const cash = dashboard?.today_cash_revenue
+  const cashBreakdown = cash?.breakdown
+  const formatMoney = (v?: string) => {
+    const n = Number.parseFloat(v || "0")
+    return Number.isFinite(n) ? `$${n.toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "$0.00"
+  }
 
   const mainKpis = [
     {
@@ -347,6 +367,46 @@ export default function Home() {
           </div>
         </section>
       </div>
+
+      <section className="mt-5 rounded-lg border border-slate-200 bg-white/70 p-4 shadow-sm backdrop-blur-sm sm:p-5">
+        <div className="mb-4 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <Receipt className="h-5 w-5 text-emerald-600" />
+            <h2 className="text-base font-semibold text-slate-900">Caja del día (pacientes)</h2>
+          </div>
+          <span className="text-xs text-slate-500">
+            {numberOrZero(cash?.protocols_count).toLocaleString()} protocolos hoy
+          </span>
+        </div>
+        {loading ? (
+          <Skeleton className="h-32 w-full rounded-md" />
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div className="rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3">
+              <p className="text-xs font-medium text-emerald-700">Cobrado hoy</p>
+              <p className="mt-1 text-2xl font-bold text-emerald-800">{formatMoney(cash?.total_paid)}</p>
+            </div>
+            <div className="rounded-md border border-slate-200 bg-slate-50 px-4 py-3">
+              <p className="text-xs font-medium text-slate-600">Total a cobrar</p>
+              <p className="mt-1 text-2xl font-bold text-slate-800">{formatMoney(cash?.total_due)}</p>
+            </div>
+            <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3">
+              <p className="text-xs font-medium text-amber-700">Pendiente</p>
+              <p className="mt-1 text-2xl font-bold text-amber-800">{formatMoney(cash?.pending_to_collect)}</p>
+            </div>
+            {cashBreakdown && (
+              <div className="sm:col-span-3 grid grid-cols-2 gap-1.5 rounded-md bg-slate-50 px-3 py-2 text-xs sm:grid-cols-3 lg:grid-cols-6">
+                <div className="flex justify-between gap-2"><span className="text-slate-500">Particulares</span><span className="font-semibold">{formatMoney(cashBreakdown.analyses_amount_due)}</span></div>
+                <div className="flex justify-between gap-2"><span className="text-slate-500">Coseguro</span><span className="font-semibold">{formatMoney(cashBreakdown.coseguro)}</span></div>
+                <div className="flex justify-between gap-2"><span className="text-slate-500">Material</span><span className="font-semibold">{formatMoney(cashBreakdown.material_descartable)}</span></div>
+                <div className="flex justify-between gap-2"><span className="text-slate-500">Derivación</span><span className="font-semibold">{formatMoney(cashBreakdown.derivacion)}</span></div>
+                <div className="flex justify-between gap-2"><span className="text-slate-500">Cobros extra</span><span className="font-semibold">{formatMoney(cashBreakdown.unplanned_charges)}</span></div>
+                <div className="flex justify-between gap-2"><span className="text-slate-500">Pagos extra</span><span className="font-semibold">{formatMoney(cashBreakdown.unplanned_payments_today)}</span></div>
+              </div>
+            )}
+          </div>
+        )}
+      </section>
 
       <div className="mt-5 grid gap-5 lg:grid-cols-3">
         <section className="rounded-lg border border-slate-200 bg-white/70 p-4 shadow-sm backdrop-blur-sm sm:p-5">

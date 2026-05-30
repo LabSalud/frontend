@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { User, Building, CreditCard, Send, DollarSign, Printer, History, ClipboardCheck, BedDouble, BookOpen, ShieldCheck } from "lucide-react"
+import { User, Building, CreditCard, Send, DollarSign, Printer, History, ClipboardCheck, BedDouble, BookOpen, ShieldCheck, Wallet } from "lucide-react"
 import { Badge } from "../../ui/badge"
 import { Button } from "../../ui/button"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
@@ -37,9 +37,12 @@ interface ProtocolDetailsSectionProps {
   orderDisabledReason?: string
   showPreauthButton?: boolean
   preauthDisabledReason?: string
+  showCoseguroButton?: boolean
+  coseguroDisabledReason?: string
   onOpenHistoryDialog: () => void
   onSetOrder?: () => void
   onApplyPreauthorization?: () => void
+  onSetCoseguro?: () => void
 }
 
 export function ProtocolDetailsSection({
@@ -65,9 +68,12 @@ export function ProtocolDetailsSection({
   orderDisabledReason,
   showPreauthButton = false,
   preauthDisabledReason,
+  showCoseguroButton = false,
+  coseguroDisabledReason,
   onOpenHistoryDialog,
   onSetOrder,
   onApplyPreauthorization,
+  onSetCoseguro,
   amountDue,
   amountPending,
   patientPaid,
@@ -194,6 +200,34 @@ export function ProtocolDetailsSection({
               >
                 <ShieldCheck className="h-3 w-3 mr-1" />
                 Modificar
+              </Button>,
+            )}
+          </div>
+        )}
+
+        {showCoseguroButton && (
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm">
+            <Wallet className="h-4 w-4 flex-shrink-0 text-amber-600" />
+            <span className="text-gray-600 w-28 flex-shrink-0 whitespace-nowrap">Coseguro:</span>
+            <Badge variant="outline" className="bg-amber-50 text-amber-800 border-amber-200">
+              ${coseguro.toFixed(2)}
+            </Badge>
+            {renderDisabledTooltip(
+              coseguroDisabledReason,
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={Boolean(coseguroDisabledReason)}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  if (coseguroDisabledReason) return
+                  onSetCoseguro?.()
+                }}
+                className="h-7 border-amber-600 bg-white px-2 text-xs text-amber-700 hover:bg-amber-600 hover:text-white disabled:opacity-60"
+                data-no-expand
+              >
+                <Wallet className="h-3 w-3 mr-1" />
+                {coseguro > 0 ? "Modificar" : "Cargar"}
               </Button>,
             )}
           </div>

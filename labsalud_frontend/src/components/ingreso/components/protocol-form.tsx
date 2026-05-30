@@ -185,10 +185,12 @@ interface ProtocolFormProps {
   shouldShowPreauth: boolean
   shouldChargeMaterial: boolean
   shouldChargeDerivacion: boolean
+  shouldChargeCoseguro: boolean
   extraAmounts: {
     material_descartable_amount: string
     derivacion_amount: string
   }
+  coseguroAmount: string
   totals: Totals
   onAnalysisChange: (analyses: SelectedAnalysis[]) => void
   onDoctorSelect: (doctor: Doctor | null) => void
@@ -205,6 +207,7 @@ interface ProtocolFormProps {
   onTrajoOrdenChange: (trajoOrden: TrajoOrdenStatus | "") => void
   onPreauthStatusChange: (status: PreauthStatus | "") => void
   onExtraAmountsChange: (amounts: { material_descartable_amount: string; derivacion_amount: string }) => void
+  onCoseguroChange: (value: string) => void
   onRefundChange: (isRefund: boolean) => void
 }
 
@@ -227,7 +230,9 @@ export function ProtocolForm({
   shouldShowPreauth,
   shouldChargeMaterial,
   shouldChargeDerivacion,
+  shouldChargeCoseguro,
   extraAmounts,
+  coseguroAmount,
   totals,
   onAnalysisChange,
   onDoctorSelect,
@@ -244,6 +249,7 @@ export function ProtocolForm({
   onTrajoOrdenChange,
   onPreauthStatusChange,
   onExtraAmountsChange,
+  onCoseguroChange,
   onRefundChange,
 }: ProtocolFormProps) {
   const isAnonymousPatient = Boolean(patient?.is_anonymous)
@@ -404,7 +410,7 @@ export function ProtocolForm({
           </div>
         )}
 
-        {(shouldShowPreauth || shouldChargeMaterial || shouldChargeDerivacion) && (
+        {(shouldShowPreauth || shouldChargeMaterial || shouldChargeDerivacion || shouldChargeCoseguro) && (
           <div className="space-y-2 sm:space-y-3">
             <div className="flex items-center gap-2">
               <ShieldCheck className="h-4 w-4 sm:h-5 sm:w-5 text-[#204983]" />
@@ -470,6 +476,24 @@ export function ProtocolForm({
                       }
                       className="bg-white"
                     />
+                  </div>
+                )}
+                {shouldChargeCoseguro && (
+                  <div className="space-y-1.5 sm:col-span-2">
+                    <Label htmlFor="coseguro-protocol">
+                      Coseguro <span className="text-xs font-normal text-gray-500">(monto informado por la OOSS al autorizar)</span>
+                    </Label>
+                    <Input
+                      id="coseguro-protocol"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={coseguroAmount}
+                      onChange={(event) => onCoseguroChange(event.target.value)}
+                      placeholder="0.00"
+                      className="bg-white"
+                    />
+                    <p className="text-xs text-blue-800">Se suma a lo que paga el paciente. Si no lo sabés ahora, dejalo vacío y se carga después.</p>
                   </div>
                 )}
               </div>

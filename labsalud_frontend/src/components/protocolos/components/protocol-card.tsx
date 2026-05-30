@@ -709,8 +709,9 @@ export function ProtocolCard({
         toast.success(`Análisis ${!detail.is_authorized ? "autorizado" : "desautorizado"} exitosamente`, {
           duration: TOAST_DURATION,
         })
-        await refreshProtocolDetail()
-        onUpdate()
+        // Refresca solo el detail local (totales, balance) en background.
+        // No llama onUpdate() para evitar recargar toda la lista de protocolos.
+        void refreshProtocolDetail()
       } else {
         const errorData = await response.json().catch(() => ({}))
         throw new Error(extractErrorMessage(errorData, "Error al actualizar la autorización"))
@@ -1067,9 +1068,12 @@ export function ProtocolCard({
                   orderDisabledReason={orderDisabledReason}
                   showPreauthButton={showPreauthAction}
                   preauthDisabledReason={preauthDisabledReason}
+                  showCoseguroButton={showCoseguroAction}
+                  coseguroDisabledReason={coseguroDisabledReason}
                   onOpenHistoryDialog={() => setHistoryDialogOpen(true)}
                   onSetOrder={handleOpenOrderStatusDialog}
                   onApplyPreauthorization={handleOpenPreauthDialog}
+                  onSetCoseguro={handleOpenCoseguroDialog}
                 />
                 <ProtocolActions
                   protocolId={protocol.id}

@@ -57,6 +57,7 @@ export default function IngresoPage() {
     material_descartable_amount: "",
     derivacion_amount: "",
   })
+  const [coseguroAmount, setCoseguroAmount] = useState("")
   const [isRefund, setIsRefund] = useState(false)
   const [doctors, setDoctors] = useState<Doctor[]>([])
   const [insurances, setInsurances] = useState<Insurance[]>([])
@@ -157,7 +158,8 @@ export default function IngresoPage() {
     const privateTotal = privateUb * privateUbValue
     const material = shouldChargeMaterial ? Number.parseFloat(extraAmounts.material_descartable_amount) || 0 : 0
     const derivacion = shouldChargeDerivacion ? Number.parseFloat(extraAmounts.derivacion_amount) || 0 : 0
-    const extrasTotal = material + derivacion
+    const coseguro = shouldChargeCoseguro ? Number.parseFloat(coseguroAmount) || 0 : 0
+    const extrasTotal = material + derivacion + coseguro
     const total = authorizedTotal + privateTotal + extrasTotal
     const patientOwes = isRefund ? total : privateTotal + extrasTotal
 
@@ -222,6 +224,7 @@ export default function IngresoPage() {
       material_descartable_amount: pricingConfig?.material_descartable_amount || "0.00",
       derivacion_amount: pricingConfig?.derivacion_amount || "0.00",
     })
+    setCoseguroAmount("")
   }
 
   const handleReset = () => {
@@ -244,6 +247,7 @@ export default function IngresoPage() {
       material_descartable_amount: pricingConfig?.material_descartable_amount || "0.00",
       derivacion_amount: pricingConfig?.derivacion_amount || "0.00",
     })
+    setCoseguroAmount("")
   }
 
   const isPrivateInsurance = selectedInsurance?.name.toLowerCase() === "particular"
@@ -255,6 +259,9 @@ export default function IngresoPage() {
   const shouldChargeMaterial = Boolean(selectedInsurance && selectedInsurance.charges_material_descartable)
   const shouldChargeDerivacion = Boolean(
     selectedInsurance && selectedInsurance.charges_derivacion && hasDerivationAnalysis,
+  )
+  const shouldChargeCoseguro = Boolean(
+    selectedInsurance && !isPrivateInsurance && selectedInsurance.charges_coseguro,
   )
 
   const handleDoctorUpdated = async () => {
@@ -383,6 +390,28 @@ export default function IngresoPage() {
       }
 
       const newProtocol = await protocolResponse.json()
+
+      // Coseguro: monto opcional que da la OOSS. Se carga via endpoint dedicado.
+      const coseguroValue = Number.parseFloat(coseguroAmount) || 0
+      if (shouldChargeCoseguro && coseguroValue > 0) {
+        try {
+          const coseguroRes = await apiRequest(PROTOCOL_ENDPOINTS.SET_COSEGURO(newProtocol.id), {
+            method: "POST",
+            body: { amount: coseguroValue.toFixed(2) },
+          })
+          if (!coseguroRes.ok) {
+            const errorData = await coseguroRes.json().catch(() => ({}))
+            toast.warning("Protocolo creado, pero falló el coseguro", {
+              description: extractErrorMessage(errorData),
+            })
+          }
+        } catch (err) {
+          toast.warning("Protocolo creado, pero falló el coseguro", {
+            description: getErrorMessage(err, "Error al guardar coseguro"),
+          })
+        }
+      }
+
       createProgress.finish()
       setSuccessData({
         protocol: newProtocol,
@@ -486,7 +515,9 @@ export default function IngresoPage() {
               shouldShowPreauth={shouldShowPreauth}
               shouldChargeMaterial={shouldChargeMaterial}
               shouldChargeDerivacion={shouldChargeDerivacion}
+              shouldChargeCoseguro={shouldChargeCoseguro}
               extraAmounts={extraAmounts}
+              coseguroAmount={coseguroAmount}
               totals={calculateTotals()}
               onAnalysisChange={setSelectedAnalyses}
               onDoctorSelect={setSelectedDoctor}
@@ -503,6 +534,7 @@ export default function IngresoPage() {
               onTrajoOrdenChange={setTrajoOrden}
               onPreauthStatusChange={setPreauthStatus}
               onExtraAmountsChange={setExtraAmounts}
+              onCoseguroChange={setCoseguroAmount}
               onRefundChange={setIsRefund}
             />
           </div>

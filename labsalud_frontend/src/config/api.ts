@@ -176,6 +176,8 @@ export const BILLING_ENDPOINTS = {
   CLOSED_PRESENTATIONS: buildApiUrl("/billing/presentations/closed/"),
   CLOSE_PRESENTATION: buildApiUrl("/billing/presentations/close-period/"),
   PRESENTATION_PROTOCOLS: (id: number) => buildApiUrl(`/billing/presentations/${id}/protocols/`),
+  SET_UB_VALUE_FOR_INSURANCE: (id: number) =>
+    buildApiUrl(`/billing/presentations/${id}/set-ub-value-for-insurance/`),
   ANALYTICS_DAILY: buildApiUrl("/billing/analytics/daily/"),
 } as const
 

@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
-import { CalendarRange, ChevronDown, ChevronUp, FileCheck2, Loader2, Receipt } from "lucide-react"
+import { CalendarRange, ChevronDown, ChevronUp, FileCheck2, Loader2, Receipt, Save } from "lucide-react"
 import { Button } from "../ui/button"
 import { Card, CardContent } from "../ui/card"
 import { Input } from "../ui/input"
@@ -99,6 +99,12 @@ const formatCurrency = (value: number | string | null | undefined): string => {
   })
 }
 
+// El valor UB de OOSS se carga al cierre, no al ingreso: hasta que se cargue,
+// el monto esperado llega en 0. Mostramos "—" en lugar de $0,00.
+const formatExpected = (value: number | string | null | undefined): string => {
+  return parseMoney(value) === 0 ? "—" : formatCurrency(value)
+}
+
 export default function FacturacionPage() {
   const { apiRequest } = useApi()
 
@@ -127,6 +133,8 @@ export default function FacturacionPage() {
   const [unbillingProtocolId, setUnbillingProtocolId] = useState<number | null>(null)
   const [dailySeries, setDailySeries] = useState<DailyBillingSeries | null>(null)
   const [loadingDailySeries, setLoadingDailySeries] = useState(false)
+  const [ubValueDraft, setUbValueDraft] = useState<Record<string, string>>({})
+  const [savingUbKey, setSavingUbKey] = useState<string | null>(null)
 
   const fetchProtocolsToBill = useCallback(async () => {
     try {
@@ -240,6 +248,43 @@ export default function FacturacionPage() {
   const refreshHistory = useCallback(async () => {
     await fetchClosedPresentations()
   }, [fetchClosedPresentations])
+
+  const handleSetUbValue = useCallback(
+    async (presentationId: number, insuranceId: number) => {
+      const key = `${presentationId}-${insuranceId}`
+      const raw = (ubValueDraft[key] ?? "").trim()
+      const parsed = Number.parseFloat(raw)
+      if (raw === "" || Number.isNaN(parsed) || parsed < 0) {
+        toast.error("Ingresá un valor UB válido (no negativo)", { duration: TOAST_DURATION })
+        return
+      }
+      try {
+        setSavingUbKey(key)
+        const response = await apiRequest(BILLING_ENDPOINTS.SET_UB_VALUE_FOR_INSURANCE(presentationId), {
+          method: "POST",
+          body: { insurance_id: insuranceId, ub_value: raw },
+        })
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}))
+          throw new Error(formatApiError(errorData, "No se pudo cargar el valor UB"))
+        }
+        const data = await response.json().catch(() => ({}))
+        const updated = Array.isArray(data.invoices_updated) ? data.invoices_updated.length : 0
+        toast.success(`Valor UB aplicado a ${updated} factura(s)`, { duration: TOAST_DURATION })
+        setUbValueDraft((prev) => {
+          const next = { ...prev }
+          delete next[key]
+          return next
+        })
+        await refreshHistory()
+      } catch (error) {
+        toast.error(getErrorMessage(error, "No se pudo cargar el valor UB"), { duration: TOAST_DURATION })
+      } finally {
+        setSavingUbKey(null)
+      }
+    },
+    [apiRequest, ubValueDraft, refreshHistory],
+  )
 
   useEffect(() => {
     if (activeTab === "current") {
@@ -359,7 +404,7 @@ export default function FacturacionPage() {
                     </div>
                     <div className="rounded-lg border border-slate-200 p-3">
                       <p className="text-xs text-slate-500">Monto esperado total</p>
-                      <p className="text-xl font-bold text-slate-800">{formatCurrency(currentExpectedTotal)}</p>
+                      <p className="text-xl font-bold text-slate-800">{formatExpected(currentExpectedTotal)}</p>
                     </div>
                     <div className="rounded-lg border border-slate-200 p-3">
                       <p className="text-xs text-slate-500">Estado</p>
@@ -462,8 +507,9 @@ export default function FacturacionPage() {
                                   {protocol.patient?.first_name || ""} {protocol.patient?.last_name || ""} · {protocol.insurance?.name || "Sin OOSS"}
                                 </p>
                                 <p className="text-sm mt-1 text-slate-700">
-                                  UB autorizadas: {protocol.total_ub_authorized} · Esperado: {formatCurrency(protocol.expected_amount ?? protocol.estimated_amount)}
+                                  UB autorizadas: {protocol.total_ub_authorized} · Esperado: {formatExpected(protocol.expected_amount ?? protocol.estimated_amount)}
                                 </p>
+                                <p className="text-[11px] text-slate-400">El valor UB de OOSS se carga al cerrar la presentación.</p>
                               </div>
                               <div className="flex flex-col items-end">
                                 <Button
@@ -515,7 +561,7 @@ export default function FacturacionPage() {
                                   Protocolo #{invoice.protocol_id} · {invoice.insurance_name}
                                 </p>
                                 <p className="text-xs text-slate-500 mt-1">
-                                  Factura #{invoice.id} · Esperado {formatCurrency(invoice.total_amount)}
+                                  Factura #{invoice.id} · Esperado {formatExpected(invoice.total_amount)}
                                 </p>
                               </div>
                               <Button
@@ -549,7 +595,7 @@ export default function FacturacionPage() {
                             <div key={`${row.insurance_id}-${row.insurance_name}`} className="border rounded p-2">
                               <div className="flex items-center justify-between text-sm">
                                 <span className="font-medium text-slate-800">{row.insurance_name}</span>
-                                <span className="font-semibold text-slate-800">{formatCurrency(row.expected_amount)}</span>
+                                <span className="font-semibold text-slate-800">{formatExpected(row.expected_amount)}</span>
                               </div>
                               <p className="text-xs text-slate-500 mt-1">
                                 {row.protocols_count} protocolo(s) · UB {row.total_ub_authorized}
@@ -631,7 +677,7 @@ export default function FacturacionPage() {
                           </div>
                           <div className="border border-slate-200 rounded-md p-2 bg-white">
                             <p className="text-slate-500">Monto esperado</p>
-                            <p className="text-sm font-semibold text-slate-800">{formatCurrency(presentation.expected_amount)}</p>
+                            <p className="text-sm font-semibold text-slate-800">{formatExpected(presentation.expected_amount)}</p>
                           </div>
                           <div className="border border-slate-200 rounded-md p-2 bg-white">
                             <p className="text-slate-500">Protocolos</p>
@@ -657,7 +703,7 @@ export default function FacturacionPage() {
                                       <p className="text-sm font-medium text-slate-800">
                                         Protocolo #{protocol.protocol_id} · Factura #{protocol.invoice_id}
                                       </p>
-                                      <p className="text-sm font-semibold text-slate-800">{formatCurrency(protocol.expected_amount)}</p>
+                                      <p className="text-sm font-semibold text-slate-800">{formatExpected(protocol.expected_amount)}</p>
                                     </div>
                                     <p className="text-xs text-slate-500 mt-1">
                                       {(protocol.patient?.first_name || "").trim()} {(protocol.patient?.last_name || "").trim()}
@@ -676,15 +722,44 @@ export default function FacturacionPage() {
                               <p className="text-xs text-slate-500 mt-1">Sin detalle por OOSS.</p>
                             ) : (
                               <div className="space-y-2 mt-2">
-                                {presentation.expected_by_ooss.map((ooss) => (
-                                  <div key={`${presentation.id}-${ooss.insurance_id}`} className="border border-slate-200 rounded-md p-2 text-xs bg-white">
+                                {presentation.expected_by_ooss.map((ooss) => {
+                                  const ubKey = `${presentation.id}-${ooss.insurance_id}`
+                                  return (
+                                  <div key={ubKey} className="border border-slate-200 rounded-md p-2 text-xs bg-white">
                                     <div className="flex items-center justify-between gap-2">
                                       <p className="font-medium text-slate-800">{ooss.insurance_name}</p>
-                                      <p className="font-semibold text-slate-800">{formatCurrency(ooss.expected_amount)}</p>
+                                      <p className="font-semibold text-slate-800">{formatExpected(ooss.expected_amount)}</p>
                                     </div>
                                     <p className="text-slate-500 mt-1">{ooss.protocol_count} protocolo(s)</p>
+                                    <div className="flex items-center gap-2 mt-2">
+                                      <Input
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                        className="h-8 text-xs"
+                                        placeholder="Valor UB de la OOSS"
+                                        value={ubValueDraft[ubKey] ?? ""}
+                                        onChange={(e) =>
+                                          setUbValueDraft((prev) => ({ ...prev, [ubKey]: e.target.value }))
+                                        }
+                                      />
+                                      <Button
+                                        size="sm"
+                                        className="h-8 bg-[#204983] shrink-0"
+                                        disabled={savingUbKey === ubKey}
+                                        onClick={() => handleSetUbValue(presentation.id, ooss.insurance_id)}
+                                        title="Aplica el valor UB a todas las facturas de esta OOSS y recalcula los totales"
+                                      >
+                                        {savingUbKey === ubKey ? (
+                                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                        ) : (
+                                          <Save className="h-3.5 w-3.5" />
+                                        )}
+                                      </Button>
+                                    </div>
                                   </div>
-                                ))}
+                                  )
+                                })}
                               </div>
                             )}
                           </div>

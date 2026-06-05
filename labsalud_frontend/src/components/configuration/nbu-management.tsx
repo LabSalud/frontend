@@ -3,7 +3,7 @@
 import type React from "react"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { useQueryClient } from "@tanstack/react-query"
-import { BookOpen, FileUp, Loader2, Plus, RefreshCw, Save, Settings2, Trash2 } from "lucide-react"
+import { BookOpen, FileUp, Loader2, Plus, RefreshCw, Save, Trash2 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
@@ -14,7 +14,7 @@ import { CATALOG_ENDPOINTS, TOAST_DURATION } from "@/config/api"
 import { useApi } from "@/hooks/use-api"
 import { useToast } from "@/hooks/use-toast"
 import { useNbuOptions } from "@/hooks/use-nbu-options"
-import type { NBUImportResult, NBUUbValuesList, PricingConfig } from "@/types"
+import type { NBUImportResult, NBUUbValuesList } from "@/types"
 import { formatApiError, getErrorMessage } from "@/lib/api-error"
 import { NbuSelect } from "./components/nbu-select"
 import { useEndpointProgress } from "@/hooks/use-endpoint-progress"
@@ -48,13 +48,6 @@ export function NbuManagement() {
   const [importResult, setImportResult] = useState<NBUImportResult | null>(null)
   const importProgress = useEndpointProgress()
   const createProgress = useEndpointProgress()
-  const [pricingConfig, setPricingConfig] = useState<PricingConfig | null>(null)
-  const [pricingForm, setPricingForm] = useState({
-    material_descartable_amount: "",
-    derivacion_amount: "",
-  })
-  const [loadingPricing, setLoadingPricing] = useState(false)
-  const [savingPricing, setSavingPricing] = useState(false)
 
   const selectedNbu = useMemo(
     () => nbus.find((nbu) => nbu.id === selectedId) || nbus[0] || null,
@@ -72,27 +65,6 @@ export function NbuManagement() {
     queryClient.invalidateQueries({ queryKey: ["catalog", "nbu"] })
     refetch()
   }
-
-  const fetchPricingConfig = useCallback(async () => {
-    try {
-      setLoadingPricing(true)
-      const response = await apiRequest(CATALOG_ENDPOINTS.PRICING_CONFIG)
-      if (!response.ok) {
-        const data = await response.json().catch(() => ({}))
-        throw new Error(formatApiError(data, "No se pudo cargar la configuración de precios."))
-      }
-      const data: PricingConfig = await response.json()
-      setPricingConfig(data)
-      setPricingForm({
-        material_descartable_amount: data.material_descartable_amount || "0.00",
-        derivacion_amount: data.derivacion_amount || "0.00",
-      })
-    } catch (err) {
-      error("Error al cargar montos", { description: getErrorMessage(err) })
-    } finally {
-      setLoadingPricing(false)
-    }
-  }, [apiRequest, error])
 
   const fetchUbValues = useCallback(async (nbuId: number) => {
     try {
@@ -116,43 +88,6 @@ export function NbuManagement() {
       fetchUbValues(selectedNbuId)
     }
   }, [fetchUbValues, selectedNbuId])
-
-  useEffect(() => {
-    fetchPricingConfig()
-  }, [fetchPricingConfig])
-
-  const handleSavePricing = async (event: React.FormEvent) => {
-    event.preventDefault()
-
-    try {
-      setSavingPricing(true)
-      const response = await apiRequest(CATALOG_ENDPOINTS.PRICING_CONFIG, {
-        method: "PATCH",
-        body: {
-          material_descartable_amount: pricingForm.material_descartable_amount || "0.00",
-          derivacion_amount: pricingForm.derivacion_amount || "0.00",
-        },
-      })
-      if (!response.ok) {
-        const data = await response.json().catch(() => ({}))
-        throw new Error(formatApiError(data, "No se pudieron guardar los montos."))
-      }
-      const data: PricingConfig = await response.json()
-      setPricingConfig(data)
-      setPricingForm({
-        material_descartable_amount: data.material_descartable_amount || "0.00",
-        derivacion_amount: data.derivacion_amount || "0.00",
-      })
-      success("Montos actualizados", {
-        description: "Los nuevos valores se aplicarán en los próximos cálculos de protocolos.",
-        duration: TOAST_DURATION,
-      })
-    } catch (err) {
-      error("Error al guardar montos", { description: getErrorMessage(err) })
-    } finally {
-      setSavingPricing(false)
-    }
-  }
 
   const handleCreate = async (event: React.FormEvent) => {
     event.preventDefault()
@@ -325,57 +260,6 @@ export function NbuManagement() {
           Actualizar
         </Button>
       </div>
-
-      <Card className="min-w-0 max-w-full overflow-hidden">
-        <CardHeader className="pb-2">
-          <h4 className="flex items-center gap-2 text-sm font-semibold text-gray-800">
-            <Settings2 className="h-4 w-4 text-[#204983]" />
-            Montos globales
-          </h4>
-        </CardHeader>
-        <CardContent className="min-w-0">
-          {loadingPricing && !pricingConfig ? (
-            <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
-              <Skeleton className="h-10 rounded" />
-              <Skeleton className="h-10 rounded" />
-              <Skeleton className="h-10 rounded" />
-            </div>
-          ) : (
-            <form onSubmit={handleSavePricing} className="grid grid-cols-1 gap-3 min-w-0 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
-              <div className="space-y-1.5">
-                <Label htmlFor="material-descartable">Material descartable</Label>
-                <Input
-                  id="material-descartable"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={pricingForm.material_descartable_amount}
-                  onChange={(event) =>
-                    setPricingForm((prev) => ({ ...prev, material_descartable_amount: event.target.value }))
-                  }
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="derivacion-amount">Derivación</Label>
-                <Input
-                  id="derivacion-amount"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={pricingForm.derivacion_amount}
-                  onChange={(event) => setPricingForm((prev) => ({ ...prev, derivacion_amount: event.target.value }))}
-                />
-              </div>
-              <div className="flex items-end">
-                <Button type="submit" className="w-full bg-[#204983] hover:bg-[#1a3d6f]" disabled={savingPricing}>
-                  {savingPricing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                  Guardar
-                </Button>
-              </div>
-            </form>
-          )}
-        </CardContent>
-      </Card>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.2fr)]">
         <div className="min-w-0 space-y-4">

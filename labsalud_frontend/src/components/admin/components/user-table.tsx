@@ -6,7 +6,14 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { AuditAvatars } from "@/components/common/audit-avatars"
-import { AlertCircle, Clock, Eye, Pencil, Shield, ShieldX, UserPlus, UserMinus, Trash } from "lucide-react"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { AlertCircle, Clock, Eye, MoreHorizontal, Pencil, Shield, ShieldX, UserPlus, UserMinus, Trash } from "lucide-react"
 
 interface UserTableProps {
   users: User[]
@@ -308,57 +315,65 @@ export function UserTable({
                   </TableCell>
 
                   <TableCell className="text-right bg-white">
-                    <div className="flex justify-end space-x-2">
-                      {canView && (
-                        <Button variant="outline" size="sm" onClick={() => onSelectUser(user, "view")}>
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                      )}
-                      {canEdit && (
-                        <Button variant="outline" size="sm" onClick={() => onSelectUser(user, "edit")}>
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                      )}
-                      {canManageTempPermissions && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => onSelectUser(user, "tempPermission")}
-                          title="Asignar permiso temporal"
-                        >
-                          <Shield className="h-4 w-4" />
-                        </Button>
-                      )}
-                      {canManageTempPermissions && hasTemp && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => onSelectUser(user, "revokeTempPermission")}
-                          title="Revocar permiso temporal"
-                        >
-                          <ShieldX className="h-4 w-4" />
-                        </Button>
-                      )}
-                      {canAssignRole && (
-                        <Button variant="outline" size="sm" onClick={() => onSelectUser(user, "assignRole")}>
-                          <UserPlus className="h-4 w-4" />
-                        </Button>
-                      )}
-                      {canRemoveRole && activeRoles.length > 0 && (
-                        <Button variant="outline" size="sm" onClick={() => onSelectUser(user, "removeRole")}>
-                          <UserMinus className="h-4 w-4" />
-                        </Button>
-                      )}
-                      {canDelete && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="border-red-200 hover:bg-red-50 bg-transparent"
-                          onClick={() => onSelectUser(user, "delete")}
-                        >
-                          <Trash className="h-4 w-4 text-red-500" />
-                        </Button>
-                      )}
+                    <div className="flex justify-end">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="outline" size="sm" className="h-8 w-8 p-0">
+                            <span className="sr-only">Abrir acciones</span>
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          {canView && (
+                            <DropdownMenuItem onClick={() => onSelectUser(user, "view")}>
+                              <Eye className="h-4 w-4" />
+                              Ver
+                            </DropdownMenuItem>
+                          )}
+                          {canEdit && (
+                            <DropdownMenuItem onClick={() => onSelectUser(user, "edit")}>
+                              <Pencil className="h-4 w-4" />
+                              Editar
+                            </DropdownMenuItem>
+                          )}
+                          {canManageTempPermissions && (
+                            <DropdownMenuItem onClick={() => onSelectUser(user, "tempPermission")}>
+                              <Shield className="h-4 w-4" />
+                              Permiso temporal
+                            </DropdownMenuItem>
+                          )}
+                          {canManageTempPermissions && hasTemp && (
+                            <DropdownMenuItem onClick={() => onSelectUser(user, "revokeTempPermission")}>
+                              <ShieldX className="h-4 w-4" />
+                              Revocar permiso temporal
+                            </DropdownMenuItem>
+                          )}
+                          {canAssignRole && (
+                            <DropdownMenuItem onClick={() => onSelectUser(user, "assignRole")}>
+                              <UserPlus className="h-4 w-4" />
+                              Asignar rol
+                            </DropdownMenuItem>
+                          )}
+                          {canRemoveRole && activeRoles.length > 0 && (
+                            <DropdownMenuItem onClick={() => onSelectUser(user, "removeRole")}>
+                              <UserMinus className="h-4 w-4" />
+                              Quitar rol
+                            </DropdownMenuItem>
+                          )}
+                          {canDelete && (
+                            <>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                variant="destructive"
+                                onClick={() => onSelectUser(user, "delete")}
+                              >
+                                <Trash className="h-4 w-4" />
+                                Eliminar
+                              </DropdownMenuItem>
+                            </>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   </TableCell>
                 </TableRow>

@@ -108,11 +108,8 @@ export function MergePatientDialog({ open, onOpenChange, source, onMerged }: Mer
       if (response.ok) {
         const data: PatientMergePreview = await response.json()
         setPreview(data)
-        const initialResolutions: Record<string, unknown> = {}
-        data.conflicts.forEach((conflict) => {
-          initialResolutions[conflict.field] = conflict.source_value
-        })
-        setResolutions(initialResolutions)
+        // No pre-seleccionar: el usuario debe elegir explícitamente qué valor conservar.
+        setResolutions({})
       } else {
         const errorData = await response.json().catch(() => ({}))
         toast.error("Error al previsualizar la unificación", {
@@ -165,6 +162,10 @@ export function MergePatientDialog({ open, onOpenChange, source, onMerged }: Mer
       setIsMerging(false)
     }
   }
+
+  const allConflictsResolved =
+    !preview ||
+    preview.conflicts.every((c) => Object.prototype.hasOwnProperty.call(resolutions, c.field))
 
   const renderCandidate = (candidate: Patient) => (
     <button
@@ -287,7 +288,7 @@ export function MergePatientDialog({ open, onOpenChange, source, onMerged }: Mer
               {preview.conflicts.length > 0 ? (
                 <div className="space-y-3">
                   <p className="text-xs font-semibold text-gray-600">
-                    Conflictos a resolver. Elegí qué valor conservar:
+                    Conflictos a resolver. Ninguna opción viene seleccionada: elegí qué valor conservar en cada campo.
                   </p>
                   {preview.conflicts.map((conflict) => (
                     <div key={conflict.field} className="rounded-md border border-amber-200 bg-amber-50 p-3">
@@ -350,7 +351,8 @@ export function MergePatientDialog({ open, onOpenChange, source, onMerged }: Mer
           <Button
             className="bg-[#204983] hover:bg-[#1a3d6f]"
             onClick={handleMerge}
-            disabled={!target || !preview || isMerging || isLoadingPreview}
+            disabled={!target || !preview || isMerging || isLoadingPreview || !allConflictsResolved}
+            title={!allConflictsResolved ? "Resolvé todos los conflictos antes de unificar" : undefined}
           >
             {isMerging ? (
               <>

@@ -11,14 +11,6 @@ import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
 import type { ProtocolWithLoadedResults, Result } from "@/types"
 import { Textarea } from "@/components/ui/textarea"
 import {
@@ -89,7 +81,6 @@ export function ValidationProtocolCard({ protocol, onProtocolValidated, isExpand
   const [previousResults, setPreviousResults] = useState<Record<number, Result[]>>({})
   const [loadingPrevious, setLoadingPrevious] = useState<Set<number>>(new Set())
   const [expandedHistory, setExpandedHistory] = useState<Set<number>>(new Set())
-  const [showConfirmModal, setShowConfirmModal] = useState(false)
 
   useEffect(() => {
     if (isExpanded && results.length === 0) {
@@ -219,7 +210,8 @@ export function ValidationProtocolCard({ protocol, onProtocolValidated, isExpand
       toast.success("Resultado validado correctamente")
 
       if (isLast) {
-        setShowConfirmModal(true)
+        onProtocolValidated(protocol.id)
+        toast.success("Protocolo completamente validado")
       }
     } catch (err) {
       console.error("Error validating result:", err)
@@ -309,16 +301,6 @@ export function ValidationProtocolCard({ protocol, onProtocolValidated, isExpand
         return newSet
       })
     }
-  }
-
-  const handleConfirmComplete = () => {
-    setShowConfirmModal(false)
-    onProtocolValidated(protocol.id)
-    toast.success("Protocolo completamente validado")
-  }
-
-  const handleContinueEditing = () => {
-    setShowConfirmModal(false)
   }
 
   if (isLoading) {
@@ -698,26 +680,6 @@ export function ValidationProtocolCard({ protocol, onProtocolValidated, isExpand
           </AccordionItem>
         ))}
       </Accordion>
-
-      {/* Modal de confirmación */}
-      <Dialog open={showConfirmModal} onOpenChange={setShowConfirmModal}>
-        <DialogContent className="w-[95vw] max-w-md">
-          <DialogHeader>
-            <DialogTitle>Validación Completada</DialogTitle>
-            <DialogDescription>
-              Has validado todos los resultados de este protocolo. ¿Deseas realizar algún cambio adicional o finalizar?
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="flex-col sm:flex-row gap-2">
-            <Button variant="outline" onClick={handleContinueEditing} className="w-full sm:w-auto bg-transparent">
-              Seguir editando
-            </Button>
-            <Button className="bg-[#204983] hover:bg-[#204983]/90 w-full sm:w-auto" onClick={handleConfirmComplete}>
-              Finalizar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </>
   )
 }

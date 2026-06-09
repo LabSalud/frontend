@@ -1,11 +1,13 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import {
   AlertTriangle,
   BarChart3,
   Building2,
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
   Clock3,
   FileWarning,
   FlaskConical,
@@ -52,6 +54,10 @@ interface DashboardResponse {
   protocols_daily_last_7?: Array<{
     date: string
     count: number
+    protocols?: number
+    patients_served?: number
+    analyses_loaded?: number
+    results_loaded?: number
   }>
   preauth_breakdown?: {
     no_trajo?: number
@@ -79,6 +85,20 @@ interface ProtocolsToBillResponse {
 }
 
 type TrendTone = "emerald" | "rose" | "slate"
+
+type DailyMetricKey = "protocols" | "patients_served" | "analyses_loaded" | "results_loaded"
+
+const DAILY_METRICS: ReadonlyArray<{
+  key: DailyMetricKey
+  label: string
+  noun: (n: number) => string
+  icon: typeof BarChart3
+}> = [
+  { key: "protocols", label: "Protocolos creados", noun: (n) => (n === 1 ? "protocolo" : "protocolos"), icon: BarChart3 },
+  { key: "patients_served", label: "Pacientes atendidos", noun: (n) => (n === 1 ? "paciente" : "pacientes"), icon: Users },
+  { key: "analyses_loaded", label: "Análisis cargados", noun: () => "análisis", icon: TestTube2 },
+  { key: "results_loaded", label: "Resultados cargados", noun: (n) => (n === 1 ? "resultado" : "resultados"), icon: FlaskConical },
+]
 
 const numberOrZero = (value?: number) => value ?? 0
 
@@ -128,7 +148,17 @@ export default function Home() {
   const growthValue = parsePercent(dashboard?.protocols_completed_growth_percent)
   const growthTone = getTrendTone(growthValue)
   const dailySeries = dashboard?.protocols_daily_last_7 || []
-  const dailyMax = Math.max(1, ...dailySeries.map((item) => item.count))
+  const [metricIndex, setMetricIndex] = useState(0)
+  const activeMetric = DAILY_METRICS[metricIndex]
+  const ActiveMetricIcon = activeMetric.icon
+  const metricValue = (item: NonNullable<DashboardResponse["protocols_daily_last_7"]>[number]) => {
+    const value = item[activeMetric.key]
+    if (typeof value === "number") return value
+    return activeMetric.key === "protocols" ? item.count : 0
+  }
+  const dailyMax = Math.max(1, ...dailySeries.map(metricValue))
+  const goPrevMetric = () => setMetricIndex((prev) => (prev === 0 ? DAILY_METRICS.length - 1 : prev - 1))
+  const goNextMetric = () => setMetricIndex((prev) => (prev === DAILY_METRICS.length - 1 ? 0 : prev + 1))
   const todayKey = (() => {
     const now = new Date()
     const year = now.getFullYear()
@@ -281,11 +311,44 @@ export default function Home() {
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(340px,0.65fr)]">
         <section className="rounded-lg border border-slate-200 bg-white/70 p-4 shadow-sm backdrop-blur-sm sm:p-5">
           <div className="mb-4 flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <BarChart3 className="h-5 w-5 text-[#204983]" />
-              <h2 className="text-base font-semibold text-slate-900">Protocolos creados</h2>
+            <div className="flex min-w-0 items-center gap-2">
+              <ActiveMetricIcon className="h-5 w-5 flex-shrink-0 text-[#204983]" />
+              <h2 className="truncate text-base font-semibold text-slate-900">{activeMetric.label}</h2>
             </div>
-            <span className="text-xs text-slate-500">Últimos 7 días</span>
+            <div className="flex items-center gap-2">
+              <span className="hidden text-xs text-slate-500 sm:inline">Últimos 7 días</span>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={goPrevMetric}
+                  aria-label="Métrica anterior"
+                  className="flex h-7 w-7 items-center justify-center rounded-md border border-slate-200 text-slate-500 transition hover:bg-slate-50 hover:text-[#204983]"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={goNextMetric}
+                  aria-label="Métrica siguiente"
+                  className="flex h-7 w-7 items-center justify-center rounded-md border border-slate-200 text-slate-500 transition hover:bg-slate-50 hover:text-[#204983]"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          </div>
+          <div className="mb-3 flex items-center justify-center gap-1.5">
+            {DAILY_METRICS.map((metric, idx) => (
+              <button
+                key={metric.key}
+                type="button"
+                onClick={() => setMetricIndex(idx)}
+                aria-label={metric.label}
+                className={`h-1.5 rounded-full transition-all ${
+                  idx === metricIndex ? "w-5 bg-[#204983]" : "w-1.5 bg-slate-300 hover:bg-slate-400"
+                }`}
+              />
+            ))}
           </div>
           {loading ? (
             <Skeleton className="h-64 w-full rounded-md" />
@@ -294,6 +357,7 @@ export default function Home() {
               <div className="flex flex-1 items-end gap-1.5 sm:gap-3">
                 {dailySeries.map((item) => {
                   const isToday = item.date === todayKey
+                  const value = metricValue(item)
                   return (
                     <div key={item.date} className="flex min-w-0 flex-1 flex-col items-center justify-end">
                       <span
@@ -301,7 +365,7 @@ export default function Home() {
                           isToday ? "text-[#204983]" : "text-slate-700"
                         }`}
                       >
-                        {item.count}
+                        {value}
                       </span>
                       <div
                         className={`flex w-full items-end rounded-md px-1 sm:px-1.5 ${
@@ -313,10 +377,8 @@ export default function Home() {
                           className={`w-full rounded-t-md ${
                             isToday ? "bg-amber-500" : "bg-[#204983]"
                           }`}
-                          style={{ height: `${Math.max(6, (item.count / dailyMax) * 168)}px` }}
-                          title={`${item.count} protocolo${item.count !== 1 ? "s" : ""}${
-                            isToday ? " (hoy)" : ""
-                          }`}
+                          style={{ height: `${Math.max(6, (value / dailyMax) * 168)}px` }}
+                          title={`${value} ${activeMetric.noun(value)}${isToday ? " (hoy)" : ""}`}
                         />
                       </div>
                     </div>

@@ -14,6 +14,9 @@ import {
   RefreshCw,
   ClipboardCheck,
   ShieldCheck,
+  Receipt,
+  Plus,
+  Trash2,
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "../../ui/card"
 import { Switch } from "../../ui/switch"
@@ -27,7 +30,15 @@ import { ObraSocialCombobox } from "./obra-social-combobox"
 import { AnalysisSearch } from "./analysis-search"
 import { AnalysisTable } from "./analysis-table"
 import { TRAJO_ORDEN_OPTIONS, type TrajoOrdenStatus } from "@/lib/protocol-order"
-import type { Patient, Doctor, Insurance, SelectedAnalysis, SendMethod, PreauthStatus } from "../../../types"
+import type {
+  Patient,
+  Doctor,
+  Insurance,
+  SelectedAnalysis,
+  SendMethod,
+  PreauthStatus,
+  UnplannedTransactionInput,
+} from "../../../types"
 
 type CreationPreauthStatus = Exclude<PreauthStatus, "not_required">
 type StatusOption<T extends string> = { value: T; label: string; description: string }
@@ -191,6 +202,7 @@ interface ProtocolFormProps {
     derivacion_amount: string
   }
   coseguroAmount: string
+  unplannedTransactions: UnplannedTransactionInput[]
   totals: Totals
   onAnalysisChange: (analyses: SelectedAnalysis[]) => void
   onDoctorSelect: (doctor: Doctor | null) => void
@@ -208,6 +220,7 @@ interface ProtocolFormProps {
   onPreauthStatusChange: (status: PreauthStatus | "") => void
   onExtraAmountsChange: (amounts: { material_descartable_amount: string; derivacion_amount: string }) => void
   onCoseguroChange: (value: string) => void
+  onUnplannedTransactionsChange: (items: UnplannedTransactionInput[]) => void
   onRefundChange: (isRefund: boolean) => void
 }
 
@@ -233,6 +246,7 @@ export function ProtocolForm({
   shouldChargeCoseguro,
   extraAmounts,
   coseguroAmount,
+  unplannedTransactions,
   totals,
   onAnalysisChange,
   onDoctorSelect,
@@ -250,11 +264,21 @@ export function ProtocolForm({
   onPreauthStatusChange,
   onExtraAmountsChange,
   onCoseguroChange,
+  onUnplannedTransactionsChange,
   onRefundChange,
 }: ProtocolFormProps) {
   const isAnonymousPatient = Boolean(patient?.is_anonymous)
   const paidAmount = Number.parseFloat(patientPaid) || 0
   const remaining = Math.max(0, totals.patientOwes - paidAmount)
+
+  const addUnplanned = () =>
+    onUnplannedTransactionsChange([...unplannedTransactions, { kind: "charge", description: "", amount: "" }])
+  const updateUnplanned = (index: number, patch: Partial<UnplannedTransactionInput>) =>
+    onUnplannedTransactionsChange(
+      unplannedTransactions.map((item, i) => (i === index ? { ...item, ...patch } : item)),
+    )
+  const removeUnplanned = (index: number) =>
+    onUnplannedTransactionsChange(unplannedTransactions.filter((_, i) => i !== index))
 
   const handlePatientPaidChange = (value: string) => {
     onPatientPaidChange(value)
@@ -518,6 +542,80 @@ export function ProtocolForm({
           isPrivateInsurance={isPrivateInsurance}
           forcePrivateAnalyses={shouldShowPreauth && preauthStatus === "no_trajo"}
         />
+
+        {/* Cobros / pagos no contemplados */}
+        <div className="space-y-2 sm:space-y-3">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <Receipt className="h-4 w-4 sm:h-5 sm:w-5 text-[#204983]" />
+              <h3 className="text-base sm:text-lg font-semibold text-[#204983]">Cobros / pagos no contemplados</h3>
+            </div>
+            <Button type="button" variant="outline" size="sm" onClick={addUnplanned} className="bg-transparent">
+              <Plus className="mr-1 h-4 w-4" />
+              Agregar
+            </Button>
+          </div>
+          <p className="text-xs text-gray-500">
+            Cargos o pagos que no encajan en los conceptos estándar (envío, transferencia, etc.). Suman al balance del
+            protocolo. No se facturan a ARCA.
+          </p>
+          {unplannedTransactions.length > 0 && (
+            <div className="space-y-2">
+              {unplannedTransactions.map((item, index) => (
+                <div
+                  key={index}
+                  className="grid grid-cols-1 gap-2 rounded-md border border-gray-200 bg-gray-50 p-2 sm:grid-cols-[110px_minmax(0,1fr)_120px_auto] sm:items-end"
+                >
+                  <div className="space-y-1">
+                    <Label className="text-xs">Tipo</Label>
+                    <Select
+                      value={item.kind}
+                      onValueChange={(v: "charge" | "payment") => updateUnplanned(index, { kind: v })}
+                    >
+                      <SelectTrigger className="bg-white h-9">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="charge">Cobro</SelectItem>
+                        <SelectItem value="payment">Pago</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Descripción</Label>
+                    <Input
+                      value={item.description}
+                      onChange={(e) => updateUnplanned(index, { description: e.target.value })}
+                      placeholder="Ej: envío a domicilio"
+                      className="bg-white h-9"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Monto</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={item.amount}
+                      onChange={(e) => updateUnplanned(index, { amount: e.target.value })}
+                      placeholder="0.00"
+                      className="bg-white h-9"
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => removeUnplanned(index)}
+                    className="h-9 px-2 text-red-600 hover:bg-red-50 hover:text-red-700"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
 
         {selectedAnalyses.length > 0 && selectedInsurance && (
           <div className="space-y-2 sm:space-y-3">

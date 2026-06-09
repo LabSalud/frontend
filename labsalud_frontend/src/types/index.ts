@@ -686,6 +686,30 @@ export interface CreateProtocolInput {
   material_descartable_amount_override?: string
   derivacion_amount_override?: string
   details: ProtocolDetailInput[]
+  unplanned_transactions_input?: UnplannedTransactionInput[]
+}
+
+export interface Signature {
+  id: number
+  name: string
+  image_url: string | null
+  biochemist_name: string
+  biochemist_mp: string
+  is_default: boolean
+  is_active: boolean
+  uploaded_by?: {
+    id: number
+    username: string
+    first_name?: string
+    last_name?: string
+  } | null
+  created_at?: string
+}
+
+export interface UnplannedTransactionInput {
+  kind: "charge" | "payment"
+  description: string
+  amount: string
 }
 
 export interface PricingConfig {

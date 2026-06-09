@@ -8,13 +8,14 @@ import { ObrasSocialesManagement } from "./obras-sociales-management"
 import { AnalysisManagement } from "./analysis-management"
 import { AuditManagement } from "./audit-management"
 import { NbuManagement } from "./nbu-management"
+import { SignaturesManagement } from "./signatures-management"
 
 export default function ConfigurationPage() {
   const [isLoading, setIsLoading] = useState(true)
 
   const [activeTab, setActiveTab] = useState(() => {
     const savedTab = localStorage.getItem("config-active-tab")
-    if (savedTab && ["medicos", "obras-sociales", "nomencladores", "analisis", "auditoria"].includes(savedTab)) {
+    if (savedTab && ["medicos", "obras-sociales", "nomencladores", "analisis", "firmas", "auditoria"].includes(savedTab)) {
       return savedTab
     }
     return "medicos"
@@ -83,6 +84,7 @@ export default function ConfigurationPage() {
             <TabsTrigger value="obras-sociales" className="flex-shrink-0">Obras Sociales</TabsTrigger>
             <TabsTrigger value="nomencladores" className="flex-shrink-0">Nomencladores</TabsTrigger>
             <TabsTrigger value="analisis" className="flex-shrink-0">Análisis</TabsTrigger>
+            <TabsTrigger value="firmas" className="flex-shrink-0">Firmas</TabsTrigger>
             <TabsTrigger value="auditoria" className="flex-shrink-0">Auditoría</TabsTrigger>
           </TabsList>
 
@@ -100,6 +102,10 @@ export default function ConfigurationPage() {
 
           <TabsContent value="analisis" className="min-w-0">
             <AnalysisManagement />
+          </TabsContent>
+
+          <TabsContent value="firmas" className="min-w-0">
+            <SignaturesManagement />
           </TabsContent>
 
           <TabsContent value="auditoria" className="min-w-0">

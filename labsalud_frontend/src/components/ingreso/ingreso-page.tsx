@@ -31,6 +31,7 @@ import type {
   Protocol,
   PricingConfig,
   PreauthStatus,
+  UnplannedTransactionInput,
 } from "../../types"
 
 export default function IngresoPage() {
@@ -58,6 +59,7 @@ export default function IngresoPage() {
     derivacion_amount: "",
   })
   const [coseguroAmount, setCoseguroAmount] = useState("")
+  const [unplannedTransactions, setUnplannedTransactions] = useState<UnplannedTransactionInput[]>([])
   const [isRefund, setIsRefund] = useState(false)
   const [doctors, setDoctors] = useState<Doctor[]>([])
   const [insurances, setInsurances] = useState<Insurance[]>([])
@@ -159,9 +161,15 @@ export default function IngresoPage() {
     const material = shouldChargeMaterial ? Number.parseFloat(extraAmounts.material_descartable_amount) || 0 : 0
     const derivacion = shouldChargeDerivacion ? Number.parseFloat(extraAmounts.derivacion_amount) || 0 : 0
     const coseguro = shouldChargeCoseguro ? Number.parseFloat(coseguroAmount) || 0 : 0
-    const extrasTotal = material + derivacion + coseguro
+    const unplannedCharges = unplannedTransactions
+      .filter((t) => t.kind === "charge")
+      .reduce((acc, t) => acc + (Number.parseFloat(t.amount) || 0), 0)
+    const unplannedPayments = unplannedTransactions
+      .filter((t) => t.kind === "payment")
+      .reduce((acc, t) => acc + (Number.parseFloat(t.amount) || 0), 0)
+    const extrasTotal = material + derivacion + coseguro + unplannedCharges
     const total = authorizedTotal + privateTotal + extrasTotal
-    const patientOwes = isRefund ? total : privateTotal + extrasTotal
+    const patientOwes = Math.max(0, (isRefund ? total : privateTotal + extrasTotal) - unplannedPayments)
 
     return { authorizedTotal, privateTotal, total, patientOwes, authorizedUb, privateUb, extrasTotal }
   }
@@ -248,6 +256,7 @@ export default function IngresoPage() {
       derivacion_amount: pricingConfig?.derivacion_amount || "0.00",
     })
     setCoseguroAmount("")
+    setUnplannedTransactions([])
   }
 
   const isPrivateInsurance = selectedInsurance?.name.toLowerCase() === "particular"
@@ -374,6 +383,17 @@ export default function IngresoPage() {
 
       if (selectedInsurance && !isPrivateInsurance && affiliateNumber.trim()) {
         protocolData.affiliate_number = affiliateNumber.trim()
+      }
+
+      const cleanedUnplanned = unplannedTransactions
+        .map((t) => ({
+          kind: t.kind,
+          description: t.description.trim(),
+          amount: (Number.parseFloat(t.amount) || 0).toFixed(2),
+        }))
+        .filter((t) => t.description !== "" && Number.parseFloat(t.amount) > 0)
+      if (cleanedUnplanned.length > 0) {
+        protocolData.unplanned_transactions_input = cleanedUnplanned
       }
 
       const protocolResponse = await apiRequest(PROTOCOL_ENDPOINTS.PROTOCOLS, {
@@ -518,6 +538,7 @@ export default function IngresoPage() {
               shouldChargeCoseguro={shouldChargeCoseguro}
               extraAmounts={extraAmounts}
               coseguroAmount={coseguroAmount}
+              unplannedTransactions={unplannedTransactions}
               totals={calculateTotals()}
               onAnalysisChange={setSelectedAnalyses}
               onDoctorSelect={setSelectedDoctor}
@@ -535,6 +556,7 @@ export default function IngresoPage() {
               onPreauthStatusChange={setPreauthStatus}
               onExtraAmountsChange={setExtraAmounts}
               onCoseguroChange={setCoseguroAmount}
+              onUnplannedTransactionsChange={setUnplannedTransactions}
               onRefundChange={setIsRefund}
             />
           </div>

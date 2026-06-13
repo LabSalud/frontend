@@ -153,9 +153,9 @@ export const Navbar: React.FC = () => {
               <div className="flex-shrink-0 mx-8">
                 <Link to="/" className="flex items-center">
                   <img
-                    src="/logo_icono.svg"
+                    src="/logo.svg"
                     alt="Logo"
-                    className="h-8 w-auto object-contain"
+                    className="h-11 w-auto object-contain"
                     onError={(e) => {
                       const target = e.target as HTMLImageElement
                       target.src = "/placeholder.svg?height=48&width=160&text=LOGO"

@@ -311,7 +311,7 @@ export function ValidationProtocolList() {
                 <p className="text-sm text-gray-600 mt-1">
                   {protocol.patient.first_name} {protocol.patient.last_name}
                   {typeof protocol.patient.age === "number" && ` · ${protocol.patient.age} años`}
-                  {" · CUIL "}{protocol.patient.cuil}
+                  {" · DNI "}{protocol.patient.dni}
                 </p>
               </div>
               <span className="text-sm font-medium text-[#204983] whitespace-nowrap">

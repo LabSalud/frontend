@@ -235,7 +235,7 @@ export interface Patient {
   id: number
   first_name: string
   last_name: string
-  cuil: string
+  dni: string
   full_name: string
   birth_date: string
   age: number
@@ -278,7 +278,7 @@ export interface PatientMergeResult {
 export interface PatientFormData {
   first_name: string
   last_name: string
-  cuil: string
+  dni: string
   birth_date: string
   gender: string
   phone_mobile: string
@@ -525,7 +525,7 @@ export interface Protocol {
   id: number
   patient: {
     id: number
-    cuil: string
+    dni: string
     first_name: string
     last_name: string
     email?: string
@@ -628,7 +628,7 @@ export interface ProtocolListItem {
   id: number
   patient: {
     id: number
-    cuil: string
+    dni: string
     first_name: string
     last_name: string
     is_anonymous?: boolean
@@ -767,7 +767,7 @@ export interface ProtocolSummary {
   id: number
   patient_first_name: string
   patient_last_name: string
-  patient_cuil: string
+  patient_dni: string
   ooss: string
   created_at: string
   state: "pending_entry" | "entry_complete" | "pending_validation" | "review" | "completed" | "cancelled"
@@ -881,7 +881,7 @@ export interface ProtocolWithLoadedResults {
   id: number
   patient: {
     id: number
-    cuil: string
+    dni: string
     first_name: string
     last_name: string
     age?: number | null

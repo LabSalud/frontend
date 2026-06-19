@@ -3,13 +3,13 @@
 // ============================================================================
 
 export const formatUtils = {
-  // Formatear CUIL con guiones (XX-XXXXXXXX-X)
-  formatCuil: (cuil: string): string => {
-    const digits = cuil.replace(/-/g, "")
-    if (digits.length === 11) {
-      return `${digits.slice(0, 2)}-${digits.slice(2, 10)}-${digits.slice(10)}`
+  // Formatear DNI con puntos de miles (XX.XXX.XXX)
+  formatDni: (dni: string): string => {
+    const digits = dni.replace(/\D/g, "")
+    if (digits.length >= 7 && digits.length <= 8) {
+      return digits.replace(/\B(?=(\d{3})+(?!\d))/g, ".")
     }
-    return cuil
+    return dni
   },
 
   // Formatear fecha para input

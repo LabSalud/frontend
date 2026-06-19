@@ -14,7 +14,7 @@ import { AlertCircle, CheckCircle, UserCog, Sparkles } from "lucide-react"
 import { PATIENT_ENDPOINTS, TOAST_DURATION } from "@/config/api"
 import type { ApiRequestOptions } from "@/hooks/use-api"
 import { formatApiError, getErrorMessage } from "@/lib/api-error"
-import { isValidCuil } from "@/lib/cuil"
+import { formatDniForDisplay, normalizeDni } from "@/lib/dni"
 
 interface EditPatientDialogProps {
   isOpen: boolean
@@ -25,7 +25,7 @@ interface EditPatientDialogProps {
 }
 
 interface ValidationState {
-  cuil: { isValid: boolean; message: string }
+  dni: { isValid: boolean; message: string }
   first_name: { isValid: boolean; message: string }
   last_name: { isValid: boolean; message: string }
   email: { isValid: boolean; message: string }
@@ -36,7 +36,7 @@ interface ValidationState {
 
 export function EditPatientDialog({ isOpen, onClose, patient, setPatients, apiRequest }: EditPatientDialogProps) {
   const [formData, setFormData] = useState({
-    cuil: "",
+    dni: "",
     first_name: "",
     last_name: "",
     birth_date: "",
@@ -52,7 +52,7 @@ export function EditPatientDialog({ isOpen, onClose, patient, setPatients, apiRe
   })
 
   const [validation, setValidation] = useState<ValidationState>({
-    cuil: { isValid: true, message: "" },
+    dni: { isValid: true, message: "" },
     first_name: { isValid: true, message: "" },
     last_name: { isValid: true, message: "" },
     email: { isValid: true, message: "" },
@@ -64,17 +64,15 @@ export function EditPatientDialog({ isOpen, onClose, patient, setPatients, apiRe
   const [touched, setTouched] = useState<Record<string, boolean>>({})
 
   // Funciones de validación (iguales a las de crear)
-  const validateCUIL = (cuil: string) => {
-    const digits = cuil.replace(/-/g, "")
+  const validateDNI = (dni: string) => {
+    const digits = normalizeDni(dni)
     if (!digits.trim()) {
-      return { isValid: false, message: "El CUIL es obligatorio" }
+      return { isValid: false, message: "El DNI es obligatorio" }
     }
-    if (!/^\d+$/.test(digits)) {
-      return { isValid: false, message: "El CUIL solo debe contener números" }
+    if (digits.length < 7 || digits.length > 8) {
+      return { isValid: false, message: "El DNI debe tener 7 u 8 dígitos" }
     }
-    if (digits.length !== 11) return { isValid: false, message: "El CUIL debe tener 11 dígitos" }
-    if (!isValidCuil(digits)) return { isValid: false, message: "El CUIL no es válido" }
-    return { isValid: true, message: "CUIL válido" }
+    return { isValid: true, message: "DNI válido" }
   }
 
   const validateName = (name: string, field: string) => {
@@ -137,8 +135,8 @@ export function EditPatientDialog({ isOpen, onClose, patient, setPatients, apiRe
   const validateField = (name: string, value: string) => {
     let result
     switch (name) {
-      case "cuil":
-        result = validateCUIL(value)
+      case "dni":
+        result = validateDNI(value)
         break
       case "first_name":
         result = validateName(value, "El nombre")
@@ -187,7 +185,7 @@ export function EditPatientDialog({ isOpen, onClose, patient, setPatients, apiRe
       }
 
       const newFormData = {
-        cuil: patient.cuil || "",
+        dni: patient.dni || "",
         first_name: patient.first_name,
         last_name: patient.last_name,
         birth_date: formatDateForInput(patient.birth_date),
@@ -225,8 +223,8 @@ export function EditPatientDialog({ isOpen, onClose, patient, setPatients, apiRe
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
 
-    if (name === "cuil") {
-      const cleaned = value.replace(/[^\d-]/g, "")
+    if (name === "dni") {
+      const cleaned = normalizeDni(value)
       setFormData((prev) => ({
         ...prev,
         [name]: cleaned,
@@ -258,12 +256,12 @@ export function EditPatientDialog({ isOpen, onClose, patient, setPatients, apiRe
         const fieldValidation = validation[field as keyof ValidationState]
         return fieldValidation.isValid
       })
-      const cuilDigits = formData.cuil.replace(/-/g, "")
-      const cuilValid = !cuilDigits || validation.cuil.isValid
-      return formData.first_name.trim().length >= 2 && optionalFieldsValid && cuilValid
+      const dniDigits = normalizeDni(formData.dni)
+      const dniValid = !dniDigits || validation.dni.isValid
+      return formData.first_name.trim().length >= 2 && optionalFieldsValid && dniValid
     }
 
-    const requiredFields = ["cuil", "first_name", "last_name", "birth_date"]
+    const requiredFields = ["dni", "first_name", "last_name", "birth_date"]
     const requiredFieldsValid = requiredFields.every((field) => {
       const fieldValidation = validation[field as keyof ValidationState]
       return fieldValidation.isValid
@@ -280,7 +278,7 @@ export function EditPatientDialog({ isOpen, onClose, patient, setPatients, apiRe
   const handleUpdatePatient = async () => {
     if (!patient) return
 
-    const requiredFields = patient.is_anonymous ? ["first_name"] : ["cuil", "first_name", "last_name", "birth_date"]
+    const requiredFields = patient.is_anonymous ? ["first_name"] : ["dni", "first_name", "last_name", "birth_date"]
     const newTouched = requiredFields.reduce((acc, field) => ({ ...acc, [field]: true }), touched)
     setTouched(newTouched)
 
@@ -291,7 +289,7 @@ export function EditPatientDialog({ isOpen, onClose, patient, setPatients, apiRe
     if (!isFormValid()) {
       toast.error("Formulario inválido", {
         description: patient.is_anonymous
-          ? "El identificador debe tener al menos 2 caracteres. Revisá CUIL, email o teléfonos si los cargaste."
+          ? "El identificador debe tener al menos 2 caracteres. Revisá DNI, email o teléfonos si los cargaste."
           : "Por favor, corrige los errores antes de continuar.",
         duration: TOAST_DURATION,
       })
@@ -303,7 +301,7 @@ export function EditPatientDialog({ isOpen, onClose, patient, setPatients, apiRe
 
       const dataToSend = {
         ...formData,
-        cuil: formData.cuil.replace(/-/g, ""),
+        dni: normalizeDni(formData.dni),
         birth_date: formData.birth_date,
       }
 
@@ -336,14 +334,6 @@ export function EditPatientDialog({ isOpen, onClose, patient, setPatients, apiRe
         duration: TOAST_DURATION,
       })
     }
-  }
-
-  const formatCuilDisplay = (cuil: string) => {
-    const digits = cuil.replace(/-/g, "")
-    if (digits.length === 11) {
-      return `${digits.slice(0, 2)}-${digits.slice(2, 10)}-${digits.slice(10)}`
-    }
-    return cuil
   }
 
   const getFieldStyle = (fieldName: string) => {
@@ -385,29 +375,29 @@ export function EditPatientDialog({ isOpen, onClose, patient, setPatients, apiRe
             <div className="text-xs text-amber-900">
               <p className="font-semibold">Este es un paciente anónimo.</p>
               <p>
-                Cuando completes CUIL, apellido, fecha de nacimiento y género, el paciente dejará de ser anónimo automáticamente al guardar.
+                Cuando completes DNI, apellido, fecha de nacimiento y género, el paciente dejará de ser anónimo automáticamente al guardar.
               </p>
             </div>
           </div>
         )}
         <div className="grid gap-4 py-4">
-          {/* CUIL - Campo principal */}
+          {/* DNI - Campo principal */}
           <div className="space-y-2">
-            <Label htmlFor="edit-cuil" className="text-base font-semibold">
-              CUIL {patient?.is_anonymous ? "" : "*"}
+            <Label htmlFor="edit-dni" className="text-base font-semibold">
+              DNI {patient?.is_anonymous ? "" : "*"}
             </Label>
             <Input
-              id="edit-cuil"
-              name="cuil"
-              value={formData.cuil}
+              id="edit-dni"
+              name="dni"
+              value={formData.dni}
               onChange={handleInputChange}
-              placeholder="20-12345678-4"
-              maxLength={13}
-              className={`font-mono text-lg ${getFieldStyle("cuil")}`}
+              placeholder="12.345.678"
+              maxLength={10}
+              className={`font-mono text-lg ${getFieldStyle("dni")}`}
               required
             />
-            {renderFieldMessage("cuil")}
-            {formData.cuil && <p className="text-xs text-gray-500">Vista previa: {formatCuilDisplay(formData.cuil)}</p>}
+            {renderFieldMessage("dni")}
+            {formData.dni && <p className="text-xs text-gray-500">Vista previa: {formatDniForDisplay(formData.dni)}</p>}
           </div>
 
           {/* Información personal */}

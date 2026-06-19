@@ -40,7 +40,7 @@ export default function IngresoPage() {
   // Main states
   const [currentPatient, setCurrentPatient] = useState<Patient | null>(null)
   const [patientNotFound, setPatientNotFound] = useState(false)
-  const [searchedCuil, setSearchedCuil] = useState("")
+  const [searchedDni, setSearchedDni] = useState("")
   const [creatingAnonymous, setCreatingAnonymous] = useState(false)
   const [selectedAnalyses, setSelectedAnalyses] = useState<SelectedAnalysis[]>([])
   const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null)
@@ -186,25 +186,25 @@ export default function IngresoPage() {
   const handlePatientFound = (patient: Patient) => {
     setCurrentPatient(patient)
     setPatientNotFound(false)
-    setSearchedCuil("")
+    setSearchedDni("")
   }
 
-  const handlePatientNotFound = (cuil: string) => {
+  const handlePatientNotFound = (dni: string) => {
     setCurrentPatient(null)
     setPatientNotFound(true)
-    setSearchedCuil(cuil)
+    setSearchedDni(dni)
   }
 
   const handlePatientCreated = (patient: Patient) => {
     setCurrentPatient(patient)
     setPatientNotFound(false)
-    setSearchedCuil("")
+    setSearchedDni("")
     setCreatingAnonymous(false)
   }
 
   const handleCreateAnonymous = () => {
     setCurrentPatient(null)
-    setSearchedCuil("")
+    setSearchedDni("")
     setPatientNotFound(true)
     setCreatingAnonymous(true)
   }
@@ -238,7 +238,7 @@ export default function IngresoPage() {
   const handleReset = () => {
     setCurrentPatient(null)
     setPatientNotFound(false)
-    setSearchedCuil("")
+    setSearchedDni("")
     setCreatingAnonymous(false)
     setSelectedAnalyses([])
     setSelectedDoctor(null)
@@ -580,7 +580,7 @@ export default function IngresoPage() {
 
               {patientNotFound && (
                 <CreatePatientForm
-                  initialCuil={searchedCuil}
+                  initialDni={searchedDni}
                   defaultAnonymous={creatingAnonymous}
                   onPatientCreated={handlePatientCreated}
                   onCancel={() => {

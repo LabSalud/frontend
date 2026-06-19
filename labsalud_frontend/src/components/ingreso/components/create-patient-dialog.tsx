@@ -14,26 +14,26 @@ import { toast } from "sonner"
 import type { Patient } from "../../../types"
 import { PATIENT_ENDPOINTS } from "@/config/api"
 import { formatApiError, getErrorMessage } from "@/lib/api-error"
-import { formatCuilForDisplay, getCuilValidationMessage, inferGenderFromCuil, isValidCuil, normalizeCuil } from "@/lib/cuil"
+import { formatDniForDisplay, getDniValidationMessage, isValidDni, normalizeDni } from "@/lib/dni"
 
 interface CreatePatientDialogProps {
-  initialCuil?: string
+  initialDni?: string
   onPatientCreated: (patient: Patient) => void
   onCancel: () => void
 }
 
 type ValidationResult = { isValid: boolean; message: string }
-type ValidatedField = "cuil" | "first_name" | "last_name" | "birth_date" | "email"
+type ValidatedField = "dni" | "first_name" | "last_name" | "birth_date" | "email"
 
-export function CreatePatientDialog({ initialCuil = "", onPatientCreated, onCancel }: CreatePatientDialogProps) {
+export function CreatePatientDialog({ initialDni = "", onPatientCreated, onCancel }: CreatePatientDialogProps) {
   const { apiRequest } = useApi()
   const [isCreating, setIsCreating] = useState(false)
   const [formData, setFormData] = useState({
-    cuil: normalizeCuil(initialCuil),
+    dni: normalizeDni(initialDni),
     first_name: "",
     last_name: "",
     birth_date: "",
-    gender: inferGenderFromCuil(initialCuil) || "",
+    gender: "",
     phone_mobile: "",
     phone_landline: "",
     email: "",
@@ -44,12 +44,12 @@ export function CreatePatientDialog({ initialCuil = "", onPatientCreated, onCanc
     observations: "",
   })
   const [touched, setTouched] = useState<Record<string, boolean>>({
-    cuil: Boolean(normalizeCuil(initialCuil)),
+    dni: Boolean(normalizeDni(initialDni)),
   })
 
   const validateField = (name: ValidatedField, value: string): ValidationResult => {
-    if (name === "cuil") {
-      return { isValid: isValidCuil(value), message: getCuilValidationMessage(value) }
+    if (name === "dni") {
+      return { isValid: isValidDni(value), message: getDniValidationMessage(value) }
     }
     if (name === "first_name") {
       if (!value.trim()) return { isValid: false, message: "El nombre es obligatorio" }
@@ -95,13 +95,11 @@ export function CreatePatientDialog({ initialCuil = "", onPatientCreated, onCanc
 
   const handleInputChange = (field: string, value: string) => {
     setTouched((prev) => ({ ...prev, [field]: true }))
-    if (field === "cuil") {
-      const cleaned = normalizeCuil(value)
-      const inferredGender = inferGenderFromCuil(cleaned)
+    if (field === "dni") {
+      const cleaned = normalizeDni(value)
       setFormData((prev) => ({
         ...prev,
-        cuil: cleaned,
-        ...(inferredGender ? { gender: inferredGender } : {}),
+        dni: cleaned,
       }))
       return
     }
@@ -112,8 +110,8 @@ export function CreatePatientDialog({ initialCuil = "", onPatientCreated, onCanc
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!formData.cuil || !formData.first_name || !formData.last_name || !formData.birth_date || !formData.gender) {
-      const fieldsToValidate: ValidatedField[] = ["cuil", "first_name", "last_name", "birth_date", "email"]
+    if (!formData.dni || !formData.first_name || !formData.last_name || !formData.birth_date || !formData.gender) {
+      const fieldsToValidate: ValidatedField[] = ["dni", "first_name", "last_name", "birth_date", "email"]
       setTouched((prev) => ({ ...prev, ...Object.fromEntries(fieldsToValidate.map((field) => [field, true])) }))
       toast.error("Formulario inválido", {
         description: !formData.gender ? "Seleccione el género del paciente." : "Complete los campos obligatorios.",
@@ -121,7 +119,7 @@ export function CreatePatientDialog({ initialCuil = "", onPatientCreated, onCanc
       return
     }
 
-    const fieldsToValidate: ValidatedField[] = ["cuil", "first_name", "last_name", "birth_date", "email"]
+    const fieldsToValidate: ValidatedField[] = ["dni", "first_name", "last_name", "birth_date", "email"]
     setTouched((prev) => ({ ...prev, ...Object.fromEntries(fieldsToValidate.map((field) => [field, true])) }))
     if (!fieldsToValidate.every((field) => getFieldValidation(field).isValid)) {
       toast.error("Formulario inválido", {
@@ -137,7 +135,7 @@ export function CreatePatientDialog({ initialCuil = "", onPatientCreated, onCanc
         body: {
           first_name: formData.first_name.trim(),
           last_name: formData.last_name.trim(),
-          cuil: normalizeCuil(formData.cuil),
+          dni: normalizeDni(formData.dni),
           birth_date: formData.birth_date,
           gender: formData.gender,
           phone_mobile: formData.phone_mobile.trim(),
@@ -184,17 +182,17 @@ export function CreatePatientDialog({ initialCuil = "", onPatientCreated, onCanc
           {/* Información básica */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="cuil">CUIL *</Label>
+              <Label htmlFor="dni">DNI *</Label>
               <Input
-                id="cuil"
-                value={formatCuilForDisplay(formData.cuil)}
-                onChange={(e) => handleInputChange("cuil", e.target.value)}
-                placeholder="20123456784"
-                maxLength={13}
-                className={getFieldStyle("cuil")}
+                id="dni"
+                value={formatDniForDisplay(formData.dni)}
+                onChange={(e) => handleInputChange("dni", e.target.value)}
+                placeholder="12.345.678"
+                maxLength={10}
+                className={getFieldStyle("dni")}
                 required
               />
-              {renderFieldMessage("cuil")}
+              {renderFieldMessage("dni")}
             </div>
             <div>
               <Label htmlFor="gender">Género *</Label>

@@ -33,7 +33,7 @@ import type { ApiRequestOptions } from "@/hooks/use-api"
 import { PatientHistoryDialog } from "./patient-history-dialog"
 import { AuditAvatars } from "@/components/common/audit-avatars"
 import { formatApiError, getErrorMessage } from "@/lib/api-error"
-import { isValidCuil } from "@/lib/cuil"
+import { normalizeDni } from "@/lib/dni"
 
 interface PatientCardProps {
   patient: Patient
@@ -47,7 +47,7 @@ export function PatientCard({ patient, onSelectPatient, updatePatient, apiReques
   const [isEditing, setIsEditing] = useState(false)
   const [isHistoryOpen, setIsHistoryOpen] = useState(false)
   const [editData, setEditData] = useState({
-    cuil: patient.cuil || "",
+    dni: patient.dni || "",
     first_name: patient.first_name,
     last_name: patient.last_name,
     birth_date: formatDateForInput(patient.birth_date),
@@ -106,12 +106,12 @@ export function PatientCard({ patient, onSelectPatient, updatePatient, apiReques
     return dateString
   }
 
-  const formatCuil = (cuil: string) => {
-    const digits = cuil.replace(/-/g, "")
-    if (digits.length === 11) {
-      return `${digits.slice(0, 2)}-${digits.slice(2, 10)}-${digits.slice(10)}`
+  const formatDni = (dni: string) => {
+    const digits = dni.replace(/\D/g, "")
+    if (digits.length >= 7 && digits.length <= 8) {
+      return digits.replace(/\B(?=(\d{3})+(?!\d))/g, ".")
     }
-    return cuil
+    return dni
   }
 
   // Función para mapear género correctamente
@@ -140,8 +140,8 @@ export function PatientCard({ patient, onSelectPatient, updatePatient, apiReques
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
 
-    if (name === "cuil") {
-      const cleaned = value.replace(/[^\d-]/g, "")
+    if (name === "dni") {
+      const cleaned = normalizeDni(value)
       setEditData((prev) => ({
         ...prev,
         [name]: cleaned,
@@ -163,7 +163,7 @@ export function PatientCard({ patient, onSelectPatient, updatePatient, apiReques
 
   const hasChanges = () => {
     return (
-      editData.cuil !== (patient.cuil || "") ||
+      editData.dni !== (patient.dni || "") ||
       editData.first_name !== patient.first_name ||
       editData.last_name !== patient.last_name ||
       editData.birth_date !== formatDateForInput(patient.birth_date) ||
@@ -190,10 +190,10 @@ export function PatientCard({ patient, onSelectPatient, updatePatient, apiReques
     }
 
     // Validación básica antes de enviar. Los anónimos pueden guardarse parciales.
-    const cuilDigits = editData.cuil.replace(/-/g, "")
-    if ((!patient.is_anonymous || cuilDigits.trim()) && (!cuilDigits.trim() || cuilDigits.length !== 11 || !isValidCuil(cuilDigits))) {
+    const dniDigits = normalizeDni(editData.dni)
+    if ((!patient.is_anonymous || dniDigits.trim()) && (!dniDigits.trim() || dniDigits.length < 7 || dniDigits.length > 8)) {
       toast.error("Error de validación", {
-        description: cuilDigits.length !== 11 ? "El CUIL debe tener 11 dígitos." : "El CUIL no es válido.",
+        description: "El DNI debe tener 7 u 8 dígitos.",
         duration: TOAST_DURATION,
       })
       return
@@ -217,7 +217,7 @@ export function PatientCard({ patient, onSelectPatient, updatePatient, apiReques
 
       const dataToSend = {
         ...editData,
-        cuil: editData.cuil.replace(/-/g, ""),
+        dni: normalizeDni(editData.dni),
         birth_date: formatDateForAPI(editData.birth_date),
       }
 
@@ -256,7 +256,7 @@ export function PatientCard({ patient, onSelectPatient, updatePatient, apiReques
 
   const handleCancel = () => {
     setEditData({
-      cuil: patient.cuil || "",
+      dni: patient.dni || "",
       first_name: patient.first_name,
       last_name: patient.last_name,
       birth_date: formatDateForInput(patient.birth_date),
@@ -284,7 +284,7 @@ export function PatientCard({ patient, onSelectPatient, updatePatient, apiReques
                   <div className="flex items-center space-x-2">
                     <CreditCard className="h-4 w-4 md:h-5 md:w-5 text-[#204983]" />
                     <span className="font-mono font-bold text-lg md:text-xl text-[#204983]">
-                      {patient.is_anonymous ? "ANÓNIMO" : formatCuil(patient.cuil || "")}
+                      {patient.is_anonymous ? "ANÓNIMO" : formatDni(patient.dni || "")}
                     </span>
                   </div>
 
@@ -399,14 +399,14 @@ export function PatientCard({ patient, onSelectPatient, updatePatient, apiReques
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
-                          <Label className="text-sm font-medium">CUIL</Label>
+                          <Label className="text-sm font-medium">DNI</Label>
                           <Input
-                            name="cuil"
-                            value={editData.cuil}
+                            name="dni"
+                            value={editData.dni}
                             onChange={handleInputChange}
                             className="mt-1"
-                            maxLength={13}
-                            placeholder="XX-XXXXXXXX-X"
+                            maxLength={10}
+                            placeholder="XX.XXX.XXX"
                           />
                         </div>
                         <div>

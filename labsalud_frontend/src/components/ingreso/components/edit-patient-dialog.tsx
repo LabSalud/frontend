@@ -28,7 +28,7 @@ export function EditPatientDialog({ isOpen, onClose, patient, onPatientUpdated }
   const [formData, setFormData] = useState({
     first_name: "",
     last_name: "",
-    cuil: "",
+    dni: "",
     birth_date: "",
     gender: "",
     phone_mobile: "",
@@ -47,7 +47,7 @@ export function EditPatientDialog({ isOpen, onClose, patient, onPatientUpdated }
       setFormData({
         first_name: patient.first_name || "",
         last_name: patient.last_name || "",
-        cuil: patient.cuil || "",
+        dni: patient.dni || "",
         birth_date: patient.birth_date ? patient.birth_date.split("T")[0] : "",
         gender: patient.gender || "",
         phone_mobile: patient.phone_mobile || "",
@@ -64,8 +64,8 @@ export function EditPatientDialog({ isOpen, onClose, patient, onPatientUpdated }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
-    if (name === "cuil") {
-      const cleaned = value.replace(/[^\d-]/g, "")
+    if (name === "dni") {
+      const cleaned = value.replace(/\D/g, "").slice(0, 8)
       setFormData((prev) => ({ ...prev, [name]: cleaned }))
     } else {
       setFormData((prev) => ({ ...prev, [name]: value }))
@@ -80,14 +80,14 @@ export function EditPatientDialog({ isOpen, onClose, patient, onPatientUpdated }
     if (!patient) return
 
     const isAnonymous = Boolean(patient.is_anonymous)
-    const cuilDigits = formData.cuil.replace(/-/g, "")
+    const dniDigits = formData.dni.replace(/\D/g, "")
 
     if (!formData.first_name.trim()) {
       toast.error(isAnonymous ? "Complete el identificador" : "Complete el nombre")
       return
     }
 
-    if (!isAnonymous && (!formData.last_name || !cuilDigits || !formData.birth_date || !formData.gender)) {
+    if (!isAnonymous && (!formData.last_name || !dniDigits || !formData.birth_date || !formData.gender)) {
       toast.error("Complete los campos obligatorios")
       return
     }
@@ -101,7 +101,7 @@ export function EditPatientDialog({ isOpen, onClose, patient, onPatientUpdated }
         body: {
           first_name: formData.first_name.trim(),
           last_name: formData.last_name.trim(),
-          cuil: formData.cuil.replace(/-/g, ""),
+          dni: formData.dni.replace(/\D/g, ""),
           birth_date: formData.birth_date,
           gender: formData.gender,
           phone_mobile: formData.phone_mobile.trim(),
@@ -175,14 +175,14 @@ export function EditPatientDialog({ isOpen, onClose, patient, onPatientUpdated }
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="cuil">CUIL {patient?.is_anonymous ? "" : "*"}</Label>
+            <Label htmlFor="dni">DNI {patient?.is_anonymous ? "" : "*"}</Label>
             <Input
-              id="cuil"
-              name="cuil"
-              value={formData.cuil}
+              id="dni"
+              name="dni"
+              value={formData.dni}
               onChange={handleInputChange}
-              placeholder="20-12345678-4"
-              maxLength={13}
+              placeholder="12345678"
+              maxLength={8}
               className="font-mono text-lg"
               required
             />

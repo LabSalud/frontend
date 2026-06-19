@@ -137,3 +137,6 @@ dist
 
 .DS_Store
 .god
+
+# graphify knowledge graph output
+graphify-out/

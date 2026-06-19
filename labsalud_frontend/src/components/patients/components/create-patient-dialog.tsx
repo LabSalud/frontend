@@ -14,7 +14,7 @@ import { AlertCircle, CheckCircle, UserCog } from "lucide-react"
 import { PATIENT_ENDPOINTS, TOAST_DURATION } from "@/config/api"
 import type { ApiRequestOptions } from "@/hooks/use-api"
 import { formatApiError, getErrorMessage } from "@/lib/api-error"
-import { formatCuilForDisplay, inferGenderFromCuil, isValidCuil, normalizeCuil } from "@/lib/cuil"
+import { formatDniForDisplay, normalizeDni } from "@/lib/dni"
 import type { Patient } from "@/types"
 
 interface CreatePatientDialogProps {
@@ -25,7 +25,7 @@ interface CreatePatientDialogProps {
 }
 
 interface ValidationState {
-  cuil: { isValid: boolean; message: string }
+  dni: { isValid: boolean; message: string }
   first_name: { isValid: boolean; message: string }
   last_name: { isValid: boolean; message: string }
   email: { isValid: boolean; message: string }
@@ -35,7 +35,7 @@ interface ValidationState {
 }
 
 const initialValidation: ValidationState = {
-  cuil: { isValid: false, message: "Ingresa un CUIL válido (11 dígitos)" },
+  dni: { isValid: false, message: "Ingresa un DNI válido (7 u 8 dígitos)" },
   first_name: { isValid: false, message: "Ingresa el nombre" },
   last_name: { isValid: false, message: "Ingresa el apellido" },
   email: { isValid: true, message: "" },
@@ -46,7 +46,7 @@ const initialValidation: ValidationState = {
 
 export function CreatePatientDialog({ isOpen, onClose, addPatient, apiRequest }: CreatePatientDialogProps) {
   const [formData, setFormData] = useState({
-    cuil: "",
+    dni: "",
     first_name: "",
     last_name: "",
     birth_date: "",
@@ -66,17 +66,15 @@ export function CreatePatientDialog({ isOpen, onClose, addPatient, apiRequest }:
   const [touched, setTouched] = useState<Record<string, boolean>>({})
 
   // Funciones de validación
-  const validateCUIL = (cuil: string) => {
-    const digits = normalizeCuil(cuil)
+  const validateDNI = (dni: string) => {
+    const digits = normalizeDni(dni)
     if (!digits.trim()) {
-      return { isValid: false, message: "El CUIL es obligatorio" }
+      return { isValid: false, message: "El DNI es obligatorio" }
     }
-    if (!/^\d+$/.test(digits)) {
-      return { isValid: false, message: "El CUIL solo debe contener números" }
+    if (digits.length < 7 || digits.length > 8) {
+      return { isValid: false, message: "El DNI debe tener 7 u 8 dígitos" }
     }
-    if (digits.length !== 11) return { isValid: false, message: "El CUIL debe tener 11 dígitos" }
-    if (!isValidCuil(digits)) return { isValid: false, message: "El CUIL no es válido" }
-    return { isValid: true, message: "CUIL válido" }
+    return { isValid: true, message: "DNI válido" }
   }
 
   const validateName = (name: string, field: string) => {
@@ -140,8 +138,8 @@ export function CreatePatientDialog({ isOpen, onClose, addPatient, apiRequest }:
   const validateField = (name: string, value: string) => {
     let result
     switch (name) {
-      case "cuil":
-        result = validateCUIL(value)
+      case "dni":
+        result = validateDNI(value)
         break
       case "first_name":
         result = validateName(value, "El nombre")
@@ -174,14 +172,12 @@ export function CreatePatientDialog({ isOpen, onClose, addPatient, apiRequest }:
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
 
-    // Validación especial para CUIL - solo números y guiones
-    if (name === "cuil") {
-      const cleaned = normalizeCuil(value)
-      const inferredGender = inferGenderFromCuil(cleaned)
+    // Validación especial para DNI - solo números
+    if (name === "dni") {
+      const cleaned = normalizeDni(value)
       setFormData((prev) => ({
         ...prev,
         [name]: cleaned,
-        ...(inferredGender ? { gender: inferredGender } : {}),
       }))
 
       // Marcar como tocado
@@ -212,7 +208,7 @@ export function CreatePatientDialog({ isOpen, onClose, addPatient, apiRequest }:
 
   const resetForm = () => {
     setFormData({
-      cuil: "",
+      dni: "",
       first_name: "",
       last_name: "",
       birth_date: "",
@@ -240,7 +236,7 @@ export function CreatePatientDialog({ isOpen, onClose, addPatient, apiRequest }:
       if ((!firstName || !lastName) && !observations) return false
       return true
     }
-    const requiredFields = ["cuil", "first_name", "last_name", "birth_date"]
+    const requiredFields = ["dni", "first_name", "last_name", "birth_date"]
     const requiredFieldsValid = requiredFields.every((field) => {
       const fieldValidation = validation[field as keyof ValidationState]
       return fieldValidation.isValid
@@ -276,7 +272,7 @@ export function CreatePatientDialog({ isOpen, onClose, addPatient, apiRequest }:
         return
       }
     } else {
-      const allFields = ["cuil", "first_name", "last_name", "birth_date", "email", "phone_mobile", "alt_phone"]
+      const allFields = ["dni", "first_name", "last_name", "birth_date", "email", "phone_mobile", "alt_phone"]
       const newTouched = allFields.reduce((acc, field) => ({ ...acc, [field]: true }), {})
       setTouched(newTouched)
 
@@ -297,14 +293,14 @@ export function CreatePatientDialog({ isOpen, onClose, addPatient, apiRequest }:
       const loadingId = toast.loading(isAnonymous ? "Creando paciente anónimo..." : "Creando paciente...")
 
       // Para anónimo: enviamos lo disponible. El backend desactiva is_anonymous
-      // automáticamente si llegan los datos requeridos (cuil, last_name, birth_date, gender).
+      // automáticamente si llegan los datos requeridos (dni, last_name, birth_date, gender).
       const buildAnonymousPayload = () => {
         const payload: Record<string, unknown> = {
           is_anonymous: true,
         }
         if (formData.first_name.trim()) payload.first_name = formData.first_name.trim()
-        const cuilDigits = normalizeCuil(formData.cuil)
-        if (cuilDigits) payload.cuil = cuilDigits
+        const dniDigits = normalizeDni(formData.dni)
+        if (dniDigits) payload.dni = dniDigits
         if (formData.last_name.trim()) payload.last_name = formData.last_name.trim()
         if (formData.birth_date) payload.birth_date = formData.birth_date
         if (formData.gender) payload.gender = formData.gender
@@ -323,7 +319,7 @@ export function CreatePatientDialog({ isOpen, onClose, addPatient, apiRequest }:
         ? buildAnonymousPayload()
         : {
             ...formData,
-            cuil: normalizeCuil(formData.cuil),
+            dni: normalizeDni(formData.dni),
             birth_date: formData.birth_date,
           }
 
@@ -442,14 +438,14 @@ export function CreatePatientDialog({ isOpen, onClose, addPatient, apiRequest }:
               </p>
 
               <div className="space-y-2">
-                <Label htmlFor="cuil_anon">CUIL <span className="text-gray-400 font-normal">(opcional)</span></Label>
+                <Label htmlFor="dni_anon">DNI <span className="text-gray-400 font-normal">(opcional)</span></Label>
                 <Input
-                  id="cuil_anon"
-                  name="cuil"
-                  value={formatCuilForDisplay(formData.cuil)}
+                  id="dni_anon"
+                  name="dni"
+                  value={formatDniForDisplay(formData.dni)}
                   onChange={handleInputChange}
-                  placeholder="20-12345678-4"
-                  maxLength={13}
+                  placeholder="12.345.678"
+                  maxLength={10}
                   className="font-mono"
                 />
               </div>
@@ -559,22 +555,22 @@ export function CreatePatientDialog({ isOpen, onClose, addPatient, apiRequest }:
             </>
           ) : (
             <>
-              {/* CUIL - Campo principal */}
+              {/* DNI - Campo principal */}
               <div className="space-y-2">
-                <Label htmlFor="cuil" className="text-base font-semibold">
-                  CUIL *
+                <Label htmlFor="dni" className="text-base font-semibold">
+                  DNI *
                 </Label>
                 <Input
-                  id="cuil"
-                  name="cuil"
-                  value={formatCuilForDisplay(formData.cuil)}
+                  id="dni"
+                  name="dni"
+                  value={formatDniForDisplay(formData.dni)}
                   onChange={handleInputChange}
-                  placeholder="20123456784"
-                  maxLength={13}
-                  className={`font-mono text-lg ${getFieldStyle("cuil")}`}
+                  placeholder="12.345.678"
+                  maxLength={10}
+                  className={`font-mono text-lg ${getFieldStyle("dni")}`}
                   required
                 />
-                {renderFieldMessage("cuil")}
+                {renderFieldMessage("dni")}
               </div>
 
           {/* Información personal */}

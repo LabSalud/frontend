@@ -58,7 +58,7 @@ interface ProtocolDetailResponse {
   id: number
   patient: {
     id: number
-    cuil: string
+    dni: string
     first_name: string
     last_name: string
     email?: string
@@ -1303,7 +1303,7 @@ export function ProtocolCard({
         onOpenChange={setArcaDialogOpen}
         protocolId={protocol.id}
         patientName={getPatientName()}
-        patientCuil={protocol.patient?.cuil}
+        patientDni={protocol.patient?.dni}
         invoicePdfUrl={protocolDetail?.arca_invoice_pdf_url ?? null}
         arcaCae={protocolDetail?.arca_cae}
         arcaCbteNumber={protocolDetail?.arca_cbte_number ?? null}

@@ -5,7 +5,7 @@ import { Button } from "../../ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "../../ui/card"
 import { Badge } from "../../ui/badge"
 import type { Patient } from "../../../types"
-import { formatCuilForDisplay } from "@/lib/cuil"
+import { formatDniForDisplay } from "@/lib/dni"
 
 interface PatientInfoProps {
   patient: Patient
@@ -113,7 +113,7 @@ export function PatientInfo({ patient, onEdit }: PatientInfoProps) {
               </Badge>
             ) : (
               <Badge variant="outline" className="font-mono text-sm sm:text-lg px-2 sm:px-3 py-1">
-                CUIL: {formatCuilForDisplay(patient.cuil)}
+                DNI: {formatDniForDisplay(patient.dni)}
               </Badge>
             )}
           </div>

@@ -79,12 +79,12 @@ export function PatientDetailsDialog({ isOpen, onClose, patient }: PatientDetail
     return age
   }
 
-  const formatCuil = (cuil: string) => {
-    const digits = cuil.replace(/-/g, "")
-    if (digits.length === 11) {
-      return `${digits.slice(0, 2)}-${digits.slice(2, 10)}-${digits.slice(10)}`
+  const formatDni = (dni: string) => {
+    const digits = dni.replace(/\D/g, "")
+    if (digits.length >= 7 && digits.length <= 8) {
+      return digits.replace(/\B(?=(\d{3})+(?!\d))/g, ".")
     }
-    return cuil
+    return dni
   }
 
   // Función para mapear género correctamente
@@ -110,9 +110,9 @@ export function PatientDetailsDialog({ isOpen, onClose, patient }: PatientDetail
             <div className="flex items-center space-x-2">
               <CreditCard className="h-4 w-4 text-gray-400" />
               <div>
-                <p className="text-sm font-medium text-gray-500">CUIL</p>
+                <p className="text-sm font-medium text-gray-500">DNI</p>
                 <p className="text-lg font-mono font-semibold text-[#204983]">
-                  {patient.is_anonymous ? "ANÓNIMO" : formatCuil(patient.cuil || "")}
+                  {patient.is_anonymous ? "ANÓNIMO" : formatDni(patient.dni || "")}
                 </p>
               </div>
             </div>

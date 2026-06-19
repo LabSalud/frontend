@@ -192,7 +192,7 @@ export default function PatientsPage() {
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
           <Input
             ref={searchInputRef}
-            placeholder="Buscar por CUIL o nombre..."
+            placeholder="Buscar por DNI o nombre..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-12 pr-10 h-10 md:h-12 text-base md:text-lg"
@@ -212,7 +212,7 @@ export default function PatientsPage() {
           )}
         </div>
         <div className="flex items-center justify-between mt-2">
-          <p className="text-xs md:text-sm text-gray-500">Búsqueda instantánea por CUIL o nombre del paciente</p>
+          <p className="text-xs md:text-sm text-gray-500">Búsqueda instantánea por DNI o nombre del paciente</p>
           {searchTerm && (
             <p className="text-xs text-[#204983] font-medium">
               {patients.length} resultado{patients.length !== 1 ? "s" : ""}

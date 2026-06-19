@@ -237,8 +237,8 @@ export interface SearchParams extends PaginationParams {
 
 // Patient specific filters
 export interface PatientFilters extends SearchParams {
-  cuil?: string
-  gender?: "M" | "F"
+  dni?: string
+  gender?: "M" | "F" | "O" | "N"
   city?: string
   province?: string
   country?: string

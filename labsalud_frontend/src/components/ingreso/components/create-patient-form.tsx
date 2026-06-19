@@ -16,20 +16,20 @@ import { toast } from "sonner"
 import type { Patient } from "../../../types"
 import { PATIENT_ENDPOINTS, TOAST_DURATION } from "@/config/api"
 import { formatApiError, getErrorMessage } from "@/lib/api-error"
-import { formatCuilForDisplay, getCuilValidationMessage, inferGenderFromCuil, isValidCuil, normalizeCuil } from "@/lib/cuil"
+import { formatDniForDisplay, getDniValidationMessage, isValidDni, normalizeDni } from "@/lib/dni"
 
 interface CreatePatientFormProps {
-  initialCuil: string
+  initialDni: string
   onPatientCreated: (patient: Patient) => void
   onCancel: () => void
   defaultAnonymous?: boolean
 }
 
 type ValidationResult = { isValid: boolean; message: string }
-type ValidatedField = "cuil" | "first_name" | "last_name" | "birth_date" | "email"
+type ValidatedField = "dni" | "first_name" | "last_name" | "birth_date" | "email"
 
 export function CreatePatientForm({
-  initialCuil,
+  initialDni,
   onPatientCreated,
   onCancel,
   defaultAnonymous = false,
@@ -39,9 +39,9 @@ export function CreatePatientForm({
   const [formData, setFormData] = useState({
     first_name: "",
     last_name: "",
-    cuil: normalizeCuil(initialCuil),
+    dni: normalizeDni(initialDni),
     birth_date: "",
-    gender: inferGenderFromCuil(initialCuil) || "",
+    gender: "",
     phone_mobile: "",
     phone_landline: "",
     email: "",
@@ -53,13 +53,13 @@ export function CreatePatientForm({
   })
   const [isCreating, setIsCreating] = useState(false)
   const [touched, setTouched] = useState<Record<string, boolean>>({
-    cuil: Boolean(normalizeCuil(initialCuil)),
+    dni: Boolean(normalizeDni(initialDni)),
   })
 
   const validateField = (name: ValidatedField, value: string): ValidationResult => {
-    if (name === "cuil") {
-      const message = getCuilValidationMessage(value)
-      return { isValid: isValidCuil(value), message }
+    if (name === "dni") {
+      const message = getDniValidationMessage(value)
+      return { isValid: isValidDni(value), message }
     }
     if (name === "first_name") {
       if (!value.trim()) return { isValid: false, message: "El nombre es obligatorio" }
@@ -106,13 +106,11 @@ export function CreatePatientForm({
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
     setTouched((prev) => ({ ...prev, [name]: true }))
-    if (name === "cuil") {
-      const cleaned = normalizeCuil(value)
-      const inferredGender = inferGenderFromCuil(cleaned)
+    if (name === "dni") {
+      const cleaned = normalizeDni(value)
       setFormData((prev) => ({
         ...prev,
         [name]: cleaned,
-        ...(inferredGender ? { gender: inferredGender } : {}),
       }))
     } else {
       setFormData((prev) => ({ ...prev, [name]: value }))
@@ -145,7 +143,7 @@ export function CreatePatientForm({
         return
       }
     } else {
-      const fieldsToValidate: ValidatedField[] = ["cuil", "first_name", "last_name", "birth_date", "email"]
+      const fieldsToValidate: ValidatedField[] = ["dni", "first_name", "last_name", "birth_date", "email"]
       setTouched((prev) => ({ ...prev, ...Object.fromEntries(fieldsToValidate.map((field) => [field, true])) }))
       const fieldsAreValid = fieldsToValidate.every((field) => getFieldValidation(field).isValid)
 
@@ -166,8 +164,8 @@ export function CreatePatientForm({
           is_anonymous: true,
         }
         if (formData.first_name.trim()) result.first_name = formData.first_name.trim()
-        const cuilDigits = normalizeCuil(formData.cuil)
-        if (cuilDigits) result.cuil = cuilDigits
+        const dniDigits = normalizeDni(formData.dni)
+        if (dniDigits) result.dni = dniDigits
         if (formData.last_name.trim()) result.last_name = formData.last_name.trim()
         if (formData.birth_date) result.birth_date = formData.birth_date
         if (formData.gender) result.gender = formData.gender
@@ -187,7 +185,7 @@ export function CreatePatientForm({
         : {
             first_name: formData.first_name.trim(),
             last_name: formData.last_name.trim(),
-            cuil: normalizeCuil(formData.cuil),
+            dni: normalizeDni(formData.dni),
             birth_date: formData.birth_date,
             gender: formData.gender,
             phone_mobile: formData.phone_mobile.trim(),
@@ -291,16 +289,16 @@ export function CreatePatientForm({
             </p>
 
             <div className="space-y-2">
-              <Label htmlFor="cuil_anon_ingreso">
-                CUIL <span className="text-gray-400 font-normal">(opcional)</span>
+              <Label htmlFor="dni_anon_ingreso">
+                DNI <span className="text-gray-400 font-normal">(opcional)</span>
               </Label>
               <Input
-                id="cuil_anon_ingreso"
-                name="cuil"
-                value={formatCuilForDisplay(formData.cuil)}
+                id="dni_anon_ingreso"
+                name="dni"
+                value={formatDniForDisplay(formData.dni)}
                 onChange={handleInputChange}
-                placeholder="20-12345678-4"
-                maxLength={13}
+                placeholder="12.345.678"
+                maxLength={10}
                 className="font-mono"
               />
             </div>
@@ -450,18 +448,18 @@ export function CreatePatientForm({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="cuil">CUIL *</Label>
+              <Label htmlFor="dni">DNI *</Label>
               <Input
-                id="cuil"
-                name="cuil"
-                value={formatCuilForDisplay(formData.cuil)}
+                id="dni"
+                name="dni"
+                value={formatDniForDisplay(formData.dni)}
                 onChange={handleInputChange}
-                placeholder="20123456784"
-                maxLength={13}
-                className={`font-mono text-lg ${getFieldStyle("cuil")}`}
+                placeholder="12.345.678"
+                maxLength={10}
+                className={`font-mono text-lg ${getFieldStyle("dni")}`}
                 required
               />
-              {renderFieldMessage("cuil")}
+              {renderFieldMessage("dni")}
             </div>
 
             <div className="grid grid-cols-2 gap-4">

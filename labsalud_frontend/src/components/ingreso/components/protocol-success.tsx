@@ -171,7 +171,7 @@ export function ProtocolSuccess({ protocol, patient, doctor, insurance, sendMeth
                   <div className="font-medium text-lg">
                     {patient.first_name} {patient.last_name}
                   </div>
-                  <div className="text-sm text-gray-600">CUIL: {patient.cuil}</div>
+                  <div className="text-sm text-gray-600">DNI: {patient.dni}</div>
                 </div>
               </div>
 

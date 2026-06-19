@@ -40,7 +40,7 @@ interface ArcaBillingDialogProps {
   onOpenChange: (open: boolean) => void
   protocolId: number
   patientName: string
-  patientCuil?: string
+  patientDni?: string
   invoicePdfUrl?: string | null
   arcaCae?: string
   arcaCbteNumber?: number | null
@@ -68,7 +68,7 @@ export function ArcaBillingDialog({
   onOpenChange,
   protocolId,
   patientName,
-  patientCuil,
+  patientDni,
   invoicePdfUrl,
   arcaCae,
   arcaCbteNumber,
@@ -180,7 +180,7 @@ export function ArcaBillingDialog({
                   </div>
                   <p className="text-xs text-gray-600 truncate">
                     {patientName}
-                    {patientCuil ? ` · ${patientCuil}` : ""}
+                    {patientDni ? ` · ${patientDni}` : ""}
                   </p>
                 </button>
                 <button

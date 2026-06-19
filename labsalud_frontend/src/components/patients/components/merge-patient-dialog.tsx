@@ -20,7 +20,7 @@ import { useApi } from "@/hooks/use-api"
 import { PATIENT_ENDPOINTS, TOAST_DURATION } from "@/config/api"
 import { formatApiError, getErrorMessage } from "@/lib/api-error"
 import type { Patient, PatientMergePreview } from "@/types"
-import { formatCuilForDisplay } from "@/lib/cuil"
+import { formatDniForDisplay } from "@/lib/dni"
 import { useDebounce } from "@/hooks/use-debounce"
 
 interface MergePatientDialogProps {
@@ -31,7 +31,7 @@ interface MergePatientDialogProps {
 }
 
 const FIELD_LABELS: Record<string, string> = {
-  cuil: "CUIL",
+  dni: "DNI",
   first_name: "Nombre",
   last_name: "Apellido",
   birth_date: "Fecha de nacimiento",
@@ -180,7 +180,7 @@ export function MergePatientDialog({ open, onOpenChange, source, onMerged }: Mer
             {`${candidate.first_name || ""} ${candidate.last_name || ""}`.trim()}
           </p>
           <p className="text-xs text-gray-500 font-mono">
-            {candidate.is_anonymous ? "ANÓNIMO" : formatCuilForDisplay(candidate.cuil || "")}
+            {candidate.is_anonymous ? "ANÓNIMO" : formatDniForDisplay(candidate.dni || "")}
           </p>
         </div>
         {candidate.is_anonymous && (
@@ -211,7 +211,7 @@ export function MergePatientDialog({ open, onOpenChange, source, onMerged }: Mer
                 {source ? `${source.first_name || ""} ${source.last_name || ""}`.trim() : "—"}
               </p>
               <p className="text-xs text-gray-500 font-mono">
-                {source?.is_anonymous ? "ANÓNIMO" : formatCuilForDisplay(source?.cuil || "")}
+                {source?.is_anonymous ? "ANÓNIMO" : formatDniForDisplay(source?.dni || "")}
               </p>
             </div>
             <ArrowRightLeft className="h-5 w-5 text-[#204983] mx-auto rotate-90 md:rotate-0" />
@@ -223,7 +223,7 @@ export function MergePatientDialog({ open, onOpenChange, source, onMerged }: Mer
                     {`${target.first_name || ""} ${target.last_name || ""}`.trim()}
                   </p>
                   <p className="text-xs text-gray-500 font-mono">
-                    {target.is_anonymous ? "ANÓNIMO" : formatCuilForDisplay(target.cuil || "")}
+                    {target.is_anonymous ? "ANÓNIMO" : formatDniForDisplay(target.dni || "")}
                   </p>
                 </>
               ) : (
@@ -239,7 +239,7 @@ export function MergePatientDialog({ open, onOpenChange, source, onMerged }: Mer
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 h-4 w-4" />
                 <Input
                   id="merge-search"
-                  placeholder="Buscar por nombre o CUIL..."
+                  placeholder="Buscar por nombre o DNI..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   className="pl-9"

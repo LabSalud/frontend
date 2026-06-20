@@ -87,11 +87,11 @@ export function PatientDetailsDialog({ isOpen, onClose, patient }: PatientDetail
     return dni
   }
 
-  // Función para mapear género correctamente
-  const getGenderDisplay = (gender: string) => {
-    if (gender === "M" || gender === "Masculino") return "Masculino"
-    if (gender === "F" || gender === "Femenino") return "Femenino"
-    return gender
+  // Función para mapear sexo correctamente
+  const getSexDisplay = (sex: string) => {
+    if (sex === "M" || sex === "Masculino") return "Masculino"
+    if (sex === "F" || sex === "Femenino") return "Femenino"
+    return sex
   }
 
   return (
@@ -136,9 +136,9 @@ export function PatientDetailsDialog({ isOpen, onClose, patient }: PatientDetail
               </div>
             </div>
             <div>
-              <p className="text-sm font-medium text-gray-500">Género</p>
-              <Badge variant={patient.gender === "M" ? "default" : "secondary"}>
-                {getGenderDisplay(patient.gender)}
+              <p className="text-sm font-medium text-gray-500">Sexo</p>
+              <Badge variant={patient.sex === "M" ? "default" : "secondary"}>
+                {getSexDisplay(patient.sex)}
               </Badge>
             </div>
           </div>

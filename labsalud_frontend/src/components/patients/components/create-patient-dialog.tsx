@@ -50,7 +50,7 @@ export function CreatePatientDialog({ isOpen, onClose, addPatient, apiRequest }:
     first_name: "",
     last_name: "",
     birth_date: "",
-    gender: "",
+    sex: "",
     phone_mobile: "",
     alt_phone: "",
     email: "",
@@ -212,7 +212,7 @@ export function CreatePatientDialog({ isOpen, onClose, addPatient, apiRequest }:
       first_name: "",
       last_name: "",
       birth_date: "",
-      gender: "",
+      sex: "",
       phone_mobile: "",
       alt_phone: "",
       email: "",
@@ -247,7 +247,7 @@ export function CreatePatientDialog({ isOpen, onClose, addPatient, apiRequest }:
       return fieldValidation.isValid
     })
 
-    return requiredFieldsValid && optionalFieldsValid && formData.gender !== ""
+    return requiredFieldsValid && optionalFieldsValid && formData.sex !== ""
   }
 
   const handleCreatePatient = async () => {
@@ -280,7 +280,7 @@ export function CreatePatientDialog({ isOpen, onClose, addPatient, apiRequest }:
         validateField(field, formData[field as keyof typeof formData] as string)
       })
 
-      if (!isFormValid() || !formData.gender) {
+      if (!isFormValid() || !formData.sex) {
         toast.error("Formulario inválido", {
           description: "Por favor, corrige los errores antes de continuar.",
           duration: TOAST_DURATION,
@@ -293,7 +293,7 @@ export function CreatePatientDialog({ isOpen, onClose, addPatient, apiRequest }:
       const loadingId = toast.loading(isAnonymous ? "Creando paciente anónimo..." : "Creando paciente...")
 
       // Para anónimo: enviamos lo disponible. El backend desactiva is_anonymous
-      // automáticamente si llegan los datos requeridos (dni, last_name, birth_date, gender).
+      // automáticamente si llegan los datos requeridos (dni, last_name, birth_date, sex).
       const buildAnonymousPayload = () => {
         const payload: Record<string, unknown> = {
           is_anonymous: true,
@@ -303,7 +303,7 @@ export function CreatePatientDialog({ isOpen, onClose, addPatient, apiRequest }:
         if (dniDigits) payload.dni = dniDigits
         if (formData.last_name.trim()) payload.last_name = formData.last_name.trim()
         if (formData.birth_date) payload.birth_date = formData.birth_date
-        if (formData.gender) payload.gender = formData.gender
+        if (formData.sex) payload.sex = formData.sex
         if (formData.phone_mobile.trim()) payload.phone_mobile = formData.phone_mobile.trim()
         if (formData.alt_phone.trim()) payload.alt_phone = formData.alt_phone.trim()
         if (formData.email.trim()) payload.email = formData.email.trim()
@@ -462,16 +462,14 @@ export function CreatePatientDialog({ isOpen, onClose, addPatient, apiRequest }:
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="gender_anon">Género <span className="text-gray-400 font-normal">(opcional)</span></Label>
-                  <Select value={formData.gender} onValueChange={(value) => handleSelectChange("gender", value)}>
-                    <SelectTrigger id="gender_anon">
+                  <Label htmlFor="sex_anon">Sexo <span className="text-gray-400 font-normal">(opcional)</span></Label>
+                  <Select value={formData.sex} onValueChange={(value) => handleSelectChange("sex", value)}>
+                    <SelectTrigger id="sex_anon">
                       <SelectValue placeholder="Seleccionar" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="M">Masculino</SelectItem>
                       <SelectItem value="F">Femenino</SelectItem>
-                      <SelectItem value="O">Otro</SelectItem>
-                      <SelectItem value="N">No especificar</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -618,16 +616,14 @@ export function CreatePatientDialog({ isOpen, onClose, addPatient, apiRequest }:
               {renderFieldMessage("birth_date")}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="gender">Género *</Label>
-              <Select value={formData.gender} onValueChange={(value) => handleSelectChange("gender", value)}>
+              <Label htmlFor="sex">Sexo *</Label>
+              <Select value={formData.sex} onValueChange={(value) => handleSelectChange("sex", value)}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Seleccionar género" />
+                  <SelectValue placeholder="Seleccionar sexo" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="M">Masculino</SelectItem>
                   <SelectItem value="F">Femenino</SelectItem>
-                  <SelectItem value="O">Otro</SelectItem>
-                  <SelectItem value="N">No especificar</SelectItem>
                 </SelectContent>
               </Select>
             </div>

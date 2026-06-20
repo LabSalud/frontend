@@ -209,7 +209,7 @@ interface ProtocolFormProps {
   onInsuranceSelect: (insurance: Insurance | null) => void
   onSendMethodSelect: (sendMethod: SendMethod | null) => void
   onPatientFound: (patient: Patient) => void
-  onPatientNotFound: (dni: string) => void
+  onPatientNotFound: (dni: string, sex: "M" | "F") => void
   onCreateAnonymous?: () => void
   onReset: () => void
   onShowCreateMedico: () => void

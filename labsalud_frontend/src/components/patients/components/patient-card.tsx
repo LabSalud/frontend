@@ -51,7 +51,7 @@ export function PatientCard({ patient, onSelectPatient, updatePatient, apiReques
     first_name: patient.first_name,
     last_name: patient.last_name,
     birth_date: formatDateForInput(patient.birth_date),
-    gender: patient.gender,
+    sex: patient.sex,
     phone_mobile: patient.phone_mobile,
     alt_phone: patient.alt_phone,
     email: patient.email,
@@ -114,27 +114,23 @@ export function PatientCard({ patient, onSelectPatient, updatePatient, apiReques
     return dni
   }
 
-  // Función para mapear género correctamente
-  const getGenderDisplay = (gender: string) => {
-    if (gender === "M" || gender === "Masculino") return "Masculino"
-    if (gender === "F" || gender === "Femenino") return "Femenino"
-    if (gender === "O") return "Otro"
-    if (gender === "N") return "No especificar"
-    return gender
+  // Función para mapear sexo correctamente
+  const getSexDisplay = (sex: string) => {
+    if (sex === "M" || sex === "Masculino") return "Masculino"
+    if (sex === "F" || sex === "Femenino") return "Femenino"
+    return sex
   }
 
-  // Función para obtener el valor del género para el badge
-  const getGenderBadgeVariant = (gender: string) => {
-    return gender === "M" || gender === "Masculino" ? "default" : "secondary"
+  // Función para obtener el valor del sexo para el badge
+  const getSexBadgeVariant = (sex: string) => {
+    return sex === "M" || sex === "Masculino" ? "default" : "secondary"
   }
 
-  // Función para obtener la letra del género
-  const getGenderLetter = (gender: string) => {
-    if (gender === "M" || gender === "Masculino") return "M"
-    if (gender === "F" || gender === "Femenino") return "F"
-    if (gender === "O") return "O"
-    if (gender === "N") return "N"
-    return gender
+  // Función para obtener la letra del sexo
+  const getSexLetter = (sex: string) => {
+    if (sex === "M" || sex === "Masculino") return "M"
+    if (sex === "F" || sex === "Femenino") return "F"
+    return sex
   }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -167,7 +163,7 @@ export function PatientCard({ patient, onSelectPatient, updatePatient, apiReques
       editData.first_name !== patient.first_name ||
       editData.last_name !== patient.last_name ||
       editData.birth_date !== formatDateForInput(patient.birth_date) ||
-      editData.gender !== patient.gender ||
+      editData.sex !== patient.sex ||
       editData.phone_mobile !== patient.phone_mobile ||
       editData.alt_phone !== patient.alt_phone ||
       editData.email !== patient.email ||
@@ -260,7 +256,7 @@ export function PatientCard({ patient, onSelectPatient, updatePatient, apiReques
       first_name: patient.first_name,
       last_name: patient.last_name,
       birth_date: formatDateForInput(patient.birth_date),
-      gender: patient.gender,
+      sex: patient.sex,
       phone_mobile: patient.phone_mobile,
       alt_phone: patient.alt_phone,
       email: patient.email,
@@ -298,8 +294,8 @@ export function PatientCard({ patient, onSelectPatient, updatePatient, apiReques
                       ) : (
                         <>
                           <span>{patient.age} años</span>
-                          <Badge variant={getGenderBadgeVariant(patient.gender)} className="text-xs">
-                            {getGenderLetter(patient.gender)}
+                          <Badge variant={getSexBadgeVariant(patient.sex)} className="text-xs">
+                            {getSexLetter(patient.sex)}
                           </Badge>
                           <span className="hidden sm:inline">{patient.city}</span>
                         </>
@@ -410,10 +406,10 @@ export function PatientCard({ patient, onSelectPatient, updatePatient, apiReques
                           />
                         </div>
                         <div>
-                          <Label className="text-sm font-medium">Género</Label>
+                          <Label className="text-sm font-medium">Sexo</Label>
                           <Select
-                            value={editData.gender}
-                            onValueChange={(value) => handleSelectChange("gender", value)}
+                            value={editData.sex}
+                            onValueChange={(value) => handleSelectChange("sex", value)}
                           >
                             <SelectTrigger className="mt-1">
                               <SelectValue />
@@ -421,8 +417,6 @@ export function PatientCard({ patient, onSelectPatient, updatePatient, apiReques
                             <SelectContent>
                               <SelectItem value="M">Masculino</SelectItem>
                               <SelectItem value="F">Femenino</SelectItem>
-                              <SelectItem value="O">Otro</SelectItem>
-                              <SelectItem value="N">No especificar</SelectItem>
                             </SelectContent>
                           </Select>
                         </div>
@@ -547,7 +541,7 @@ export function PatientCard({ patient, onSelectPatient, updatePatient, apiReques
                       <div className="flex items-center text-sm">
                         <User className="h-4 w-4 text-gray-500 mr-2" />
                         <span className="text-gray-600">
-                          Género: <span className="font-medium">{getGenderDisplay(patient.gender)}</span>
+                          Sexo: <span className="font-medium">{getSexDisplay(patient.sex)}</span>
                         </span>
                       </div>
                     </div>

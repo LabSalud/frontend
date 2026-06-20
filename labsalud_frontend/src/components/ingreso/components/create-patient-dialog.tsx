@@ -33,7 +33,7 @@ export function CreatePatientDialog({ initialDni = "", onPatientCreated, onCance
     first_name: "",
     last_name: "",
     birth_date: "",
-    gender: "",
+    sex: "",
     phone_mobile: "",
     phone_landline: "",
     email: "",
@@ -110,11 +110,11 @@ export function CreatePatientDialog({ initialDni = "", onPatientCreated, onCance
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!formData.dni || !formData.first_name || !formData.last_name || !formData.birth_date || !formData.gender) {
+    if (!formData.dni || !formData.first_name || !formData.last_name || !formData.birth_date || !formData.sex) {
       const fieldsToValidate: ValidatedField[] = ["dni", "first_name", "last_name", "birth_date", "email"]
       setTouched((prev) => ({ ...prev, ...Object.fromEntries(fieldsToValidate.map((field) => [field, true])) }))
       toast.error("Formulario inválido", {
-        description: !formData.gender ? "Seleccione el género del paciente." : "Complete los campos obligatorios.",
+        description: !formData.sex ? "Seleccione el sexo del paciente." : "Complete los campos obligatorios.",
       })
       return
     }
@@ -137,7 +137,7 @@ export function CreatePatientDialog({ initialDni = "", onPatientCreated, onCance
           last_name: formData.last_name.trim(),
           dni: normalizeDni(formData.dni),
           birth_date: formData.birth_date,
-          gender: formData.gender,
+          sex: formData.sex,
           phone_mobile: formData.phone_mobile.trim(),
           alt_phone: formData.phone_landline.trim(),
           email: formData.email.trim(),
@@ -195,10 +195,10 @@ export function CreatePatientDialog({ initialDni = "", onPatientCreated, onCance
               {renderFieldMessage("dni")}
             </div>
             <div>
-              <Label htmlFor="gender">Género *</Label>
-              <Select value={formData.gender} onValueChange={(value) => handleInputChange("gender", value)}>
+              <Label htmlFor="sex">Sexo *</Label>
+              <Select value={formData.sex} onValueChange={(value) => handleInputChange("sex", value)}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Seleccionar género" />
+                  <SelectValue placeholder="Seleccionar sexo" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="M">Masculino</SelectItem>

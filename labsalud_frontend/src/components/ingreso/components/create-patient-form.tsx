@@ -20,6 +20,7 @@ import { formatDniForDisplay, getDniValidationMessage, isValidDni, normalizeDni 
 
 interface CreatePatientFormProps {
   initialDni: string
+  initialSex?: "M" | "F" | ""
   onPatientCreated: (patient: Patient) => void
   onCancel: () => void
   defaultAnonymous?: boolean
@@ -30,6 +31,7 @@ type ValidatedField = "dni" | "first_name" | "last_name" | "birth_date" | "email
 
 export function CreatePatientForm({
   initialDni,
+  initialSex = "",
   onPatientCreated,
   onCancel,
   defaultAnonymous = false,
@@ -41,7 +43,7 @@ export function CreatePatientForm({
     last_name: "",
     dni: normalizeDni(initialDni),
     birth_date: "",
-    gender: "",
+    sex: initialSex,
     phone_mobile: "",
     phone_landline: "",
     email: "",
@@ -147,9 +149,9 @@ export function CreatePatientForm({
       setTouched((prev) => ({ ...prev, ...Object.fromEntries(fieldsToValidate.map((field) => [field, true])) }))
       const fieldsAreValid = fieldsToValidate.every((field) => getFieldValidation(field).isValid)
 
-      if (!fieldsAreValid || !formData.gender) {
+      if (!fieldsAreValid || !formData.sex) {
         toast.error("Formulario inválido", {
-          description: !formData.gender ? "Seleccione el género del paciente." : "Por favor, corrige los errores antes de continuar.",
+          description: !formData.sex ? "Seleccione el sexo del paciente." : "Por favor, corrige los errores antes de continuar.",
           duration: TOAST_DURATION,
         })
         return
@@ -168,7 +170,7 @@ export function CreatePatientForm({
         if (dniDigits) result.dni = dniDigits
         if (formData.last_name.trim()) result.last_name = formData.last_name.trim()
         if (formData.birth_date) result.birth_date = formData.birth_date
-        if (formData.gender) result.gender = formData.gender
+        if (formData.sex) result.sex = formData.sex
         if (formData.phone_mobile.trim()) result.phone_mobile = formData.phone_mobile.trim()
         if (formData.phone_landline.trim()) result.alt_phone = formData.phone_landline.trim()
         if (formData.email.trim()) result.email = formData.email.trim()
@@ -187,7 +189,7 @@ export function CreatePatientForm({
             last_name: formData.last_name.trim(),
             dni: normalizeDni(formData.dni),
             birth_date: formData.birth_date,
-            gender: formData.gender,
+            sex: formData.sex,
             phone_mobile: formData.phone_mobile.trim(),
             alt_phone: formData.phone_landline.trim(),
             email: formData.email.trim(),
@@ -317,11 +319,11 @@ export function CreatePatientForm({
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="gender_anon_ingreso">
-                  Género <span className="text-gray-400 font-normal">(opcional)</span>
+                <Label htmlFor="sex_anon_ingreso">
+                  Sexo <span className="text-gray-400 font-normal">(opcional)</span>
                 </Label>
-                <Select value={formData.gender} onValueChange={(value) => handleSelectChange("gender", value)}>
-                  <SelectTrigger id="gender_anon_ingreso">
+                <Select value={formData.sex} onValueChange={(value) => handleSelectChange("sex", value)}>
+                  <SelectTrigger id="sex_anon_ingreso">
                     <SelectValue placeholder="Seleccionar" />
                   </SelectTrigger>
                   <SelectContent>
@@ -428,6 +430,7 @@ export function CreatePatientForm({
                   onChange={handleInputChange}
                   placeholder="Juan"
                   className={getFieldStyle("first_name")}
+                  autoFocus
                   required
                 />
                 {renderFieldMessage("first_name")}
@@ -477,10 +480,10 @@ export function CreatePatientForm({
                 {renderFieldMessage("birth_date")}
               </div>
               <div className="space-y-2">
-                <Label htmlFor="gender">Género *</Label>
-                <Select value={formData.gender} onValueChange={(value) => handleSelectChange("gender", value)}>
+                <Label htmlFor="sex">Sexo *</Label>
+                <Select value={formData.sex} onValueChange={(value) => handleSelectChange("sex", value)}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Seleccionar género" />
+                    <SelectValue placeholder="Seleccionar sexo" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="M">Masculino</SelectItem>

@@ -239,7 +239,7 @@ export interface Patient {
   full_name: string
   birth_date: string
   age: number
-  gender: "M" | "F" | "O" | "N"
+  sex: "M" | "F"
   phone_mobile: string
   alt_phone: string
   email: string
@@ -280,7 +280,7 @@ export interface PatientFormData {
   last_name: string
   dni: string
   birth_date: string
-  gender: string
+  sex: string
   phone_mobile: string
   alt_phone: string
   email: string
@@ -450,7 +450,7 @@ export interface ReferenceRangeEvaluation {
   is_out_of_reference_range: boolean
   value: string
   patient?: {
-    gender: "M" | "F" | string
+    sex_code: "M" | "F" | string
     age: number
     sex: "male" | "female" | string
     age_group: "adult" | "child" | string

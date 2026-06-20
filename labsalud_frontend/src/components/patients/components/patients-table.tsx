@@ -63,11 +63,11 @@ export function PatientTable({ patients, onSelectPatient, canEdit, canDelete }: 
     return dni
   }
 
-  // Función para mapear género correctamente
-  const getGenderDisplay = (gender: string) => {
-    if (gender === "M" || gender === "Masculino") return "Masculino"
-    if (gender === "F" || gender === "Femenino") return "Femenino"
-    return gender
+  // Función para mapear sexo correctamente
+  const getSexDisplay = (sex: string) => {
+    if (sex === "M" || sex === "Masculino") return "Masculino"
+    if (sex === "F" || sex === "Femenino") return "Femenino"
+    return sex
   }
 
   const handleViewDetails = (patient: Patient) => {
@@ -85,7 +85,7 @@ export function PatientTable({ patients, onSelectPatient, canEdit, canDelete }: 
                 <TableHead className="font-semibold text-gray-900">DNI</TableHead>
                 <TableHead className="font-semibold text-gray-900">Nombre</TableHead>
                 <TableHead className="font-semibold text-gray-900">Edad</TableHead>
-                <TableHead className="font-semibold text-gray-900">Género</TableHead>
+                <TableHead className="font-semibold text-gray-900">Sexo</TableHead>
                 <TableHead className="font-semibold text-gray-900">Teléfono</TableHead>
                 <TableHead className="font-semibold text-gray-900">Email</TableHead>
                 <TableHead className="font-semibold text-gray-900">Ciudad</TableHead>
@@ -103,9 +103,9 @@ export function PatientTable({ patients, onSelectPatient, canEdit, canDelete }: 
                     <TableCell className="bg-white">{calculateAge(patient.birth_date)} años</TableCell>
                     <TableCell className="bg-white">
                       <Badge
-                        variant={patient.gender === "M" ? "default" : "secondary"}
+                        variant={patient.sex === "M" ? "default" : "secondary"}
                       >
-                        {getGenderDisplay(patient.gender)}
+                        {getSexDisplay(patient.sex)}
                       </Badge>
                     </TableCell>
                     <TableCell className="bg-white">{patient.phone_mobile || patient.alt_phone}</TableCell>

@@ -41,6 +41,7 @@ export default function IngresoPage() {
   const [currentPatient, setCurrentPatient] = useState<Patient | null>(null)
   const [patientNotFound, setPatientNotFound] = useState(false)
   const [searchedDni, setSearchedDni] = useState("")
+  const [searchedSex, setSearchedSex] = useState<"M" | "F" | "">("")
   const [creatingAnonymous, setCreatingAnonymous] = useState(false)
   const [selectedAnalyses, setSelectedAnalyses] = useState<SelectedAnalysis[]>([])
   const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null)
@@ -187,24 +188,28 @@ export default function IngresoPage() {
     setCurrentPatient(patient)
     setPatientNotFound(false)
     setSearchedDni("")
+    setSearchedSex("")
   }
 
-  const handlePatientNotFound = (dni: string) => {
+  const handlePatientNotFound = (dni: string, sex: "M" | "F") => {
     setCurrentPatient(null)
     setPatientNotFound(true)
     setSearchedDni(dni)
+    setSearchedSex(sex)
   }
 
   const handlePatientCreated = (patient: Patient) => {
     setCurrentPatient(patient)
     setPatientNotFound(false)
     setSearchedDni("")
+    setSearchedSex("")
     setCreatingAnonymous(false)
   }
 
   const handleCreateAnonymous = () => {
     setCurrentPatient(null)
     setSearchedDni("")
+    setSearchedSex("")
     setPatientNotFound(true)
     setCreatingAnonymous(true)
   }
@@ -239,6 +244,7 @@ export default function IngresoPage() {
     setCurrentPatient(null)
     setPatientNotFound(false)
     setSearchedDni("")
+    setSearchedSex("")
     setCreatingAnonymous(false)
     setSelectedAnalyses([])
     setSelectedDoctor(null)
@@ -581,6 +587,7 @@ export default function IngresoPage() {
               {patientNotFound && (
                 <CreatePatientForm
                   initialDni={searchedDni}
+                  initialSex={searchedSex}
                   defaultAnonymous={creatingAnonymous}
                   onPatientCreated={handlePatientCreated}
                   onCancel={() => {

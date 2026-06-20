@@ -40,7 +40,7 @@ export function EditPatientDialog({ isOpen, onClose, patient, setPatients, apiRe
     first_name: "",
     last_name: "",
     birth_date: "",
-    gender: "",
+    sex: "",
     phone_mobile: "",
     alt_phone: "",
     email: "",
@@ -189,7 +189,7 @@ export function EditPatientDialog({ isOpen, onClose, patient, setPatients, apiRe
         first_name: patient.first_name,
         last_name: patient.last_name,
         birth_date: formatDateForInput(patient.birth_date),
-        gender: patient.gender,
+        sex: patient.sex,
         phone_mobile: patient.phone_mobile,
         alt_phone: patient.alt_phone,
         email: patient.email,
@@ -205,7 +205,7 @@ export function EditPatientDialog({ isOpen, onClose, patient, setPatients, apiRe
       // Validar campos iniciales
       Object.keys(newFormData).forEach((key) => {
         if (
-          key !== "gender" &&
+          key !== "sex" &&
           key !== "country" &&
           key !== "province" &&
           key !== "city" &&
@@ -272,7 +272,7 @@ export function EditPatientDialog({ isOpen, onClose, patient, setPatients, apiRe
       return fieldValidation.isValid
     })
 
-    return requiredFieldsValid && optionalFieldsValid && formData.gender !== ""
+    return requiredFieldsValid && optionalFieldsValid && formData.sex !== ""
   }
 
   const handleUpdatePatient = async () => {
@@ -375,7 +375,7 @@ export function EditPatientDialog({ isOpen, onClose, patient, setPatients, apiRe
             <div className="text-xs text-amber-900">
               <p className="font-semibold">Este es un paciente anónimo.</p>
               <p>
-                Cuando completes DNI, apellido, fecha de nacimiento y género, el paciente dejará de ser anónimo automáticamente al guardar.
+                Cuando completes DNI, apellido, fecha de nacimiento y sexo, el paciente dejará de ser anónimo automáticamente al guardar.
               </p>
             </div>
           </div>
@@ -445,16 +445,14 @@ export function EditPatientDialog({ isOpen, onClose, patient, setPatients, apiRe
               {renderFieldMessage("birth_date")}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="edit-gender">Género {patient?.is_anonymous ? "" : "*"}</Label>
-              <Select value={formData.gender} onValueChange={(value) => handleSelectChange("gender", value)}>
+              <Label htmlFor="edit-sex">Sexo {patient?.is_anonymous ? "" : "*"}</Label>
+              <Select value={formData.sex} onValueChange={(value) => handleSelectChange("sex", value)}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Seleccionar género" />
+                  <SelectValue placeholder="Seleccionar sexo" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="M">Masculino</SelectItem>
                   <SelectItem value="F">Femenino</SelectItem>
-                  <SelectItem value="O">Otro</SelectItem>
-                  <SelectItem value="N">No especificar</SelectItem>
                 </SelectContent>
               </Select>
             </div>

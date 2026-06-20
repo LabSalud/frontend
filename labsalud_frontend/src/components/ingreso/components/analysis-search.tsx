@@ -32,6 +32,7 @@ export function AnalysisSearch({ selectedAnalyses, onAnalysisChange }: AnalysisS
   const { apiRequest } = useApi()
   const [searchTerm, setSearchTerm] = useState("")
   const [searchResults, setSearchResults] = useState<Analysis[]>([])
+  const [highlightedIndex, setHighlightedIndex] = useState(0)
   const [isSearching, setIsSearching] = useState(false)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
   const [hasMore, setHasMore] = useState(false)
@@ -74,6 +75,23 @@ export function AnalysisSearch({ selectedAnalyses, onAnalysisChange }: AnalysisS
     }
 
     setBiochemicalActCache((prev) => ({ ...prev, [code]: null }))
+    return null
+  }
+
+  // Trae el análisis cuyo código es EXACTAMENTE `code`. Se usa al presionar Enter
+  // con un código: garantiza que se agregue ese código y no un match parcial o un
+  // resultado viejo del debounce (bug: a veces tomaba un código más corto).
+  const fetchByExactCode = async (code: number): Promise<Analysis | null> => {
+    try {
+      const url = `${CATALOG_ENDPOINTS.ANALYSIS}?code=${code}&is_active=true`
+      const response = await apiRequest(url)
+      if (response.ok) {
+        const data: PaginatedResponse<Analysis> = await response.json()
+        return data.results.find((a) => Number(a.code) === code) ?? null
+      }
+    } catch (error) {
+      console.error(`Error fetching analysis by code ${code}:`, error)
+    }
     return null
   }
 
@@ -127,6 +145,7 @@ export function AnalysisSearch({ selectedAnalyses, onAnalysisChange }: AnalysisS
   }
 
   useEffect(() => {
+    setHighlightedIndex(0)
     if (debouncedSearchTerm.trim()) {
       searchAnalyses(debouncedSearchTerm, true)
     } else {
@@ -233,23 +252,68 @@ export function AnalysisSearch({ selectedAnalyses, onAnalysisChange }: AnalysisS
     setShowResults(false)
   }
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && filteredResults.length > 0) {
-      e.preventDefault()
-      handleAddAnalysis(filteredResults[0])
-    }
-  }
-
   const filteredResults = searchResults.filter(
     (analysis) => !selectedAnalyses.find((selected) => selected.id === analysis.id),
   )
+
+  // Si el término es un código numérico, el match EXACTO va primero (y queda
+  // resaltado por defecto), para que Enter no agarre un código parcial/más corto.
+  const numericTerm = /^\d+$/.test(searchTerm.trim()) ? Number(searchTerm.trim()) : null
+  const orderedResults =
+    numericTerm === null
+      ? filteredResults
+      : [...filteredResults].sort(
+          (a, b) => (Number(a.code) === numericTerm ? 0 : 1) - (Number(b.code) === numericTerm ? 0 : 1),
+        )
+
+  const handleKeyDown = async (e: React.KeyboardEvent) => {
+    if (e.key === "ArrowDown") {
+      e.preventDefault()
+      setHighlightedIndex((i) => Math.min(i + 1, orderedResults.length - 1))
+      return
+    }
+    if (e.key === "ArrowUp") {
+      e.preventDefault()
+      setHighlightedIndex((i) => Math.max(i - 1, 0))
+      return
+    }
+    if (e.key === "Enter") {
+      e.preventDefault()
+      const term = searchTerm.trim()
+
+      // Código numérico: priorizar SIEMPRE la coincidencia exacta de código.
+      if (/^\d+$/.test(term)) {
+        const code = Number(term)
+        const exact = orderedResults.find((a) => Number(a.code) === code)
+        if (exact) {
+          handleAddAnalysis(exact)
+          return
+        }
+        // No está entre los resultados visibles (debounce o paginación): lo traemos.
+        const fetched = await fetchByExactCode(code)
+        if (fetched) {
+          handleAddAnalysis(fetched)
+        } else if (orderedResults.length > 0) {
+          handleAddAnalysis(orderedResults[highlightedIndex] ?? orderedResults[0])
+        } else {
+          toast.error(`No se encontró un análisis con el código ${code}`)
+        }
+        return
+      }
+
+      // Texto: agregar el análisis resaltado.
+      if (orderedResults.length > 0) {
+        handleAddAnalysis(orderedResults[highlightedIndex] ?? orderedResults[0])
+      }
+    }
+  }
 
   return (
     <div className="relative">
       <div className="relative">
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
         <Input
-          placeholder="Buscar análisis por nombre o código... (Enter para agregar el primero)"
+          placeholder="Buscar por nombre o código... (↑↓ para elegir, Enter agrega)"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           onKeyDown={handleKeyDown}
@@ -264,16 +328,19 @@ export function AnalysisSearch({ selectedAnalyses, onAnalysisChange }: AnalysisS
         )}
       </div>
 
-      {showResults && filteredResults.length > 0 && (
+      {showResults && orderedResults.length > 0 && (
         <div
           ref={resultsRef}
           className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-64 overflow-y-auto"
         >
-          {filteredResults.map((analysis, index) => (
+          {orderedResults.map((analysis, index) => (
             <div
               key={`analysis-${analysis.id}`}
-              ref={index === filteredResults.length - 1 ? setLastElementRef : null}
-              className="flex items-center justify-between p-3 hover:bg-gray-50 border-b border-gray-100 last:border-b-0"
+              ref={index === orderedResults.length - 1 ? setLastElementRef : null}
+              onMouseEnter={() => setHighlightedIndex(index)}
+              className={`flex items-center justify-between p-3 border-b border-gray-100 last:border-b-0 ${
+                index === highlightedIndex ? "bg-[#204983]/10" : "hover:bg-gray-50"
+              }`}
             >
               <div className="flex items-center gap-3">
                 <Package className="h-4 w-4 text-[#204983]" />

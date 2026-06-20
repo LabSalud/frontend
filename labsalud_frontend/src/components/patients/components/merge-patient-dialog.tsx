@@ -35,7 +35,7 @@ const FIELD_LABELS: Record<string, string> = {
   first_name: "Nombre",
   last_name: "Apellido",
   birth_date: "Fecha de nacimiento",
-  gender: "Género",
+  sex: "Sexo",
   phone_mobile: "Teléfono móvil",
   alt_phone: "Teléfono alternativo",
   email: "Email",

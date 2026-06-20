@@ -30,7 +30,7 @@ export function EditPatientDialog({ isOpen, onClose, patient, onPatientUpdated }
     last_name: "",
     dni: "",
     birth_date: "",
-    gender: "",
+    sex: "",
     phone_mobile: "",
     phone_landline: "",
     email: "",
@@ -49,7 +49,7 @@ export function EditPatientDialog({ isOpen, onClose, patient, onPatientUpdated }
         last_name: patient.last_name || "",
         dni: patient.dni || "",
         birth_date: patient.birth_date ? patient.birth_date.split("T")[0] : "",
-        gender: patient.gender || "",
+        sex: patient.sex || "",
         phone_mobile: patient.phone_mobile || "",
         phone_landline: patient.alt_phone || "",
         email: patient.email || "",
@@ -87,7 +87,7 @@ export function EditPatientDialog({ isOpen, onClose, patient, onPatientUpdated }
       return
     }
 
-    if (!isAnonymous && (!formData.last_name || !dniDigits || !formData.birth_date || !formData.gender)) {
+    if (!isAnonymous && (!formData.last_name || !dniDigits || !formData.birth_date || !formData.sex)) {
       toast.error("Complete los campos obligatorios")
       return
     }
@@ -103,7 +103,7 @@ export function EditPatientDialog({ isOpen, onClose, patient, onPatientUpdated }
           last_name: formData.last_name.trim(),
           dni: formData.dni.replace(/\D/g, ""),
           birth_date: formData.birth_date,
-          gender: formData.gender,
+          sex: formData.sex,
           phone_mobile: formData.phone_mobile.trim(),
           alt_phone: formData.phone_landline.trim(),
           email: formData.email.trim(),
@@ -201,16 +201,14 @@ export function EditPatientDialog({ isOpen, onClose, patient, onPatientUpdated }
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="gender">Género {patient?.is_anonymous ? "" : "*"}</Label>
-              <Select value={formData.gender} onValueChange={(value) => handleSelectChange("gender", value)}>
+              <Label htmlFor="sex">Sexo {patient?.is_anonymous ? "" : "*"}</Label>
+              <Select value={formData.sex} onValueChange={(value) => handleSelectChange("sex", value)}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Seleccionar género" />
+                  <SelectValue placeholder="Seleccionar sexo" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="M">Masculino</SelectItem>
                   <SelectItem value="F">Femenino</SelectItem>
-                  <SelectItem value="O">Otro</SelectItem>
-                  <SelectItem value="N">No especificar</SelectItem>
                 </SelectContent>
               </Select>
             </div>

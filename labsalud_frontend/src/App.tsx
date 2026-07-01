@@ -25,6 +25,7 @@ const IngresoPage = lazy(() => import("./components/ingreso/ingreso-page"))
 const ProtocolosPage = lazy(() => import("./components/protocolos/protocolos-page"))
 const ProtocolDetailPage = lazy(() => import("./components/protocolos/protocol-detail-page"))
 const ResultadosPage = lazy(() => import("./components/results/results-page"))
+const ProtocolResultsPage = lazy(() => import("./components/results/protocol-results-page"))
 const ValidacionPage = lazy(() => import("./components/validacion/validacion-page"))
 const FacturacionPage = lazy(() => import("./components/facturacion/facturacion-page"))
 
@@ -160,6 +161,7 @@ function App() {
                     }
                   >
                     <Route index element={<ResultadosPage />} />
+                    <Route path=":protocolId" element={<ProtocolResultsPage />} />
                   </Route>
                   <Route
                     path="/validacion"

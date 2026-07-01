@@ -657,6 +657,11 @@ export interface ProtocolListItem {
   insurance?: { id: number; name: string } | null
   affiliate_number?: string
   send_method?: { id: number; name: string } | null
+  // Progreso de carga de resultados (cola de resultados). Los provee el backend
+  // en protocols-with-loaded-results (ProtocolListSerializer anotado).
+  loaded_results_count?: number
+  total_analyses_count?: number
+  validated_results_count?: number
   status: ProtocolStatus
   balance: string
   private_amount_due?: string

@@ -151,12 +151,14 @@ export default function Home() {
   const [metricIndex, setMetricIndex] = useState(0)
   const activeMetric = DAILY_METRICS[metricIndex]
   const ActiveMetricIcon = activeMetric.icon
-  const metricValue = (item: NonNullable<DashboardResponse["protocols_daily_last_7"]>[number]) => {
-    const value = item[activeMetric.key]
+  const metricValueFor = (
+    metric: (typeof DAILY_METRICS)[number],
+    item: NonNullable<DashboardResponse["protocols_daily_last_7"]>[number],
+  ) => {
+    const value = item[metric.key]
     if (typeof value === "number") return value
-    return activeMetric.key === "protocols" ? item.count : 0
+    return metric.key === "protocols" ? item.count : 0
   }
-  const dailyMax = Math.max(1, ...dailySeries.map(metricValue))
   const goPrevMetric = () => setMetricIndex((prev) => (prev === 0 ? DAILY_METRICS.length - 1 : prev - 1))
   const goNextMetric = () => setMetricIndex((prev) => (prev === DAILY_METRICS.length - 1 ? 0 : prev + 1))
   const todayKey = (() => {
@@ -353,55 +355,62 @@ export default function Home() {
           {loading ? (
             <Skeleton className="h-64 w-full rounded-md" />
           ) : (
-            <div className="flex h-64 flex-col">
-              <div className="flex flex-1 items-end gap-1.5 sm:gap-3">
-                {dailySeries.map((item) => {
-                  const isToday = item.date === todayKey
-                  const value = metricValue(item)
+            // Carrusel: un slide por métrica; las flechas/puntos deslizan el track.
+            <div className="overflow-hidden">
+              <div
+                className="flex transition-transform duration-300 ease-out"
+                style={{ transform: `translateX(-${metricIndex * 100}%)` }}
+              >
+                {DAILY_METRICS.map((metric) => {
+                  const maxForMetric = Math.max(1, ...dailySeries.map((it) => metricValueFor(metric, it)))
                   return (
-                    <div key={item.date} className="flex min-w-0 flex-1 flex-col items-center justify-end">
-                      <span
-                        className={`mb-1 text-xs font-semibold ${
-                          isToday ? "text-[#204983]" : "text-slate-700"
-                        }`}
-                      >
-                        {value}
-                      </span>
-                      <div
-                        className={`flex w-full items-end rounded-md px-1 sm:px-1.5 ${
-                          isToday ? "bg-amber-100/70 ring-1 ring-amber-300" : "bg-slate-100/80"
-                        }`}
-                        style={{ height: "176px" }}
-                      >
-                        <div
-                          className={`w-full rounded-t-md ${
-                            isToday ? "bg-amber-500" : "bg-[#204983]"
-                          }`}
-                          style={{ height: `${Math.max(6, (value / dailyMax) * 168)}px` }}
-                          title={`${value} ${activeMetric.noun(value)}${isToday ? " (hoy)" : ""}`}
-                        />
+                    <div key={metric.key} className="w-full shrink-0">
+                      <div className="flex h-64 flex-col">
+                        <div className="flex flex-1 items-end gap-1.5 sm:gap-3">
+                          {dailySeries.map((item) => {
+                            const isToday = item.date === todayKey
+                            const value = metricValueFor(metric, item)
+                            return (
+                              <div key={item.date} className="flex min-w-0 flex-1 flex-col items-center justify-end">
+                                <span className={`mb-1 text-xs font-semibold ${isToday ? "text-[#204983]" : "text-slate-700"}`}>
+                                  {value}
+                                </span>
+                                <div
+                                  className={`flex w-full items-end rounded-md px-1 sm:px-1.5 ${
+                                    isToday ? "bg-amber-100/70 ring-1 ring-amber-300" : "bg-slate-100/80"
+                                  }`}
+                                  style={{ height: "176px" }}
+                                >
+                                  <div
+                                    className={`w-full rounded-t-md transition-all duration-300 ${isToday ? "bg-amber-500" : "bg-[#204983]"}`}
+                                    style={{ height: `${Math.max(6, (value / maxForMetric) * 168)}px` }}
+                                    title={`${value} ${metric.noun(value)}${isToday ? " (hoy)" : ""}`}
+                                  />
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                        <div className="mt-2 flex gap-1.5 sm:gap-3">
+                          {dailySeries.map((item) => {
+                            const dateObj = new Date(`${item.date}T00:00:00`)
+                            const weekday = dateObj.toLocaleDateString("es-AR", { weekday: "short" }).replace(".", "")
+                            const day = dateObj.toLocaleDateString("es-AR", { day: "2-digit" })
+                            const isToday = item.date === todayKey
+                            return (
+                              <div
+                                key={item.date}
+                                className={`flex min-w-0 flex-1 flex-col items-center leading-tight ${
+                                  isToday ? "font-semibold text-[#204983]" : "text-slate-500"
+                                }`}
+                              >
+                                <span className="text-[10px] capitalize sm:text-[11px]">{isToday ? "Hoy" : weekday}</span>
+                                <span className="text-[10px] sm:text-[11px]">{day}</span>
+                              </div>
+                            )
+                          })}
+                        </div>
                       </div>
-                    </div>
-                  )
-                })}
-              </div>
-              <div className="mt-2 flex gap-1.5 sm:gap-3">
-                {dailySeries.map((item) => {
-                  const dateObj = new Date(`${item.date}T00:00:00`)
-                  const weekday = dateObj.toLocaleDateString("es-AR", { weekday: "short" }).replace(".", "")
-                  const day = dateObj.toLocaleDateString("es-AR", { day: "2-digit" })
-                  const isToday = item.date === todayKey
-                  return (
-                    <div
-                      key={item.date}
-                      className={`flex min-w-0 flex-1 flex-col items-center leading-tight ${
-                        isToday ? "font-semibold text-[#204983]" : "text-slate-500"
-                      }`}
-                    >
-                      <span className="text-[10px] capitalize sm:text-[11px]">
-                        {isToday ? "Hoy" : weekday}
-                      </span>
-                      <span className="text-[10px] sm:text-[11px]">{day}</span>
                     </div>
                   )
                 })}

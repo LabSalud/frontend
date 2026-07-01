@@ -144,6 +144,9 @@ export const RESULTS_ENDPOINTS = {
   PREVIOUS_RESULTS: (patientId: number, determinationId: number) =>
     buildApiUrl(`/results/results/history/?patient_id=${patientId}&determination_id=${determinationId}`),
   PROTOCOLS_WITH_LOADED_RESULTS: buildApiUrl("/results/results/protocols-with-loaded-results/"),
+  // Cola de resultados: protocolos por estado (incluye los que aún no tienen
+  // ningún valor) con progreso cargados/validados. Ver spec en doc/.
+  QUEUE: buildApiUrl("/results/results/queue/"),
   BY_PROTOCOL_WITH_VALUE: (protocolId: number) => buildApiUrl(`/results/results/by-protocol-with-value/${protocolId}/`),
   RESULT_VALIDACIONES: (id: number) => buildApiUrl(`/results/results/${id}/validaciones/`),
   RESULT_CAMBIOS: (id: number) => buildApiUrl(`/results/results/${id}/cambios/`),

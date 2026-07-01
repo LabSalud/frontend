@@ -18,7 +18,6 @@ import {
   Plus,
   Trash2,
 } from "lucide-react"
-import { Card, CardContent, CardHeader, CardTitle } from "../../ui/card"
 import { Switch } from "../../ui/switch"
 import { Label } from "../../ui/label"
 import { Input } from "../../ui/input"
@@ -292,11 +291,7 @@ export function ProtocolForm({
   }
 
   return (
-    <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
-      <CardHeader className="pb-4 sm:pb-6">
-        <CardTitle className="text-center text-[#204983] text-lg sm:text-xl">Configuración del Protocolo</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4 sm:space-y-6 p-4 sm:p-6">
+    <div className="space-y-4 sm:space-y-6">
         {/* Patient Search */}
         <div className="space-y-2 sm:space-y-3">
           <div className="flex items-center gap-2">
@@ -707,7 +702,6 @@ export function ProtocolForm({
             </div>
           </div>
         )}
-      </CardContent>
-    </Card>
+    </div>
   )
 }

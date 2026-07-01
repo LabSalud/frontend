@@ -116,6 +116,19 @@ export function PatientSearch({ onPatientFound, onPatientNotFound, onReset, onCr
   }
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
+    // El DNI es solo números: 'm'/'f' cambian el sexo sin mover el foco, por si
+    // el usuario se equivocó al elegirlo mientras escribe el documento.
+    const key = e.key.toLowerCase()
+    if (key === "m") {
+      e.preventDefault()
+      selectSex("M", false)
+      return
+    }
+    if (key === "f") {
+      e.preventDefault()
+      selectSex("F", false)
+      return
+    }
     if (e.key === "Enter") {
       handleSearch()
     }

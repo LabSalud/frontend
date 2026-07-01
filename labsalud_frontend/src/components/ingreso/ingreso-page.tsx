@@ -555,15 +555,11 @@ export default function IngresoPage() {
     (!shouldShowPreauth || preauthStatus)
 
   return (
-    <div className="min-h-screen p-2 sm:p-4 lg:p-6">
-      <div className="max-w-7xl mx-auto">
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6 mb-4 sm:mb-6 lg:mb-8">
-          <div className="text-center">
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">Ingreso de Protocolos</h1>
-            <p className="text-sm sm:text-base text-gray-600">
-              Busque un paciente y configure su protocolo de análisis
-            </p>
-          </div>
+    <div className="mx-auto w-full max-w-7xl px-4 py-4">
+      <div className="rounded-2xl bg-white/95 p-4 shadow-md backdrop-blur-sm md:p-6">
+        <div className="mb-4 flex items-center gap-2">
+          <FileText className="h-6 w-6 text-[#204983]" />
+          <h1 className="text-xl font-bold text-gray-800 md:text-2xl">Ingreso de Protocolos</h1>
         </div>
 
         <div className="flex flex-col lg:flex-row gap-4 sm:gap-6 justify-center">

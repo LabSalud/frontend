@@ -64,7 +64,6 @@ export default function IngresoPage() {
   })
   const [coseguroAmount, setCoseguroAmount] = useState("")
   const [unplannedTransactions, setUnplannedTransactions] = useState<UnplannedTransactionInput[]>([])
-  const [isRefund, setIsRefund] = useState(false)
   const [doctors, setDoctors] = useState<Doctor[]>([])
   const [insurances, setInsurances] = useState<Insurance[]>([])
   const [sendMethods, setSendMethods] = useState<SendMethod[]>([])
@@ -198,7 +197,7 @@ export default function IngresoPage() {
       .reduce((acc, t) => acc + (Number.parseFloat(t.amount) || 0), 0)
     const extrasTotal = material + derivacion + coseguro + unplannedCharges
     const total = authorizedTotal + privateTotal + extrasTotal
-    const patientOwes = Math.max(0, (isRefund ? total : privateTotal + extrasTotal) - unplannedPayments)
+    const patientOwes = Math.max(0, privateTotal + extrasTotal - unplannedPayments)
 
     return { authorizedTotal, privateTotal, total, patientOwes, authorizedUb, privateUb, extrasTotal }
   }
@@ -258,7 +257,6 @@ export default function IngresoPage() {
   const handleInsuranceSelect = (insurance: Insurance | null) => {
     setSelectedInsurance(insurance)
     setAffiliateNumber("")
-    setIsRefund(false)
     setTrajoOrden("")
     setPreauthStatus("")
     setExtraAmounts({
@@ -284,7 +282,6 @@ export default function IngresoPage() {
     setAffiliateNumber("")
     setTrajoOrden("")
     setPreauthStatus("")
-    setIsRefund(false)
     setExtraAmounts({
       material_descartable_amount: pricingConfig?.material_descartable_amount || "0.00",
       derivacion_amount: pricingConfig?.derivacion_amount || "0.00",
@@ -557,7 +554,7 @@ export default function IngresoPage() {
   return (
     <div className="mx-auto w-full max-w-7xl px-4 py-4">
       <div className="rounded-2xl bg-white/95 p-4 shadow-md backdrop-blur-sm md:p-6">
-        <div className="mb-4 flex items-center gap-2">
+        <div className="mb-4 flex items-center justify-center gap-2">
           <FileText className="h-6 w-6 text-[#204983]" />
           <h1 className="text-xl font-bold text-gray-800 md:text-2xl">Ingreso de Protocolos</h1>
         </div>
@@ -582,7 +579,6 @@ export default function IngresoPage() {
               affiliateNumber={affiliateNumber}
               trajoOrden={trajoOrden}
               preauthStatus={preauthStatus}
-              isRefund={isRefund}
               isPrivateInsurance={treatAsPrivate}
               shouldShowOrder={shouldShowOrder}
               shouldShowPreauth={shouldShowPreauth}
@@ -611,7 +607,6 @@ export default function IngresoPage() {
               onExtraAmountsChange={setExtraAmounts}
               onCoseguroChange={setCoseguroAmount}
               onUnplannedTransactionsChange={setUnplannedTransactions}
-              onRefundChange={setIsRefund}
             />
           </div>
 

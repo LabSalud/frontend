@@ -11,14 +11,12 @@ import {
   TestTube,
   Send,
   DollarSign,
-  RefreshCw,
   ClipboardCheck,
   ShieldCheck,
   Receipt,
   Plus,
   Trash2,
 } from "lucide-react"
-import { Switch } from "../../ui/switch"
 import { Label } from "../../ui/label"
 import { Input } from "../../ui/input"
 import { Button } from "../../ui/button"
@@ -190,7 +188,6 @@ interface ProtocolFormProps {
   affiliateNumber: string
   trajoOrden: TrajoOrdenStatus | ""
   preauthStatus: PreauthStatus | ""
-  isRefund: boolean
   isPrivateInsurance: boolean
   shouldShowOrder: boolean
   shouldShowPreauth: boolean
@@ -222,7 +219,6 @@ interface ProtocolFormProps {
   onExtraAmountsChange: (amounts: { material_descartable_amount: string; derivacion_amount: string }) => void
   onCoseguroChange: (value: string) => void
   onUnplannedTransactionsChange: (items: UnplannedTransactionInput[]) => void
-  onRefundChange: (isRefund: boolean) => void
 }
 
 export function ProtocolForm({
@@ -238,7 +234,6 @@ export function ProtocolForm({
   affiliateNumber,
   trajoOrden,
   preauthStatus,
-  isRefund,
   isPrivateInsurance,
   shouldShowOrder,
   shouldShowPreauth,
@@ -267,7 +262,6 @@ export function ProtocolForm({
   onExtraAmountsChange,
   onCoseguroChange,
   onUnplannedTransactionsChange,
-  onRefundChange,
 }: ProtocolFormProps) {
   const isAnonymousPatient = Boolean(patient?.is_anonymous)
   const paidAmount = Number.parseFloat(patientPaid) || 0
@@ -360,26 +354,6 @@ export function ProtocolForm({
             </div>
           )}
         </div>
-
-        {selectedInsurance && !isPrivateInsurance && (
-          <div className="space-y-2 sm:space-y-3">
-            <div className="flex items-center gap-2">
-              <RefreshCw className="h-4 w-4 sm:h-5 sm:w-5 text-[#204983]" />
-              <h3 className="text-base sm:text-lg font-semibold text-[#204983]">Tipo de Cobertura</h3>
-            </div>
-            <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
-              <Switch id="refund" checked={isRefund} onCheckedChange={onRefundChange} />
-              <Label htmlFor="refund" className="text-sm sm:text-base cursor-pointer">
-                A reintegro
-              </Label>
-              <span className="text-xs text-gray-500">
-                {isRefund
-                  ? "(El paciente paga todo y la obra social le reintegra)"
-                  : "(La obra social paga directamente lo autorizado)"}
-              </span>
-            </div>
-          </div>
-        )}
 
         {/* Send Method Selection */}
         <div className="space-y-2 sm:space-y-3">
@@ -656,9 +630,7 @@ export function ProtocolForm({
               {/* Patient owes section */}
               <div className="border-t pt-3 mt-3">
                 <div className="flex justify-between items-center mb-2">
-                  <span className="text-sm font-medium text-gray-700">
-                    {isRefund ? "El paciente debe pagar (reintegro):" : "El paciente debe pagar:"}
-                  </span>
+                  <span className="text-sm font-medium text-gray-700">El paciente debe pagar:</span>
                   <span className="text-lg font-bold text-orange-600">${totals.patientOwes.toFixed(2)}</span>
                 </div>
 

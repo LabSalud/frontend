@@ -1,7 +1,9 @@
 "use client"
 
 import { useEffect, useState, useCallback } from "react"
+import { createPortal } from "react-dom"
 import { CheckIcon, X, User, FileText, Stethoscope, Building, Send, DollarSign, TestTube, ClipboardCheck } from "lucide-react"
+import { cn } from "@/lib/utils"
 import { Button } from "../../ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "../../ui/card"
 import { Badge } from "../../ui/badge"
@@ -53,21 +55,20 @@ export function ProtocolSuccess({ protocol, patient, doctor, insurance, sendMeth
   )
 
   useEffect(() => {
-    // Listen for escape key
     window.addEventListener("keydown", handleKeyDown)
+    // Bloquear el scroll del body mientras el overlay está a pantalla completa,
+    // así no aparece barra vertical ni horizontal detrás.
+    const prevOverflow = document.body.style.overflow
+    document.body.style.overflow = "hidden"
 
-    // Animation sequence with proper timing
     const timer1 = setTimeout(() => setAnimationPhase("expand"), 100)
     const timer2 = setTimeout(() => setAnimationPhase("moveUp"), 1500)
     const timer3 = setTimeout(() => setAnimationPhase("showSummary"), 2000)
-
-    // Auto-close after 10 seconds
-    const closeTimer = setTimeout(() => {
-      onClose()
-    }, 10000)
+    const closeTimer = setTimeout(() => onClose(), 10000)
 
     return () => {
       window.removeEventListener("keydown", handleKeyDown)
+      document.body.style.overflow = prevOverflow
       clearTimeout(timer1)
       clearTimeout(timer2)
       clearTimeout(timer3)
@@ -75,73 +76,60 @@ export function ProtocolSuccess({ protocol, patient, doctor, insurance, sendMeth
     }
   }, [onClose, handleKeyDown])
 
-  return (
-    <div className="fixed inset-0 z-50 overflow-hidden">
+  const overlay = (
+    <div className="fixed inset-0 z-[100] overflow-hidden">
+      {/* Fondo verde con reveal circular */}
       <div
-        className={`
-          absolute inset-0 bg-green-500 transition-all duration-700 ease-out
-          ${animationPhase === "initial" ? "scale-0 rounded-full" : ""}
-          ${animationPhase === "expand" ? "scale-150" : ""}
-          ${animationPhase === "moveUp" || animationPhase === "showSummary" ? "scale-100" : ""}
-        `}
-        style={{
-          transformOrigin: "center center",
-        }}
+        className={cn(
+          "absolute inset-0 bg-green-500 transition-all duration-700 ease-out",
+          animationPhase === "initial" && "scale-0 rounded-full",
+          animationPhase === "expand" && "scale-150",
+          (animationPhase === "moveUp" || animationPhase === "showSummary") && "scale-100",
+        )}
+        style={{ transformOrigin: "center center" }}
       />
 
-      <div
-        className={`
-          relative h-full flex flex-col items-center justify-center transition-all duration-700 ease-out
-          ${animationPhase === "moveUp" || animationPhase === "showSummary" ? "pt-8" : ""}
-        `}
+      {/* Botón cerrar */}
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={onClose}
+        className={cn(
+          "absolute right-4 top-4 z-20 h-10 w-10 text-white transition-opacity duration-500 hover:bg-white/20",
+          animationPhase === "initial" ? "opacity-0" : "opacity-100",
+        )}
       >
-        {/* Close button */}
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={onClose}
-          className={`
-            absolute top-4 right-4 h-10 w-10 text-white hover:bg-white/20 z-10
-            transition-opacity duration-500
-            ${animationPhase === "initial" ? "opacity-0" : "opacity-100"}
-          `}
-        >
-          <X className="h-6 w-6" />
-        </Button>
+        <X className="h-6 w-6" />
+      </Button>
 
-        <div
-          className={`
-            transition-all duration-700 ease-out
-            ${animationPhase === "initial" ? "opacity-0 scale-0" : "opacity-100 scale-100"}
-            ${
-              animationPhase === "moveUp" || animationPhase === "showSummary"
-                ? "transform -translate-y-4 mb-6"
-                : "transform translate-y-0 mb-0"
-            }
-          `}
-        >
-          <div className="relative">
-            <div className="w-24 h-24 rounded-full bg-white/20 flex items-center justify-center shadow-2xl backdrop-blur-sm">
-              <CheckIcon className="text-white" size={48} strokeWidth={3} />
-            </div>
-            {/* Ripple effect */}
-            {animationPhase === "expand" && (
-              <div className="absolute inset-0 w-24 h-24 rounded-full bg-white/30 animate-ping" />
+      {/* Contenedor con scroll interno: el overlay tapa todo y nunca genera
+          barra de scroll de página (el body queda bloqueado). */}
+      <div className="relative z-10 h-full w-full overflow-y-auto">
+        <div className="flex min-h-full w-full flex-col items-center justify-center gap-6 px-4 py-10">
+          {/* Tick: centrado al inicio; sube cuando el resumen crece */}
+          <div
+            className={cn(
+              "shrink-0 transition-all duration-700 ease-out",
+              animationPhase === "initial" ? "scale-0 opacity-0" : "scale-100 opacity-100",
             )}
+          >
+            <div className="relative">
+              <div className="flex h-24 w-24 items-center justify-center rounded-full bg-white/20 shadow-2xl backdrop-blur-sm">
+                <CheckIcon className="text-white" size={48} strokeWidth={3} />
+              </div>
+              {animationPhase === "expand" && (
+                <div className="absolute inset-0 h-24 w-24 rounded-full bg-white/30 animate-ping" />
+              )}
+            </div>
           </div>
-        </div>
 
-        <div
-          className={`
-            w-full max-w-2xl mx-4 transition-all duration-700 ease-out
-            ${
-              animationPhase === "showSummary"
-                ? "opacity-100 translate-y-0"
-                : "opacity-0 translate-y-16 pointer-events-none"
-            }
-          `}
-        >
-          <Card className="shadow-2xl border-0 bg-white">
+          <div
+            className={cn(
+              "w-full max-w-2xl overflow-hidden transition-all duration-700 ease-out",
+              animationPhase === "showSummary" ? "max-h-[82vh] opacity-100" : "pointer-events-none max-h-0 opacity-0",
+            )}
+          >
+            <Card className="max-h-[82vh] overflow-y-auto border-0 bg-white shadow-2xl">
             <CardHeader className="pb-4">
               <CardTitle className="text-center text-green-600 text-2xl flex items-center justify-center gap-2">
                 <FileText className="h-6 w-6" />
@@ -286,8 +274,11 @@ export function ProtocolSuccess({ protocol, patient, doctor, insurance, sendMeth
               </div>
             </CardContent>
           </Card>
+          </div>
         </div>
       </div>
     </div>
   )
+
+  return createPortal(overlay, document.body)
 }

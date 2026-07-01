@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
+import { useLocation, useNavigate } from "react-router-dom"
 import { FileText } from "lucide-react"
 import { Button } from "../ui/button"
 import { Skeleton } from "../ui/skeleton"
@@ -20,6 +21,7 @@ import { CATALOG_ENDPOINTS, MEDICAL_ENDPOINTS, PROTOCOL_ENDPOINTS } from "@/conf
 import { formatApiError, getErrorMessage } from "@/lib/api-error"
 import type { TrajoOrdenStatus } from "@/lib/protocol-order"
 import { useEndpointProgress } from "@/hooks/use-endpoint-progress"
+import { useProtocolQuote } from "@/hooks/use-protocol-quote"
 import type {
   Patient,
   Doctor,
@@ -32,6 +34,7 @@ import type {
   PricingConfig,
   PreauthStatus,
   UnplannedTransactionInput,
+  QuoteDetail,
 } from "../../types"
 
 export default function IngresoPage() {
@@ -76,9 +79,25 @@ export default function IngresoPage() {
     sendMethod: SendMethod
   } | null>(null)
   const createProgress = useEndpointProgress()
+  const location = useLocation()
+  const navigate = useNavigate()
 
   useEffect(() => {
     loadInitialData()
+  }, [])
+
+  // Si se entró desde "Nuevo protocolo" en la ficha de un paciente, viene el
+  // paciente en el state: lo cargamos y enfocamos el siguiente campo (Médico).
+  useEffect(() => {
+    const preset = (location.state as { patient?: Patient } | null)?.patient
+    if (!preset) return
+    handlePatientFound(preset)
+    navigate(location.pathname, { replace: true, state: null })
+    const t = setTimeout(() => {
+      document.querySelector<HTMLElement>("[data-medico-field] button")?.focus()
+    }, 200)
+    return () => clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const extractErrorMessage = (errorData: unknown): string => formatApiError(errorData)
@@ -143,22 +162,31 @@ export default function IngresoPage() {
 
     let authorizedUb = 0
     let privateUb = 0
+    let privateTotal = 0
 
-    selectedAnalyses.forEach((analysis) => {
-      const ub = Number.parseFloat(analysis.bio_unit) || 0
-      if (selectedInsurance?.name.toLowerCase() === "particular") {
-        privateUb += ub
-      } else if (shouldShowPreauth && preauthStatus === "no_trajo") {
-        privateUb += ub
-      } else if (analysis.is_authorized) {
-        authorizedUb += ub
-      } else {
-        privateUb += ub
-      }
-    })
+    if (quote) {
+      // Montos del backend: nomenclador correcto por OOSS/particular.
+      authorizedUb = Number.parseFloat(quote.total_ub_authorized) || 0
+      privateUb = Number.parseFloat(quote.total_ub_private) || 0
+      privateTotal = Number.parseFloat(quote.analyses_amount_due) || 0
+    } else {
+      // Fallback local mientras carga la cotización (puede diferir del real).
+      selectedAnalyses.forEach((analysis) => {
+        const ub = Number.parseFloat(analysis.bio_unit) || 0
+        if (selectedInsurance?.name.toLowerCase() === "particular") {
+          privateUb += ub
+        } else if (shouldShowPreauth && preauthStatus === "no_trajo") {
+          privateUb += ub
+        } else if (analysis.is_authorized) {
+          authorizedUb += ub
+        } else {
+          privateUb += ub
+        }
+      })
+      privateTotal = privateUb * privateUbValue
+    }
 
     const authorizedTotal = authorizedUb * insuranceUbValue
-    const privateTotal = privateUb * privateUbValue
     const material = shouldChargeMaterial ? Number.parseFloat(extraAmounts.material_descartable_amount) || 0 : 0
     const derivacion = shouldChargeDerivacion ? Number.parseFloat(extraAmounts.derivacion_amount) || 0 : 0
     const coseguro = shouldChargeCoseguro ? Number.parseFloat(coseguroAmount) || 0 : 0
@@ -278,6 +306,29 @@ export default function IngresoPage() {
   const shouldChargeCoseguro = Boolean(
     selectedInsurance && !isPrivateInsurance && selectedInsurance.charges_coseguro,
   )
+
+  // Cotización en el backend: garantiza que el monto del particular use el
+  // nomenclador correcto (2024), en vez del `bio_unit` único del catálogo.
+  const quoteDetails = useMemo(
+    () =>
+      selectedAnalyses.map((a) => ({
+        analysis_id: a.id,
+        is_authorized: treatAsPrivate ? false : a.is_authorized,
+      })),
+    [selectedAnalyses, treatAsPrivate],
+  )
+  const { quote } = useProtocolQuote(
+    selectedInsurance?.id ?? null,
+    quoteDetails,
+    shouldShowPreauth ? preauthStatus || undefined : undefined,
+  )
+  const quoteById = useMemo(() => {
+    const map: Record<number, QuoteDetail> = {}
+    quote?.details.forEach((d) => {
+      map[d.analysis_id] = d
+    })
+    return map
+  }, [quote])
 
   const handleDoctorUpdated = async () => {
     if (!selectedDoctor) return
@@ -546,6 +597,7 @@ export default function IngresoPage() {
               coseguroAmount={coseguroAmount}
               unplannedTransactions={unplannedTransactions}
               totals={calculateTotals()}
+              quoteById={quoteById}
               onAnalysisChange={setSelectedAnalyses}
               onDoctorSelect={setSelectedDoctor}
               onInsuranceSelect={handleInsuranceSelect}

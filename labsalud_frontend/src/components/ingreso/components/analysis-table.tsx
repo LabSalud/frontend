@@ -7,7 +7,7 @@ import { Badge } from "../../ui/badge"
 import { Switch } from "../../ui/switch"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../ui/table"
 import { toast } from "sonner"
-import type { SelectedAnalysis, Insurance } from "../../../types"
+import type { SelectedAnalysis, Insurance, QuoteDetail } from "../../../types"
 
 interface AnalysisTableProps {
   selectedAnalyses: SelectedAnalysis[]
@@ -15,6 +15,8 @@ interface AnalysisTableProps {
   selectedInsurance: Insurance | null
   isPrivateInsurance?: boolean
   forcePrivateAnalyses?: boolean
+  /** Cotización del backend por análisis (nomenclador correcto). */
+  quoteById?: Record<number, QuoteDetail>
 }
 
 export function AnalysisTable({
@@ -23,6 +25,7 @@ export function AnalysisTable({
   selectedInsurance,
   isPrivateInsurance = false,
   forcePrivateAnalyses = false,
+  quoteById,
 }: AnalysisTableProps) {
   const handleRemoveAnalysis = (analysisId: number) => {
     const analysis = selectedAnalyses.find((a) => a.id === analysisId)
@@ -40,7 +43,23 @@ export function AnalysisTable({
     )
   }
 
+  // ¿Este análisis lo paga el paciente (particular) en este protocolo?
+  const isParticular = (analysis: SelectedAnalysis) =>
+    isPrivateInsurance || forcePrivateAnalyses || !analysis.is_authorized
+
+  // Cantidad de UB a mostrar: la del nomenclador correcto (cotización) según si
+  // es particular (private_ub) o lo cubre la OOSS (insurance_ub).
+  const ubFor = (analysis: SelectedAnalysis): string => {
+    const q = quoteById?.[analysis.id]
+    if (q) return isParticular(analysis) ? q.private_ub : q.insurance_ub ?? q.private_ub
+    return analysis.bio_unit
+  }
+
   const calculatePrice = (analysis: SelectedAnalysis): number => {
+    // Preferimos la cotización del backend (nomenclador correcto del particular).
+    const q = quoteById?.[analysis.id]
+    if (q) return Number.parseFloat(q.patient_amount) || 0
+    // Fallback local mientras carga la cotización.
     if (!selectedInsurance) return 0
     const ub = Number.parseFloat(analysis.bio_unit) || 0
     if (isPrivateInsurance || forcePrivateAnalyses) {
@@ -52,7 +71,7 @@ export function AnalysisTable({
     return ub * (selectedInsurance.private_ub_value || 0)
   }
 
-  const totalUb = selectedAnalyses.reduce((sum, a) => sum + (Number.parseFloat(a.bio_unit) || 0), 0)
+  const totalUb = selectedAnalyses.reduce((sum, a) => sum + (Number.parseFloat(ubFor(a)) || 0), 0)
   const authorizedCount = isPrivateInsurance || forcePrivateAnalyses ? 0 : selectedAnalyses.filter((a) => a.is_authorized).length
 
   return (
@@ -118,7 +137,7 @@ export function AnalysisTable({
                       </Button>
                     </div>
                     <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-600">
-                      <span>UB: <strong>{analysis.bio_unit}</strong></span>
+                      <span>UB: <strong>{ubFor(analysis)}</strong></span>
                       {selectedInsurance && (
                         <span>
                           Precio:{" "}
@@ -183,7 +202,7 @@ export function AnalysisTable({
                           </Badge>
                         </TableCell>
                         <TableCell className="text-center text-xs lg:text-sm p-2 align-top">
-                          {analysis.bio_unit}
+                          {ubFor(analysis)}
                         </TableCell>
                         {!isPrivateInsurance && (
                           <TableCell className="text-center p-2 align-top">

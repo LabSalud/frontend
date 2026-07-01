@@ -38,6 +38,7 @@ import type {
   SendMethod,
   PreauthStatus,
   UnplannedTransactionInput,
+  QuoteDetail,
 } from "../../../types"
 
 type CreationPreauthStatus = Exclude<PreauthStatus, "not_required">
@@ -204,6 +205,7 @@ interface ProtocolFormProps {
   coseguroAmount: string
   unplannedTransactions: UnplannedTransactionInput[]
   totals: Totals
+  quoteById?: Record<number, QuoteDetail>
   onAnalysisChange: (analyses: SelectedAnalysis[]) => void
   onDoctorSelect: (doctor: Doctor | null) => void
   onInsuranceSelect: (insurance: Insurance | null) => void
@@ -248,6 +250,7 @@ export function ProtocolForm({
   coseguroAmount,
   unplannedTransactions,
   totals,
+  quoteById,
   onAnalysisChange,
   onDoctorSelect,
   onInsuranceSelect,
@@ -309,7 +312,7 @@ export function ProtocolForm({
         </div>
 
         {/* Doctor Selection */}
-        <div className="space-y-2 sm:space-y-3">
+        <div className="space-y-2 sm:space-y-3" data-medico-field>
           <div className="flex items-center gap-2">
             <Stethoscope className="h-4 w-4 sm:h-5 sm:w-5 text-[#204983]" />
             <h3 className="text-base sm:text-lg font-semibold text-[#204983]">Médico</h3>
@@ -541,6 +544,7 @@ export function ProtocolForm({
           selectedInsurance={selectedInsurance}
           isPrivateInsurance={isPrivateInsurance}
           forcePrivateAnalyses={shouldShowPreauth && preauthStatus === "no_trajo"}
+          quoteById={quoteById}
         />
 
         {/* Cobros / pagos no contemplados */}

@@ -28,6 +28,8 @@ export function PatientSearch({ onPatientFound, onPatientNotFound, onReset, onCr
   const [searchSex, setSearchSex] = useState<Sex | "">("")
   const [isSearching, setIsSearching] = useState(false)
   const [showLetterWarning, setShowLetterWarning] = useState(false)
+  // Verde cuando el DNI actual corresponde a un paciente encontrado.
+  const [found, setFound] = useState(false)
 
   const dniInputRef = useRef<HTMLInputElement>(null)
   const maleBtnRef = useRef<HTMLButtonElement>(null)
@@ -88,9 +90,11 @@ export function PatientSearch({ onPatientFound, onPatientNotFound, onReset, onCr
         const data = await response.json()
 
         if (data.results && data.results.length > 0) {
+          setFound(true)
           onPatientFound(data.results[0])
           toast.success("Paciente encontrado")
         } else {
+          setFound(false)
           onPatientNotFound(dniDigits, searchSex)
           toast.info("Paciente no encontrado. Puede crear uno nuevo.")
         }
@@ -124,6 +128,7 @@ export function PatientSearch({ onPatientFound, onPatientNotFound, onReset, onCr
       setShowLetterWarning(true)
       setTimeout(() => setShowLetterWarning(false), 2000)
     }
+    setFound(false)
     setSearchDni(normalizeDni(raw))
   }
 
@@ -173,7 +178,11 @@ export function PatientSearch({ onPatientFound, onPatientNotFound, onReset, onCr
             value={formatDniForDisplay(searchDni)}
             onChange={handleDniChange}
             onKeyDown={handleKeyPress}
-            className="pl-10 font-mono text-lg border-gray-300 focus:border-[#204983] focus:ring-[#204983]"
+            className={`pl-10 font-mono text-lg ${
+              found
+                ? "border-green-500 focus:border-green-500 focus:ring-green-500"
+                : "border-gray-300 focus:border-[#204983] focus:ring-[#204983]"
+            }`}
             maxLength={10}
             inputMode="numeric"
             autoComplete="off"

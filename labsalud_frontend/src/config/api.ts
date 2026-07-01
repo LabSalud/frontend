@@ -102,6 +102,7 @@ export const CATALOG_ENDPOINTS = {
 // Protocol management endpoints
 export const PROTOCOL_ENDPOINTS = {
   PROTOCOLS: buildApiUrl("/protocols/protocols/"),
+  QUOTE: buildApiUrl("/protocols/protocols/quote/"),
   PROTOCOL_DETAIL: (id: number) => buildApiUrl(`/protocols/protocols/${id}/`),
   PROTOCOL_HISTORY: (id: number) => buildApiUrl(`/protocols/protocols/${id}/history/`),
   ARCA_BILLING: (id: number) => buildApiUrl(`/protocols/protocols/${id}/arca-billing/`),

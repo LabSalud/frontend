@@ -1,166 +1,196 @@
 "use client"
 
-import type { Patient } from "@/types"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Button } from "@/components/ui/button"
+import { ChevronRight, Phone, Mail, GitMerge, Trash2 } from "lucide-react"
+import { DataTable, type Column, type SortState } from "@/components/common/data-table"
+import { InitialsAvatar } from "@/components/common/initials-avatar"
+import { AuditAvatars } from "@/components/common/audit-avatars"
 import { Badge } from "@/components/ui/badge"
-import { Pencil, Trash, AlertCircle, Eye } from "lucide-react"
-import { useState } from "react"
-import { PatientDetailsDialog } from "./patient-details-dialog"
+import { Skeleton } from "@/components/ui/skeleton"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { cn } from "@/lib/utils"
+import type { Patient } from "@/types"
 
-interface PatientTableProps {
+interface PatientsTableProps {
   patients: Patient[]
-  onSelectPatient: (patient: Patient, action: string) => void
-  canEdit: boolean
-  canDelete: boolean
+  onRowClick: (id: number) => void
+  onMerge: (patient: Patient) => void
+  onDelete: (patient: Patient) => void
+  sort: SortState
+  onSortChange: (sort: SortState) => void
+  isLoading?: boolean
 }
 
-export function PatientTable({ patients, onSelectPatient, canEdit, canDelete }: PatientTableProps) {
-  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null)
-  const [isViewingDetails, setIsViewingDetails] = useState(false)
+function formatDni(dni?: string | null) {
+  const digits = (dni || "").replace(/\D/g, "")
+  if (digits.length >= 7 && digits.length <= 8) return digits.replace(/\B(?=(\d{3})+(?!\d))/g, ".")
+  return dni || "—"
+}
 
-  // Función para calcular edad corregida:
-  const calculateAge = (birthDate: string) => {
-    if (!birthDate) return 0
+function fullName(p: Patient) {
+  if (p.is_anonymous) return "Paciente anónimo"
+  return p.full_name || `${p.first_name} ${p.last_name}`.trim() || "—"
+}
 
-    let year, month, day
+function IconAction({ icon: Icon, label, onClick, className }: { icon: typeof Trash2; label: string; onClick: () => void; className?: string }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          aria-label={label}
+          onClick={(e) => {
+            e.stopPropagation()
+            onClick()
+          }}
+          className={cn("rounded-md p-1.5 text-gray-400 hover:bg-gray-100", className)}
+        >
+          <Icon className="h-4 w-4" />
+        </button>
+      </TooltipTrigger>
+      <TooltipContent>{label}</TooltipContent>
+    </Tooltip>
+  )
+}
 
-    if (birthDate.includes("/")) {
-      const parts = birthDate.split("/")
-      if (parts[0].length === 4) {
-        // yyyy/mm/dd
-        ;[year, month, day] = parts.map(Number)
-      } else {
-        // dd/mm/yyyy
-        ;[day, month, year] = parts.map(Number)
-      }
-    } else if (birthDate.includes("-")) {
-      // yyyy-mm-dd
-      ;[year, month, day] = birthDate.split("-").map(Number)
-    } else {
-      return 0
-    }
+const nameSkeleton = (
+  <div className="flex items-center gap-2.5">
+    <Skeleton className="h-8 w-8 rounded-full" />
+    <Skeleton className="h-4 w-32 rounded" />
+  </div>
+)
+const auditSkeleton = (
+  <div className="flex gap-1">
+    <Skeleton className="h-6 w-6 rounded-full" />
+    <Skeleton className="h-6 w-6 rounded-full" />
+  </div>
+)
 
-    // Crear fecha sin problemas de zona horaria
-    const birthDateObj = new Date(year, month - 1, day) // month - 1 porque los meses en JS van de 0-11
-    const today = new Date()
-
-    let age = today.getFullYear() - birthDateObj.getFullYear()
-    const monthDiff = today.getMonth() - birthDateObj.getMonth()
-
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDateObj.getDate())) {
-      age--
-    }
-
-    return age
-  }
-
-  const formatDni = (dni?: string | null) => {
-    const digits = (dni || "").replace(/\D/g, "")
-    if (digits.length >= 7 && digits.length <= 8) {
-      return digits.replace(/\B(?=(\d{3})+(?!\d))/g, ".")
-    }
-    return dni
-  }
-
-  // Función para mapear sexo correctamente
-  const getSexDisplay = (sex: string) => {
-    if (sex === "M" || sex === "Masculino") return "Masculino"
-    if (sex === "F" || sex === "Femenino") return "Femenino"
-    return sex
-  }
-
-  const handleViewDetails = (patient: Patient) => {
-    setSelectedPatient(patient)
-    setIsViewingDetails(true)
-  }
+export function PatientsTable({ patients, onRowClick, onMerge, onDelete, sort, onSortChange, isLoading }: PatientsTableProps) {
+  const columns: Column<Patient>[] = [
+    {
+      id: "dni",
+      header: "DNI",
+      sortable: true,
+      sortField: "dni",
+      className: "pl-4",
+      skeleton: <Skeleton className="h-4 w-20 rounded" />,
+      cell: (p) => (
+        <span className="font-mono text-sm font-semibold text-[#204983]">
+          {p.is_anonymous ? "ANÓNIMO" : formatDni(p.dni)}
+        </span>
+      ),
+    },
+    {
+      id: "name",
+      header: "Paciente",
+      sortable: true,
+      sortField: "last_name",
+      skeleton: nameSkeleton,
+      cell: (p) => (
+        <div className="flex min-w-0 max-w-[180px] items-center gap-2.5 sm:max-w-[240px]">
+          <InitialsAvatar name={fullName(p)} size="sm" />
+          <span className="truncate font-semibold text-gray-800">{fullName(p)}</span>
+        </div>
+      ),
+    },
+    {
+      id: "age",
+      header: "Edad",
+      align: "center",
+      sortable: true,
+      sortField: "birth_date",
+      responsive: "hidden md:table-cell",
+      skeleton: <Skeleton className="mx-auto h-4 w-16 rounded" />,
+      cell: (p) => <span className="text-sm text-gray-600">{typeof p.age === "number" ? `${p.age} años` : "—"}</span>,
+    },
+    {
+      id: "sex",
+      header: "Sexo",
+      align: "center",
+      responsive: "hidden md:table-cell",
+      skeleton: <Skeleton className="mx-auto h-5 w-8 rounded-full" />,
+      cell: (p) => (
+        <Badge className={cn("font-normal", p.sex === "M" ? "bg-blue-100 text-blue-700" : "bg-pink-100 text-pink-700")}>
+          {p.sex === "M" ? "M" : p.sex === "F" ? "F" : "—"}
+        </Badge>
+      ),
+    },
+    {
+      id: "phone",
+      header: "Teléfono",
+      responsive: "hidden lg:table-cell",
+      skeleton: <Skeleton className="h-4 w-24 rounded" />,
+      cell: (p) =>
+        p.phone_mobile || p.alt_phone ? (
+          <span className="inline-flex items-center gap-1.5 text-sm text-gray-600">
+            <Phone className="h-3.5 w-3.5 text-gray-400" />
+            {p.phone_mobile || p.alt_phone}
+          </span>
+        ) : (
+          <span className="text-gray-300">—</span>
+        ),
+    },
+    {
+      id: "email",
+      header: "Email",
+      responsive: "hidden xl:table-cell",
+      skeleton: <Skeleton className="h-4 w-36 rounded" />,
+      cell: (p) =>
+        p.email ? (
+          <span className="inline-flex max-w-[200px] items-center gap-1.5 text-sm text-gray-600">
+            <Mail className="h-3.5 w-3.5 shrink-0 text-gray-400" />
+            <span className="truncate">{p.email}</span>
+          </span>
+        ) : (
+          <span className="text-gray-300">—</span>
+        ),
+    },
+    {
+      id: "audit",
+      header: "Auditoría",
+      responsive: "hidden lg:table-cell",
+      skeleton: auditSkeleton,
+      cell: (p) =>
+        p.creation?.user || p.last_change?.user ? (
+          <AuditAvatars creation={p.creation} lastChange={p.last_change} size="sm" />
+        ) : (
+          <span className="text-gray-300">—</span>
+        ),
+    },
+    {
+      id: "actions",
+      header: "",
+      align: "right",
+      className: "pr-3",
+      responsive: "hidden sm:table-cell",
+      skeleton: (
+        <div className="flex justify-end gap-1">
+          <Skeleton className="h-7 w-7 rounded-md" />
+          <Skeleton className="h-7 w-7 rounded-md" />
+        </div>
+      ),
+      cell: (p) => (
+        <TooltipProvider delayDuration={150}>
+          <div className="flex items-center justify-end gap-0.5">
+            <IconAction icon={GitMerge} label="Unificar paciente" onClick={() => onMerge(p)} className="hover:text-[#204983]" />
+            <IconAction icon={Trash2} label="Eliminar paciente" onClick={() => onDelete(p)} className="hover:text-red-600" />
+            <ChevronRight className="ml-1 h-4 w-4 text-gray-300" />
+          </div>
+        </TooltipProvider>
+      ),
+    },
+  ]
 
   return (
-    <>
-      <div className="bg-white rounded-lg shadow-sm">
-        <div className="rounded-md border bg-white">
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-gray-50/50">
-                <TableHead className="font-semibold text-gray-900">DNI</TableHead>
-                <TableHead className="font-semibold text-gray-900">Nombre</TableHead>
-                <TableHead className="font-semibold text-gray-900">Edad</TableHead>
-                <TableHead className="font-semibold text-gray-900">Sexo</TableHead>
-                <TableHead className="font-semibold text-gray-900">Teléfono</TableHead>
-                <TableHead className="font-semibold text-gray-900">Email</TableHead>
-                <TableHead className="font-semibold text-gray-900">Ciudad</TableHead>
-                <TableHead className="text-right font-semibold text-gray-900">Acciones</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody className="bg-white">
-              {patients.length > 0 ? (
-                patients.map((patient) => (
-                  <TableRow key={patient.id} className="bg-white hover:bg-gray-50/50 border-gray-200">
-                    <TableCell className="font-mono font-medium text-[#204983] bg-white">
-                      {patient.is_anonymous ? "ANÓNIMO" : formatDni(patient.dni)}
-                    </TableCell>
-                    <TableCell className="font-medium bg-white">{`${patient.first_name} ${patient.last_name}`}</TableCell>
-                    <TableCell className="bg-white">{calculateAge(patient.birth_date)} años</TableCell>
-                    <TableCell className="bg-white">
-                      <Badge
-                        variant={patient.sex === "M" ? "default" : "secondary"}
-                      >
-                        {getSexDisplay(patient.sex)}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="bg-white">{patient.phone_mobile || patient.alt_phone}</TableCell>
-                    <TableCell className="max-w-[200px] truncate bg-white">{patient.email}</TableCell>
-                    <TableCell className="bg-white">{patient.city}</TableCell>
-                    <TableCell className="text-right bg-white">
-                      <div className="flex justify-end space-x-2">
-                        {/* Ver detalles */}
-                        <Button variant="outline" size="sm" onClick={() => handleViewDetails(patient)}>
-                          <Eye className="h-4 w-4" />
-                        </Button>
-
-                        {/* Editar paciente */}
-                        {canEdit && (
-                          <Button variant="outline" size="sm" onClick={() => onSelectPatient(patient, "edit")}>
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                        )}
-
-                        {/* Eliminar paciente */}
-                        {canDelete && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="border-red-200 hover:bg-red-50 bg-transparent"
-                            onClick={() => onSelectPatient(patient, "delete")}
-                          >
-                            <Trash className="h-4 w-4 text-red-500" />
-                          </Button>
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
-              ) : (
-                <TableRow className="bg-white">
-                  <TableCell colSpan={8} className="text-center py-4 bg-white">
-                    <div className="flex flex-col items-center justify-center text-gray-500">
-                      <AlertCircle className="h-8 w-8 mb-2" />
-                      <p>No hay pacientes disponibles</p>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </div>
-      </div>
-
-      {/* Diálogo de detalles */}
-      <PatientDetailsDialog
-        isOpen={isViewingDetails}
-        onClose={() => setIsViewingDetails(false)}
-        patient={selectedPatient}
-      />
-    </>
+    <DataTable
+      columns={columns}
+      rows={patients}
+      getRowId={(p) => p.id}
+      onRowClick={(p) => onRowClick(p.id)}
+      sort={sort}
+      onSortChange={onSortChange}
+      isLoading={isLoading}
+      emptyMessage="No se encontraron pacientes"
+    />
   )
 }

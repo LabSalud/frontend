@@ -100,7 +100,7 @@ export function EditPatientDialog({ isOpen, onClose, patient, setPatients, apiRe
   }
 
   const validatePhone = (phone: string, field: string) => {
-    if (!phone.trim()) {
+    if (!phone || !phone.trim()) {
       return { isValid: true, message: "" }
     }
     if (!/^[\d\s\-+()]+$/.test(phone)) {
@@ -184,19 +184,21 @@ export function EditPatientDialog({ isOpen, onClose, patient, setPatients, apiRe
         return dateString.split("T")[0]
       }
 
+      // La API devuelve null en campos vacíos; coercionamos a "" para que los
+      // inputs y los validadores (que hacen .trim()) no reciban null.
       const newFormData = {
         dni: patient.dni || "",
-        first_name: patient.first_name,
-        last_name: patient.last_name,
+        first_name: patient.first_name || "",
+        last_name: patient.last_name || "",
         birth_date: formatDateForInput(patient.birth_date),
-        sex: patient.sex,
-        phone_mobile: patient.phone_mobile,
-        alt_phone: patient.alt_phone,
-        email: patient.email,
-        country: patient.country,
-        province: patient.province,
-        city: patient.city,
-        address: patient.address,
+        sex: patient.sex || "",
+        phone_mobile: patient.phone_mobile || "",
+        alt_phone: patient.alt_phone || "",
+        email: patient.email || "",
+        country: patient.country || "",
+        province: patient.province || "",
+        city: patient.city || "",
+        address: patient.address || "",
         observations: patient.observations || "",
       }
 

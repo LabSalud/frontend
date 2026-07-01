@@ -9,6 +9,7 @@ import { useApiInfiniteQuery, flattenPages } from "@/hooks/use-api-infinite-quer
 import { useApiQuery } from "@/hooks/use-api-query"
 import { useInfiniteScroll } from "@/hooks/use-infinite-scroll"
 import { useDebounce } from "@/hooks/use-debounce"
+import { usePersistedState } from "@/hooks/use-persisted-state"
 import { ResultsQueueTable } from "./components/results-queue-table"
 import { RESULTS_ENDPOINTS, ANALYTICS_ENDPOINTS } from "@/config/api"
 import { getProtocolStatusStyle, normalizeProtocolStatusName } from "@/lib/status-styles"
@@ -28,7 +29,7 @@ export default function ResultadosPage() {
   const navigate = useNavigate()
   const [searchTerm, setSearchTerm] = useState("")
   const debouncedSearch = useDebounce(searchTerm, 300)
-  const [statusIds, setStatusIds] = useState<number[]>([1, 2])
+  const [statusIds, setStatusIds] = usePersistedState<number[]>("labsalud_results_status", [1, 2])
   const [sort, setSort] = useState<SortState>(null)
 
   // Cantidad de protocolos por estado, para las chips (mismo dato que Protocolos).

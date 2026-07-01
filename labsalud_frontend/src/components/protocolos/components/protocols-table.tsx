@@ -87,9 +87,9 @@ function BlockersCell({ p }: { p: ProtocolListItem }) {
   else if (p.trajo_orden === "incompleta")
     flags.push(<Flag key="ord" tone="amber" icon={ClipboardList} title="Orden incompleta">Orden incompl.</Flag>)
   if (p.preauth_status === "no_trajo")
-    flags.push(<Flag key="pa" tone="amber" icon={ShieldAlert} title="Sin preautorización">Sin preauth</Flag>)
+    flags.push(<Flag key="pa" tone="amber" icon={ShieldAlert} title="Sin preautorización">Sin preautorización</Flag>)
   else if (p.preauth_status === "incompleta")
-    flags.push(<Flag key="pa" tone="amber" icon={ShieldAlert} title="Preautorización incompleta">Preauth incompl.</Flag>)
+    flags.push(<Flag key="pa" tone="amber" icon={ShieldAlert} title="Preautorización incompleta">Preautorización incompleta</Flag>)
   if (flags.length === 0)
     return (
       <span className="inline-flex items-center gap-1 text-xs text-emerald-600">

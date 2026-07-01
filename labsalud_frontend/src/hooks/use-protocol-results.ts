@@ -18,6 +18,12 @@ export interface ResultGroup {
   determinations: Result[]
 }
 
+export interface ResultsProtocolHeader {
+  id: number
+  patient: { id: number; dni?: string; first_name: string; last_name: string; age?: number | null; is_anonymous?: boolean } | null
+  status: { id: number; name: string } | null
+}
+
 /** Agrupa los resultados por análisis, preservando el orden de llegada. */
 function groupByAnalysis(results: Result[]): ResultGroup[] {
   const groups: Record<number, ResultGroup> = {}
@@ -42,6 +48,7 @@ function groupByAnalysis(results: Result[]): ResultGroup[] {
 export function useProtocolResults(protocolId: number) {
   const { apiRequest } = useApi()
   const [results, setResults] = useState<Result[]>([])
+  const [protocol, setProtocol] = useState<ResultsProtocolHeader | null>(null)
   const [values, setValues] = useState<Record<number, ResultValue>>({})
   const [saving, setSaving] = useState<Record<number, boolean>>({})
   const [loading, setLoading] = useState(true)
@@ -53,12 +60,16 @@ export function useProtocolResults(protocolId: number) {
     setLoading(true)
     setError(null)
     try {
-      const res = await apiRequest(RESULTS_ENDPOINTS.BY_PROTOCOL(protocolId))
+      // ?include=protocol trae cabecera (paciente + estado) + resultados en una
+      // sola llamada, evitando un fetch aparte del detalle del protocolo.
+      const res = await apiRequest(`${RESULTS_ENDPOINTS.BY_PROTOCOL(protocolId)}?include=protocol`)
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
         throw new Error(formatApiError(err, "Error al cargar los resultados"))
       }
-      const data: Result[] = await res.json()
+      const body = await res.json()
+      const data: Result[] = Array.isArray(body) ? body : body.results || []
+      if (!Array.isArray(body) && body.protocol) setProtocol(body.protocol as ResultsProtocolHeader)
       setResults(data)
       const initial: Record<number, ResultValue> = {}
       data.forEach((r) => {
@@ -147,6 +158,7 @@ export function useProtocolResults(protocolId: number) {
   return {
     loading,
     error,
+    protocol,
     results,
     groups,
     orderedIds,

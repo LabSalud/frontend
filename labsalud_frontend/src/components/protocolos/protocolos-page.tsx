@@ -38,6 +38,7 @@ import {
 import { ProtocolsTable } from "./components/protocols-table"
 import { useProtocolQuickActions } from "./components/use-protocol-quick-actions"
 import { useAuth } from "@/contexts/auth-context"
+import { usePersistedState } from "@/hooks/use-persisted-state"
 import { PERMISSIONS } from "@/config/permissions"
 import type { SortState } from "@/components/common/data-table"
 import { useApi } from "../../hooks/use-api"
@@ -130,8 +131,8 @@ export default function ProtocolosPage() {
       return { include: [], exclude: [] }
     }
   })
-  const [isPrintedFilter, setIsPrintedFilter] = useState<string>("all")
-  const [paymentStatusFilter, setPaymentStatusFilter] = useState<string>("all")
+  const [isPrintedFilter, setIsPrintedFilter] = usePersistedState<string>("labsalud_protocols_printed_filter", "all")
+  const [paymentStatusFilter, setPaymentStatusFilter] = usePersistedState<string>("labsalud_protocols_payment_filter", "all")
   const [hasMore, setHasMore] = useState(true)
   const [nextUrl, setNextUrl] = useState<string | null>(null)
   const [sort, setSort] = useState<SortState>(null)

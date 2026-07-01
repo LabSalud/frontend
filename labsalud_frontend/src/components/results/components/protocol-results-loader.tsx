@@ -6,23 +6,23 @@ import { FlaskConical, AlertCircle, Search, X } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
-import { useProtocolResults } from "@/hooks/use-protocol-results"
+import type { useProtocolResults } from "@/hooks/use-protocol-results"
 import { calculateFormulaValue } from "@/lib/result-formulas"
 import { ResultDeterminationRow } from "./result-determination-row"
 
 interface ProtocolResultsLoaderProps {
-  protocolId: number
-  patientId: number
+  controller: ReturnType<typeof useProtocolResults>
 }
 
 /**
- * Carga de resultados de un protocolo: búsqueda de análisis, agrupación y
- * navegación por teclado (Enter guarda y baja; ↑↓ mueven; → va a notas). La
- * lógica de datos vive en `useProtocolResults`; acá viven los refs del DOM.
+ * Carga de resultados de un protocolo (presentacional): búsqueda de análisis,
+ * agrupación y navegación por teclado (Enter guarda y baja; ↑↓ mueven; → notas).
+ * Los datos llegan por `controller` (hook useProtocolResults en la página).
  */
-export function ProtocolResultsLoader({ protocolId, patientId }: ProtocolResultsLoaderProps) {
-  const { loading, error, results, groups, orderedIds, values, saving, onChange, onSave, previousResults, loadingPrevious, loadPrevious } =
-    useProtocolResults(protocolId)
+export function ProtocolResultsLoader({ controller }: ProtocolResultsLoaderProps) {
+  const { loading, error, protocol, results, groups, orderedIds, values, saving, onChange, onSave, previousResults, loadingPrevious, loadPrevious } =
+    controller
+  const patientId = protocol?.patient?.id ?? 0
 
   const [search, setSearch] = useState("")
   const inputRefs = useRef<Record<number, HTMLInputElement | null>>({})

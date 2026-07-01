@@ -18,10 +18,12 @@ import NotFound from "./components/not-found"
 // El primer render del usuario sólo descarga login + layout + home; el resto baja on-demand.
 const ManagementPage = lazy(() => import("./components/admin/management-page"))
 const PatientsPage = lazy(() => import("./components/patients/patients-page"))
+const PatientDetailPage = lazy(() => import("./components/patients/patient-detail-page"))
 const ProfilePage = lazy(() => import("./components/profile/profile-page"))
 const ConfigurationPage = lazy(() => import("./components/configuration/configuration-page"))
 const IngresoPage = lazy(() => import("./components/ingreso/ingreso-page"))
 const ProtocolosPage = lazy(() => import("./components/protocolos/protocolos-page"))
+const ProtocolDetailPage = lazy(() => import("./components/protocolos/protocol-detail-page"))
 const ResultadosPage = lazy(() => import("./components/results/results-page"))
 const ValidacionPage = lazy(() => import("./components/validacion/validacion-page"))
 const FacturacionPage = lazy(() => import("./components/facturacion/facturacion-page"))
@@ -116,6 +118,7 @@ function App() {
                     }
                   >
                     <Route index element={<PatientsPage />} />
+                    <Route path=":id" element={<PatientDetailPage />} />
                   </Route>
                   <Route
                     path="/configuracion"
@@ -146,6 +149,7 @@ function App() {
                     }
                   >
                     <Route index element={<ProtocolosPage />} />
+                    <Route path=":id" element={<ProtocolDetailPage />} />
                   </Route>
                   <Route
                     path="/resultados"

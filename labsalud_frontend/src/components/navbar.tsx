@@ -112,6 +112,10 @@ export const Navbar: React.FC = () => {
 
   if (!user) return null
 
+  // Activo también en rutas anidadas (ej: /protocolos/4822 marca "Protocolos").
+  const isPathActive = (path: string) =>
+    location.pathname === path || location.pathname.startsWith(`${path}/`)
+
   const leftNavItems = [
     { path: "/ingreso", label: "Ingreso" },
     { path: "/protocolos", label: "Protocolos" },
@@ -143,7 +147,7 @@ export const Navbar: React.FC = () => {
               {/* Left Navigation - Centrado entre borde izquierdo y logo */}
               <div className="flex-1 flex items-center justify-center space-x-8">
                 {leftNavItems.map((item) => (
-                  <NavLink key={item.path} to={item.path} isActive={location.pathname === item.path}>
+                  <NavLink key={item.path} to={item.path} isActive={isPathActive(item.path)}>
                     {item.label}
                   </NavLink>
                 ))}
@@ -153,9 +157,9 @@ export const Navbar: React.FC = () => {
               <div className="flex-shrink-0 mx-8">
                 <Link to="/" className="flex items-center">
                   <img
-                    src="/logo.svg"
+                    src="/logo_icono.svg"
                     alt="Logo"
-                    className="h-11 w-auto object-contain"
+                    className="h-9 w-auto object-contain"
                     onError={(e) => {
                       const target = e.target as HTMLImageElement
                       target.src = "/placeholder.svg?height=48&width=160&text=LOGO"
@@ -171,7 +175,7 @@ export const Navbar: React.FC = () => {
                   {rightNavItems
                     .filter((item) => item.condition)
                     .map((item) => (
-                      <NavLink key={item.path} to={item.path} isActive={location.pathname === item.path}>
+                      <NavLink key={item.path} to={item.path} isActive={isPathActive(item.path)}>
                         {item.label}
                       </NavLink>
                     ))}
@@ -264,7 +268,7 @@ export const Navbar: React.FC = () => {
                   <NavLink
                     key={item.path}
                     to={item.path}
-                    isActive={location.pathname === item.path}
+                    isActive={isPathActive(item.path)}
                     onClick={closeAllMenus}
                   >
                     <div className="block px-3 py-2 text-base">{item.label}</div>
@@ -276,7 +280,7 @@ export const Navbar: React.FC = () => {
                     <NavLink
                       key={item.path}
                       to={item.path}
-                      isActive={location.pathname === item.path}
+                      isActive={isPathActive(item.path)}
                       onClick={closeAllMenus}
                     >
                       <div className="block px-3 py-2 text-base">{item.label}</div>

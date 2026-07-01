@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useCallback } from "react"
+import { useState, useCallback, useEffect } from "react"
 import { Card, CardContent } from "../../ui/card"
 import { Skeleton } from "../../ui/skeleton"
 import { useApi } from "../../../hooks/use-api"
@@ -29,10 +29,13 @@ import type {
   ProtocolStatus,
   PreauthStatus,
   ReportSignature,
+  ProtocolAuditEvent,
 } from "@/types"
 
 // Componentes modulares
+import { useNavigate } from "react-router-dom"
 import { ProtocolHeader } from "./protocol-header"
+import { ProtocolDetailView } from "./protocol-detail-view"
 import { ProtocolDetailsSection } from "./protocol-details-section"
 import { ProtocolActions } from "./protocol-actions"
 import {
@@ -147,6 +150,16 @@ interface ProtocolCardProps {
   reportSignatures?: ReportSignature[]
   isSelected?: boolean
   onToggleSelection?: (id: number) => void
+  /**
+   * Render como contenido de página (`/protocolos/:id`) en vez de card de
+   * listado: arranca expandido, sin chrome de card (cursor/hover/checkbox) ni
+   * toggle de colapso. La lógica de acciones/diálogos se reutiliza tal cual.
+   */
+  pageMode?: boolean
+  /** Detalle ya cargado por la página, para evitar un segundo fetch. */
+  initialDetail?: ProtocolDetailResponse | null
+  /** Abre el modal de reporte al montar (ej: venís del botón Reporte de la lista). */
+  autoOpenReport?: boolean
 }
 
 export function ProtocolCard({
@@ -156,11 +169,16 @@ export function ProtocolCard({
   reportSignatures = [],
   isSelected = false,
   onToggleSelection,
+  pageMode = false,
+  initialDetail = null,
+  autoOpenReport = false,
 }: ProtocolCardProps) {
   const { apiRequest } = useApi()
   const { hasPermission, user } = useAuth()
-  const [isExpanded, setIsExpanded] = useState(false)
-  const [protocolDetail, setProtocolDetail] = useState<ProtocolDetailResponse | null>(null)
+  const navigate = useNavigate()
+  const [isExpanded, setIsExpanded] = useState(pageMode)
+  const [protocolDetail, setProtocolDetail] = useState<ProtocolDetailResponse | null>(initialDetail)
+  const [auditEvents, setAuditEvents] = useState<ProtocolAuditEvent[]>([])
   const [protocolDetails, setProtocolDetails] = useState<ReportProtocolDetail[]>([])
   const [loadingDetail, setLoadingDetail] = useState(false)
   const [loadingAnalyses, setLoadingAnalyses] = useState(false)
@@ -347,11 +365,31 @@ export function ProtocolCard({
   }
 
   const handleCardClick = (e: React.MouseEvent) => {
+    if (pageMode) return
     if ((e.target as HTMLElement).closest("[data-no-expand]")) {
       return
     }
     handleExpand()
   }
+
+  // En modo página: asegurar el detalle cargado y traer los últimos eventos
+  // legibles del historial (audit-timeline) para la sección Historial.
+  useEffect(() => {
+    if (!pageMode) return
+    if (!protocolDetail) void fetchProtocolDetail()
+    if (autoOpenReport) void handleOpenReportDialog()
+    let cancelled = false
+    apiRequest(`${PROTOCOL_ENDPOINTS.AUDIT_TIMELINE(protocol.id)}?limit=5`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!cancelled && data) setAuditEvents(data.events || [])
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pageMode])
 
   const handleAnalysisDialog = async () => {
     const analyses = await loadProtocolAnalyses()
@@ -964,14 +1002,56 @@ export function ProtocolCard({
 
   return (
     <>
+      {pageMode ? (
+        <ProtocolDetailView
+          detail={protocolDetail ?? { id: protocol.id, status: protocol.status }}
+          patientName={getPatientName()}
+          patientAge={protocol.patient?.age}
+          doctorName={getDoctorName()}
+          insuranceName={getInsuranceName()}
+          sendMethodName={getSendMethodName()}
+          statusId={statusId}
+          statusName={statusName}
+          onReport={handleOpenReportDialog}
+          onPayment={handleOpenPaymentDialog}
+          onEdit={handleOpenEditDialog}
+          onCancel={handleCancelProtocol}
+          onUncancel={handleUncancelProtocol}
+          onArca={handleOpenArcaDialog}
+          onOrderStatus={handleOpenOrderStatusDialog}
+          onPreauth={handleOpenPreauthDialog}
+          onCoseguro={handleOpenCoseguroDialog}
+          onHistory={() => setHistoryDialogOpen(true)}
+          onUnplanned={() => setUnplannedDialogOpen(true)}
+          onToggleAuthorization={handleToggleAuthorization}
+          updatingDetailId={updatingDetailId}
+          auditEvents={auditEvents}
+          onGoResults={() => navigate("/resultados")}
+          onGoValidation={() => navigate("/validacion")}
+          onGoPatient={() => (protocol.patient?.id ? navigate(`/pacientes/${protocol.patient.id}`) : navigate("/pacientes"))}
+          isEditable={isEditable}
+          showReports={showReports}
+          canBeCancelled={canBeCancelled}
+          isCancelled={isCancelled}
+          canUncancel={Boolean(canUncancel)}
+          showOrderAction={showOrderAction}
+          showPreauthAction={showPreauthAction}
+          showCoseguroAction={showCoseguroAction}
+        />
+      ) : (
       <Card
-        className={`transition-all duration-300 shadow-sm hover:shadow-lg cursor-pointer bg-white ${
-          isExpanded ? "ring-2 ring-[#204983] ring-opacity-20" : ""
-        } ${isSelected ? "ring-2 ring-[#204983]" : ""} border-l-4 ${getBorderColor(statusName)}`}
+        className={`bg-white border-l-4 ${getBorderColor(statusName)} ${
+          pageMode
+            ? "shadow-sm"
+            : `transition-all duration-300 shadow-sm hover:shadow-lg cursor-pointer ${
+                isExpanded ? "ring-2 ring-[#204983] ring-opacity-20" : ""
+              } ${isSelected ? "ring-2 ring-[#204983]" : ""}`
+        }`}
         onClick={handleCardClick}
       >
         <CardContent className="px-4 py-2.5 sm:py-3">
           <div className="flex items-start gap-3">
+            {!pageMode && (
             <button
               type="button"
               data-no-expand
@@ -1003,6 +1083,7 @@ export function ProtocolCard({
                 )}
               </div>
             </button>
+            )}
             <div className="flex-1 min-w-0">
               <ProtocolHeader
                 protocolId={protocol.id}
@@ -1113,6 +1194,7 @@ export function ProtocolCard({
           </CardContent>
         )}
       </Card>
+      )}
 
       {/* Dialogs */}
       <PaymentDialog

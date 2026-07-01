@@ -100,6 +100,21 @@ export interface ProtocolAuditTimelineResponse {
   events: HistoryEntry[]
 }
 
+// Evento amigable del audit-timeline (HumanAuditEventSerializer): texto legible
+// para usuarios del laboratorio, sin nombres técnicos de modelos.
+export interface ProtocolAuditEvent {
+  id?: number
+  date: string
+  user: AuditUser | null
+  action_type?: string
+  action?: string
+  category?: string
+  category_label?: string
+  state_from?: string | null
+  state_to?: string | null
+  message?: string
+}
+
 export interface ProtocolAuditTimelineFilters {
   category?: AuditCategory | string
   actor?: number
@@ -509,6 +524,9 @@ export interface ProtocolDetail {
   is_authorized: boolean
   is_sent?: boolean
   is_valid?: boolean
+  /** true si el análisis ya tiene resultados cargados (aunque no estén validados).
+   * Lo provee el backend en el detalle (ProtocolDetailSerializer). */
+  is_loaded?: boolean
   code: number
   name: string
   ub: string
@@ -631,8 +649,14 @@ export interface ProtocolListItem {
     dni: string
     first_name: string
     last_name: string
+    age?: number
     is_anonymous?: boolean
   }
+  // Para la tabla densa (?view=table). Opcionales: el backend los agrega al
+  // ProtocolRowSerializer (insurance, affiliate_number, send_method).
+  insurance?: { id: number; name: string } | null
+  affiliate_number?: string
+  send_method?: { id: number; name: string } | null
   status: ProtocolStatus
   balance: string
   private_amount_due?: string
@@ -716,6 +740,33 @@ export interface PricingConfig {
   id: number
   material_descartable_amount: string
   derivacion_amount: string
+}
+
+// Respuesta de POST /protocols/protocols/quote/ — preview de precios que reusa
+// la lógica de creación (resuelve el nomenclador correcto por OOSS/particular).
+export interface QuoteDetail {
+  analysis_id: number
+  code: number
+  name: string
+  is_authorized: boolean
+  private_ub: string
+  insurance_ub: string | null
+  patient_amount: string
+}
+
+export interface QuoteResult {
+  insurance: { id: number; name: string } | null
+  nbu: { id: number; name: string } | null
+  details: QuoteDetail[]
+  total_ub_authorized: string
+  total_ub_private: string
+  analyses_amount_due: string
+  material_descartable_amount: string
+  derivacion_amount: string
+  coseguro_amount: string
+  extras_total: string
+  private_amount_due: string
+  arca_billable_amount: string
 }
 
 export interface PreauthorizationPayload {

@@ -26,6 +26,7 @@ import { Input } from "../ui/input"
 import { Button } from "../ui/button"
 import { Skeleton } from "../ui/skeleton"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
+import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -34,7 +35,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu"
-import { ProtocolCard } from "./components/protocol-card"
+import { ProtocolsTable } from "./components/protocols-table"
+import { useProtocolQuickActions } from "./components/use-protocol-quick-actions"
+import { useAuth } from "@/contexts/auth-context"
+import { PERMISSIONS } from "@/config/permissions"
+import type { SortState } from "@/components/common/data-table"
 import { useApi } from "../../hooks/use-api"
 import { useApiQuery } from "@/hooks/use-api-query"
 import { useInfiniteScroll } from "../../hooks/use-infinite-scroll"
@@ -42,7 +47,7 @@ import { useDebounce } from "../../hooks/use-debounce"
 import { useNavigate } from "react-router-dom"
 import { toast } from "sonner"
 import { PROTOCOL_ENDPOINTS, ANALYTICS_ENDPOINTS, REPORTING_ENDPOINTS, TOAST_DURATION } from "@/config/api"
-import type { ProtocolListItem, SendMethod, ReportSignature } from "@/types"
+import type { ProtocolListItem, ReportSignature } from "@/types"
 import { formatApiError, getErrorMessage } from "@/lib/api-error"
 import {
   getProtocolStatusStyleByName,
@@ -125,11 +130,11 @@ export default function ProtocolosPage() {
       return { include: [], exclude: [] }
     }
   })
-  const [paymentStatusFilter, setPaymentStatusFilter] = useState<string>("all")
   const [isPrintedFilter, setIsPrintedFilter] = useState<string>("all")
+  const [paymentStatusFilter, setPaymentStatusFilter] = useState<string>("all")
   const [hasMore, setHasMore] = useState(true)
   const [nextUrl, setNextUrl] = useState<string | null>(null)
-  const [totalCount, setTotalCount] = useState(0)
+  const [sort, setSort] = useState<SortState>(null)
 
   // Selección batch (el checkbox está siempre visible; el modo se infiere de la selección)
   const [selectedProtocols, setSelectedProtocols] = useState<Set<number>>(new Set())
@@ -190,16 +195,6 @@ export default function ProtocolosPage() {
     if (cancelledStatusId) cancelledCountQuery.refetch()
   }, [stateStatsQuery, cancelledCountQuery, cancelledStatusId])
 
-  // Send methods raramente cambia → cache de 30 minutos
-  const sendMethodsQuery = useApiQuery<{ results?: SendMethod[] } | SendMethod[]>({
-    queryKey: ["protocols", "send-methods"],
-    url: PROTOCOL_ENDPOINTS.SEND_METHODS,
-    staleTime: 30 * 60 * 1000,
-  })
-  const sendMethods: SendMethod[] = Array.isArray(sendMethodsQuery.data)
-    ? sendMethodsQuery.data
-    : sendMethodsQuery.data?.results || []
-
   const signaturesQuery = useApiQuery<{ results?: ReportSignature[] } | ReportSignature[]>({
     queryKey: ["reporting", "signatures"],
     url: REPORTING_ENDPOINTS.SIGNATURES,
@@ -216,10 +211,17 @@ export default function ProtocolosPage() {
       const params = new URLSearchParams({
         limit: "20",
         offset: offset.toString(),
+        // Vista tabla densa: serializer slim del backend (sin breakdown de pago,
+        // sin auditoría, sin unplanned). Mucho más liviano por fila.
+        view: "table",
       })
 
       if (search.trim()) {
         params.append("search", search.trim())
+      }
+
+      if (sort) {
+        params.append("ordering", `${sort.dir === "desc" ? "-" : ""}${sort.field}`)
       }
 
       if (statusFilter.include.length > 0) {
@@ -229,17 +231,17 @@ export default function ProtocolosPage() {
         params.append("exclude_status", statusFilter.exclude.join(","))
       }
 
-      if (paymentStatusFilter !== "all") {
-        params.append("payment_status", paymentStatusFilter)
-      }
-
       if (isPrintedFilter !== "all") {
         params.append("is_printed", isPrintedFilter)
       }
 
+      if (paymentStatusFilter !== "all") {
+        params.append("payment_status", paymentStatusFilter)
+      }
+
       return `${baseEndpoint}?${params.toString()}`
     },
-    [statusFilter, paymentStatusFilter, isPrintedFilter],
+    [statusFilter, isPrintedFilter, paymentStatusFilter, sort],
   )
 
   // Función para cargar protocolos desde la API
@@ -269,7 +271,6 @@ export default function ProtocolosPage() {
 
           if (reset) {
             setAllProtocols(data.results)
-            setTotalCount(data.count)
           } else {
             setAllProtocols((prev) => [...prev, ...data.results])
           }
@@ -290,6 +291,15 @@ export default function ProtocolosPage() {
     },
     [apiRequest, buildUrl, nextUrl, isInitialLoading, isLoadingMore, isSearching],
   )
+
+  // Acciones rápidas de fila (pago / imprimir / enviar). Tras cada una,
+  // recargamos el listado para reflejar el nuevo estado.
+  const quickActions = useProtocolQuickActions(() =>
+    fetchProtocolsFromAPI(debouncedSearchTerm, true, true),
+  )
+
+  const { user, hasPermission } = useAuth()
+  const canUncancel = Boolean(user?.is_superuser || hasPermission(PERMISSIONS.UNCANCEL_PROTOCOLS.codename))
 
   // Cargar más protocolos (scroll infinito)
   const loadMore = useCallback(() => {
@@ -321,7 +331,7 @@ export default function ProtocolosPage() {
     // reemplaza la lista atómicamente.
     fetchProtocolsFromAPI(debouncedSearchTerm, true, true)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [statusFilter, paymentStatusFilter, isPrintedFilter])
+  }, [statusFilter, isPrintedFilter, paymentStatusFilter, sort])
 
   useEffect(() => {
     if (debouncedSearchTerm !== searchTerm) return
@@ -351,14 +361,6 @@ export default function ProtocolosPage() {
   const handleNewProtocol = () => {
     navigate("/ingreso")
   }
-
-  const refreshProtocols = useCallback(() => {
-    setAllProtocols([])
-    setNextUrl(null)
-    setHasMore(true)
-    fetchProtocolsFromAPI(debouncedSearchTerm, true, true)
-    fetchStateStats()
-  }, [fetchProtocolsFromAPI, debouncedSearchTerm, fetchStateStats])
 
   const toggleStatus = (statusId: number) => {
     if (availableStatusIds.length > 0 && !availableStatusIds.includes(statusId)) return
@@ -562,52 +564,6 @@ export default function ProtocolosPage() {
     }
   }
 
-  if (isInitialLoading) {
-    return (
-      <div className="w-full max-w-full mx-auto py-4 px-4">
-        {/* Header skeleton */}
-        <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-md p-4 md:p-6 mb-4 md:mb-6">
-          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
-            <div className="flex-1">
-              <Skeleton className="h-8 w-64 rounded mb-2" />
-              <Skeleton className="h-4 w-96 rounded" />
-            </div>
-            <div className="flex gap-2 w-full sm:w-auto">
-              <Skeleton className="h-10 flex-1 sm:flex-initial rounded" />
-              <Skeleton className="h-10 flex-1 sm:flex-initial rounded" />
-            </div>
-          </div>
-        </div>
-
-        {/* Stats cards skeleton */}
-        <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-md p-4 md:p-6 mb-4 md:mb-6">
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-10 gap-3 sm:gap-4">
-            {[...Array(10)].map((_, i) => (
-              <Skeleton key={i} className="h-24 rounded-lg" />
-            ))}
-          </div>
-        </div>
-
-        {/* Search and filters skeleton */}
-        <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-md p-4 md:p-6 mb-4 md:mb-6">
-          <Skeleton className="h-12 w-full rounded mb-4" />
-          <div className="flex flex-wrap gap-2">
-            {[...Array(8)].map((_, i) => (
-              <Skeleton key={i} className="h-10 w-32 rounded" />
-            ))}
-          </div>
-        </div>
-
-        {/* Protocol cards skeleton */}
-        <div className="space-y-3">
-          {[...Array(5)].map((_, i) => (
-            <Skeleton key={i} className="h-32 w-full rounded-lg" />
-          ))}
-        </div>
-      </div>
-    )
-  }
-
   if (error) {
     return (
       <div className="w-full max-w-7xl mx-auto py-4 px-4">
@@ -629,34 +585,120 @@ export default function ProtocolosPage() {
 
   return (
     <div className="w-full max-w-full mx-auto py-4 px-4">
-      {/* Header Container */}
-      <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-md p-4 md:p-6 mb-4 md:mb-6">
-        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
-          <div>
-            <h1 className="text-xl md:text-2xl font-bold text-gray-800">Gestión de Protocolos</h1>
-            <p className="text-sm text-gray-500 mt-1">
-              {totalCount > 0 && `${totalCount} protocolos registrados`}
-              {searchTerm && ` • ${allProtocols.length} resultados`}
+      <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-md p-4 md:p-6">
+        {/* Fila superior: título (izq) · búsqueda (centro) · filtros (der).
+            Título y Filtros con el mismo ancho para quedar balanceados. */}
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-4">
+          <div className="lg:w-52 lg:shrink-0">
+            <h1 className="text-xl md:text-2xl font-bold text-gray-800">Protocolos</h1>
+            <p className="text-sm text-gray-500">
+              {activeProtocolsCount != null ? `${activeProtocolsCount} activos` : `${allProtocols.length} protocolos`}
+              {searchTerm && ` · ${allProtocols.length} resultados`}
             </p>
           </div>
-          <div className="flex gap-2 w-full sm:w-auto">
-            <Button onClick={handleNewProtocol} className="bg-[#204983] flex-1 sm:flex-initial">
-              <Plus className="mr-2 h-4 w-4" />
-              Nuevo Protocolo
-            </Button>
+          <div className="relative w-full lg:flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+            <Input
+              ref={searchInputRef}
+              placeholder="Buscar por ID, paciente o estado..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="h-11 pl-11 pr-10"
+            />
+            {searchTerm && (
+              <button
+                onClick={clearSearch}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            )}
+            {isSearching && (
+              <div className="absolute right-10 top-1/2 -translate-y-1/2">
+                <Loader2 className="h-4 w-4 animate-spin text-[#204983]" />
+              </div>
+            )}
+          </div>
+          <div className="lg:w-52 lg:shrink-0">
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="h-11 w-full justify-center gap-2">
+                  <Filter className="h-4 w-4" />
+                  Filtros
+                  {(isPrintedFilter !== "all" || paymentStatusFilter !== "all") && (
+                    <span className="ml-1 h-2 w-2 rounded-full bg-[#204983]" />
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-64 space-y-4">
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">Informe</p>
+                  <div className="grid grid-cols-3 gap-1">
+                    {[
+                      { value: "all", label: "Todos" },
+                      { value: "true", label: "Enviado" },
+                      { value: "false", label: "No env." },
+                    ].map((opt) => (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => setIsPrintedFilter(opt.value)}
+                        className={`rounded-md border px-2 py-1.5 text-xs font-medium transition-colors ${
+                          isPrintedFilter === opt.value
+                            ? "border-[#204983] bg-[#204983] text-white"
+                            : "border-gray-200 text-gray-600 hover:bg-gray-50"
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">Pago</p>
+                  <div className="grid grid-cols-2 gap-1">
+                    {[
+                      { value: "all", label: "Todos" },
+                      { value: "1", label: "Saldo en cero" },
+                      { value: "2", label: "Paciente debe" },
+                      { value: "3", label: "Lab. debe" },
+                    ].map((opt) => (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => setPaymentStatusFilter(opt.value)}
+                        className={`rounded-md border px-2 py-1.5 text-xs font-medium transition-colors ${
+                          paymentStatusFilter === opt.value
+                            ? "border-[#204983] bg-[#204983] text-white"
+                            : "border-gray-200 text-gray-600 hover:bg-gray-50"
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {(isPrintedFilter !== "all" || paymentStatusFilter !== "all") && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsPrintedFilter("all")
+                      setPaymentStatusFilter("all")
+                    }}
+                    className="w-full rounded-md py-1.5 text-xs font-medium text-gray-500 hover:bg-gray-50"
+                  >
+                    Limpiar filtros
+                  </button>
+                )}
+              </PopoverContent>
+            </Popover>
           </div>
         </div>
-      </div>
 
-      <div className="mb-3">
-        <div className="rounded-lg bg-white/95 p-3 shadow-md">
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="rounded-md border border-gray-200 bg-gray-50 px-3 py-2">
-              <p className="text-[11px] font-medium text-gray-500">Protocolos activos</p>
-              <p className="text-lg font-bold text-gray-900">{activeProtocolsCount ?? "-"}</p>
-            </div>
-          </div>
-          <div className="mt-3 flex flex-wrap gap-2">
+        {/* Filtros de estado, centrados */}
+        <div className="mt-4 flex flex-wrap justify-center gap-2">
             {stateStatsQuery.isLoading ? (
               <div className="flex gap-2">
                 {Array.from({ length: 6 }).map((_, index) => (
@@ -713,82 +755,16 @@ export default function ProtocolosPage() {
                 Limpiar
               </Button>
             )}
-          </div>
         </div>
-      </div>
 
-      {/* Search and Filters Container */}
-      <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-md p-4 md:p-6 mb-4 md:mb-6">
-        <div className="flex flex-col gap-4">
-          {/* Search */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-            <Input
-              ref={searchInputRef}
-              placeholder="Buscar por ID, paciente o estado..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-12 pr-10 h-10 md:h-12 text-base md:text-lg"
-            />
-            {searchTerm && (
-              <button
-                onClick={clearSearch}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            )}
-            {isSearching && (
-              <div className="absolute right-10 top-1/2 transform -translate-y-1/2">
-                <Skeleton className="h-4 w-4 rounded-full" />
-              </div>
-            )}
-          </div>
-
-          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 flex-wrap">
-            <Select value={paymentStatusFilter} onValueChange={setPaymentStatusFilter}>
-              <SelectTrigger className="w-full sm:w-[200px]">
-                <SelectValue placeholder="Estado de Pago" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos</SelectItem>
-                <SelectItem value="1">Saldo en cero</SelectItem>
-                <SelectItem value="2">Paciente debe</SelectItem>
-                <SelectItem value="3">Laboratorio debe</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Select value={isPrintedFilter} onValueChange={setIsPrintedFilter}>
-              <SelectTrigger className="w-full sm:w-[180px]">
-                <SelectValue placeholder="Impresión" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos</SelectItem>
-                <SelectItem value="true">Impreso / Enviado</SelectItem>
-                <SelectItem value="false">No Impreso / No Enviado</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="flex items-center justify-between">
-            <p className="text-xs md:text-sm text-gray-500">Búsqueda por ID, nombre de paciente o estado</p>
-            {(searchTerm || hasAnyStatusFilter) && (
-              <p className="text-xs text-[#204983] font-medium">
-                {allProtocols.length} resultado{allProtocols.length !== 1 ? "s" : ""}
-              </p>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Protocols List */}
-      <div className="space-y-4">
+        {/* Tabla */}
+        <div className="mt-4 space-y-4">
         {allProtocols.length === 0 && !isInitialLoading && !isSearching ? (
-          <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-md p-8 sm:p-12 text-center">
+          <div className="p-8 sm:p-12 text-center">
             <FileText className="h-12 w-12 sm:h-16 sm:w-16 text-gray-300 mx-auto mb-4" />
             <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-2">No se encontraron protocolos</h3>
             <p className="text-sm sm:text-base text-gray-600 mb-6">
-              {searchTerm || hasAnyStatusFilter || paymentStatusFilter !== "all" || isPrintedFilter !== "all"
+              {searchTerm || hasAnyStatusFilter || isPrintedFilter !== "all" || paymentStatusFilter !== "all"
                 ? "Intenta ajustar los filtros de búsqueda"
                 : "Aún no hay protocolos registrados en el sistema"}
             </p>
@@ -798,29 +774,20 @@ export default function ProtocolosPage() {
             </Button>
           </div>
         ) : (
-          <>
-            {isSearching && (
-              <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
-                {[...Array(3)].map((_, i) => (
-                  <Skeleton key={i} className="h-32 w-full rounded-lg" />
-                ))}
-              </div>
-            )}
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6 items-start">
-              {allProtocols.map((protocol) => (
-                <ProtocolCard
-                  key={protocol.id}
-                  protocol={protocol}
-                  onUpdate={refreshProtocols}
-                  sendMethods={sendMethods}
-                  reportSignatures={reportSignatures}
-                  isSelected={selectedProtocols.has(protocol.id)}
-                  onToggleSelection={toggleProtocolSelection}
-                />
-              ))}
-            </div>
-          </>
+          <ProtocolsTable
+            protocols={allProtocols}
+            selectedIds={selectedProtocols}
+            onToggleSelect={toggleProtocolSelection}
+            onRowClick={(id) => navigate(`/protocolos/${id}`)}
+            sort={sort}
+            onSortChange={setSort}
+            isLoading={(isInitialLoading || isSearching) && allProtocols.length === 0}
+            onQuickPayment={quickActions.openPayment}
+            onReport={(p) => navigate(`/protocolos/${p.id}?report=1`)}
+            onUncancel={quickActions.uncancel}
+            canUncancel={canUncancel}
+            busyId={quickActions.busyId}
+          />
         )}
 
         {/* Infinite Scroll Sentinel */}
@@ -842,6 +809,7 @@ export default function ProtocolosPage() {
             <p>No hay más protocolos para mostrar</p>
           </div>
         )}
+        </div>
       </div>
 
       {/* Floating Batch Action Bar */}
@@ -992,6 +960,8 @@ export default function ProtocolosPage() {
           </div>
         </div>
       )}
+
+      {quickActions.dialogs}
     </div>
   )
 }

@@ -1,24 +1,38 @@
 "use client"
 
 import { Link, useNavigate, useParams } from "react-router-dom"
-import { ArrowLeft, ChevronRight, AlertCircle, FileText, CheckCircle } from "lucide-react"
+import { ArrowLeft, ChevronRight, AlertCircle, FileText, TestTube } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { InitialsAvatar } from "@/components/common/initials-avatar"
 import { StatusPill } from "@/components/common/status-pill"
+import useAuth from "@/contexts/auth-context"
+import { PERMISSIONS } from "@/config/permissions"
 import { useProtocolResults } from "@/hooks/use-protocol-results"
-import { ProtocolResultsLoader } from "./components/protocol-results-loader"
+import { ProtocolValidationLoader } from "./components/protocol-validation-loader"
 
-export default function ProtocolResultsPage() {
+export default function ProtocolValidationPage() {
   const { protocolId } = useParams<{ protocolId: string }>()
   const navigate = useNavigate()
+  const { hasPermission } = useAuth()
   const controller = useProtocolResults(Number(protocolId))
   const header = controller.protocol
 
+  if (!hasPermission(PERMISSIONS.VALIDATE_RESULTS.codename)) {
+    return (
+      <div className="mx-auto w-full max-w-6xl px-3 py-4 sm:px-4">
+        <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 p-4 text-red-700">
+          <AlertCircle className="h-5 w-5" />
+          No tenés permisos para validar resultados.
+        </div>
+      </div>
+    )
+  }
+
   const Breadcrumb = (
     <nav className="mb-4 flex items-center gap-1.5 text-sm">
-      <Link to="/resultados" className="flex items-center gap-1 text-gray-500 transition-colors hover:text-[#204983]">
+      <Link to="/validacion" className="flex items-center gap-1 text-gray-500 transition-colors hover:text-[#204983]">
         <ArrowLeft className="h-4 w-4" />
-        Resultados
+        Validación
       </Link>
       <ChevronRight className="h-4 w-4 text-gray-400" />
       <span className="font-medium text-gray-700">#{protocolId}</span>
@@ -32,7 +46,6 @@ export default function ProtocolResultsPage() {
       </div>
     )
   }
-
   if (controller.error && !header) {
     return (
       <div className="mx-auto w-full max-w-6xl px-3 py-4 sm:px-4">
@@ -74,16 +87,16 @@ export default function ProtocolResultsPage() {
               <FileText className="mr-1.5 h-4 w-4" />
               Ver protocolo
             </Button>
-            <Button size="sm" variant="outline" onClick={() => navigate(`/validacion/${header?.id ?? protocolId}`)}>
-              <CheckCircle className="mr-1.5 h-4 w-4" />
-              Validar
+            <Button size="sm" variant="outline" onClick={() => navigate(`/resultados/${header?.id ?? protocolId}`)}>
+              <TestTube className="mr-1.5 h-4 w-4" />
+              Cargar resultados
             </Button>
           </div>
         </div>
       </section>
 
       <section className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm md:p-5">
-        <ProtocolResultsLoader controller={controller} />
+        <ProtocolValidationLoader controller={controller} />
       </section>
     </div>
   )

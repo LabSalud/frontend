@@ -27,6 +27,7 @@ const ProtocolDetailPage = lazy(() => import("./components/protocolos/protocol-d
 const ResultadosPage = lazy(() => import("./components/results/results-page"))
 const ProtocolResultsPage = lazy(() => import("./components/results/protocol-results-page"))
 const ValidacionPage = lazy(() => import("./components/validacion/validacion-page"))
+const ProtocolValidationPage = lazy(() => import("./components/validacion/protocol-validation-page"))
 const FacturacionPage = lazy(() => import("./components/facturacion/facturacion-page"))
 
 // React Query client compartido. Cache de 1 min para listados pesados (protocolos, pacientes).
@@ -172,6 +173,7 @@ function App() {
                     }
                   >
                     <Route index element={<ValidacionPage />} />
+                    <Route path=":protocolId" element={<ProtocolValidationPage />} />
                   </Route>
                   <Route
                     path="/facturacion"

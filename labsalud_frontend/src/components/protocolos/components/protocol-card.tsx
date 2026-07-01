@@ -1027,7 +1027,7 @@ export function ProtocolCard({
           updatingDetailId={updatingDetailId}
           auditEvents={auditEvents}
           onGoResults={() => navigate(`/resultados/${protocol.id}`)}
-          onGoValidation={() => navigate("/validacion")}
+          onGoValidation={() => navigate(`/validacion/${protocol.id}`)}
           onGoPatient={() => (protocol.patient?.id ? navigate(`/pacientes/${protocol.patient.id}`) : navigate("/pacientes"))}
           isEditable={isEditable}
           showReports={showReports}

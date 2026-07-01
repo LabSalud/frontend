@@ -1,25 +1,89 @@
 "use client"
 
-import { CheckCircle, AlertCircle } from "lucide-react"
+import { useCallback, useState } from "react"
+import { useNavigate } from "react-router-dom"
+import { CheckCircle, Search, X, Loader2, AlertCircle } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { Skeleton } from "@/components/ui/skeleton"
 import useAuth from "@/contexts/auth-context"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs"
-import { ValidationProtocolList } from "./components/validation-protocol-list"
 import { PERMISSIONS } from "@/config/permissions"
+import { useApiInfiniteQuery, flattenPages } from "@/hooks/use-api-infinite-query"
+import { useApiQuery } from "@/hooks/use-api-query"
+import { useInfiniteScroll } from "@/hooks/use-infinite-scroll"
+import { useDebounce } from "@/hooks/use-debounce"
+import { usePersistedState } from "@/hooks/use-persisted-state"
+import { ResultsQueueTable } from "@/components/results/components/results-queue-table"
+import { RESULTS_ENDPOINTS, ANALYTICS_ENDPOINTS } from "@/config/api"
+import { getProtocolStatusStyle, normalizeProtocolStatusName } from "@/lib/status-styles"
+import { cn } from "@/lib/utils"
+import type { SortState } from "@/components/common/data-table"
+import type { ProtocolListItem } from "@/types"
+
+const PAGE_LIMIT = 20
+const HIDDEN_STATUS = new Set(["pendiente de facturacion", "facturado"])
+
+interface StatusStatsResponse {
+  total_protocols: number
+  states: Array<{ status_id: number; status_name: string; count: number }>
+}
 
 export default function ValidacionPage() {
+  const navigate = useNavigate()
   const { hasPermission } = useAuth()
-  const canValidateResults = hasPermission(PERMISSIONS.VALIDATE_RESULTS.codename)
+  const canValidate = hasPermission(PERMISSIONS.VALIDATE_RESULTS.codename)
 
-  if (!canValidateResults) {
+  const [searchTerm, setSearchTerm] = useState("")
+  const debouncedSearch = useDebounce(searchTerm, 300)
+  const [statusIds, setStatusIds] = usePersistedState<number[]>("labsalud_validacion_status", [2, 11])
+  const [sort, setSort] = useState<SortState>(null)
+
+  const statsQuery = useApiQuery<StatusStatsResponse>({
+    queryKey: ["analytics", "protocols-by-status"],
+    url: ANALYTICS_ENDPOINTS.PROTOCOLS_BY_STATUS,
+    staleTime: 30 * 1000,
+    enabled: canValidate,
+  })
+  const states = (statsQuery.data?.states || []).filter((s) => !HIDDEN_STATUS.has(normalizeProtocolStatusName(s.status_name)))
+
+  const orderingParam = sort ? `${sort.dir === "desc" ? "-" : ""}${sort.field}` : undefined
+  const statusKey = statusIds.slice().sort((a, b) => a - b).join(",")
+  const queryKey = ["validacion", "queue", statusKey, debouncedSearch.trim(), orderingParam ?? ""] as const
+
+  const buildUrl = useCallback(
+    (offset: number) => {
+      const params = new URLSearchParams({ limit: String(PAGE_LIMIT), offset: String(offset) })
+      if (statusIds.length > 0) params.append("status", statusIds.join(","))
+      if (debouncedSearch.trim()) params.append("search", debouncedSearch.trim())
+      if (orderingParam) params.append("ordering", orderingParam)
+      return `${RESULTS_ENDPOINTS.QUEUE}?${params.toString()}`
+    },
+    [statusIds, debouncedSearch, orderingParam],
+  )
+
+  const query = useApiInfiniteQuery<ProtocolListItem>({ queryKey, buildUrl, enabled: canValidate })
+  const protocols = flattenPages<ProtocolListItem>(query.data?.pages)
+  const isLoadingMore = query.isFetchingNextPage
+  const hasMore = !!query.hasNextPage
+
+  const sentinelRef = useInfiniteScroll({
+    loading: isLoadingMore,
+    hasMore,
+    onLoadMore: () => {
+      if (!isLoadingMore && hasMore) query.fetchNextPage()
+    },
+    dependencies: [statusKey, debouncedSearch, orderingParam, hasMore, isLoadingMore],
+  })
+
+  const toggleStatus = (id: number) => setStatusIds((prev) => (prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id]))
+
+  if (!canValidate) {
     return (
-      <div className="max-w-6xl mx-auto py-4 sm:py-6 px-3 sm:px-4">
-        <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-md p-4 sm:p-6">
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-800 mb-4">Validación de Resultados</h1>
-          <div className="bg-red-50 border border-red-200 text-red-700 px-3 sm:px-4 py-3 rounded">
-            <div className="flex items-center">
-              <AlertCircle className="h-5 w-5 mr-2 flex-shrink-0" />
-              <p className="text-sm sm:text-base">No tienes permisos para validar resultados.</p>
-            </div>
+      <div className="mx-auto w-full max-w-full px-4 py-4">
+        <div className="rounded-2xl bg-white/95 p-6 shadow-md backdrop-blur-sm">
+          <h1 className="mb-3 text-xl font-bold text-gray-800">Validación de Resultados</h1>
+          <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-red-700">
+            <AlertCircle className="h-5 w-5" />
+            No tenés permisos para validar resultados.
           </div>
         </div>
       </div>
@@ -27,36 +91,65 @@ export default function ValidacionPage() {
   }
 
   return (
-    <div className="w-full max-w-7xl mx-auto py-3 sm:py-4 px-3 sm:px-4">
-      <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-md p-3 sm:p-4 md:p-6 mb-3 sm:mb-4 md:mb-6">
-        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 sm:gap-4">
-          <div>
-            <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-800 flex items-center gap-2">
-              <CheckCircle className="h-5 w-5 sm:h-6 sm:w-6 text-[#204983]" />
-              Validación de Resultados
-            </h1>
-            <p className="text-xs sm:text-sm text-gray-500 mt-1">
-              Revisa y valida los resultados de los protocolos pendientes
-            </p>
+    <div className="mx-auto w-full max-w-full px-4 py-4">
+      <div className="rounded-2xl bg-white/95 p-4 shadow-md backdrop-blur-sm md:p-6">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-4">
+          <div className="flex items-center gap-2 lg:w-56 lg:shrink-0">
+            <CheckCircle className="h-6 w-6 text-[#204983]" />
+            <h1 className="text-xl font-bold text-gray-800 md:text-2xl">Validación</h1>
           </div>
+          <div className="relative w-full lg:flex-1">
+            <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+            <Input placeholder="Buscar por ID o paciente..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="h-11 pl-11 pr-10" />
+            {searchTerm && (
+              <button onClick={() => setSearchTerm("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                <X className="h-5 w-5" />
+              </button>
+            )}
+            {query.isFetching && !isLoadingMore && (
+              <div className="absolute right-10 top-1/2 -translate-y-1/2">
+                <Loader2 className="h-4 w-4 animate-spin text-[#204983]" />
+              </div>
+            )}
+          </div>
+          <div className="hidden lg:block lg:w-56 lg:shrink-0" aria-hidden />
         </div>
-      </div>
 
-      <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-md p-3 sm:p-4 md:p-6">
-        <Tabs defaultValue="por-protocolo" className="w-full">
-          <TabsList className="mb-3 sm:mb-4 bg-gray-100">
-            <TabsTrigger
-              value="por-protocolo"
-              className="text-xs sm:text-sm data-[state=active]:bg-white data-[state=active]:text-[#204983] data-[state=active]:shadow-sm"
-            >
-              Protocolos Pendientes
-            </TabsTrigger>
-          </TabsList>
+        <div className="mt-4 flex flex-wrap justify-center gap-2">
+          {statsQuery.isLoading
+            ? Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-8 w-28 rounded-full" />)
+            : states.map((s) => {
+                const active = statusIds.includes(s.status_id)
+                const style = getProtocolStatusStyle(s.status_id)
+                return (
+                  <button
+                    key={s.status_id}
+                    type="button"
+                    onClick={() => toggleStatus(s.status_id)}
+                    className={cn("flex h-8 items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition-colors", active ? `${style.solid} border-transparent text-white` : style.badgeOutline)}
+                  >
+                    {s.status_name}
+                    <span className={cn("rounded-full px-1.5 text-[11px]", active ? "bg-white/25" : "bg-white/70 text-gray-700")}>{s.count}</span>
+                  </button>
+                )
+              })}
+        </div>
 
-          <TabsContent value="por-protocolo" className="mt-3 sm:mt-4">
-            <ValidationProtocolList />
-          </TabsContent>
-        </Tabs>
+        <div className="mt-4 space-y-4">
+          <ResultsQueueTable
+            protocols={protocols}
+            onRowClick={(id) => navigate(`/validacion/${id}`)}
+            sort={sort}
+            onSortChange={setSort}
+            isLoading={query.isLoading}
+          />
+          {hasMore && (
+            <div ref={sentinelRef} className="flex justify-center py-2">
+              {isLoadingMore && <Skeleton className="h-8 w-40 rounded" />}
+            </div>
+          )}
+          {!hasMore && protocols.length > 0 && <p className="py-2 text-center text-sm text-gray-400">No hay más protocolos</p>}
+        </div>
       </div>
     </div>
   )

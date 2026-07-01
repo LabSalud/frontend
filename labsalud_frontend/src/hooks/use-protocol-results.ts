@@ -132,6 +132,33 @@ export function useProtocolResults(protocolId: number) {
     [apiRequest, values],
   )
 
+  // Validar / rechazar un resultado (validación, mouse-first).
+  const onValidate = useCallback(
+    async (resultId: number, isValid: boolean, notes?: string): Promise<boolean> => {
+      setSaving((prev) => ({ ...prev, [resultId]: true }))
+      try {
+        const res = await apiRequest(RESULTS_ENDPOINTS.VALIDATE(resultId), {
+          method: "POST",
+          body: { is_valid: isValid, tipo: "bioquimica", ...(notes ? { notes } : {}) },
+        })
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}))
+          throw new Error(formatApiError(err, "Error al validar el resultado"))
+        }
+        const updated: Result = await res.json()
+        setResults((prev) => prev.map((r) => (r.id === resultId ? updated : r)))
+        toast.success(isValid ? "Resultado validado" : "Resultado rechazado")
+        return true
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Error al validar el resultado")
+        return false
+      } finally {
+        setSaving((prev) => ({ ...prev, [resultId]: false }))
+      }
+    },
+    [apiRequest],
+  )
+
   const loadPrevious = useCallback(
     async (resultId: number, patientId: number, determinationId: number) => {
       if (previousResults[resultId] || loadingPrevious.has(resultId)) return
@@ -166,6 +193,7 @@ export function useProtocolResults(protocolId: number) {
     saving,
     onChange,
     onSave,
+    onValidate,
     previousResults,
     loadingPrevious,
     loadPrevious,

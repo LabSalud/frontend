@@ -1,7 +1,7 @@
 "use client"
 
 import { Link, useNavigate, useParams } from "react-router-dom"
-import { ArrowLeft, ChevronRight, AlertCircle, FileText, CheckCircle, TestTube } from "lucide-react"
+import { ArrowLeft, ChevronRight, AlertCircle, FileText, CheckCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { InitialsAvatar } from "@/components/common/initials-avatar"
 import { StatusPill } from "@/components/common/status-pill"
@@ -90,10 +90,6 @@ export default function ProtocolResultsPage() {
       </section>
 
       <section className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm md:p-5">
-        <h2 className="mb-3 flex items-center gap-2 text-base font-bold text-gray-800">
-          <TestTube className="h-5 w-5 text-[#204983]" />
-          Carga de resultados
-        </h2>
         {protocol.patient?.id && <ProtocolResultsLoader protocolId={protocol.id} patientId={protocol.patient.id} />}
       </section>
     </div>

@@ -1,11 +1,12 @@
 "use client"
 
 import type React from "react"
-import { Loader2, Save, AlertTriangle, ShieldCheck, History } from "lucide-react"
+import { Loader2, Save, AlertTriangle, ShieldCheck, History, CheckCircle2, Circle } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import {
   formatEvaluatedReference,
   formatReferenceRange,
@@ -25,13 +26,26 @@ interface ResultDeterminationRowProps {
   formulaResolved: boolean
   onChange: (field: "value" | "notes", value: string) => void
   onSave: () => void
-  onFocus: () => void
+  onLoadPrevious: () => void
   registerInput: (el: HTMLInputElement | null) => void
   registerTextarea: (el: HTMLTextAreaElement | null) => void
   onInputKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void
   onTextareaKeyDown: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void
   previous: PreviousResult[]
   loadingPrevious: boolean
+}
+
+function fmtDateTime(v?: string | null) {
+  if (!v) return ""
+  const d = new Date(v)
+  return Number.isNaN(d.getTime())
+    ? ""
+    : d.toLocaleString("es-AR", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" })
+}
+function fmtDate(v?: string | null) {
+  if (!v) return ""
+  const d = new Date(v)
+  return Number.isNaN(d.getTime()) ? "" : d.toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "2-digit" })
 }
 
 export function ResultDeterminationRow({
@@ -43,7 +57,7 @@ export function ResultDeterminationRow({
   formulaResolved,
   onChange,
   onSave,
-  onFocus,
+  onLoadPrevious,
   registerInput,
   registerTextarea,
   onInputKeyDown,
@@ -68,24 +82,97 @@ export function ResultDeterminationRow({
   return (
     <div
       className={cn(
-        "rounded-lg border p-3 shadow-sm transition-colors",
-        isWrong ? "border-red-300 bg-red-50" : isValidated ? "border-emerald-200 bg-emerald-50/50" : hasValue ? "border-blue-200" : "border-gray-200 bg-white",
+        "rounded-lg border p-3 transition-colors",
+        isWrong ? "border-red-300 bg-red-50" : isValidated ? "border-emerald-200 bg-emerald-50/40" : hasValue ? "border-blue-200 bg-blue-50/30" : "border-gray-200 bg-white",
       )}
     >
-      <div className="flex flex-col gap-3 md:flex-row md:items-start">
-        {/* Determinación + referencia */}
-        <div className="md:w-2/5">
-          <div className="flex items-center gap-2">
-            <p className="font-semibold text-gray-900">{det.name}</p>
-            {unit && <span className="text-xs text-gray-500">({unit})</span>}
-          </div>
+      {/* Línea superior: nombre + estado (con fecha de validación) */}
+      <div className="mb-2 flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <span className="font-semibold text-gray-900">{det.name}</span>
+          {unit && <span className="ml-1 text-xs text-gray-500">({unit})</span>}
           {isFormula && (
-            <Badge variant="outline" className={cn("mt-1 text-[10px]", formulaResolved ? "border-blue-200 bg-blue-50 text-blue-700" : "border-amber-200 bg-amber-50 text-amber-700")}>
-              {formulaResolved ? "Calculado automáticamente" : "Fórmula pendiente"}
+            <Badge variant="outline" className={cn("ml-2 text-[10px]", formulaResolved ? "border-blue-200 bg-blue-50 text-blue-700" : "border-amber-200 bg-amber-50 text-amber-700")}>
+              {formulaResolved ? "Auto" : "Fórmula pendiente"}
             </Badge>
           )}
+        </div>
+        {isValidated ? (
+          <div className="flex shrink-0 flex-col items-end text-right">
+            <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700">
+              <ShieldCheck className="h-3.5 w-3.5" />
+              Validado
+            </span>
+            {result.validated_at && (
+              <span className="text-[10px] text-emerald-600">
+                {fmtDateTime(result.validated_at)}
+                {result.validated_by && ` · ${result.validated_by.first_name} ${result.validated_by.last_name}`}
+              </span>
+            )}
+          </div>
+        ) : hasValue ? (
+          <span className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-blue-600">
+            <CheckCircle2 className="h-3.5 w-3.5" />
+            Cargado
+          </span>
+        ) : (
+          <span className="inline-flex shrink-0 items-center gap-1 text-xs text-gray-400">
+            <Circle className="h-3.5 w-3.5" />
+            Sin cargar
+          </span>
+        )}
+      </div>
+
+      {/* Cuerpo: valor + referencia + historial + notas + guardar */}
+      <div className="flex flex-col gap-2 lg:flex-row lg:items-start">
+        <div className="lg:w-48">
+          <Input
+            ref={registerInput}
+            placeholder="Valor"
+            value={value.value}
+            onChange={(e) => onChange("value", e.target.value)}
+            onKeyDown={onInputKeyDown}
+            onFocus={onLoadPrevious}
+            readOnly={readOnly}
+            disabled={locked}
+            className={cn("h-11 text-base font-semibold", hasValue && !isValidated && "border-blue-300", isValidated && "border-emerald-300 bg-emerald-100")}
+          />
+          <div className="mt-1 flex items-center gap-2">
+            {/* Historial: popover con valores anteriores del paciente */}
+            <Popover onOpenChange={(o) => o && onLoadPrevious()}>
+              <PopoverTrigger asChild>
+                <button type="button" className="inline-flex items-center gap-1 text-[11px] text-gray-500 hover:text-[#204983]">
+                  <History className="h-3 w-3" />
+                  Historial{previous.length > 0 && ` (${previous.length})`}
+                </button>
+              </PopoverTrigger>
+              <PopoverContent align="start" className="w-56 p-2">
+                <p className="mb-1 text-xs font-semibold text-gray-700">Valores anteriores</p>
+                {loadingPrevious ? (
+                  <p className="py-2 text-xs text-gray-400">Buscando…</p>
+                ) : previous.length === 0 ? (
+                  <p className="py-2 text-xs text-gray-400">Sin resultados anteriores</p>
+                ) : (
+                  <ul className="max-h-52 space-y-1 overflow-y-auto">
+                    {previous.map((p) => (
+                      <li key={p.id} className="flex items-center justify-between gap-2 rounded px-1.5 py-1 text-xs hover:bg-gray-50">
+                        <span className="font-medium text-gray-800">{p.value || "—"}</span>
+                        <span className="text-[10px] text-gray-400">{fmtDate(p.validated_at || p.date)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </PopoverContent>
+            </Popover>
+            {previous[0]?.value && (
+              <span className="text-[11px] text-gray-400">ant: <span className="font-medium text-gray-600">{previous[0].value}</span></span>
+            )}
+          </div>
+        </div>
+
+        <div className="lg:w-52">
           {referenceItems.length > 0 && (
-            <div className="mt-1.5 flex flex-wrap gap-1">
+            <div className="flex flex-wrap gap-1">
               {referenceItems.map((item) => (
                 <Badge key={item} variant="outline" className="bg-slate-50 text-[10px] text-slate-600">
                   {item}
@@ -94,7 +181,7 @@ export function ResultDeterminationRow({
             </div>
           )}
           {evaluation && evaluation.status !== "not_evaluated" && (
-            <div className="mt-1.5">
+            <div className="mt-1">
               <Badge variant="outline" className={cn("text-[10px]", isOutOfRange ? "border-red-200 bg-red-50 text-red-700" : "border-emerald-200 bg-emerald-50 text-emerald-700")}>
                 {isOutOfRange && <AlertTriangle className="mr-1 h-3 w-3" />}
                 {getReferenceEvaluationLabel(evaluation)}
@@ -102,55 +189,21 @@ export function ResultDeterminationRow({
               {evaluatedReference && <p className="mt-0.5 text-[10px] text-gray-500">{evaluatedReference}</p>}
             </div>
           )}
-          {locked && result.validated_by && (
-            <p className="mt-1.5 inline-flex items-center gap-1 text-[11px] text-emerald-700">
-              <ShieldCheck className="h-3 w-3" />
-              Validado por {result.validated_by.first_name} {result.validated_by.last_name}
-            </p>
-          )}
         </div>
 
-        {/* Valor + anteriores */}
-        <div className="md:w-1/4">
-          <Input
-            ref={registerInput}
-            placeholder="Valor"
-            value={value.value}
-            onChange={(e) => onChange("value", e.target.value)}
-            onKeyDown={onInputKeyDown}
-            onFocus={onFocus}
-            readOnly={readOnly}
-            disabled={locked}
-            className={cn(
-              "font-medium",
-              isWrong ? "border-red-300 bg-red-50" : isValidated ? "border-emerald-300 bg-emerald-100" : hasValue ? "border-blue-300 bg-blue-50" : "",
-            )}
-          />
-          {previous.length > 0 && (
-            <div className="mt-1 flex items-center gap-1 text-[10px] text-gray-500">
-              <History className="h-3 w-3" />
-              Anterior: <span className="font-medium text-gray-700">{previous[0].value || "—"}</span>
-            </div>
-          )}
-          {loadingPrevious && <p className="mt-1 text-[10px] text-gray-400">Buscando anteriores…</p>}
-        </div>
-
-        {/* Notas + guardar */}
-        <div className="flex flex-1 items-start gap-2">
-          <Textarea
-            ref={registerTextarea}
-            placeholder="Notas (opcional)"
-            value={value.notes}
-            onChange={(e) => onChange("notes", e.target.value)}
-            onKeyDown={onTextareaKeyDown}
-            disabled={locked}
-            rows={2}
-            className="min-h-0 flex-1 resize-none text-sm"
-          />
-          <Button size="sm" onClick={onSave} disabled={saving || locked} className="bg-[#204983] hover:bg-[#1a3d6f]">
-            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-          </Button>
-        </div>
+        <Textarea
+          ref={registerTextarea}
+          placeholder="Notas (opcional)"
+          value={value.notes}
+          onChange={(e) => onChange("notes", e.target.value)}
+          onKeyDown={onTextareaKeyDown}
+          disabled={locked}
+          rows={2}
+          className="min-h-0 flex-1 resize-none text-sm"
+        />
+        <Button size="sm" onClick={onSave} disabled={saving || locked} className="h-11 bg-[#204983] hover:bg-[#1a3d6f]">
+          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+        </Button>
       </div>
     </div>
   )

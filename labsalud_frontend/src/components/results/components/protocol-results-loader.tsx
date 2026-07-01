@@ -1,9 +1,10 @@
 "use client"
 
 import type React from "react"
-import { useCallback, useRef } from "react"
-import { FlaskConical, AlertCircle } from "lucide-react"
+import { useCallback, useMemo, useRef, useState } from "react"
+import { FlaskConical, AlertCircle, Search, X } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useProtocolResults } from "@/hooks/use-protocol-results"
 import { calculateFormulaValue } from "@/lib/result-formulas"
@@ -15,7 +16,7 @@ interface ProtocolResultsLoaderProps {
 }
 
 /**
- * Carga de resultados de un protocolo: agrupa por análisis y orquesta la
+ * Carga de resultados de un protocolo: búsqueda de análisis, agrupación y
  * navegación por teclado (Enter guarda y baja; ↑↓ mueven; → va a notas). La
  * lógica de datos vive en `useProtocolResults`; acá viven los refs del DOM.
  */
@@ -23,6 +24,7 @@ export function ProtocolResultsLoader({ protocolId, patientId }: ProtocolResults
   const { loading, error, results, groups, orderedIds, values, saving, onChange, onSave, previousResults, loadingPrevious, loadPrevious } =
     useProtocolResults(protocolId)
 
+  const [search, setSearch] = useState("")
   const inputRefs = useRef<Record<number, HTMLInputElement | null>>({})
   const textareaRefs = useRef<Record<number, HTMLTextAreaElement | null>>({})
 
@@ -59,15 +61,25 @@ export function ProtocolResultsLoader({ protocolId, patientId }: ProtocolResults
     [orderedIds, onSave],
   )
 
-  const onTextareaKeyDown = useCallback(
-    (e: React.KeyboardEvent<HTMLTextAreaElement>, resultId: number) => {
-      if (e.key === "ArrowLeft" && e.currentTarget.selectionStart === 0) {
-        e.preventDefault()
-        focusInput(resultId)
-      }
-    },
-    [],
-  )
+  const onTextareaKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>, resultId: number) => {
+    if (e.key === "ArrowLeft" && e.currentTarget.selectionStart === 0) {
+      e.preventDefault()
+      focusInput(resultId)
+    }
+  }, [])
+
+  // Filtro por nombre de análisis o de determinación.
+  const filteredGroups = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    if (!q) return groups
+    return groups
+      .map((g) => {
+        if (g.analysis.name.toLowerCase().includes(q)) return g
+        const dets = g.determinations.filter((d) => d.determination.name.toLowerCase().includes(q))
+        return dets.length ? { ...g, determinations: dets } : null
+      })
+      .filter((g): g is NonNullable<typeof g> => g !== null)
+  }, [groups, search])
 
   if (loading) {
     return (
@@ -93,54 +105,74 @@ export function ProtocolResultsLoader({ protocolId, patientId }: ProtocolResults
   }
 
   return (
-    <div className="space-y-5">
-      {groups.map((group) => {
-        const loaded = group.determinations.filter((d) => !!d.value).length
-        return (
-          <section key={group.analysis.id}>
-            <div className="mb-2 flex items-center justify-between">
-              <h3 className="flex items-center gap-2 text-sm font-bold text-gray-800">
-                <FlaskConical className="h-4 w-4 text-[#204983]" />
-                {group.analysis.name}
-              </h3>
-              <Badge variant="outline" className="text-xs text-gray-500">
-                {loaded}/{group.determinations.length} cargados
-              </Badge>
-            </div>
-            <div className="space-y-2">
-              {group.determinations.map((result) => {
-                const calc = calculateFormulaValue(result, results, values)
-                const isFormula = !!result.determination.formula?.trim()
-                const formulaResolved = !!calc && calc.missingCodes.length === 0
-                return (
-                  <ResultDeterminationRow
-                    key={result.id}
-                    result={result}
-                    value={values[result.id] || { value: "", notes: "" }}
-                    saving={!!saving[result.id]}
-                    readOnly={formulaResolved}
-                    isFormula={isFormula}
-                    formulaResolved={formulaResolved}
-                    onChange={(field, val) => onChange(result.id, field, val)}
-                    onSave={() => onSave(result.id)}
-                    onFocus={() => loadPrevious(result.id, patientId, result.determination.id)}
-                    registerInput={(el) => {
-                      inputRefs.current[result.id] = el
-                    }}
-                    registerTextarea={(el) => {
-                      textareaRefs.current[result.id] = el
-                    }}
-                    onInputKeyDown={(e) => onInputKeyDown(e, result.id)}
-                    onTextareaKeyDown={(e) => onTextareaKeyDown(e, result.id)}
-                    previous={previousResults[result.id] || []}
-                    loadingPrevious={loadingPrevious.has(result.id)}
-                  />
-                )
-              })}
-            </div>
-          </section>
-        )
-      })}
+    <div className="space-y-4">
+      {/* Búsqueda de análisis */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+        <Input
+          placeholder="Buscar análisis o determinación..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="h-10 pl-10 pr-9"
+        />
+        {search && (
+          <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+            <X className="h-4 w-4" />
+          </button>
+        )}
+      </div>
+
+      {filteredGroups.length === 0 ? (
+        <p className="py-6 text-center text-sm text-gray-400">Ningún análisis coincide con “{search}”.</p>
+      ) : (
+        filteredGroups.map((group) => {
+          const loaded = group.determinations.filter((d) => !!d.value).length
+          return (
+            <section key={group.analysis.id}>
+              <div className="mb-2 flex items-center justify-between">
+                <h3 className="flex items-center gap-2 text-sm font-bold text-gray-800">
+                  <FlaskConical className="h-4 w-4 text-[#204983]" />
+                  {group.analysis.name}
+                </h3>
+                <Badge variant="outline" className="text-xs text-gray-500">
+                  {loaded}/{group.determinations.length} cargados
+                </Badge>
+              </div>
+              <div className="space-y-2">
+                {group.determinations.map((result) => {
+                  const calc = calculateFormulaValue(result, results, values)
+                  const isFormula = !!result.determination.formula?.trim()
+                  const formulaResolved = !!calc && calc.missingCodes.length === 0
+                  return (
+                    <ResultDeterminationRow
+                      key={result.id}
+                      result={result}
+                      value={values[result.id] || { value: "", notes: "" }}
+                      saving={!!saving[result.id]}
+                      readOnly={formulaResolved}
+                      isFormula={isFormula}
+                      formulaResolved={formulaResolved}
+                      onChange={(field, val) => onChange(result.id, field, val)}
+                      onSave={() => onSave(result.id)}
+                      onLoadPrevious={() => loadPrevious(result.id, patientId, result.determination.id)}
+                      registerInput={(el) => {
+                        inputRefs.current[result.id] = el
+                      }}
+                      registerTextarea={(el) => {
+                        textareaRefs.current[result.id] = el
+                      }}
+                      onInputKeyDown={(e) => onInputKeyDown(e, result.id)}
+                      onTextareaKeyDown={(e) => onTextareaKeyDown(e, result.id)}
+                      previous={previousResults[result.id] || []}
+                      loadingPrevious={loadingPrevious.has(result.id)}
+                    />
+                  )
+                })}
+              </div>
+            </section>
+          )
+        })
+      )}
     </div>
   )
 }

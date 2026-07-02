@@ -61,9 +61,9 @@ export function ProtocolSuccess({ protocol, patient, doctor, insurance, sendMeth
     const prevOverflow = document.body.style.overflow
     document.body.style.overflow = "hidden"
 
-    const timer1 = setTimeout(() => setAnimationPhase("expand"), 100)
-    const timer2 = setTimeout(() => setAnimationPhase("moveUp"), 1500)
-    const timer3 = setTimeout(() => setAnimationPhase("showSummary"), 2000)
+    const timer1 = setTimeout(() => setAnimationPhase("expand"), 80)
+    const timer2 = setTimeout(() => setAnimationPhase("moveUp"), 600)
+    const timer3 = setTimeout(() => setAnimationPhase("showSummary"), 850)
     const closeTimer = setTimeout(() => onClose(), 10000)
 
     return () => {
@@ -102,14 +102,12 @@ export function ProtocolSuccess({ protocol, patient, doctor, insurance, sendMeth
         <X className="h-6 w-6" />
       </Button>
 
-      {/* Contenedor con scroll interno: el overlay tapa todo y nunca genera
-          barra de scroll de página (el body queda bloqueado). */}
-      <div className="relative z-10 h-full w-full overflow-y-auto">
-        <div className="flex min-h-full w-full flex-col items-center justify-center gap-6 px-4 py-10">
+      {/* Columna centrada, SIN scroll propio (así no hay barra en la parte verde) */}
+      <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 px-4">
           {/* Tick: centrado al inicio; sube cuando el resumen crece */}
           <div
             className={cn(
-              "shrink-0 transition-all duration-700 ease-out",
+              "shrink-0 transition-all duration-300 ease-out",
               animationPhase === "initial" ? "scale-0 opacity-0" : "scale-100 opacity-100",
             )}
           >
@@ -125,18 +123,20 @@ export function ProtocolSuccess({ protocol, patient, doctor, insurance, sendMeth
 
           <div
             className={cn(
-              "w-full max-w-2xl overflow-hidden transition-all duration-700 ease-out",
-              animationPhase === "showSummary" ? "max-h-[82vh] opacity-100" : "pointer-events-none max-h-0 opacity-0",
+              "w-full max-w-2xl overflow-hidden transition-all duration-500 ease-out",
+              animationPhase === "showSummary" ? "max-h-[calc(100dvh-8rem)] opacity-100" : "pointer-events-none max-h-0 opacity-0",
             )}
           >
-            <Card className="max-h-[82vh] overflow-y-auto border-0 bg-white shadow-2xl">
-            <CardHeader className="pb-4">
+            {/* Card redondeada + overflow-hidden: el scroll vive en el contenido,
+                asi el borde no queda cuadrado al aparecer la barra. */}
+            <Card className="flex max-h-[calc(100dvh-8rem)] flex-col overflow-hidden rounded-2xl border-0 bg-white shadow-2xl">
+            <CardHeader className="shrink-0 pb-4">
               <CardTitle className="text-center text-green-600 text-2xl flex items-center justify-center gap-2">
                 <FileText className="h-6 w-6" />
                 Protocolo Creado Exitosamente
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-4 overflow-y-auto">
               {/* Protocol ID */}
               <div className="text-center pb-2">
                 <Badge
@@ -275,7 +275,6 @@ export function ProtocolSuccess({ protocol, patient, doctor, insurance, sendMeth
             </CardContent>
           </Card>
           </div>
-        </div>
       </div>
     </div>
   )

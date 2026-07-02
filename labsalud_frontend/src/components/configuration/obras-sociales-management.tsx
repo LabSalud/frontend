@@ -7,12 +7,17 @@ import { useApiInfiniteQuery, flattenPages } from "@/hooks/use-api-infinite-quer
 import { MEDICAL_ENDPOINTS } from "@/config/api"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Skeleton } from "@/components/ui/skeleton"
-import { Loader2, Search, ShieldCheckIcon, Plus } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { Switch } from "@/components/ui/switch"
+import { DataTable, type Column } from "@/components/common/data-table"
+import { AuditAvatars } from "@/components/common/audit-avatars"
+import { Loader2, Search, Plus, DollarSign } from "lucide-react"
+import { getNbuDisplayName } from "@/hooks/use-nbu-options"
 import type { ObraSocial } from "@/types"
 import { CreateObraSocialDialog } from "./components/create-obra-social-dialog"
 import { EditObraSocialDialog } from "./components/edit-obra-social-dialog"
-import { ObraSocialCard } from "./components/obra-social-card"
+import { ObraSocialDetailSheet } from "./components/obra-social-detail-sheet"
+import { ObraSocialHistoryDialog } from "./components/obra-social-history-dialog"
 import { useToast } from "@/hooks/use-toast"
 import { useInfiniteScroll } from "@/hooks/use-infinite-scroll"
 import { useDebounce } from "@/hooks/use-debounce"
@@ -32,6 +37,10 @@ export function ObrasSocialesManagement() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [selectedObraSocial, setSelectedObraSocial] = useState<ObraSocial | null>(null)
+  const [sheetOpen, setSheetOpen] = useState(false)
+  const [sheetObraSocial, setSheetObraSocial] = useState<ObraSocial | null>(null)
+  const [historyOpen, setHistoryOpen] = useState(false)
+  const [historyObraSocial, setHistoryObraSocial] = useState<ObraSocial | null>(null)
   const { nbus } = useNbuOptions()
 
   const buildUrl = useCallback(
@@ -56,7 +65,6 @@ export function ObrasSocialesManagement() {
   const isLoadingInitial = insurancesQuery.isLoading
   const isLoadingMore = insurancesQuery.isFetchingNextPage
   const hasMore = !!insurancesQuery.hasNextPage
-  const errorState = insurancesQuery.error?.message ?? null
 
   const loadMoreSentinelRef = useInfiniteScroll({
     loading: isLoadingMore,
@@ -86,6 +94,82 @@ export function ObrasSocialesManagement() {
     setSelectedObraSocial(obraSocial)
     setIsEditModalOpen(true)
   }
+
+  const openSheet = (obraSocial: ObraSocial) => {
+    setSheetObraSocial(obraSocial)
+    setSheetOpen(true)
+  }
+
+  const handleEditFromSheet = (obraSocial: ObraSocial) => {
+    setSheetOpen(false)
+    handleEdit(obraSocial)
+  }
+
+  const handleShowHistory = (obraSocial: ObraSocial) => {
+    setSheetOpen(false)
+    setHistoryObraSocial(obraSocial)
+    setHistoryOpen(true)
+  }
+
+  const columns: Column<ObraSocial>[] = [
+    {
+      id: "name",
+      header: "Obra social",
+      cell: (os) => (
+        <div className="flex items-center gap-2.5">
+          <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-[#204983] text-[10px] font-bold text-white">
+            OS
+          </span>
+          <span className={`font-medium ${os.is_active ? "text-gray-900" : "text-gray-400"}`}>{os.name}</span>
+        </div>
+      ),
+    },
+    {
+      id: "ub",
+      header: "Valor UB",
+      responsive: "hidden md:table-cell",
+      cell: (os) =>
+        os.ub_value ? (
+          <span className="inline-flex items-center gap-1 text-sm text-gray-700">
+            <DollarSign className="h-3.5 w-3.5 text-green-600" />
+            {os.ub_value}
+          </span>
+        ) : (
+          <span className="text-sm text-gray-400">—</span>
+        ),
+    },
+    {
+      id: "nbu",
+      header: "Nomenclador",
+      responsive: "hidden lg:table-cell",
+      cell: (os) => <span className="text-sm text-gray-500">{getNbuDisplayName(os.nbu, nbus) || "—"}</span>,
+    },
+    {
+      id: "audit",
+      header: "Auditoría",
+      responsive: "hidden xl:table-cell",
+      cell: (os) => <AuditAvatars creation={os.creation} lastChange={os.last_change} size="sm" />,
+    },
+    {
+      id: "active",
+      header: "Estado",
+      align: "right",
+      cell: (os) => (
+        <span className="inline-flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+          {switchLoading === os.id && <Loader2 className="h-3.5 w-3.5 animate-spin text-[#204983]" />}
+          <Badge variant={os.is_active ? "default" : "secondary"} className="text-[10px]">
+            {os.is_active ? "Activa" : "Inactiva"}
+          </Badge>
+          <Switch
+            checked={os.is_active}
+            onCheckedChange={(v) => handleToggleActive(os, v)}
+            disabled={switchLoading === os.id}
+            className="data-[state=checked]:bg-[#204983]"
+          />
+        </span>
+      ),
+    },
+  ]
 
   const handleToggleActive = async (obraSocialToToggle: ObraSocial, newStatus: boolean) => {
     setSwitchLoading(obraSocialToToggle.id)
@@ -146,44 +230,17 @@ export function ObrasSocialesManagement() {
         </div>
       </div>
 
-      {isLoadingInitial ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 items-start">
-          {[...Array(6)].map((_, i) => (
-            <div key={i} className="border border-gray-200 rounded-lg p-4 space-y-3">
-              <div className="flex items-center justify-between">
-                <Skeleton className="h-5 w-32 rounded" />
-                <Skeleton className="h-6 w-12 rounded-full" />
-              </div>
-              <Skeleton className="h-4 w-48 rounded" />
-              <div className="flex gap-2">
-                <Skeleton className="h-8 w-16 rounded" />
-                <Skeleton className="h-8 w-16 rounded" />
-              </div>
-            </div>
-          ))}
-        </div>
-      ) : obrasSociales.length === 0 && !errorState ? (
-        <div className="text-center py-8 md:py-12">
-          <ShieldCheckIcon className="mx-auto h-10 w-10 md:h-12 md:w-12 text-gray-400 mb-3" />
-          <h3 className="text-base md:text-lg font-medium text-gray-900">No se encontraron Obras Sociales</h3>
-          <p className="mt-1 text-xs md:text-sm text-gray-500">
-            {searchTerm ? "Ninguna obra social coincide con tu búsqueda." : "No hay obras sociales registradas."}
-          </p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 items-start">
-          {obrasSociales.map((os) => (
-            <ObraSocialCard
-              key={os.id}
-              obraSocial={os}
-              nbus={nbus}
-              onEdit={handleEdit}
-              onToggleActive={handleToggleActive}
-              isToggling={switchLoading === os.id}
-            />
-          ))}
-        </div>
-      )}
+      <DataTable
+        columns={columns}
+        rows={obrasSociales}
+        getRowId={(os) => os.id}
+        onRowClick={openSheet}
+        isLoading={isLoadingInitial}
+        emptyMessage={
+          searchTerm ? "Ninguna obra social coincide con tu búsqueda." : "No hay obras sociales registradas."
+        }
+        rowClassName={(os) => (os.is_active ? "" : "opacity-60")}
+      />
 
       {hasMore && (
         <div ref={loadMoreSentinelRef} className="flex justify-center items-center py-6">
@@ -195,6 +252,26 @@ export function ObrasSocialesManagement() {
         <p className="text-center text-xs md:text-sm text-gray-500 py-4">
           Fin de los resultados. ({totalObrasSociales} en total)
         </p>
+      )}
+
+      <ObraSocialDetailSheet
+        obraSocial={sheetObraSocial}
+        open={sheetOpen}
+        onOpenChange={setSheetOpen}
+        nbus={nbus}
+        onEdit={handleEditFromSheet}
+        onToggleActive={handleToggleActive}
+        isToggling={sheetObraSocial ? switchLoading === sheetObraSocial.id : false}
+        onShowHistory={handleShowHistory}
+      />
+
+      {historyObraSocial && (
+        <ObraSocialHistoryDialog
+          open={historyOpen}
+          onOpenChange={setHistoryOpen}
+          obraSocialId={historyObraSocial.id}
+          obraSocialName={historyObraSocial.name}
+        />
       )}
 
       {isCreateModalOpen && (

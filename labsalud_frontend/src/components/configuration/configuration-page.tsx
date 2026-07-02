@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Settings } from "lucide-react"
 import { MedicosManagement } from "./medicos-management"
 import { ObrasSocialesManagement } from "./obras-sociales-management"
 import { AnalysisManagement } from "./analysis-management"
@@ -74,18 +75,30 @@ export default function ConfigurationPage() {
     )
   }
 
+  const tabClass =
+    "flex-shrink-0 rounded-lg px-4 py-1.5 text-sm data-[state=active]:bg-white data-[state=active]:text-[#204983] data-[state=active]:shadow-sm"
+
   return (
     <div className="mx-auto w-full max-w-6xl overflow-x-hidden px-3 py-4 sm:px-4 sm:py-6">
-      <div className="min-w-0 max-w-full overflow-hidden rounded-lg bg-white/95 p-4 shadow-md backdrop-blur-sm sm:p-6">
-        <h1 className="text-xl sm:text-2xl font-bold text-gray-800 mb-4 sm:mb-6">Configuración del Sistema</h1>
+      <div className="mb-5 flex items-center gap-3">
+        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#204983]/10 text-[#204983]">
+          <Settings className="h-6 w-6" />
+        </div>
+        <div>
+          <h1 className="text-xl font-bold text-gray-800 sm:text-2xl">Configuración del sistema</h1>
+          <p className="text-sm text-gray-500">Catálogos, nomencladores, firmas y auditoría.</p>
+        </div>
+      </div>
+
+      <div className="min-w-0 max-w-full">
         <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full min-w-0">
-          <TabsList className="mb-6 flex h-auto w-full flex-wrap justify-start gap-1">
-            <TabsTrigger value="medicos" className="flex-shrink-0">Médicos</TabsTrigger>
-            <TabsTrigger value="obras-sociales" className="flex-shrink-0">Obras Sociales</TabsTrigger>
-            <TabsTrigger value="nomencladores" className="flex-shrink-0">Nomencladores</TabsTrigger>
-            <TabsTrigger value="analisis" className="flex-shrink-0">Análisis</TabsTrigger>
-            <TabsTrigger value="firmas" className="flex-shrink-0">Firmas</TabsTrigger>
-            <TabsTrigger value="auditoria" className="flex-shrink-0">Auditoría</TabsTrigger>
+          <TabsList className="mb-6 flex h-auto w-full flex-wrap justify-start gap-1 rounded-xl bg-gray-100 p-1">
+            <TabsTrigger value="medicos" className={tabClass}>Médicos</TabsTrigger>
+            <TabsTrigger value="obras-sociales" className={tabClass}>Obras Sociales</TabsTrigger>
+            <TabsTrigger value="nomencladores" className={tabClass}>Nomencladores</TabsTrigger>
+            <TabsTrigger value="analisis" className={tabClass}>Análisis</TabsTrigger>
+            <TabsTrigger value="firmas" className={tabClass}>Firmas</TabsTrigger>
+            <TabsTrigger value="auditoria" className={tabClass}>Auditoría</TabsTrigger>
           </TabsList>
 
           <TabsContent value="medicos" className="min-w-0">

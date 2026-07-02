@@ -64,6 +64,7 @@ interface ActionButtonProps {
   description: string
   colorClass: string
   disabledReason?: string
+  isPatientMethod?: boolean
 }
 
 function ActionButton({
@@ -76,6 +77,7 @@ function ActionButton({
   description,
   colorClass,
   disabledReason,
+  isPatientMethod,
 }: ActionButtonProps) {
   const button = (
     <button
@@ -83,9 +85,10 @@ function ActionButton({
       onClick={onClick}
       disabled={disabled}
       className={`
-        flex items-center gap-3 w-full rounded-lg border px-4 py-3
+        relative flex items-center gap-3 w-full rounded-lg border px-4 py-3
         text-left transition-colors
         disabled:opacity-50 disabled:cursor-not-allowed
+        ${isPatientMethod ? "ring-2 ring-[#204983] ring-offset-2" : ""}
         ${colorClass}
       `}
     >
@@ -96,6 +99,11 @@ function ActionButton({
         <span className="text-sm font-semibold leading-tight">{isLoading ? loadingLabel : label}</span>
         {!isLoading && <span className="text-xs opacity-75 leading-tight mt-0.5 truncate">{description}</span>}
       </span>
+      {isPatientMethod && (
+        <span className="ml-auto shrink-0 rounded-full bg-white px-2 py-0.5 text-[10px] font-bold text-[#204983] shadow-sm">
+          Método del paciente
+        </span>
+      )}
     </button>
   )
 
@@ -580,6 +588,7 @@ export function ReportDialog({
                   label="Imprimir"
                   description="Dialogo de impresion del navegador"
                   colorClass={getActionColor("print", activeSendAction)}
+                  isPatientMethod={activeSendAction === "print"}
                 />
                 <ActionButton
                   onClick={onDownloadReport}
@@ -602,6 +611,7 @@ export function ReportDialog({
                   label="Enviar por email"
                   description="Envia el reporte al paciente"
                   colorClass={getActionColor("email", activeSendAction)}
+                  isPatientMethod={activeSendAction === "email"}
                 />
                 <ActionButton
                   onClick={onSendWhatsApp}
@@ -613,6 +623,7 @@ export function ReportDialog({
                   label="Enviar por WhatsApp"
                   description="Comparte el reporte por WhatsApp"
                   colorClass={getActionColor("whatsapp", activeSendAction)}
+                  isPatientMethod={activeSendAction === "whatsapp"}
                 />
               </div>
             </div>
@@ -772,6 +783,7 @@ export function ReportDialog({
                               label="Imprimir"
                               description="Dialogo de impresion del navegador"
                               colorClass={getActionColor("print", activeSendAction)}
+                  isPatientMethod={activeSendAction === "print"}
                             />
                             <ActionButton
                               onClick={onDownloadReport}
@@ -794,6 +806,7 @@ export function ReportDialog({
                               label="Enviar por email"
                               description="Envia el reporte al paciente"
                               colorClass={getActionColor("email", activeSendAction)}
+                  isPatientMethod={activeSendAction === "email"}
                             />
                             <ActionButton
                               onClick={onSendWhatsApp}
@@ -805,6 +818,7 @@ export function ReportDialog({
                               label="Enviar por WhatsApp"
                               description="Comparte el reporte por WhatsApp"
                               colorClass={getActionColor("whatsapp", activeSendAction)}
+                  isPatientMethod={activeSendAction === "whatsapp"}
                             />
                           </div>
                         </div>

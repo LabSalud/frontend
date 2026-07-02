@@ -41,7 +41,7 @@ export function MedicoDetailSheet({ medico, open, onOpenChange, onEdit, onDelete
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-full gap-0 overflow-y-auto sm:max-w-md">
-        <SheetHeader className="border-b border-gray-100 pb-4">
+        <SheetHeader className="border-b border-gray-200 pb-4">
           <div className="flex items-center gap-3">
             <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#204983]/10 text-[#204983]">
               <Stethoscope className="h-5 w-5" />
@@ -56,15 +56,15 @@ export function MedicoDetailSheet({ medico, open, onOpenChange, onEdit, onDelete
         <div className="space-y-5 p-4">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Nombre</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Nombre</p>
               <p className="text-sm text-gray-800">{data.first_name}</p>
             </div>
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Apellido</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Apellido</p>
               <p className="text-sm text-gray-800">{data.last_name}</p>
             </div>
             <div className="col-span-2">
-              <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Matrícula</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Matrícula</p>
               <p className="text-sm text-gray-800">{data.license}</p>
             </div>
           </div>
@@ -73,14 +73,14 @@ export function MedicoDetailSheet({ medico, open, onOpenChange, onEdit, onDelete
             <>
               <Separator />
               <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold uppercase tracking-wide text-gray-400">Auditoría</span>
+                <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">Auditoría</span>
                 <AuditAvatars creation={data.creation} lastChange={data.last_change} size="sm" />
               </div>
             </>
           )}
         </div>
 
-        <div className="mt-auto space-y-2 border-t border-gray-100 p-4">
+        <div className="mt-auto space-y-2 border-t border-gray-200 p-4">
           <Button variant="outline" size="sm" className="w-full" onClick={() => setHistoryOpen(true)}>
             <History className="mr-1.5 h-4 w-4 text-[#204983]" />
             Ver historial de cambios

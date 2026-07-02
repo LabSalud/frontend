@@ -64,7 +64,7 @@ export function ObraSocialDetailSheet({
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-full gap-0 overflow-y-auto sm:max-w-md">
-        <SheetHeader className="border-b border-gray-100 pb-4">
+        <SheetHeader className="border-b border-gray-200 pb-4">
           <div className="flex items-center gap-3">
             <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#204983] text-xs font-bold text-white">
               OS
@@ -81,7 +81,7 @@ export function ObraSocialDetailSheet({
         </SheetHeader>
 
         <div className="space-y-5 p-4">
-          <div className="flex items-center justify-between rounded-lg border border-gray-100 bg-gray-50/60 px-3 py-2">
+          <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50/60 px-3 py-2">
             <span className="text-sm font-medium text-gray-700">Obra social activa</span>
             <div className="flex items-center gap-2">
               {isToggling && <Loader2 className="h-4 w-4 animate-spin text-[#204983]" />}
@@ -109,7 +109,7 @@ export function ObraSocialDetailSheet({
           <Separator />
 
           <div className="space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Conceptos que cobra</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Conceptos que cobra</p>
             {loading ? (
               <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
             ) : (
@@ -128,7 +128,7 @@ export function ObraSocialDetailSheet({
           </div>
 
           <div className="space-y-1">
-            <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Nomenclador</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Nomenclador</p>
             <p className="text-sm font-medium text-gray-800">{nbuLabel || "—"}</p>
           </div>
 
@@ -136,14 +136,14 @@ export function ObraSocialDetailSheet({
             <>
               <Separator />
               <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold uppercase tracking-wide text-gray-400">Auditoría</span>
+                <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">Auditoría</span>
                 <AuditAvatars creation={data.creation} lastChange={data.last_change} size="sm" />
               </div>
             </>
           )}
         </div>
 
-        <div className="mt-auto space-y-2 border-t border-gray-100 p-4">
+        <div className="mt-auto space-y-2 border-t border-gray-200 p-4">
           <Button variant="outline" size="sm" className="w-full" onClick={() => onShowHistory(obraSocial)}>
             <History className="mr-1.5 h-4 w-4 text-[#204983]" />
             Ver historial de cambios

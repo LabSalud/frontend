@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { AuditAvatars } from "@/components/common/audit-avatars"
-import { Clock, Pencil, Shield, ShieldX, UserPlus, UserMinus, Trash, Mail, Eye } from "lucide-react"
+import { Clock, Pencil, Shield, ShieldX, UserPlus, UserMinus, Trash, Mail } from "lucide-react"
 
 export type UserAction =
   | "view"
@@ -68,7 +68,7 @@ export function UserDetailSheet({
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-full gap-0 overflow-y-auto sm:max-w-md">
-        <SheetHeader className="border-b border-gray-100 pb-4">
+        <SheetHeader className="border-b border-gray-200 pb-4">
           <div className="flex items-center gap-3">
             <Avatar className="h-14 w-14">
               <AvatarImage src={user.photo || "/placeholder.svg"} alt={user.username} />
@@ -99,7 +99,7 @@ export function UserDetailSheet({
         <div className="space-y-5 p-4">
           {/* Contacto */}
           <div className="space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Contacto</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Contacto</p>
             <div className="flex items-center gap-2 text-sm text-gray-700">
               <Mail className="h-4 w-4 text-gray-400" />
               {user.email || <span className="text-gray-400">Sin email</span>}
@@ -114,7 +114,7 @@ export function UserDetailSheet({
 
           {/* Roles */}
           <div className="space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Roles</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Roles</p>
             <div className="flex flex-wrap gap-1.5">
               {roles.length > 0 ? (
                 roles.map((r) => (
@@ -132,7 +132,7 @@ export function UserDetailSheet({
 
           {/* Auditoría */}
           <div className="space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Auditoría</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Auditoría</p>
             <div className="flex items-center justify-between text-sm">
               <span className="text-gray-500">Creado</span>
               {user.creation ? <AuditAvatars creation={auditInfo(user.creation)} size="sm" /> : <span className="text-gray-400">—</span>}
@@ -145,12 +145,8 @@ export function UserDetailSheet({
         </div>
 
         {/* Acciones */}
-        <div className="mt-auto border-t border-gray-100 p-4">
+        <div className="mt-auto border-t border-gray-200 p-4">
           <div className="grid grid-cols-2 gap-2">
-            <Button variant="outline" size="sm" onClick={() => onAction("view")}>
-              <Eye className="mr-1.5 h-4 w-4" />
-              Ver detalle
-            </Button>
             {canEdit && (
               <Button variant="outline" size="sm" onClick={() => onAction("edit")}>
                 <Pencil className="mr-1.5 h-4 w-4" />

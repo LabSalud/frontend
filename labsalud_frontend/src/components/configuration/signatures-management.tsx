@@ -1,13 +1,14 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
-import { CheckCircle2, ImageUp, Loader2, PenTool, Star, Trash2, Upload } from "lucide-react"
+import { CheckCircle2, ImageUp, Loader2, PenTool, Upload } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Badge } from "@/components/ui/badge"
-import { Skeleton } from "@/components/ui/skeleton"
+import { DataTable, type Column } from "@/components/common/data-table"
+import { SignatureDetailSheet } from "./components/signature-detail-sheet"
 import { toast } from "sonner"
 import { useApi } from "@/hooks/use-api"
 import { REPORTING_ENDPOINTS, TOAST_DURATION } from "@/config/api"
@@ -24,6 +25,8 @@ export function SignaturesManagement() {
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
   const [actionId, setActionId] = useState<number | null>(null)
+  const [sheetSignature, setSheetSignature] = useState<Signature | null>(null)
+  const [sheetOpen, setSheetOpen] = useState(false)
 
   const [name, setName] = useState("")
   const [biochemistName, setBiochemistName] = useState("")
@@ -156,6 +159,60 @@ export function SignaturesManagement() {
     }
   }
 
+  const setDefaultFromSheet = async (id: number) => {
+    await handleSetDefault(id)
+    setSheetOpen(false)
+  }
+
+  const deleteFromSheet = async (id: number) => {
+    await handleDelete(id)
+    setSheetOpen(false)
+  }
+
+  const columns: Column<Signature>[] = [
+    {
+      id: "signature",
+      header: "Firma",
+      cell: (sig) => (
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-20 flex-shrink-0 items-center justify-center rounded border border-gray-200 bg-gray-50">
+            {sig.image_url ? (
+              <img src={sig.image_url} alt={sig.name} className="max-h-8 object-contain" />
+            ) : (
+              <span className="text-[10px] text-gray-400">Sin img</span>
+            )}
+          </div>
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5">
+              <span className="truncate font-medium text-gray-900">{sig.name}</span>
+              {sig.is_default && (
+                <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">
+                  <CheckCircle2 className="mr-1 h-3 w-3" />
+                  Predeterminada
+                </Badge>
+              )}
+            </div>
+          </div>
+        </div>
+      ),
+    },
+    {
+      id: "biochemist",
+      header: "Bioquímico",
+      responsive: "hidden sm:table-cell",
+      cell: (sig) =>
+        sig.biochemist_name || sig.biochemist_mp ? (
+          <span className="text-sm text-gray-600">
+            {sig.biochemist_name}
+            {sig.biochemist_name && sig.biochemist_mp ? " · " : ""}
+            {sig.biochemist_mp ? `M.P. ${sig.biochemist_mp}` : ""}
+          </span>
+        ) : (
+          <span className="text-sm text-gray-400">—</span>
+        ),
+    },
+  ]
+
   return (
     <div className="space-y-6">
       <div>
@@ -246,80 +303,28 @@ export function SignaturesManagement() {
 
       <div className="space-y-3">
         <h3 className="text-sm font-semibold text-gray-700">Firmas cargadas</h3>
-        {loading ? (
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-            {[...Array(2)].map((_, i) => (
-              <Skeleton key={i} className="h-28 rounded-lg" />
-            ))}
-          </div>
-        ) : signatures.length === 0 ? (
-          <p className="rounded-md border border-dashed border-gray-200 p-6 text-center text-sm text-gray-500">
-            No hay firmas cargadas todavía.
-          </p>
-        ) : (
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-            {signatures.map((sig) => (
-              <div key={sig.id} className="flex flex-col gap-3 rounded-lg border border-gray-200 bg-white p-4">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p className="truncate font-semibold text-gray-800">{sig.name}</p>
-                      {sig.is_default && (
-                        <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">
-                          <CheckCircle2 className="mr-1 h-3 w-3" />
-                          Predeterminada
-                        </Badge>
-                      )}
-                    </div>
-                    {(sig.biochemist_name || sig.biochemist_mp) && (
-                      <p className="mt-0.5 text-xs text-gray-500">
-                        {sig.biochemist_name}
-                        {sig.biochemist_name && sig.biochemist_mp ? " · " : ""}
-                        {sig.biochemist_mp ? `M.P. ${sig.biochemist_mp}` : ""}
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                <div className="flex h-16 items-center justify-center rounded border border-gray-100 bg-gray-50">
-                  {sig.image_url ? (
-                    <img src={sig.image_url} alt={sig.name} className="max-h-14 object-contain" />
-                  ) : (
-                    <span className="text-xs text-gray-400">Sin imagen</span>
-                  )}
-                </div>
-
-                <div className="flex items-center justify-end gap-2">
-                  {!sig.is_default && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleSetDefault(sig.id)}
-                      disabled={actionId === sig.id}
-                    >
-                      {actionId === sig.id ? (
-                        <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
-                      ) : (
-                        <Star className="mr-1 h-3.5 w-3.5" />
-                      )}
-                      Predeterminar
-                    </Button>
-                  )}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
-                    onClick={() => handleDelete(sig.id)}
-                    disabled={actionId === sig.id}
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+        <DataTable
+          columns={columns}
+          rows={signatures}
+          getRowId={(s) => s.id}
+          onRowClick={(s) => {
+            setSheetSignature(s)
+            setSheetOpen(true)
+          }}
+          isLoading={loading}
+          skeletonRows={2}
+          emptyMessage="No hay firmas cargadas todavía."
+        />
       </div>
+
+      <SignatureDetailSheet
+        signature={sheetSignature}
+        open={sheetOpen}
+        onOpenChange={setSheetOpen}
+        onSetDefault={setDefaultFromSheet}
+        onDelete={deleteFromSheet}
+        actionId={actionId}
+      />
     </div>
   )
 }

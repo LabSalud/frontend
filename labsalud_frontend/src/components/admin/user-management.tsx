@@ -6,6 +6,7 @@ import useAuth from "@/contexts/auth-context"
 import { useApi } from "@/hooks/use-api"
 import type { User, Role, Permission } from "@/types"
 import { UserTable } from "./components/user-table"
+import { UserDetailSheet, type UserAction } from "./components/user-detail-sheet"
 import { CreateUserDialog } from "./components/create-user-dialog"
 import { EditUserDialog } from "./components/edit-user-dialog"
 import { TempPermissionDialog } from "./components/temp-permission-dialog"
@@ -13,7 +14,8 @@ import { RoleAssignDialog } from "./components/role-assign-dialog"
 import { RoleRemoveDialog } from "./components/role-remove-dialog"
 import { DeleteUserDialog } from "./components/delete-user-dialog"
 import { Button } from "@/components/ui/button"
-import { Plus, AlertCircle } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { Plus, AlertCircle, Search } from "lucide-react"
 import { PERMISSIONS } from "@/config/permissions"
 import { ViewUserDialog } from "./components/view-user-dialog"
 
@@ -30,6 +32,9 @@ export function UserManagement({ users, roles, permissions, setUsers, refreshDat
   const { apiRequest } = useApi()
   const [selectedUser, setSelectedUser] = useState<User | null>(null)
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null)
+  const [search, setSearch] = useState("")
+  const [sheetUser, setSheetUser] = useState<User | null>(null)
+  const [sheetOpen, setSheetOpen] = useState(false)
   const [isCreating, setIsCreating] = useState(false)
   const [isViewing, setIsViewing] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
@@ -99,30 +104,54 @@ export function UserManagement({ users, roles, permissions, setUsers, refreshDat
     ? permissions.filter((permission) => permission && permission.id)
     : []
 
+  const query = search.trim().toLowerCase()
+  const filteredUsers = query
+    ? validUsers.filter((u) =>
+        [`${u.first_name} ${u.last_name}`, u.username, u.email ?? ""].some((f) => f.toLowerCase().includes(query)),
+      )
+    : validUsers
+
+  const openSheet = (user: User) => {
+    setSheetUser(user)
+    setSheetOpen(true)
+  }
+
+  // Desde la ficha lateral se disparan los diálogos existentes; cerramos la ficha
+  // para no apilar overlays.
+  const handleSheetAction = (action: UserAction) => {
+    if (!sheetUser) return
+    setSheetOpen(false)
+    handleSelectUser(sheetUser, action)
+  }
+
   return (
     <div>
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6">
-        <h2 className="text-lg sm:text-xl font-semibold text-gray-800">Gestión de Usuarios</h2>
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="relative w-full sm:max-w-xs">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+          <Input
+            placeholder="Buscar por nombre, usuario o email…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9"
+          />
+        </div>
 
-        {canCreateUser && (
-          <Button className="bg-[#204983] w-full sm:w-auto" onClick={() => setIsCreating(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            Nuevo Usuario
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          <span className="hidden text-sm text-gray-500 sm:inline">
+            {filteredUsers.length} usuario{filteredUsers.length === 1 ? "" : "s"}
+          </span>
+          {canCreateUser && (
+            <Button className="bg-[#204983] w-full sm:w-auto" onClick={() => setIsCreating(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              Nuevo usuario
+            </Button>
+          )}
+        </div>
       </div>
 
       {canViewUsers ? (
-        <UserTable
-          users={validUsers}
-          onSelectUser={handleSelectUser}
-          canView={canViewUsers}
-          canEdit={canEditUser}
-          canDelete={canDeleteUser}
-          canAssignRole={canAssignRole}
-          canRemoveRole={canRemoveRole}
-          canManageTempPermissions={canAssignTempPermission}
-        />
+        <UserTable users={filteredUsers} onRowClick={openSheet} />
       ) : (
         <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 p-4 rounded-md">
           <div className="flex items-center">
@@ -131,6 +160,19 @@ export function UserManagement({ users, roles, permissions, setUsers, refreshDat
           </div>
         </div>
       )}
+
+      {/* Ficha lateral con toda la info + acciones */}
+      <UserDetailSheet
+        user={sheetUser}
+        open={sheetOpen}
+        onOpenChange={setSheetOpen}
+        onAction={handleSheetAction}
+        canEdit={canEditUser}
+        canDelete={canDeleteUser}
+        canAssignRole={canAssignRole}
+        canRemoveRole={canRemoveRole}
+        canManageTempPermissions={canAssignTempPermission}
+      />
 
       {/* Dialogs */}
       <CreateUserDialog

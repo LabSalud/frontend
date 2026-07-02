@@ -1,387 +1,128 @@
 "use client"
 
 import type { User, Group } from "@/types"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Button } from "@/components/ui/button"
+import { DataTable, type Column } from "@/components/common/data-table"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { AuditAvatars } from "@/components/common/audit-avatars"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { AlertCircle, Clock, Eye, MoreHorizontal, Pencil, Shield, ShieldX, UserPlus, UserMinus, Trash } from "lucide-react"
+import { Clock } from "lucide-react"
 
 interface UserTableProps {
   users: User[]
-  onSelectUser: (user: User, action: string) => void
-  canEdit: boolean
-  canDelete: boolean
-  canAssignRole: boolean
-  canRemoveRole: boolean
-  canManageTempPermissions: boolean
-  canView: boolean
+  onRowClick: (user: User) => void
+  isLoading?: boolean
 }
 
-export function UserTable({
-  users,
-  onSelectUser,
-  canEdit,
-  canDelete,
-  canAssignRole,
-  canRemoveRole,
-  canManageTempPermissions,
-  canView,
-}: UserTableProps) {
-  const getInitials = (firstName: string, lastName: string, username: string) => {
-    if (firstName && lastName) {
-      return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase()
-    }
-    return username.substring(0, 2).toUpperCase()
+const getInitials = (firstName: string, lastName: string, username: string) =>
+  firstName && lastName ? `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase() : username.substring(0, 2).toUpperCase()
+
+const getRoleColor = (roleName: string): "default" | "secondary" | "destructive" | "outline" => {
+  const roleColors: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
+    Administradora: "destructive",
+    Bioquimica: "default",
+    Tecnica: "secondary",
+    Secretaria: "outline",
   }
+  return roleColors[roleName] || "secondary"
+}
 
-  const getRoleColor = (roleName: string): "default" | "secondary" | "destructive" | "outline" => {
-    const roleColors: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
-      Administradora: "destructive",
-      Bioquimica: "default",
-      Tecnica: "secondary",
-      Secretaria: "outline",
-    }
-    return roleColors[roleName] || "secondary"
-  }
+const getActiveRoles = (user: User): Group[] => user.groups || user.roles || []
+const hasTemporaryPermissions = (user: User) => user.permissions?.some((p) => p.temporary) || false
+const getAuditInfo = (audit?: User["creation"] | User["last_change"]) =>
+  audit ? { user: audit.user ? { username: audit.user.username, photo: audit.user.photo } : null, date: audit.date } : undefined
 
-  const hasTemporaryPermissions = (user: User) => {
-    return user.permissions?.some((p) => p.temporary) || false
-  }
-
-  const getActiveRoles = (user: User): Group[] => {
-    return user.groups || user.roles || []
-  }
-
-  const getAuditInfo = (audit?: User["creation"] | User["last_change"]) => {
-    if (!audit) return undefined
-
-    return {
-      user: audit.user ? { username: audit.user.username, photo: audit.user.photo } : null,
-      date: audit.date,
-    }
-  }
-
-  if (users.length === 0) {
-    return (
-      <div className="bg-white rounded-lg shadow-sm p-4 sm:p-8">
-        <div className="flex flex-col items-center justify-center text-gray-500">
-          <AlertCircle className="h-8 w-8 sm:h-12 sm:w-12 mb-4" />
-          <h3 className="text-base sm:text-lg font-medium mb-2">No hay usuarios disponibles</h3>
-          <p className="text-xs sm:text-sm text-center">No se encontraron usuarios que coincidan con tu búsqueda.</p>
+export function UserTable({ users, onRowClick, isLoading }: UserTableProps) {
+  const columns: Column<User>[] = [
+    {
+      id: "user",
+      header: "Usuario",
+      cell: (user) => (
+        <div className="flex items-center gap-3">
+          <Avatar className="h-9 w-9">
+            <AvatarImage src={user.photo || "/placeholder.svg"} alt={user.username} />
+            <AvatarFallback className="bg-[#204983] text-xs text-white">
+              {getInitials(user.first_name, user.last_name, user.username)}
+            </AvatarFallback>
+          </Avatar>
+          <div className="min-w-0">
+            <div className="truncate font-medium text-gray-900">
+              {`${user.first_name} ${user.last_name}`.trim() || user.username}
+            </div>
+            <div className="truncate text-xs text-gray-500">@{user.username}</div>
+          </div>
         </div>
-      </div>
-    )
-  }
+      ),
+    },
+    {
+      id: "email",
+      header: "Email",
+      responsive: "hidden md:table-cell",
+      cell: (user) => <span className="block max-w-[220px] truncate text-sm text-gray-600">{user.email || "—"}</span>,
+    },
+    {
+      id: "roles",
+      header: "Roles",
+      cell: (user) => {
+        const roles = getActiveRoles(user)
+        const hasTemp = hasTemporaryPermissions(user)
+        return (
+          <div className="flex flex-wrap gap-1">
+            {user.is_superuser && <Badge variant="destructive" className="text-[10px]">Super</Badge>}
+            {hasTemp && (
+              <Badge variant="secondary" className="text-[10px]">
+                <Clock className="mr-1 h-3 w-3" />
+                Temp
+              </Badge>
+            )}
+            {roles.length > 0 ? (
+              roles.slice(0, 2).map((role) => (
+                <Badge key={role.id} variant={getRoleColor(role.name)} className="text-[10px]">
+                  {role.name}
+                </Badge>
+              ))
+            ) : (
+              <Badge variant="outline" className="text-[10px] text-gray-500">Sin rol</Badge>
+            )}
+            {roles.length > 2 && <Badge variant="outline" className="text-[10px]">+{roles.length - 2}</Badge>}
+          </div>
+        )
+      },
+    },
+    {
+      id: "inactivity",
+      header: "Inactividad",
+      responsive: "hidden lg:table-cell",
+      cell: (user) => (
+        <span className="inline-flex items-center gap-1 rounded-full border border-gray-200 px-2 py-0.5 text-xs text-gray-600">
+          <Clock className="h-3 w-3 text-gray-400" />
+          {user.inactivity_logout_minutes ?? 30} min
+        </span>
+      ),
+    },
+    {
+      id: "created",
+      header: "Creado",
+      responsive: "hidden xl:table-cell",
+      cell: (user) =>
+        user.creation ? <AuditAvatars creation={getAuditInfo(user.creation)} size="sm" /> : <span className="text-xs text-gray-400">—</span>,
+    },
+    {
+      id: "changed",
+      header: "Último cambio",
+      responsive: "hidden xl:table-cell",
+      cell: (user) =>
+        user.last_change ? <AuditAvatars lastChange={getAuditInfo(user.last_change)} size="sm" /> : <span className="text-xs text-gray-400">—</span>,
+    },
+  ]
 
   return (
-    <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-      <div className="block sm:hidden">
-        {users.map((user) => {
-          const activeRoles = getActiveRoles(user)
-          const hasTemp = hasTemporaryPermissions(user)
-
-          return (
-            <div key={user.id} className="border-b p-4 last:border-b-0">
-              <div className="flex items-start justify-between gap-3 mb-3">
-                <div className="flex items-center space-x-3">
-                  <Avatar className="h-10 w-10">
-                    <AvatarImage src={user.photo || "/placeholder.svg"} alt={user.username} />
-                    <AvatarFallback className="bg-[#204983] text-white text-xs">
-                      {getInitials(user.first_name, user.last_name, user.username)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <div className="font-medium text-gray-900 text-sm">
-                      {`${user.first_name} ${user.last_name}`.trim() || user.username}
-                    </div>
-                    <div className="text-xs text-gray-500">@{user.username}</div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="text-xs text-gray-600 mb-2 truncate">{user.email}</div>
-
-              <div className="mb-3 flex items-center gap-4 text-xs text-gray-600">
-                <div className="flex items-center gap-2">
-                  <span>Creación</span>
-                  {user.creation ? (
-                    <AuditAvatars creation={getAuditInfo(user.creation)} size="sm" />
-                  ) : (
-                    <span className="text-gray-400">Sin fecha</span>
-                  )}
-                </div>
-                <div className="flex items-center gap-2">
-                  <span>Último cambio</span>
-                  {user.last_change ? (
-                    <AuditAvatars lastChange={getAuditInfo(user.last_change)} size="sm" />
-                  ) : (
-                    <span className="text-gray-400">Sin cambios</span>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex flex-wrap gap-1 mb-3">
-                {user.is_superuser && (
-                  <Badge variant="destructive" className="text-xs">
-                    Super
-                  </Badge>
-                )}
-                {hasTemp && (
-                  <Badge variant="secondary" className="text-xs">
-                    <Clock className="h-3 w-3 mr-1" />
-                    Temp
-                  </Badge>
-                )}
-                {activeRoles.slice(0, 2).map((role: Group) => (
-                  <Badge key={role.id} variant={getRoleColor(role.name)} className="text-xs">
-                    {role.name}
-                  </Badge>
-                ))}
-                {activeRoles.length > 2 && (
-                  <Badge variant="outline" className="text-xs">
-                    +{activeRoles.length - 2}
-                  </Badge>
-                )}
-                {activeRoles.length === 0 && (
-                  <Badge variant="outline" className="text-xs text-gray-500">
-                    Sin rol
-                  </Badge>
-                )}
-                <Badge variant="outline" className="text-xs text-gray-600">
-                  <Clock className="h-3 w-3 mr-1" />
-                  {user.inactivity_logout_minutes ?? 30} min
-                </Badge>
-              </div>
-
-              <div className="flex flex-wrap gap-2">
-                {canView && (
-                  <Button variant="outline" size="sm" onClick={() => onSelectUser(user, "view")}>
-                    <Eye className="h-4 w-4" />
-                  </Button>
-                )}
-                {canEdit && (
-                  <Button variant="outline" size="sm" onClick={() => onSelectUser(user, "edit")}>
-                    <Pencil className="h-4 w-4" />
-                  </Button>
-                )}
-                {canManageTempPermissions && (
-                  <Button variant="outline" size="sm" onClick={() => onSelectUser(user, "tempPermission")}>
-                    <Shield className="h-4 w-4" />
-                  </Button>
-                )}
-                {canManageTempPermissions && hasTemp && (
-                  <Button variant="outline" size="sm" onClick={() => onSelectUser(user, "revokeTempPermission")}>
-                    <ShieldX className="h-4 w-4" />
-                  </Button>
-                )}
-                {canAssignRole && (
-                  <Button variant="outline" size="sm" onClick={() => onSelectUser(user, "assignRole")}>
-                    <UserPlus className="h-4 w-4" />
-                  </Button>
-                )}
-                {canRemoveRole && activeRoles.length > 0 && (
-                  <Button variant="outline" size="sm" onClick={() => onSelectUser(user, "removeRole")}>
-                    <UserMinus className="h-4 w-4" />
-                  </Button>
-                )}
-                {canDelete && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="border-red-200 hover:bg-red-50 bg-transparent"
-                    onClick={() => onSelectUser(user, "delete")}
-                  >
-                    <Trash className="h-4 w-4 text-red-500" />
-                  </Button>
-                )}
-              </div>
-            </div>
-          )
-        })}
-      </div>
-
-      <div className="hidden sm:block rounded-lg border bg-white overflow-hidden">
-        <Table>
-          <TableHeader>
-            <TableRow className="bg-gray-50/50">
-              <TableHead className="font-semibold text-gray-900">Usuario</TableHead>
-              <TableHead className="font-semibold text-gray-900">Email</TableHead>
-              <TableHead className="font-semibold text-gray-900">Roles</TableHead>
-              <TableHead className="font-semibold text-gray-900">Inactividad</TableHead>
-              <TableHead className="font-semibold text-gray-900">Creado</TableHead>
-              <TableHead className="font-semibold text-gray-900">Último Cambio</TableHead>
-              <TableHead className="text-right font-semibold text-gray-900">Acciones</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody className="bg-white">
-            {users.map((user, index) => {
-              const activeRoles = getActiveRoles(user)
-              const hasTemp = hasTemporaryPermissions(user)
-              const isLast = index === users.length - 1
-
-              return (
-                <TableRow
-                  key={user.id}
-                  className={`bg-white hover:bg-gray-50/50 border-gray-200 ${isLast ? "[&>td]:border-b-0" : ""}`}
-                >
-                  <TableCell className="bg-white">
-                    <div className="flex items-center space-x-3">
-                      <Avatar className="h-8 w-8">
-                        <AvatarImage src={user.photo || "/placeholder.svg"} alt={user.username} />
-                        <AvatarFallback className="bg-[#204983] text-white text-xs">
-                          {getInitials(user.first_name, user.last_name, user.username)}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <div className="font-medium text-gray-900">
-                          {`${user.first_name} ${user.last_name}`.trim() || user.username}
-                        </div>
-                        <div className="text-sm text-gray-500">@{user.username}</div>
-                      </div>
-                    </div>
-                  </TableCell>
-
-                  <TableCell className="bg-white">
-                    <div className="max-w-[200px] truncate">{user.email}</div>
-                  </TableCell>
-
-                  <TableCell className="bg-white">
-                    <div className="flex flex-wrap gap-1">
-                      {user.is_superuser && (
-                        <Badge variant="destructive" className="text-xs">
-                          Super
-                        </Badge>
-                      )}
-                      {user.is_staff && (
-                        <Badge variant="outline" className="text-xs">
-                          Staff
-                        </Badge>
-                      )}
-                      {hasTemp && (
-                        <Badge variant="secondary" className="text-xs">
-                          <Clock className="h-3 w-3 mr-1" />
-                          Temp
-                        </Badge>
-                      )}
-                      {activeRoles.length > 0 ? (
-                        activeRoles.slice(0, 2).map((role: Group) => (
-                          <Badge key={role.id} variant={getRoleColor(role.name)} className="text-xs">
-                            {role.name}
-                          </Badge>
-                        ))
-                      ) : (
-                        <Badge variant="outline" className="text-xs text-gray-500">
-                          Sin rol
-                        </Badge>
-                      )}
-                      {activeRoles.length > 2 && (
-                        <Badge variant="outline" className="text-xs">
-                          +{activeRoles.length - 2}
-                        </Badge>
-                      )}
-                    </div>
-                  </TableCell>
-
-                  <TableCell className="bg-white text-sm text-gray-600">
-                    <div className="inline-flex items-center gap-1 rounded-full border border-gray-200 px-2 py-1 text-xs">
-                      <Clock className="h-3 w-3 text-gray-400" />
-                      {user.inactivity_logout_minutes ?? 30} min
-                    </div>
-                  </TableCell>
-
-                  <TableCell className="bg-white text-sm text-gray-600">
-                    {user.creation ? (
-                      <AuditAvatars creation={getAuditInfo(user.creation)} size="sm" />
-                    ) : (
-                      <span className="text-gray-400">Sin fecha</span>
-                    )}
-                  </TableCell>
-
-                  <TableCell className="bg-white text-sm text-gray-600">
-                    {user.last_change ? (
-                      <AuditAvatars lastChange={getAuditInfo(user.last_change)} size="sm" />
-                    ) : (
-                      <span className="text-gray-400">Sin cambios</span>
-                    )}
-                  </TableCell>
-
-                  <TableCell className="text-right bg-white">
-                    <div className="flex justify-end">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="outline" size="sm" className="h-8 w-8 p-0">
-                            <span className="sr-only">Abrir acciones</span>
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          {canView && (
-                            <DropdownMenuItem onClick={() => onSelectUser(user, "view")}>
-                              <Eye className="h-4 w-4" />
-                              Ver
-                            </DropdownMenuItem>
-                          )}
-                          {canEdit && (
-                            <DropdownMenuItem onClick={() => onSelectUser(user, "edit")}>
-                              <Pencil className="h-4 w-4" />
-                              Editar
-                            </DropdownMenuItem>
-                          )}
-                          {canManageTempPermissions && (
-                            <DropdownMenuItem onClick={() => onSelectUser(user, "tempPermission")}>
-                              <Shield className="h-4 w-4" />
-                              Permiso temporal
-                            </DropdownMenuItem>
-                          )}
-                          {canManageTempPermissions && hasTemp && (
-                            <DropdownMenuItem onClick={() => onSelectUser(user, "revokeTempPermission")}>
-                              <ShieldX className="h-4 w-4" />
-                              Revocar permiso temporal
-                            </DropdownMenuItem>
-                          )}
-                          {canAssignRole && (
-                            <DropdownMenuItem onClick={() => onSelectUser(user, "assignRole")}>
-                              <UserPlus className="h-4 w-4" />
-                              Asignar rol
-                            </DropdownMenuItem>
-                          )}
-                          {canRemoveRole && activeRoles.length > 0 && (
-                            <DropdownMenuItem onClick={() => onSelectUser(user, "removeRole")}>
-                              <UserMinus className="h-4 w-4" />
-                              Quitar rol
-                            </DropdownMenuItem>
-                          )}
-                          {canDelete && (
-                            <>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem
-                                variant="destructive"
-                                onClick={() => onSelectUser(user, "delete")}
-                              >
-                                <Trash className="h-4 w-4" />
-                                Eliminar
-                              </DropdownMenuItem>
-                            </>
-                          )}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              )
-            })}
-          </TableBody>
-        </Table>
-      </div>
-    </div>
+    <DataTable
+      columns={columns}
+      rows={users}
+      getRowId={(u) => u.id}
+      onRowClick={onRowClick}
+      isLoading={isLoading}
+      emptyMessage="No hay usuarios que coincidan con la búsqueda."
+    />
   )
 }

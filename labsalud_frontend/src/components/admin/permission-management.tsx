@@ -6,7 +6,7 @@ import { AC_ENDPOINTS } from "@/config/api"
 import type { Permission } from "@/types"
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table"
 import { Input } from "@/components/ui/input"
-import { AlertCircle } from "lucide-react"
+import { AlertCircle, Search } from "lucide-react"
 import type { UIEvent, ChangeEvent } from "react"
 
 interface PermissionManagementProps {
@@ -68,29 +68,34 @@ export function PermissionManagement({ permission }: PermissionManagementProps) 
 
   return (
     <div>
-      <h2 className="mb-4 text-lg sm:text-xl font-semibold text-gray-800">Lista de Permisos</h2>
-      <div className="mb-4">
-        <Input
-          type="text"
-          placeholder="Buscar permisos por nombre o codename..."
-          value={search}
-          onChange={handleSearch}
-          className="w-full sm:max-w-md"
-        />
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="relative w-full sm:max-w-md">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+          <Input
+            type="text"
+            placeholder="Buscar permisos por nombre o codename…"
+            value={search}
+            onChange={handleSearch}
+            className="w-full pl-9"
+          />
+        </div>
+        <p className="text-sm text-gray-500">
+          Los permisos son de solo lectura; se asignan a través de los roles.
+        </p>
       </div>
       <div
         ref={permsContainerRef}
         onScroll={onPermsScroll}
-        className="max-h-96 overflow-y-auto border rounded-md p-2 sm:p-3 bg-white"
+        className="max-h-[28rem] overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-sm"
       >
-        <div className="block sm:hidden space-y-3">
+        <div className="block space-y-3 p-3 sm:hidden">
           {permissions.map((perm) => (
             <div key={perm.id} className="border rounded-lg p-3 bg-gray-50">
               <div className="flex items-center justify-between mb-1">
                 <span className="text-xs text-gray-500">ID: {perm.id}</span>
               </div>
               <p className="font-medium text-sm text-gray-900">{perm.name}</p>
-              <p className="text-xs text-gray-600 mt-1">{perm.codename}</p>
+              <p className="mt-1 font-mono text-xs text-gray-500">{perm.codename}</p>
             </div>
           ))}
           {(loading || searching) && <div className="text-center py-4 text-sm text-gray-500">Cargando permisos...</div>}
@@ -104,19 +109,19 @@ export function PermissionManagement({ permission }: PermissionManagementProps) 
 
         <div className="hidden sm:block">
           <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>ID</TableHead>
-                <TableHead>Nombre</TableHead>
-                <TableHead>Codename</TableHead>
+            <TableHeader className="sticky top-0 z-10 bg-gray-50/95 backdrop-blur">
+              <TableRow className="hover:bg-transparent">
+                <TableHead className="w-16 text-xs font-semibold uppercase tracking-wider text-gray-500">ID</TableHead>
+                <TableHead className="text-xs font-semibold uppercase tracking-wider text-gray-500">Nombre</TableHead>
+                <TableHead className="text-xs font-semibold uppercase tracking-wider text-gray-500">Codename</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {permissions.map((perm) => (
-                <TableRow key={perm.id}>
-                  <TableCell>{perm.id}</TableCell>
-                  <TableCell>{perm.name}</TableCell>
-                  <TableCell>{perm.codename}</TableCell>
+                <TableRow key={perm.id} className="border-gray-100">
+                  <TableCell className="text-sm text-gray-400">{perm.id}</TableCell>
+                  <TableCell className="font-medium text-gray-800">{perm.name}</TableCell>
+                  <TableCell className="font-mono text-xs text-gray-500">{perm.codename}</TableCell>
                 </TableRow>
               ))}
               {(loading || searching) && (

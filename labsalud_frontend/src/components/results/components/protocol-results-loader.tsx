@@ -32,8 +32,12 @@ export function ProtocolResultsLoader({ controller }: ProtocolResultsLoaderProps
     if (id == null) return
     const el = inputRefs.current[id]
     if (el && !el.disabled) {
-      el.focus()
+      // preventScroll: hacemos el desplazamiento nosotros, centrando la fila
+      // para que el siguiente resultado quede completamente visible.
+      el.focus({ preventScroll: true })
       el.select()
+      const row = (el.closest("[data-result-row]") as HTMLElement | null) ?? el
+      row.scrollIntoView({ behavior: "smooth", block: "center" })
     }
   }
 

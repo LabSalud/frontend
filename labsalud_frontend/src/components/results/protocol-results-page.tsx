@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button"
 import { InitialsAvatar } from "@/components/common/initials-avatar"
 import { StatusPill } from "@/components/common/status-pill"
 import { useProtocolResults } from "@/hooks/use-protocol-results"
+import { useQueueNav } from "@/hooks/use-next-in-queue"
+import { NextInQueuePill } from "@/components/common/next-in-queue-pill"
 import { ProtocolResultsLoader } from "./components/protocol-results-loader"
 
 export default function ProtocolResultsPage() {
@@ -13,6 +15,7 @@ export default function ProtocolResultsPage() {
   const navigate = useNavigate()
   const controller = useProtocolResults(Number(protocolId))
   const header = controller.protocol
+  const { prevId, nextId } = useQueueNav(Number(protocolId), "labsalud_results_status")
 
   const Breadcrumb = (
     <nav className="mb-4 flex items-center gap-1.5 text-sm">
@@ -53,7 +56,7 @@ export default function ProtocolResultsPage() {
     : `${header?.patient?.first_name ?? ""} ${header?.patient?.last_name ?? ""}`.trim()
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-3 py-4 sm:px-4">
+    <div className="mx-auto w-full max-w-6xl px-3 py-4 pb-28 sm:px-4">
       {Breadcrumb}
 
       <section className="mb-4 rounded-xl border border-gray-200 bg-white p-4 shadow-sm md:p-5">
@@ -85,6 +88,8 @@ export default function ProtocolResultsPage() {
       <section className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm md:p-5">
         <ProtocolResultsLoader controller={controller} />
       </section>
+
+      <NextInQueuePill prevId={prevId} nextId={nextId} basePath="/resultados" />
     </div>
   )
 }

@@ -1,12 +1,12 @@
 "use client"
 
 import type React from "react"
+import { useState } from "react"
 import { Loader2, Save, AlertTriangle, ShieldCheck, History, CheckCircle2, Circle } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import {
   formatEvaluatedReference,
   formatReferenceRange,
@@ -45,7 +45,7 @@ function fmtDateTime(v?: string | null) {
 function fmtDate(v?: string | null) {
   if (!v) return ""
   const d = new Date(v)
-  return Number.isNaN(d.getTime()) ? "" : d.toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "2-digit" })
+  return Number.isNaN(d.getTime()) ? "" : d.toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" })
 }
 
 export function ResultDeterminationRow({
@@ -65,6 +65,7 @@ export function ResultDeterminationRow({
   previous,
   loadingPrevious,
 }: ResultDeterminationRowProps) {
+  const [focused, setFocused] = useState(false)
   const det = result.determination
   const unit = det.measure_unit || ""
   const hasValue = !!result.value
@@ -81,6 +82,7 @@ export function ResultDeterminationRow({
 
   return (
     <div
+      data-result-row
       className={cn(
         "rounded-lg border p-3 transition-colors",
         isWrong ? "border-red-300 bg-red-50" : isValidated ? "border-emerald-200 bg-emerald-50/40" : hasValue ? "border-blue-200 bg-blue-50/30" : "border-gray-200 bg-white",
@@ -94,6 +96,11 @@ export function ResultDeterminationRow({
           {isFormula && (
             <Badge variant="outline" className={cn("ml-2 text-[10px]", formulaResolved ? "border-blue-200 bg-blue-50 text-blue-700" : "border-amber-200 bg-amber-50 text-amber-700")}>
               {formulaResolved ? "Auto" : "Fórmula pendiente"}
+            </Badge>
+          )}
+          {result.is_sent && (
+            <Badge variant="outline" className="ml-2 border-sky-200 bg-sky-50 text-[10px] text-sky-700">
+              Enviado
             </Badge>
           )}
         </div>
@@ -132,42 +139,37 @@ export function ResultDeterminationRow({
             value={value.value}
             onChange={(e) => onChange("value", e.target.value)}
             onKeyDown={onInputKeyDown}
-            onFocus={onLoadPrevious}
+            onFocus={() => {
+              setFocused(true)
+              onLoadPrevious()
+            }}
+            onBlur={() => setTimeout(() => setFocused(false), 150)}
             readOnly={readOnly}
             disabled={locked}
             className={cn("h-11 text-base font-semibold", hasValue && !isValidated && "border-blue-300", isValidated && "border-emerald-300 bg-emerald-100")}
           />
-          <div className="mt-1 flex items-center gap-2">
-            {/* Historial: popover con valores anteriores del paciente */}
-            <Popover onOpenChange={(o) => o && onLoadPrevious()}>
-              <PopoverTrigger asChild>
-                <button type="button" className="inline-flex items-center gap-1 text-[11px] text-gray-500 hover:text-[#204983]">
-                  <History className="h-3 w-3" />
-                  Historial{previous.length > 0 && ` (${previous.length})`}
-                </button>
-              </PopoverTrigger>
-              <PopoverContent align="start" className="w-56 p-2">
-                <p className="mb-1 text-xs font-semibold text-gray-700">Valores anteriores</p>
-                {loadingPrevious ? (
-                  <p className="py-2 text-xs text-gray-400">Buscando…</p>
-                ) : previous.length === 0 ? (
-                  <p className="py-2 text-xs text-gray-400">Sin resultados anteriores</p>
-                ) : (
-                  <ul className="max-h-52 space-y-1 overflow-y-auto">
-                    {previous.map((p) => (
-                      <li key={p.id} className="flex items-center justify-between gap-2 rounded px-1.5 py-1 text-xs hover:bg-gray-50">
-                        <span className="font-medium text-gray-800">{p.value || "—"}</span>
-                        <span className="text-[10px] text-gray-400">{fmtDate(p.validated_at || p.date)}</span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </PopoverContent>
-            </Popover>
-            {previous[0]?.value && (
-              <span className="text-[11px] text-gray-400">ant: <span className="font-medium text-gray-600">{previous[0].value}</span></span>
-            )}
-          </div>
+          {/* Al enfocar el input se despliega el historial del paciente */}
+          {focused && (
+            <div className="mt-1.5 rounded-md border border-gray-100 bg-gray-50/70 p-1.5">
+              <p className="mb-1 flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-gray-500">
+                <History className="h-3 w-3" /> Valores anteriores
+              </p>
+              {loadingPrevious ? (
+                <p className="text-[11px] text-gray-400">Buscando…</p>
+              ) : previous.length === 0 ? (
+                <p className="text-[11px] text-gray-400">Sin resultados anteriores</p>
+              ) : (
+                <ul className="max-h-32 space-y-0.5 overflow-y-auto">
+                  {previous.map((p) => (
+                    <li key={p.id} className="flex items-center justify-between gap-2 text-[11px]">
+                      <span className="font-medium text-gray-800">{p.value || "—"}</span>
+                      <span className="text-[10px] text-gray-400">{fmtDate(p.validated_at || p.date)}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="lg:w-52">

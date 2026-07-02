@@ -314,12 +314,16 @@ export function ProtocolsTable({
     },
   ]
 
+  // Con selección activa, click en cualquier parte de la fila toggle-a la
+  // selección (no hace falta apuntar al checkbox); sin selección, navega.
+  const selectionMode = selectedIds.size > 0
+
   return (
     <DataTable
       columns={columns}
       rows={protocols}
       getRowId={(p) => p.id}
-      onRowClick={(p) => onRowClick(p.id)}
+      onRowClick={(p) => (selectionMode ? onToggleSelect(p.id) : onRowClick(p.id))}
       sort={sort}
       onSortChange={onSortChange}
       isLoading={isLoading}

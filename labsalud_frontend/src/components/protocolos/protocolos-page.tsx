@@ -15,27 +15,15 @@ import {
   Clock,
   Ban,
   AlertTriangle,
-  Download,
-  Printer,
   Mail,
-  MessageCircle,
   PenLine,
-  GitMerge,
 } from "lucide-react"
 import { Input } from "../ui/input"
 import { Button } from "../ui/button"
 import { Skeleton } from "../ui/skeleton"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "../ui/dropdown-menu"
 import { ProtocolsTable } from "./components/protocols-table"
+import { BatchActionBar } from "./components/batch-action-bar"
 import { useProtocolQuickActions } from "./components/use-protocol-quick-actions"
 import { useAuth } from "@/contexts/auth-context"
 import { usePersistedState } from "@/hooks/use-persisted-state"
@@ -142,6 +130,7 @@ export default function ProtocolosPage() {
   const isSelectionMode = selectedProtocols.size > 0
   const [batchReportType, setBatchReportType] = useState<"full" | "summary">("full")
   const [batchSigned, setBatchSigned] = useState(true)
+  const [batchDate, setBatchDate] = useState("")
   const [batchSignatureId, setBatchSignatureId] = useState("default")
   const [isBatchProcessing, setIsBatchProcessing] = useState(false)
 
@@ -441,6 +430,7 @@ export default function ProtocolosPage() {
           action: endpointAction,
           type: batchReportType,
           signed: batchSigned,
+          ...(batchDate ? { protocol_date: batchDate } : {}),
           ...getBatchSignaturePayload(),
         },
       })
@@ -503,6 +493,7 @@ export default function ProtocolosPage() {
           action: endpointAction,
           type: batchReportType,
           signed: batchSigned,
+          ...(batchDate ? { protocol_date: batchDate } : {}),
           ...getBatchSignaturePayload(),
         },
       })
@@ -813,153 +804,25 @@ export default function ProtocolosPage() {
         </div>
       </div>
 
-      {/* Floating Batch Action Bar */}
+      {/* Barra flotante de acciones en lote */}
       {isSelectionMode && (
-        <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-gray-200 bg-white px-3 py-3 shadow-lg sm:px-4">
-          <div className="mx-auto flex max-w-7xl flex-col gap-3 lg:flex-row lg:items-center lg:gap-4">
-            {/* Fila 1: selección + opciones (tipo, firma) */}
-            <div className="flex flex-wrap items-center gap-2 lg:flex-nowrap lg:gap-3">
-              <span className="text-sm font-medium text-gray-700 whitespace-nowrap">
-                {selectedProtocols.size} sel.
-              </span>
-              <Button variant="ghost" size="sm" onClick={selectAll} className="text-xs">
-                Todos
-              </Button>
-              <Button variant="ghost" size="sm" onClick={deselectAll} className="text-xs">
-                Ninguno
-              </Button>
-
-              <Select value={batchReportType} onValueChange={handleBatchReportTypeChange}>
-                <SelectTrigger className="h-9 w-[140px] sm:w-[160px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="full">Reporte completo</SelectItem>
-                  <SelectItem value="summary">Resumen</SelectItem>
-                </SelectContent>
-              </Select>
-
-              <button
-                type="button"
-                onClick={() => setBatchSigned(!batchSigned)}
-                className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-xs transition-colors sm:text-sm ${
-                  batchSigned
-                    ? "border-[#204983] bg-blue-50 text-[#204983]"
-                    : "border-gray-200 bg-white text-gray-700 hover:border-gray-300"
-                }`}
-              >
-                <PenLine className="h-4 w-4 shrink-0" />
-                <span className="font-medium whitespace-nowrap">
-                  <span className="hidden sm:inline">{batchSigned ? "Firma digital" : "Sin firma digital"}</span>
-                  <span className="sm:hidden">{batchSigned ? "Firmado" : "Sin firma"}</span>
-                </span>
-              </button>
-
-              {batchSigned && (
-                <Select value={batchSignatureId} onValueChange={setBatchSignatureId}>
-                  <SelectTrigger className="h-9 w-[170px] sm:w-[210px]">
-                    <SelectValue placeholder="Firma" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="default">Firma predeterminada</SelectItem>
-                    {reportSignatures.map((signature) => (
-                      <SelectItem key={signature.id} value={signature.id.toString()}>
-                        {signature.name}
-                        {signature.is_default ? " (predeterminada)" : ""}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            </div>
-
-            {/* Fila 2: acciones */}
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-5 lg:ml-auto lg:flex lg:w-auto lg:items-center">
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={selectedProtocols.size === 0 || isBatchProcessing}
-                onClick={() => handleBatchAction("print")}
-              >
-                {isBatchProcessing ? (
-                  <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                ) : (
-                  <Printer className="h-4 w-4 mr-1" />
-                )}
-                <span className="truncate">Imprimir</span>
-              </Button>
-              <Button
-                size="sm"
-                disabled={selectedProtocols.size === 0 || isBatchProcessing}
-                onClick={() => handleBatchAction("download")}
-                className="bg-[#204983]"
-              >
-                {isBatchProcessing ? (
-                  <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                ) : (
-                  <Download className="h-4 w-4 mr-1" />
-                )}
-                <span className="truncate">Descargar</span>
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={selectedProtocols.size === 0 || isBatchProcessing}
-                onClick={() => handleBatchAction("email")}
-              >
-                <Mail className="h-4 w-4 mr-1" />
-                Email
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={selectedProtocols.size === 0 || isBatchProcessing}
-                onClick={() => handleBatchAction("whatsapp")}
-              >
-                <MessageCircle className="h-4 w-4 mr-1" />
-                WhatsApp
-              </Button>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={selectedProtocols.size < 2 || isBatchProcessing}
-                    className="border-[#204983] text-[#204983] hover:bg-[#204983] hover:text-white"
-                    title="Combinar varios protocolos del mismo paciente en un único reporte"
-                  >
-                    {isBatchProcessing ? (
-                      <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                    ) : (
-                      <GitMerge className="h-4 w-4 mr-1" />
-                    )}
-                    Unificar
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuLabel>Reporte unificado</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => handleMergeReport("print")}>
-                    <Printer className="h-4 w-4 mr-2" />
-                    Imprimir
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleMergeReport("download")}>
-                    <Download className="h-4 w-4 mr-2" />
-                    Descargar PDF
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleMergeReport("email")}>
-                    <Mail className="h-4 w-4 mr-2" />
-                    Enviar por email
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleMergeReport("whatsapp")}>
-                    <MessageCircle className="h-4 w-4 mr-2" />
-                    Enviar por WhatsApp
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          </div>
-        </div>
+        <BatchActionBar
+          selectedCount={selectedProtocols.size}
+          reportType={batchReportType}
+          onReportTypeChange={handleBatchReportTypeChange}
+          signed={batchSigned}
+          onSignedChange={setBatchSigned}
+          signatureId={batchSignatureId}
+          onSignatureIdChange={setBatchSignatureId}
+          signatures={reportSignatures}
+          date={batchDate}
+          onDateChange={setBatchDate}
+          isProcessing={isBatchProcessing}
+          onSelectAll={selectAll}
+          onDeselectAll={deselectAll}
+          onBatch={handleBatchAction}
+          onMerge={handleMergeReport}
+        />
       )}
 
       {quickActions.dialogs}

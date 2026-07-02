@@ -32,7 +32,7 @@ function fmtDateTime(v?: string | null) {
 function fmtDate(v?: string | null) {
   if (!v) return ""
   const d = new Date(v)
-  return Number.isNaN(d.getTime()) ? "" : d.toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" })
+  return Number.isNaN(d.getTime()) ? "" : d.toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" })
 }
 
 // Muestra los valores anteriores del paciente al pasar el mouse (carga on-open).
@@ -119,29 +119,24 @@ export function ValidationResultRow({ result, saving, onValidate, onLoadPrevious
             </Badge>
           )}
           {evaluatedReference && <span className="text-[10px] text-gray-500">{evaluatedReference}</span>}
+          {result.is_sent && (
+            <Badge variant="outline" className="border-sky-200 bg-sky-50 text-[10px] text-sky-700">
+              Enviado
+            </Badge>
+          )}
         </div>
         {result.notes && <p className="mt-1 text-xs text-gray-500">Nota: {result.notes}</p>}
       </div>
 
-      {/* Valores anteriores del paciente (clave para validar): hover para verlos */}
-      <div className="lg:w-40">
+      {/* Acción: validar / rechazar (mouse-first) con sección de historial por hover */}
+      <div className="flex shrink-0 items-center gap-2 lg:w-72 lg:justify-end">
+        {/* Sección de historial: al pasar el mouse por acá se despliega */}
         <HistoryHover previous={previous} loading={loadingPrevious} onOpen={onLoadPrevious}>
-          <button
-            type="button"
-            onClick={onLoadPrevious}
-            className="inline-flex items-center gap-1 rounded-md border border-gray-200 px-2 py-1 text-xs text-gray-600 hover:bg-gray-50"
-          >
+          <span className="flex cursor-help items-center gap-1 rounded-md border border-dashed border-gray-200 px-2 py-1.5 text-[11px] text-gray-400 transition-colors hover:border-[#204983] hover:text-[#204983]">
             <History className="h-3.5 w-3.5" />
-            Anteriores{previous.length > 0 && ` (${previous.length})`}
-          </button>
+            Historial
+          </span>
         </HistoryHover>
-        {previous[0]?.value && (
-          <p className="mt-1 text-[11px] text-gray-400">último: <span className="font-medium text-gray-600">{previous[0].value}</span></p>
-        )}
-      </div>
-
-      {/* Acción: validar / rechazar (mouse-first) */}
-      <div className="flex shrink-0 items-center gap-2 lg:w-56 lg:justify-end">
         {saving ? (
           <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
         ) : isValidated ? (

@@ -325,6 +325,8 @@ function SignatureSelector({
 }) {
   if (!signed) return null
 
+  const defaultSignature = signatures.find((s) => s.is_default)
+
   return (
     <div className="flex flex-col gap-2">
       <Label className="text-sm font-medium">Firma a utilizar</Label>
@@ -333,17 +335,21 @@ function SignatureSelector({
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="default">Firma predeterminada</SelectItem>
-          {signatures.map((signature) => (
-            <SelectItem key={signature.id} value={signature.id.toString()}>
-              {signature.name}
-              {signature.is_default ? " (predeterminada)" : ""}
-            </SelectItem>
-          ))}
+          {/* La opción "default" muestra el nombre de la firma predeterminada. */}
+          <SelectItem value="default">
+            {defaultSignature ? `${defaultSignature.name} (predeterminada)` : "Predeterminada del sistema"}
+          </SelectItem>
+          {signatures
+            .filter((signature) => !signature.is_default)
+            .map((signature) => (
+              <SelectItem key={signature.id} value={signature.id.toString()}>
+                {signature.name}
+              </SelectItem>
+            ))}
         </SelectContent>
       </Select>
       <p className="text-xs text-muted-foreground">
-        Si no elegís una firma específica, el sistema usa la predeterminada del catálogo.
+        Si no elegís una firma específica, se usa la predeterminada del catálogo.
       </p>
     </div>
   )

@@ -8,6 +8,8 @@ import { StatusPill } from "@/components/common/status-pill"
 import useAuth from "@/contexts/auth-context"
 import { PERMISSIONS } from "@/config/permissions"
 import { useProtocolResults } from "@/hooks/use-protocol-results"
+import { useQueueNav } from "@/hooks/use-next-in-queue"
+import { NextInQueuePill } from "@/components/common/next-in-queue-pill"
 import { ProtocolValidationLoader } from "./components/protocol-validation-loader"
 
 export default function ProtocolValidationPage() {
@@ -16,6 +18,7 @@ export default function ProtocolValidationPage() {
   const { hasPermission } = useAuth()
   const controller = useProtocolResults(Number(protocolId))
   const header = controller.protocol
+  const { prevId, nextId } = useQueueNav(Number(protocolId), "labsalud_validacion_status")
 
   if (!hasPermission(PERMISSIONS.VALIDATE_RESULTS.codename)) {
     return (
@@ -66,7 +69,7 @@ export default function ProtocolValidationPage() {
     : `${header?.patient?.first_name ?? ""} ${header?.patient?.last_name ?? ""}`.trim()
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-3 py-4 sm:px-4">
+    <div className="mx-auto w-full max-w-6xl px-3 py-4 pb-28 sm:px-4">
       {Breadcrumb}
 
       <section className="mb-4 rounded-xl border border-gray-200 bg-white p-4 shadow-sm md:p-5">
@@ -98,6 +101,8 @@ export default function ProtocolValidationPage() {
       <section className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm md:p-5">
         <ProtocolValidationLoader controller={controller} />
       </section>
+
+      <NextInQueuePill prevId={prevId} nextId={nextId} basePath="/validacion" />
     </div>
   )
 }

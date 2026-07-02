@@ -859,6 +859,9 @@ export interface Result {
   determination: ResultDetermination
   value: string
   is_valid: boolean
+  /** true si este resultado ya fue enviado al paciente (envío parcial: se puede
+   * enviar aunque el análisis no esté completo, con al menos un resultado). */
+  is_sent?: boolean
   notes: string
   is_wrong: boolean
   is_out_of_reference_range?: boolean

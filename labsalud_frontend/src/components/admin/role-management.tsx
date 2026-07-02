@@ -18,13 +18,13 @@ import {
   DialogFooter,
   DialogClose,
 } from "@/components/ui/dialog"
-import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Eye, Pencil, Trash, Plus, AlertCircle } from "lucide-react"
+import { DataTable, type Column } from "@/components/common/data-table"
+import { Pencil, Trash, Plus, Search, ShieldCheck } from "lucide-react"
 import { Separator } from "@/components/ui/separator"
 import { HistoryList } from "@/components/common/history-list"
 import { formatDateTime } from "@/utils/date-utils"
@@ -101,7 +101,11 @@ export function RoleManagement({ roles, setRoles, refreshData }: RoleManagementP
     }
   }
 
-  const validRoles = roles.filter((r) => r.id)
+  const [search, setSearch] = useState("")
+  const query = search.trim().toLowerCase()
+  const validRoles = roles
+    .filter((r) => r.id)
+    .filter((r) => (query ? r.name.toLowerCase().includes(query) : true))
 
   const [selectedRole, setSelectedRole] = useState<RoleWithDetails | null>(null)
   const [isViewing, setIsViewing] = useState(false)
@@ -242,12 +246,78 @@ export function RoleManagement({ roles, setRoles, refreshData }: RoleManagementP
     }
   }
 
+  const openRoleView = (role: RoleWithDetails) => {
+    handleSelectRole(role)
+    setIsViewing(true)
+    fetchRoleDetail(role.id)
+  }
+
+  const roleColumns: Column<RoleWithDetails>[] = [
+    {
+      id: "name",
+      header: "Nombre",
+      cell: (role) => (
+        <div className="flex items-center gap-2.5">
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#204983]/10 text-[#204983]">
+            <ShieldCheck className="h-4 w-4" />
+          </span>
+          <span className="font-medium text-gray-900">{role.name}</span>
+        </div>
+      ),
+    },
+    {
+      id: "permissions",
+      header: "Permisos",
+      cell: (role) => {
+        const perms = role.permission_details ?? []
+        return (
+          <div className="flex flex-wrap gap-1">
+            {perms.length > 0 ? (
+              perms.slice(0, 3).map((p) => (
+                <Badge key={p.id} variant="secondary" className="text-[10px]">
+                  {p.name}
+                </Badge>
+              ))
+            ) : (
+              <span className="text-sm text-gray-400">Sin permisos</span>
+            )}
+            {perms.length > 3 && <Badge variant="outline" className="text-[10px]">+{perms.length - 3}</Badge>}
+          </div>
+        )
+      },
+    },
+    {
+      id: "created",
+      header: "Creado",
+      responsive: "hidden lg:table-cell",
+      cell: (role) => (
+        <span className="text-sm text-gray-500">{role.creation ? formatDateTime(role.creation.date) : "—"}</span>
+      ),
+    },
+    {
+      id: "changed",
+      header: "Último cambio",
+      responsive: "hidden lg:table-cell",
+      cell: (role) => (
+        <span className="text-sm text-gray-500">{role.last_change ? formatDateTime(role.last_change.date) : "—"}</span>
+      ),
+    },
+  ]
+
   if (!canView) return null
 
   return (
     <div>
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4 sm:mb-6">
-        <h2 className="text-lg sm:text-xl font-semibold text-gray-800">Lista de Roles</h2>
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="relative w-full sm:max-w-xs">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+          <Input
+            placeholder="Buscar rol…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9"
+          />
+        </div>
         {canCreate && (
           <Dialog
             open={isCreating}
@@ -311,180 +381,13 @@ export function RoleManagement({ roles, setRoles, refreshData }: RoleManagementP
         )}
       </div>
 
-      <div className="block sm:hidden space-y-3">
-        {validRoles.length === 0 ? (
-          <div className="bg-white rounded-lg shadow-sm p-4">
-            <div className="flex flex-col items-center justify-center text-gray-500">
-              <AlertCircle className="h-8 w-8 mb-2" />
-              <p className="text-sm">No hay roles disponibles</p>
-            </div>
-          </div>
-        ) : (
-          validRoles.map((role) => (
-            <div key={role.id} className="bg-white border rounded-lg p-4 shadow-sm">
-              <div className="flex justify-between items-start mb-3">
-                <h3 className="font-medium text-gray-900">{role.name}</h3>
-              </div>
-              <div className="flex flex-wrap gap-1 mb-3">
-                {role.permission_details && role.permission_details.length > 0 ? (
-                  role.permission_details.slice(0, 2).map((p: Permission) => (
-                    <Badge key={p.id} variant="secondary" className="text-xs">
-                      {p.name}
-                    </Badge>
-                  ))
-                ) : (
-                  <span className="text-gray-500 text-xs">Sin permisos</span>
-                )}
-                {role.permission_details && role.permission_details.length > 2 && (
-                  <Badge variant="outline" className="text-xs">
-                    +{role.permission_details.length - 2} más
-                  </Badge>
-                )}
-              </div>
-              <div className="text-sm text-gray-600 mb-3">
-                <p>Creado: {role.creation ? formatDateTime(role.creation.date) : "Sin fecha"}</p>
-                <p>Último cambio: {role.last_change ? formatDateTime(role.last_change.date) : "Sin cambios"}</p>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    handleSelectRole(role)
-                    setIsViewing(true)
-                    fetchRoleDetail(role.id)
-                  }}
-                >
-                  <Eye className="h-4 w-4" />
-                </Button>
-                {canEdit && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      resetForm()
-                      handleSelectRole(role)
-                      setIsEditing(true)
-                    }}
-                  >
-                    <Pencil className="h-4 w-4" />
-                  </Button>
-                )}
-                {canDelete && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="border-red-200 hover:bg-red-50 bg-transparent"
-                    onClick={() => {
-                      handleSelectRole(role)
-                      setIsDeleting(true)
-                    }}
-                  >
-                    <Trash className="h-4 w-4 text-red-500" />
-                  </Button>
-                )}
-              </div>
-            </div>
-          ))
-        )}
-      </div>
-
-      <div className="hidden sm:block rounded-md border bg-white">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Nombre</TableHead>
-              <TableHead>Permisos</TableHead>
-              <TableHead>Creado</TableHead>
-              <TableHead>Último Cambio</TableHead>
-              <TableHead className="text-right">Acciones</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {validRoles.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={5} className="text-center py-8">
-                  <div className="flex flex-col items-center justify-center text-gray-500">
-                    <AlertCircle className="h-8 w-8 mb-2" />
-                    <p>No hay roles disponibles</p>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ) : (
-              validRoles.map((role) => (
-                <TableRow key={role.id}>
-                  <TableCell className="font-medium">{role.name}</TableCell>
-                  <TableCell>
-                    <div className="flex flex-wrap gap-1">
-                      {role.permission_details && role.permission_details.length > 0 ? (
-                        role.permission_details.slice(0, 3).map((p: Permission) => (
-                          <Badge key={p.id} variant="secondary" className="text-xs">
-                            {p.name}
-                          </Badge>
-                        ))
-                      ) : (
-                        <span className="text-gray-500 text-sm">Sin permisos</span>
-                      )}
-                      {role.permission_details && role.permission_details.length > 3 && (
-                        <Badge variant="outline" className="text-xs">
-                          +{role.permission_details.length - 3} más
-                        </Badge>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-sm text-gray-600">
-                    {role.creation ? formatDateTime(role.creation.date) : "Sin fecha"}
-                  </TableCell>
-                  <TableCell className="text-sm text-gray-600">
-                    {role.last_change ? formatDateTime(role.last_change.date) : "Sin cambios"}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end space-x-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          handleSelectRole(role)
-                          setIsViewing(true)
-                          fetchRoleDetail(role.id)
-                        }}
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      {canEdit && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            resetForm()
-                            handleSelectRole(role)
-                            setIsEditing(true)
-                          }}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                      )}
-                      {canDelete && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="border-red-200 hover:bg-red-50 bg-transparent"
-                          onClick={() => {
-                            handleSelectRole(role)
-                            setIsDeleting(true)
-                          }}
-                        >
-                          <Trash className="h-4 w-4 text-red-500" />
-                        </Button>
-                      )}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
+      <DataTable
+        columns={roleColumns}
+        rows={validRoles}
+        getRowId={(r) => r.id}
+        onRowClick={openRoleView}
+        emptyMessage="No hay roles que coincidan con la búsqueda."
+      />
 
       {/* Dialog Ver Rol */}
       <Dialog
@@ -558,9 +461,46 @@ export function RoleManagement({ roles, setRoles, refreshData }: RoleManagementP
               </div>
             </div>
           ) : null}
-          <DialogFooter>
+          <DialogFooter className="flex-col gap-2 sm:flex-row sm:justify-between">
+            <div className="flex gap-2">
+              {canEdit && (
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    // Cerrar Ver dispara resetForm (limpia selectedRole); reseleccionamos
+                    // en el próximo tick para que Editar tenga los datos correctos.
+                    const role = roleDetail ?? selectedRole
+                    setIsViewing(false)
+                    setTimeout(() => {
+                      if (role) handleSelectRole(role)
+                      setIsEditing(true)
+                    }, 0)
+                  }}
+                >
+                  <Pencil className="mr-1.5 h-4 w-4" />
+                  Editar
+                </Button>
+              )}
+              {canDelete && (
+                <Button
+                  variant="outline"
+                  className="border-red-200 text-red-600 hover:bg-red-50"
+                  onClick={() => {
+                    const role = roleDetail ?? selectedRole
+                    setIsViewing(false)
+                    setTimeout(() => {
+                      if (role) handleSelectRole(role)
+                      setIsDeleting(true)
+                    }, 0)
+                  }}
+                >
+                  <Trash className="mr-1.5 h-4 w-4" />
+                  Eliminar
+                </Button>
+              )}
+            </div>
             <DialogClose asChild>
-              <Button variant="outline" className="w-full sm:w-auto bg-transparent">
+              <Button variant="outline" className="bg-transparent">
                 Cerrar
               </Button>
             </DialogClose>

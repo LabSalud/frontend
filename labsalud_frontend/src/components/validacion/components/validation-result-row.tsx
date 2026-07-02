@@ -3,7 +3,7 @@
 import { Loader2, Check, X, ShieldCheck, History, AlertTriangle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card"
 import {
   formatEvaluatedReference,
   formatReferenceRange,
@@ -35,6 +35,43 @@ function fmtDate(v?: string | null) {
   return Number.isNaN(d.getTime()) ? "" : d.toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" })
 }
 
+// Muestra los valores anteriores del paciente al pasar el mouse (carga on-open).
+// Reutilizable: se envuelve tanto el nombre de la determinación como el chip.
+function HistoryHover({
+  previous,
+  loading,
+  onOpen,
+  children,
+}: {
+  previous: PreviousResult[]
+  loading: boolean
+  onOpen: () => void
+  children: React.ReactNode
+}) {
+  return (
+    <HoverCard openDelay={120} closeDelay={80} onOpenChange={(o) => o && onOpen()}>
+      <HoverCardTrigger asChild>{children}</HoverCardTrigger>
+      <HoverCardContent align="start" className="w-60 p-2">
+        <p className="mb-1 text-xs font-semibold text-gray-700">Valores anteriores del paciente</p>
+        {loading ? (
+          <p className="py-2 text-xs text-gray-400">Buscando…</p>
+        ) : previous.length === 0 ? (
+          <p className="py-2 text-xs text-gray-400">Sin resultados anteriores</p>
+        ) : (
+          <ul className="max-h-56 space-y-1 overflow-y-auto">
+            {previous.map((p) => (
+              <li key={p.id} className="flex items-center justify-between gap-2 rounded px-1.5 py-1 text-xs hover:bg-gray-50">
+                <span className="font-medium text-gray-800">{p.value || "—"}</span>
+                <span className="text-[10px] text-gray-400">{fmtDate(p.validated_at || p.date)}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </HoverCardContent>
+    </HoverCard>
+  )
+}
+
 export function ValidationResultRow({ result, saving, onValidate, onLoadPrevious, previous, loadingPrevious }: ValidationResultRowProps) {
   const det = result.determination
   const unit = det.measure_unit || ""
@@ -59,7 +96,11 @@ export function ValidationResultRow({ result, saving, onValidate, onLoadPrevious
       {/* Determinación + valor + referencia */}
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-baseline gap-x-2">
-          <span className="font-semibold text-gray-900">{det.name}</span>
+          <HistoryHover previous={previous} loading={loadingPrevious} onOpen={onLoadPrevious}>
+            <span className="cursor-help font-semibold text-gray-900 underline decoration-dotted decoration-gray-300 underline-offset-2">
+              {det.name}
+            </span>
+          </HistoryHover>
           <span className={cn("text-lg font-bold", isOutOfRange ? "text-red-600" : "text-gray-900")}>
             {hasValue ? result.value : "—"}
           </span>
@@ -82,37 +123,18 @@ export function ValidationResultRow({ result, saving, onValidate, onLoadPrevious
         {result.notes && <p className="mt-1 text-xs text-gray-500">Nota: {result.notes}</p>}
       </div>
 
-      {/* Valores anteriores del paciente (clave para validar) */}
+      {/* Valores anteriores del paciente (clave para validar): hover para verlos */}
       <div className="lg:w-40">
-        <Popover onOpenChange={(o) => o && onLoadPrevious()}>
-          <PopoverTrigger asChild>
-            <button
-              type="button"
-              onClick={onLoadPrevious}
-              className="inline-flex items-center gap-1 rounded-md border border-gray-200 px-2 py-1 text-xs text-gray-600 hover:bg-gray-50"
-            >
-              <History className="h-3.5 w-3.5" />
-              Anteriores{previous.length > 0 && ` (${previous.length})`}
-            </button>
-          </PopoverTrigger>
-          <PopoverContent align="start" className="w-56 p-2">
-            <p className="mb-1 text-xs font-semibold text-gray-700">Valores anteriores del paciente</p>
-            {loadingPrevious ? (
-              <p className="py-2 text-xs text-gray-400">Buscando…</p>
-            ) : previous.length === 0 ? (
-              <p className="py-2 text-xs text-gray-400">Sin resultados anteriores</p>
-            ) : (
-              <ul className="max-h-56 space-y-1 overflow-y-auto">
-                {previous.map((p) => (
-                  <li key={p.id} className="flex items-center justify-between gap-2 rounded px-1.5 py-1 text-xs hover:bg-gray-50">
-                    <span className="font-medium text-gray-800">{p.value || "—"}</span>
-                    <span className="text-[10px] text-gray-400">{fmtDate(p.validated_at || p.date)}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </PopoverContent>
-        </Popover>
+        <HistoryHover previous={previous} loading={loadingPrevious} onOpen={onLoadPrevious}>
+          <button
+            type="button"
+            onClick={onLoadPrevious}
+            className="inline-flex items-center gap-1 rounded-md border border-gray-200 px-2 py-1 text-xs text-gray-600 hover:bg-gray-50"
+          >
+            <History className="h-3.5 w-3.5" />
+            Anteriores{previous.length > 0 && ` (${previous.length})`}
+          </button>
+        </HistoryHover>
         {previous[0]?.value && (
           <p className="mt-1 text-[11px] text-gray-400">último: <span className="font-medium text-gray-600">{previous[0].value}</span></p>
         )}

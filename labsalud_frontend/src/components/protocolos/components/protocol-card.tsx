@@ -135,8 +135,15 @@ type ReportAction = "download" | "email" | "whatsapp"
 
 const EXCLUDED_REPORT_ANALYSIS_CODES = new Set([660001, 661001])
 
+// Incluible en el reporte: alcanza con tener resultados cargados (el backend
+// imprime sólo los validados). Permite impresión parcial de análisis a medio validar.
 const isSelectableForReport = (analysis: ReportProtocolDetail) => {
-  return !EXCLUDED_REPORT_ANALYSIS_CODES.has(analysis.code) && analysis.is_valid !== false
+  return !EXCLUDED_REPORT_ANALYSIS_CODES.has(analysis.code) && analysis.is_loaded !== false
+}
+
+// Preselección por defecto: sólo los análisis totalmente validados.
+const isDefaultReportSelected = (analysis: ReportProtocolDetail) => {
+  return isSelectableForReport(analysis) && analysis.is_valid !== false
 }
 
 const isReportableAnalysis = (analysis: ReportProtocolDetail) => {
@@ -405,7 +412,7 @@ export function ProtocolCard({
       return
     }
 
-    setSelectedReportAnalysisIds(analyses.filter(isSelectableForReport).map((analysis) => analysis.id))
+    setSelectedReportAnalysisIds(analyses.filter(isDefaultReportSelected).map((analysis) => analysis.id))
     setReportType("full")
     setReportSigned(true)
     setReportCustomizationOpen(false)

@@ -133,8 +133,11 @@ interface ReportCustomizationDrawerProps {
 
 const EXCLUDED_ANALYSIS_CODES = new Set([660001, 661001])
 
+// Se puede incluir cualquier análisis con resultados cargados, aunque no esté
+// validado por completo: el backend imprime sólo los resultados validados
+// (is_sent) del análisis, así que la impresión parcial es válida.
 function isSelectableAnalysis(analysis: ReportProtocolAnalysis) {
-  return !EXCLUDED_ANALYSIS_CODES.has(analysis.code) && analysis.is_valid !== false
+  return !EXCLUDED_ANALYSIS_CODES.has(analysis.code) && analysis.is_loaded !== false
 }
 
 function isVisibleAnalysis(analysis: ReportProtocolAnalysis) {
@@ -224,6 +227,8 @@ function ReportCustomizationDrawer({
                 {visibleAnalyses.map((analysis) => {
                   const checked = selectedAnalysisIds.includes(analysis.id)
                   const isDisabled = !isSelectableAnalysis(analysis)
+                  // Cargado pero aún no validado por completo: se puede incluir, pero parcial.
+                  const isPartial = !isDisabled && analysis.is_valid === false
                   return (
                     <button
                       key={analysis.id}
@@ -267,19 +272,26 @@ function ReportCustomizationDrawer({
                               >
                                 {analysis.is_sent ? "Ya enviado" : "Pendiente"}
                               </Badge>
-                              {isDisabled && (
+                              {isPartial && (
                                 <Badge variant="secondary" className="bg-amber-100 text-amber-700">
-                                  No validado
+                                  Parcial
+                                </Badge>
+                              )}
+                              {isDisabled && (
+                                <Badge variant="secondary" className="bg-slate-100 text-slate-500">
+                                  Sin resultados
                                 </Badge>
                               )}
                             </div>
                           </div>
                           <p className="mt-2 text-xs text-slate-600">
                             {isDisabled
-                              ? "No se incluirá hasta que el análisis esté validado."
-                              : checked
-                                ? "Se incluirá en el reporte."
-                                : "No se enviará en este reporte."}
+                              ? "No se puede incluir: todavía no tiene resultados cargados."
+                              : isPartial && checked
+                                ? "Se incluirán sólo los resultados ya validados de este análisis."
+                                : checked
+                                  ? "Se incluirá en el reporte."
+                                  : "No se enviará en este reporte."}
                           </p>
                         </div>
                       </div>

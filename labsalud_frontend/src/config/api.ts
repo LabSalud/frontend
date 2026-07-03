@@ -27,7 +27,6 @@ export const buildApiUrl = (endpoint: string): string => {
 export const AUTH_ENDPOINTS = {
   TOKEN: buildApiUrl("/auth/token/"),
   TOKEN_REFRESH: buildApiUrl("/auth/token/refresh/"),
-  TOKEN_VERIFY: buildApiUrl("/auth/token/verify/"),
   PASSWORD_RESET: buildApiUrl("/users/password-reset/"),
 } as const
 
@@ -37,8 +36,6 @@ export const USER_ENDPOINTS = {
   USER_DETAIL: (id: number) => buildApiUrl(`/users/users/${id}/`),
   USER_AUDIT_TIMELINE: (id: number) => buildApiUrl(`/users/users/${id}/audit-timeline/`),
   ME: buildApiUrl("/users/me/"),
-  ME_CONTEXT: buildApiUrl("/users/me/context/"),
-  PASSWORD_RESET: buildApiUrl("/users/password-reset/"),
 } as const
 
 // Access control endpoints
@@ -47,11 +44,8 @@ export const AC_ENDPOINTS = {
   ROLE_DETAIL: (id: number) => buildApiUrl(`/ac/roles/${id}/`),
   ROLE_ASSIGN: buildApiUrl("/ac/roles/assign-roles/"),
   PERMISSIONS: buildApiUrl("/ac/permissions/"),
-  PERMISSION_DETAIL: (id: number) => buildApiUrl(`/ac/permissions/${id}/`),
   TEMP_PERMISSIONS: buildApiUrl("/ac/tp/"),
-  TEMP_PERMISSION_DETAIL: (id: number) => buildApiUrl(`/ac/tp/${id}/`),
   TEMP_PERMISSION_REVOKE: (id: number) => buildApiUrl(`/ac/tp/${id}/revoke/`),
-  TEMP_PERMISSION_REVOKE_BY_USER: buildApiUrl("/ac/tp/revoke-by-user/"),
 } as const
 
 // Patient management endpoints
@@ -63,8 +57,6 @@ export const PATIENT_ENDPOINTS = {
     buildApiUrl(`/patients/patients/${sourceId}/merge-preview/${targetId}/`),
   MERGE: (sourceId: number, targetId: number) =>
     buildApiUrl(`/patients/patients/${sourceId}/merge/${targetId}/`),
-  UNDO_UNIFICATION: (unificationId: number) =>
-    buildApiUrl(`/patients/patients/unifications/${unificationId}/undo/`),
 } as const
 
 export const MEDICAL_ENDPOINTS = {
@@ -94,8 +86,6 @@ export const CATALOG_ENDPOINTS = {
     buildApiUrl(`/catalog/nbu/${nbuId}/ub-value/${analysisCode}/`),
   NBU_IMPORT_UB_VALUES: (id: number) => buildApiUrl(`/catalog/nbu/${id}/import-ub-values/`),
   NBU_CREATE_WITH_IMPORT: buildApiUrl("/catalog/nbu/create-with-import/"),
-  NBU_EFFECTIVE_UB: (nbuId: number, analysisCode: number | string) =>
-    buildApiUrl(`/catalog/nbu/${nbuId}/effective-ub/${analysisCode}/`),
   PRICING_CONFIG: buildApiUrl("/catalog/pricing-config/"),
 } as const
 
@@ -104,7 +94,6 @@ export const PROTOCOL_ENDPOINTS = {
   PROTOCOLS: buildApiUrl("/protocols/protocols/"),
   QUOTE: buildApiUrl("/protocols/protocols/quote/"),
   PROTOCOL_DETAIL: (id: number) => buildApiUrl(`/protocols/protocols/${id}/`),
-  PROTOCOL_HISTORY: (id: number) => buildApiUrl(`/protocols/protocols/${id}/history/`),
   ARCA_BILLING: (id: number) => buildApiUrl(`/protocols/protocols/${id}/arca-billing/`),
   REPORT: (id: number) => buildApiUrl(`/protocols/protocols/${id}/report/`),
   PROTOCOL_DETAILS: (id: number) => buildApiUrl(`/protocols/protocols/${id}/details/`),
@@ -118,7 +107,6 @@ export const PROTOCOL_ENDPOINTS = {
   UNPLANNED_LIST: (protocolId: number) => buildApiUrl(`/protocols/protocols/${protocolId}/unplanned/`),
   UNPLANNED_ITEM: (protocolId: number, txId: number) =>
     buildApiUrl(`/protocols/protocols/${protocolId}/unplanned/${txId}/`),
-  APPLY_PREAUTHORIZATION: buildApiUrl("/protocols/protocols/apply-preauthorization/"),
   MERGE_REPORT: buildApiUrl("/protocols/protocols/merge-report/"),
   AUDIT_TIMELINE: (id: number) => buildApiUrl(`/protocols/protocols/${id}/audit-timeline/`),
 } as const
@@ -136,39 +124,25 @@ export const ANALYTICS_ENDPOINTS = {
 
 // Results endpoints
 export const RESULTS_ENDPOINTS = {
-  AVAILABLE_ANALYSIS: buildApiUrl("/results/results/available-analyses/"),
-  BY_ANALYSIS: (id: number) => buildApiUrl(`/results/results/by-analysis/${id}/`),
   BY_PROTOCOL: (id: number) => buildApiUrl(`/results/results/by-protocol/${id}/`),
   RESULT_DETAIL: (id: number) => buildApiUrl(`/results/results/${id}/`),
   VALIDATE: (id: number) => buildApiUrl(`/results/results/${id}/validate/`),
   PREVIOUS_RESULTS: (patientId: number, determinationId: number) =>
     buildApiUrl(`/results/results/history/?patient_id=${patientId}&determination_id=${determinationId}`),
-  PROTOCOLS_WITH_LOADED_RESULTS: buildApiUrl("/results/results/protocols-with-loaded-results/"),
   // Cola de resultados: protocolos por estado (incluye los que aún no tienen
   // ningún valor) con progreso cargados/validados. Ver spec en doc/.
   QUEUE: buildApiUrl("/results/results/queue/"),
-  BY_PROTOCOL_WITH_VALUE: (protocolId: number) => buildApiUrl(`/results/results/by-protocol-with-value/${protocolId}/`),
-  RESULT_VALIDACIONES: (id: number) => buildApiUrl(`/results/results/${id}/validaciones/`),
-  RESULT_CAMBIOS: (id: number) => buildApiUrl(`/results/results/${id}/cambios/`),
 } as const
 
 // Reporting endpoints
 export const REPORTING_ENDPOINTS = {
-  PRINT: (id: number) => buildApiUrl(`/reports/protocols/${id}/print/`),
-  SEND_EMAIL: (id: number) => buildApiUrl(`/reports/protocols/${id}/send-email/`),
-  SEND_WHATSAPP: (id: number) => buildApiUrl(`/reports/protocols/${id}/send-whatsapp/`),
-  REPORT: (id: number) => buildApiUrl(`/protocols/protocols/${id}/report/`),
-  REPORT_BATCH: buildApiUrl("/protocols/protocols/report-batch/"),
   SIGNATURES: buildApiUrl("/reports/signatures/"),
   SIGNATURE_DETAIL: (id: number) => buildApiUrl(`/reports/signatures/${id}/`),
   SIGNATURE_SET_DEFAULT: (id: number) => buildApiUrl(`/reports/signatures/${id}/set-default/`),
-  SIGNATURE_AUDIT_TIMELINE: (id: number) => buildApiUrl(`/reports/signatures/${id}/audit-timeline/`),
 } as const
 
 // Billing endpoints
 export const BILLING_ENDPOINTS = {
-  INVOICES: buildApiUrl("/billing/invoices/"),
-  INVOICE_DETAIL: (id: number) => buildApiUrl(`/billing/invoices/${id}/`),
   CREATE_FOR_PROTOCOL: (protocolId: number) =>
     buildApiUrl(`/billing/invoices/create-for-protocol/${protocolId}/`),
   UNBILL_PROTOCOL: (protocolId: number) =>
@@ -176,10 +150,8 @@ export const BILLING_ENDPOINTS = {
   PROTOCOLS_TO_BILL: buildApiUrl("/billing/invoices/protocols-to-bill/"),
   FACTURADOS: buildApiUrl("/billing/invoices/facturados/"),
   CURRENT_TOTAL: buildApiUrl("/billing/invoices/current-total/"),
-  PRESENTATIONS: buildApiUrl("/billing/presentations/"),
   CLOSED_PRESENTATIONS: buildApiUrl("/billing/presentations/closed/"),
   CLOSE_PRESENTATION: buildApiUrl("/billing/presentations/close-period/"),
-  PRESENTATION_PROTOCOLS: (id: number) => buildApiUrl(`/billing/presentations/${id}/protocols/`),
   SET_UB_VALUE_FOR_INSURANCE: (id: number) =>
     buildApiUrl(`/billing/presentations/${id}/set-ub-value-for-insurance/`),
   ANALYTICS_DAILY: buildApiUrl("/billing/analytics/daily/"),

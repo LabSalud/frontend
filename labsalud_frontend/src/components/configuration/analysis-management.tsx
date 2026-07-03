@@ -16,6 +16,7 @@ import {
   Search,
   TestTube,
   Plus,
+  Trash,
   Download,
   Settings2,
   Save,

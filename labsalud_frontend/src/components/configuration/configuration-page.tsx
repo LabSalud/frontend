@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Settings } from "lucide-react"
 import { MedicosManagement } from "./medicos-management"
 import { ObrasSocialesManagement } from "./obras-sociales-management"
 import { AnalysisManagement } from "./analysis-management"
@@ -76,23 +75,18 @@ export default function ConfigurationPage() {
   }
 
   const tabClass =
-    "flex-shrink-0 rounded-lg px-4 py-1.5 text-sm data-[state=active]:bg-white data-[state=active]:text-[#204983] data-[state=active]:shadow-sm"
+    "flex-shrink-0 rounded-none border-b-2 border-transparent bg-transparent px-4 py-2.5 text-sm font-medium text-gray-500 shadow-none transition-colors hover:text-gray-800 data-[state=active]:border-[#204983] data-[state=active]:text-[#204983] data-[state=active]:shadow-none"
 
   return (
-    <div className="mx-auto w-full max-w-6xl overflow-x-hidden px-3 py-4 sm:px-4 sm:py-6">
-      <div className="mb-5 flex items-center gap-3">
-        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#204983]/10 text-[#204983]">
-          <Settings className="h-6 w-6" />
-        </div>
-        <div>
-          <h1 className="text-xl font-bold text-gray-800 sm:text-2xl">Configuración del sistema</h1>
+    <div className="mx-auto w-full max-w-6xl overflow-x-hidden px-4 py-4">
+      <div className="min-w-0 max-w-full rounded-2xl bg-white/95 p-4 shadow-md backdrop-blur-sm md:p-6">
+        <div className="mb-5">
+          <h1 className="text-xl font-bold text-gray-800 md:text-2xl">Configuración del sistema</h1>
           <p className="text-sm text-gray-500">Catálogos, nomencladores, firmas y auditoría.</p>
         </div>
-      </div>
 
-      <div className="min-w-0 max-w-full">
         <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full min-w-0">
-          <TabsList className="mb-6 flex h-auto w-full flex-wrap justify-start gap-1 rounded-xl bg-gray-100 p-1">
+          <TabsList className="mb-6 flex h-auto w-full flex-wrap justify-start gap-1 rounded-none border-b border-gray-200 bg-transparent p-0">
             <TabsTrigger value="medicos" className={tabClass}>Médicos</TabsTrigger>
             <TabsTrigger value="obras-sociales" className={tabClass}>Obras Sociales</TabsTrigger>
             <TabsTrigger value="nomencladores" className={tabClass}>Nomencladores</TabsTrigger>

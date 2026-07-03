@@ -1,6 +1,6 @@
 "use client"
 
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
@@ -10,7 +10,7 @@ import { AnalysisList } from "./analysis-list"
 import { formatBioUnitValues } from "@/lib/catalog-format"
 import type { Analysis } from "@/types"
 
-interface AnalysisDetailSheetProps {
+interface AnalysisDetailDialogProps {
   analysis: Analysis | null
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -20,7 +20,7 @@ interface AnalysisDetailSheetProps {
   onShowHistory: (analysis: Analysis) => void
 }
 
-export function AnalysisDetailSheet({
+export function AnalysisDetailDialog({
   analysis,
   open,
   onOpenChange,
@@ -28,33 +28,32 @@ export function AnalysisDetailSheet({
   onEdit,
   onDelete,
   onShowHistory,
-}: AnalysisDetailSheetProps) {
+}: AnalysisDetailDialogProps) {
   if (!analysis) return null
   const bioUnitItems = formatBioUnitValues(analysis.bio_unit_values)
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="flex w-full flex-col gap-0 overflow-y-auto sm:max-w-lg">
-        <SheetHeader className="border-b border-gray-200 pb-4">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="flex max-h-[88vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl">
+        <DialogHeader className="space-y-0 border-b border-gray-100 p-5 text-left">
           <div className="flex items-center gap-3">
             <span className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
               <TestTube className="h-5 w-5" />
             </span>
             <div className="min-w-0">
-              <SheetTitle className="flex items-center gap-2 truncate text-lg">
+              <DialogTitle className="flex items-center gap-2 truncate text-lg">
                 {analysis.name || "Sin nombre"}
                 {analysis.is_urgent && <Badge variant="destructive">Urgente</Badge>}
-              </SheetTitle>
-              <SheetDescription>
-                Código{" "}
-                <span className="font-mono font-semibold text-blue-800">{analysis.code || "N/A"}</span> · UB{" "}
+              </DialogTitle>
+              <DialogDescription>
+                Código <span className="font-mono font-semibold text-blue-800">{analysis.code || "N/A"}</span> · UB{" "}
                 {analysis.bio_unit || "N/A"}
-              </SheetDescription>
+              </DialogDescription>
             </div>
           </div>
-        </SheetHeader>
+        </DialogHeader>
 
-        <div className="space-y-5 p-4">
+        <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-5">
           {bioUnitItems.length > 0 && (
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Unidades bioquímicas históricas</p>
@@ -85,17 +84,13 @@ export function AnalysisDetailSheet({
           </div>
         </div>
 
-        <div className="mt-auto space-y-2 border-t border-gray-200 p-4">
+        <div className="space-y-2 border-t border-gray-100 bg-gray-50/60 p-4">
           <Button variant="outline" size="sm" className="w-full" onClick={() => onShowHistory(analysis)}>
             <History className="mr-1.5 h-4 w-4 text-[#204983]" />
             Ver historial completo
           </Button>
           <div className="grid grid-cols-2 gap-2">
-            <Button
-              size="sm"
-              className="bg-[#204983] hover:bg-[#1a3d6f]"
-              onClick={() => onEdit(analysis)}
-            >
+            <Button size="sm" className="bg-[#204983] hover:bg-[#1a3d6f]" onClick={() => onEdit(analysis)}>
               <Pencil className="mr-1.5 h-4 w-4" />
               Editar
             </Button>
@@ -110,7 +105,7 @@ export function AnalysisDetailSheet({
             </Button>
           </div>
         </div>
-      </SheetContent>
-    </Sheet>
+      </DialogContent>
+    </Dialog>
   )
 }

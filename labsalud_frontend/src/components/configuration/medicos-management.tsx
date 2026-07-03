@@ -14,7 +14,7 @@ import { toast } from "sonner"
 import { CreateMedicoDialog } from "./components/create-medico-dialog"
 import { EditMedicoDialog } from "./components/edit-medico-dialog"
 import { DeleteMedicoDialog } from "./components/delete-medico-dialog"
-import { MedicoDetailSheet } from "./components/medico-detail-sheet"
+import { MedicoDetailDialog } from "./components/medico-detail-dialog"
 import { AuditAvatars } from "@/components/common/audit-avatars"
 import type { Medico } from "@/types"
 
@@ -141,8 +141,8 @@ export function MedicosManagement() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-xl md:text-2xl font-bold text-gray-900">Gestión de Médicos</h2>
-        <p className="text-sm md:text-base text-gray-600">Administra los médicos del sistema</p>
+        <h2 className="text-base font-semibold text-gray-800">Médicos</h2>
+        <p className="text-sm text-gray-500">Administra los médicos del sistema</p>
       </div>
 
       <div className="flex flex-col gap-4 sm:flex-row sm:justify-between">
@@ -213,7 +213,7 @@ export function MedicosManagement() {
         </>
       )}
 
-      <MedicoDetailSheet
+      <MedicoDetailDialog
         medico={sheetMedico}
         open={sheetOpen}
         onOpenChange={setSheetOpen}

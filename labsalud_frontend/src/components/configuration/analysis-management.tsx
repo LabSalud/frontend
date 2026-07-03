@@ -20,7 +20,7 @@ import {
   Settings2,
   Save,
 } from "lucide-react"
-import { AnalysisDetailSheet } from "./components/analysis-detail-sheet"
+import { AnalysisDetailDialog } from "./components/analysis-detail-dialog"
 import { CreateAnalysisCatalogDialog } from "./components/create-analysis-catalog-dialog"
 import { EditAnalysisCatalogDialog } from "./components/edit-analysis-catalog-dialog"
 import { DeleteAnalysisCatalogDialog } from "./components/delete-analysis-catalog-dialog"
@@ -316,10 +316,7 @@ export function AnalysisManagement() {
     <div className="space-y-4">
       <div className="flex flex-col gap-3">
         <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center">
-          <h3 className="text-base md:text-lg font-semibold text-gray-800 flex items-center gap-2">
-            <TestTube className="h-4 w-4 md:h-5 md:w-5" />
-            Análisis ({totalAnalyses})
-          </h3>
+          <h3 className="text-base font-semibold text-gray-800">Análisis ({totalAnalyses})</h3>
           <div className="relative w-full sm:w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
             <Input
@@ -430,7 +427,7 @@ export function AnalysisManagement() {
         }
       />
 
-      <AnalysisDetailSheet
+      <AnalysisDetailDialog
         analysis={sheetAnalysis}
         open={sheetOpen}
         onOpenChange={setSheetOpen}

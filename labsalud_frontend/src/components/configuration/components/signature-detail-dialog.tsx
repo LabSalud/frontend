@@ -1,13 +1,12 @@
 "use client"
 
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Separator } from "@/components/ui/separator"
 import { CheckCircle2, Loader2, Star, Trash2 } from "lucide-react"
 import type { Signature } from "@/types"
 
-interface SignatureDetailSheetProps {
+interface SignatureDetailDialogProps {
   signature: Signature | null
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -16,22 +15,22 @@ interface SignatureDetailSheetProps {
   actionId: number | null
 }
 
-export function SignatureDetailSheet({
+export function SignatureDetailDialog({
   signature,
   open,
   onOpenChange,
   onSetDefault,
   onDelete,
   actionId,
-}: SignatureDetailSheetProps) {
+}: SignatureDetailDialogProps) {
   if (!signature) return null
   const busy = actionId === signature.id
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full gap-0 overflow-y-auto sm:max-w-md">
-        <SheetHeader className="border-b border-gray-200 pb-4">
-          <SheetTitle className="flex items-center gap-2 text-lg">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="gap-0 overflow-hidden p-0 sm:max-w-md">
+        <DialogHeader className="space-y-1 border-b border-gray-100 p-5 text-left">
+          <DialogTitle className="flex items-center gap-2 text-lg">
             {signature.name}
             {signature.is_default && (
               <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">
@@ -39,17 +38,17 @@ export function SignatureDetailSheet({
                 Predeterminada
               </Badge>
             )}
-          </SheetTitle>
+          </DialogTitle>
           {(signature.biochemist_name || signature.biochemist_mp) && (
-            <SheetDescription>
+            <DialogDescription>
               {signature.biochemist_name}
               {signature.biochemist_name && signature.biochemist_mp ? " · " : ""}
               {signature.biochemist_mp ? `M.P. ${signature.biochemist_mp}` : ""}
-            </SheetDescription>
+            </DialogDescription>
           )}
-        </SheetHeader>
+        </DialogHeader>
 
-        <div className="space-y-4 p-4">
+        <div className="space-y-3 p-5">
           <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Vista previa</p>
           <div className="flex h-40 items-center justify-center rounded-lg border border-gray-200 bg-gray-50">
             {signature.image_url ? (
@@ -60,16 +59,9 @@ export function SignatureDetailSheet({
           </div>
         </div>
 
-        <div className="mt-auto space-y-2 border-t border-gray-200 p-4">
-          <Separator className="mb-2" />
+        <div className="space-y-2 border-t border-gray-100 bg-gray-50/60 p-4">
           {!signature.is_default && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full"
-              onClick={() => onSetDefault(signature.id)}
-              disabled={busy}
-            >
+            <Button variant="outline" size="sm" className="w-full" onClick={() => onSetDefault(signature.id)} disabled={busy}>
               {busy ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Star className="mr-1.5 h-4 w-4" />}
               Marcar como predeterminada
             </Button>
@@ -85,7 +77,7 @@ export function SignatureDetailSheet({
             Eliminar firma
           </Button>
         </div>
-      </SheetContent>
-    </Sheet>
+      </DialogContent>
+    </Dialog>
   )
 }

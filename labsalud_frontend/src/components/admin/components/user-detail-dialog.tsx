@@ -1,7 +1,7 @@
 "use client"
 
 import type { User, Group } from "@/types"
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -18,7 +18,7 @@ export type UserAction =
   | "removeRole"
   | "delete"
 
-interface UserDetailSheetProps {
+interface UserDetailDialogProps {
   user: User | null
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -48,7 +48,7 @@ const initials = (u: User) =>
 const auditInfo = (audit?: User["creation"] | User["last_change"]) =>
   audit ? { user: audit.user ? { username: audit.user.username, photo: audit.user.photo } : null, date: audit.date } : undefined
 
-export function UserDetailSheet({
+export function UserDetailDialog({
   user,
   open,
   onOpenChange,
@@ -58,7 +58,7 @@ export function UserDetailSheet({
   canAssignRole,
   canRemoveRole,
   canManageTempPermissions,
-}: UserDetailSheetProps) {
+}: UserDetailDialogProps) {
   if (!user) return null
 
   const roles: Group[] = user.groups || user.roles || []
@@ -66,38 +66,39 @@ export function UserDetailSheet({
   const fullName = `${user.first_name} ${user.last_name}`.trim() || user.username
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full gap-0 overflow-y-auto sm:max-w-md">
-        <SheetHeader className="border-b border-gray-200 pb-4">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="gap-0 overflow-hidden p-0 sm:max-w-md">
+        <DialogHeader className="space-y-3 border-b border-gray-100 p-5 text-left">
           <div className="flex items-center gap-3">
             <Avatar className="h-14 w-14">
               <AvatarImage src={user.photo || "/placeholder.svg"} alt={user.username} />
               <AvatarFallback className="bg-[#204983] text-base text-white">{initials(user)}</AvatarFallback>
             </Avatar>
             <div className="min-w-0">
-              <SheetTitle className="truncate text-lg">{fullName}</SheetTitle>
-              <SheetDescription className="truncate">@{user.username}</SheetDescription>
+              <DialogTitle className="truncate text-lg">{fullName}</DialogTitle>
+              <DialogDescription className="truncate">@{user.username}</DialogDescription>
             </div>
           </div>
-          <div className="mt-1 flex flex-wrap gap-1.5">
-            {user.is_superuser && <Badge variant="destructive">Superusuario</Badge>}
-            {user.is_staff && <Badge variant="outline">Staff</Badge>}
-            {hasTemp && (
-              <Badge variant="secondary">
-                <Clock className="mr-1 h-3 w-3" />
-                Permiso temporal
-              </Badge>
-            )}
-            {user.is_active === false && (
-              <Badge variant="outline" className="border-red-200 text-red-600">
-                Inactivo
-              </Badge>
-            )}
-          </div>
-        </SheetHeader>
+          {(user.is_superuser || user.is_staff || hasTemp || user.is_active === false) && (
+            <div className="flex flex-wrap gap-1.5">
+              {user.is_superuser && <Badge variant="destructive">Superusuario</Badge>}
+              {user.is_staff && <Badge variant="outline">Staff</Badge>}
+              {hasTemp && (
+                <Badge variant="secondary">
+                  <Clock className="mr-1 h-3 w-3" />
+                  Permiso temporal
+                </Badge>
+              )}
+              {user.is_active === false && (
+                <Badge variant="outline" className="border-red-200 text-red-600">
+                  Inactivo
+                </Badge>
+              )}
+            </div>
+          )}
+        </DialogHeader>
 
-        <div className="space-y-5 p-4">
-          {/* Contacto */}
+        <div className="space-y-5 p-5">
           <div className="space-y-2">
             <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Contacto</p>
             <div className="flex items-center gap-2 text-sm text-gray-700">
@@ -112,7 +113,6 @@ export function UserDetailSheet({
 
           <Separator />
 
-          {/* Roles */}
           <div className="space-y-2">
             <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Roles</p>
             <div className="flex flex-wrap gap-1.5">
@@ -130,7 +130,6 @@ export function UserDetailSheet({
 
           <Separator />
 
-          {/* Auditoría */}
           <div className="space-y-2">
             <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Auditoría</p>
             <div className="flex items-center justify-between text-sm">
@@ -144,8 +143,7 @@ export function UserDetailSheet({
           </div>
         </div>
 
-        {/* Acciones */}
-        <div className="mt-auto border-t border-gray-200 p-4">
+        <div className="border-t border-gray-100 bg-gray-50/60 p-4">
           <div className="grid grid-cols-2 gap-2">
             {canEdit && (
               <Button variant="outline" size="sm" onClick={() => onAction("edit")}>
@@ -190,7 +188,7 @@ export function UserDetailSheet({
             </Button>
           )}
         </div>
-      </SheetContent>
-    </Sheet>
+      </DialogContent>
+    </Dialog>
   )
 }

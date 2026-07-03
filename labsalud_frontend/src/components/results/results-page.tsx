@@ -2,7 +2,7 @@
 
 import { useCallback, useState } from "react"
 import { useNavigate } from "react-router-dom"
-import { TestTube, Search, X, Loader2 } from "lucide-react"
+import { Search, X, Loader2 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useApiInfiniteQuery, flattenPages } from "@/hooks/use-api-infinite-query"
@@ -79,8 +79,7 @@ export default function ResultadosPage() {
       <div className="rounded-2xl bg-white/95 p-4 shadow-md backdrop-blur-sm md:p-6">
         {/* Fila superior: título (izq) · búsqueda (centro) */}
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-4">
-          <div className="flex items-center gap-2 lg:w-56 lg:shrink-0">
-            <TestTube className="h-6 w-6 text-[#204983]" />
+          <div className="lg:w-56 lg:shrink-0">
             <h1 className="text-xl font-bold text-gray-800 md:text-2xl">Carga de Resultados</h1>
           </div>
           <div className="relative w-full lg:flex-1">

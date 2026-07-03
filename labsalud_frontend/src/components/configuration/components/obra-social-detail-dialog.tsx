@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
@@ -13,7 +13,7 @@ import { getNbuDisplayName } from "@/hooks/use-nbu-options"
 import { MEDICAL_ENDPOINTS } from "@/config/api"
 import type { NBU, ObraSocial } from "@/types"
 
-interface ObraSocialDetailSheetProps {
+interface ObraSocialDetailDialogProps {
   obraSocial: ObraSocial | null
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -24,7 +24,7 @@ interface ObraSocialDetailSheetProps {
   onShowHistory: (os: ObraSocial) => void
 }
 
-export function ObraSocialDetailSheet({
+export function ObraSocialDetailDialog({
   obraSocial,
   open,
   onOpenChange,
@@ -33,12 +33,11 @@ export function ObraSocialDetailSheet({
   onToggleActive,
   isToggling,
   onShowHistory,
-}: ObraSocialDetailSheetProps) {
+}: ObraSocialDetailDialogProps) {
   const { apiRequest } = useApi()
   const [details, setDetails] = useState<ObraSocial | null>(null)
   const [loading, setLoading] = useState(false)
 
-  // Al abrir, traemos el detalle completo (los flags de cobro no vienen en la lista).
   useEffect(() => {
     if (!open || !obraSocial?.id) return
     setDetails(null)
@@ -62,25 +61,25 @@ export function ObraSocialDetailSheet({
   ]
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full gap-0 overflow-y-auto sm:max-w-md">
-        <SheetHeader className="border-b border-gray-200 pb-4">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="gap-0 overflow-hidden p-0 sm:max-w-md">
+        <DialogHeader className="space-y-0 border-b border-gray-100 p-5 text-left">
           <div className="flex items-center gap-3">
             <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#204983] text-xs font-bold text-white">
               OS
             </span>
             <div className="min-w-0">
-              <SheetTitle className="truncate text-lg">{obraSocial.name}</SheetTitle>
-              <SheetDescription>
-                <Badge variant={obraSocial.is_active ? "default" : "secondary"} className="mt-0.5">
+              <DialogTitle className="truncate text-lg">{obraSocial.name}</DialogTitle>
+              <DialogDescription asChild>
+                <Badge variant={obraSocial.is_active ? "default" : "secondary"} className="mt-1">
                   {obraSocial.is_active ? "Activa" : "Inactiva"}
                 </Badge>
-              </SheetDescription>
+              </DialogDescription>
             </div>
           </div>
-        </SheetHeader>
+        </DialogHeader>
 
-        <div className="space-y-5 p-4">
+        <div className="space-y-5 p-5">
           <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50/60 px-3 py-2">
             <span className="text-sm font-medium text-gray-700">Obra social activa</span>
             <div className="flex items-center gap-2">
@@ -143,7 +142,7 @@ export function ObraSocialDetailSheet({
           )}
         </div>
 
-        <div className="mt-auto space-y-2 border-t border-gray-200 p-4">
+        <div className="space-y-2 border-t border-gray-100 bg-gray-50/60 p-4">
           <Button variant="outline" size="sm" className="w-full" onClick={() => onShowHistory(obraSocial)}>
             <History className="mr-1.5 h-4 w-4 text-[#204983]" />
             Ver historial de cambios
@@ -154,7 +153,7 @@ export function ObraSocialDetailSheet({
             Editar obra social
           </Button>
         </div>
-      </SheetContent>
-    </Sheet>
+      </DialogContent>
+    </Dialog>
   )
 }

@@ -10,8 +10,12 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { UserManagement } from "./user-management"
 import { RoleManagement } from "./role-management"
 import { PermissionManagement } from "./permission-management"
-import { AlertCircle, Users } from "lucide-react"
+import { AlertCircle } from "lucide-react"
 import type { User, Role, Permission } from "@/types"
+
+// Tabs estilo underline, consistentes con la estética de la webapp (fondo blanco).
+const TAB_TRIGGER =
+  "rounded-none border-b-2 border-transparent bg-transparent px-4 py-2.5 text-sm font-medium text-gray-500 shadow-none transition-colors hover:text-gray-800 data-[state=active]:border-[#204983] data-[state=active]:text-[#204983] data-[state=active]:shadow-none"
 
 export default function ManagementPage() {
   const { hasPermission, user: currentUser } = useAuth()
@@ -154,35 +158,31 @@ export default function ManagementPage() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto py-4 sm:py-6 px-3 sm:px-4">
-      <div className="mb-5 flex items-center gap-3">
-        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#204983]/10 text-[#204983]">
-          <Users className="h-6 w-6" />
-        </div>
-        <div>
-          <h1 className="text-xl font-bold text-gray-800 sm:text-2xl">Usuarios y permisos</h1>
+    <div className="mx-auto w-full max-w-6xl px-4 py-4">
+      <div className="rounded-2xl bg-white/95 p-4 shadow-md backdrop-blur-sm md:p-6">
+        <div className="mb-5">
+          <h1 className="text-xl font-bold text-gray-800 md:text-2xl">Usuarios y permisos</h1>
           <p className="text-sm text-gray-500">Gestioná el equipo, sus roles y permisos temporales.</p>
         </div>
-      </div>
 
-      <Tabs defaultValue={canManageUsers ? "users" : "roles"} className="w-full">
-        <TabsList className="mb-5 inline-flex h-auto gap-1 rounded-xl bg-gray-100 p-1">
-          {canManageUsers && (
-            <TabsTrigger value="users" className="rounded-lg px-4 py-1.5 text-sm data-[state=active]:bg-white data-[state=active]:text-[#204983] data-[state=active]:shadow-sm">
-              Usuarios {users.length > 0 && <span className="ml-1 text-xs text-gray-400">{users.length}</span>}
-            </TabsTrigger>
-          )}
-          {canManageRoles && (
-            <TabsTrigger value="roles" className="rounded-lg px-4 py-1.5 text-sm data-[state=active]:bg-white data-[state=active]:text-[#204983] data-[state=active]:shadow-sm">
-              Roles {roles.length > 0 && <span className="ml-1 text-xs text-gray-400">{roles.length}</span>}
-            </TabsTrigger>
-          )}
-          {canManageRoles && (
-            <TabsTrigger value="permissions" className="rounded-lg px-4 py-1.5 text-sm data-[state=active]:bg-white data-[state=active]:text-[#204983] data-[state=active]:shadow-sm">
-              Permisos
-            </TabsTrigger>
-          )}
-        </TabsList>
+        <Tabs defaultValue={canManageUsers ? "users" : "roles"} className="w-full">
+          <TabsList className="mb-5 flex h-auto w-full justify-start gap-1 rounded-none border-b border-gray-200 bg-transparent p-0">
+            {canManageUsers && (
+              <TabsTrigger value="users" className={TAB_TRIGGER}>
+                Usuarios {users.length > 0 && <span className="ml-1 text-xs text-gray-400">{users.length}</span>}
+              </TabsTrigger>
+            )}
+            {canManageRoles && (
+              <TabsTrigger value="roles" className={TAB_TRIGGER}>
+                Roles {roles.length > 0 && <span className="ml-1 text-xs text-gray-400">{roles.length}</span>}
+              </TabsTrigger>
+            )}
+            {canManageRoles && (
+              <TabsTrigger value="permissions" className={TAB_TRIGGER}>
+                Permisos
+              </TabsTrigger>
+            )}
+          </TabsList>
 
           {canManageUsers && (
             <TabsContent value="users">
@@ -208,6 +208,7 @@ export default function ManagementPage() {
             </TabsContent>
           )}
         </Tabs>
+      </div>
     </div>
   )
 }

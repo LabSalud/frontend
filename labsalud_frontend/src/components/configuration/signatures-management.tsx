@@ -1,14 +1,14 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
-import { CheckCircle2, ImageUp, Loader2, PenTool, Upload } from "lucide-react"
+import { CheckCircle2, ImageUp, Loader2, Upload } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Badge } from "@/components/ui/badge"
 import { DataTable, type Column } from "@/components/common/data-table"
-import { SignatureDetailSheet } from "./components/signature-detail-sheet"
+import { SignatureDetailDialog } from "./components/signature-detail-dialog"
 import { toast } from "sonner"
 import { useApi } from "@/hooks/use-api"
 import { REPORTING_ENDPOINTS, TOAST_DURATION } from "@/config/api"
@@ -216,10 +216,7 @@ export function SignaturesManagement() {
   return (
     <div className="space-y-6">
       <div>
-        <div className="flex items-center gap-2">
-          <PenTool className="h-5 w-5 text-[#204983]" />
-          <h2 className="text-lg font-semibold text-gray-800">Firmas digitales</h2>
-        </div>
+        <h2 className="text-base font-semibold text-gray-800">Firmas digitales</h2>
         <p className="mt-1 text-sm text-gray-500">
           Subí un PNG de firma (idealmente con fondo transparente, ~300×100 px, máx 2 MB). La firma marcada como
           predeterminada es la que se usa al firmar reportes.
@@ -317,7 +314,7 @@ export function SignaturesManagement() {
         />
       </div>
 
-      <SignatureDetailSheet
+      <SignatureDetailDialog
         signature={sheetSignature}
         open={sheetOpen}
         onOpenChange={setSheetOpen}

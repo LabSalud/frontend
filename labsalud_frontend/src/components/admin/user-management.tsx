@@ -6,7 +6,7 @@ import useAuth from "@/contexts/auth-context"
 import { useApi } from "@/hooks/use-api"
 import type { User, Role, Permission } from "@/types"
 import { UserTable } from "./components/user-table"
-import { UserDetailSheet, type UserAction } from "./components/user-detail-sheet"
+import { UserDetailDialog, type UserAction } from "./components/user-detail-dialog"
 import { CreateUserDialog } from "./components/create-user-dialog"
 import { EditUserDialog } from "./components/edit-user-dialog"
 import { TempPermissionDialog } from "./components/temp-permission-dialog"
@@ -161,8 +161,8 @@ export function UserManagement({ users, roles, permissions, setUsers, refreshDat
         </div>
       )}
 
-      {/* Ficha lateral con toda la info + acciones */}
-      <UserDetailSheet
+      {/* Modal de detalle con toda la info + acciones */}
+      <UserDetailDialog
         user={sheetUser}
         open={sheetOpen}
         onOpenChange={setSheetOpen}

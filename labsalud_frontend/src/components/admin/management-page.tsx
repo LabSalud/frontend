@@ -13,11 +13,10 @@ import { PermissionManagement } from "./permission-management"
 import { AlertCircle } from "lucide-react"
 import type { User, Role, Permission } from "@/types"
 
-// Tabs con el mismo lenguaje que la navbar: subrayado fino #204983 que aparece
-// en activo/hover, sin recuadros ni barra divisoria.
-const TAB_LIST = "mb-6 flex h-auto w-full flex-wrap justify-start gap-6 rounded-none border-0 bg-transparent p-0"
+// Tabs tipo pestaña redondeada: pill con color de marca en la activa.
+const TAB_LIST = "mb-6 flex h-auto w-full flex-wrap justify-start gap-2 rounded-none border-0 bg-transparent p-0"
 const TAB_TRIGGER =
-  "relative rounded-none border-0 bg-transparent px-1 py-2 text-sm font-medium text-gray-700 shadow-none transition-colors hover:text-[#204983] data-[state=active]:text-[#204983] after:absolute after:inset-x-0 after:-bottom-px after:h-0.5 after:bg-[#204983] after:opacity-0 after:transition-opacity after:content-[''] hover:after:opacity-100 data-[state=active]:after:opacity-100"
+  "rounded-full border border-transparent bg-transparent px-4 py-1.5 text-sm font-medium text-gray-600 shadow-none transition-colors hover:bg-gray-100 data-[state=active]:border-[#204983] data-[state=active]:bg-[#204983] data-[state=active]:text-white data-[state=active]:shadow-sm"
 
 export default function ManagementPage() {
   const { hasPermission, user: currentUser } = useAuth()

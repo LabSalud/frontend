@@ -13,6 +13,7 @@ import { CreateUserDialog } from "./components/create-user-dialog"
 import { EditUserDialog } from "./components/edit-user-dialog"
 import { TempPermissionDialog } from "./components/temp-permission-dialog"
 import { DeleteUserDialog } from "./components/delete-user-dialog"
+import { UserHistoryDialog } from "./components/user-history-dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Plus, AlertCircle, Search, Users } from "lucide-react"
@@ -36,6 +37,7 @@ export function UserManagement({ users, roles, permissions, setUsers, refreshDat
   const [isTempPermission, setIsTempPermission] = useState(false)
   const [isRevokeTempPermission, setIsRevokeTempPermission] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [isHistory, setIsHistory] = useState(false)
 
   const canViewUsers = hasPermission(PERMISSIONS.MANAGE_USERS.codename)
   const canCreateUser = hasPermission(PERMISSIONS.MANAGE_USERS.codename)
@@ -51,6 +53,7 @@ export function UserManagement({ users, roles, permissions, setUsers, refreshDat
     setIsTempPermission(false)
     setIsRevokeTempPermission(false)
     setIsDeleting(false)
+    setIsHistory(false)
   }
 
   const handleCardAction = (user: User, action: UserCardAction) => {
@@ -59,6 +62,7 @@ export function UserManagement({ users, roles, permissions, setUsers, refreshDat
     else if (action === "tempPermission" && canAssignTempPermission) setIsTempPermission(true)
     else if (action === "revokeTempPermission" && canAssignTempPermission) setIsRevokeTempPermission(true)
     else if (action === "delete" && canDeleteUser) setIsDeleting(true)
+    else if (action === "history") setIsHistory(true)
   }
 
   // Alta/baja de rol en línea: el endpoint recibe el set completo de role_ids.
@@ -204,6 +208,13 @@ export function UserManagement({ users, roles, permissions, setUsers, refreshDat
         setUsers={setUsers}
         apiRequest={apiRequest}
         refreshData={refreshData}
+      />
+
+      <UserHistoryDialog
+        open={isHistory}
+        onOpenChange={(open) => !open && closeAllDialogs()}
+        userId={selectedUser?.id ?? null}
+        userName={selectedUser ? `${selectedUser.first_name} ${selectedUser.last_name}`.trim() || selectedUser.username : ""}
       />
     </div>
   )

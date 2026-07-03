@@ -13,9 +13,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Clock, Mail, MoreHorizontal, Pencil, Shield, ShieldX, Trash, X, Plus, Check, Loader2 } from "lucide-react"
+import { Clock, Mail, MoreHorizontal, Pencil, Shield, ShieldX, Trash, X, Plus, Check, Loader2, History } from "lucide-react"
 
-export type UserCardAction = "edit" | "tempPermission" | "revokeTempPermission" | "delete"
+export type UserCardAction = "edit" | "tempPermission" | "revokeTempPermission" | "delete" | "history"
 
 interface UserCardProps {
   user: User
@@ -58,7 +58,6 @@ export function UserCard({
   const activeRoleIds = new Set(activeRoles.map((r) => r.id))
   const hasTemp = user.permissions?.some((p) => p.temporary) || false
   const fullName = `${user.first_name} ${user.last_name}`.trim() || user.username
-  const hasActions = canEdit || canDelete || canManageTempPermissions
 
   const toggle = async (roleId: number) => {
     setPendingRoleId(roleId)
@@ -80,15 +79,19 @@ export function UserCard({
           <p className="truncate font-semibold text-gray-900">{fullName}</p>
           <p className="truncate text-xs text-gray-500">@{user.username}</p>
         </div>
-        {hasActions && (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="-mr-1 -mt-1 h-8 w-8 p-0 text-gray-400 hover:text-gray-700">
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              {canEdit && (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="sm" className="-mr-1 -mt-1 h-8 w-8 p-0 text-gray-400 hover:text-gray-700">
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => onAction(user, "history")}>
+              <History className="h-4 w-4" />
+              Ver historial
+            </DropdownMenuItem>
+            {(canEdit || canManageTempPermissions || canDelete) && <DropdownMenuSeparator />}
+            {canEdit && (
                 <DropdownMenuItem onClick={() => onAction(user, "edit")}>
                   <Pencil className="h-4 w-4" />
                   Editar datos
@@ -117,7 +120,6 @@ export function UserCard({
               )}
             </DropdownMenuContent>
           </DropdownMenu>
-        )}
       </div>
 
       <div className="flex items-center gap-1.5 text-xs text-gray-500">

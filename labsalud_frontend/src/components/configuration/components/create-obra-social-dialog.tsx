@@ -4,18 +4,12 @@ import type React from "react"
 
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogFooter } from "@/components/ui/dialog"
+import { DialogHeading } from "@/components/common/dialog-heading"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
-import { AlertCircle, CheckCircle } from "lucide-react"
+import { AlertCircle, CheckCircle, Building2 } from "lucide-react"
 import { useApi } from "@/hooks/use-api"
 import { getPreferredNbuId, useNbuOptions } from "@/hooks/use-nbu-options"
 import { toast } from "sonner"
@@ -192,10 +186,11 @@ export function CreateObraSocialDialog({ open, onOpenChange, onSuccess }: Create
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[480px] max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Crear Nueva Obra Social</DialogTitle>
-          <DialogDescription>Ingresa los datos y los conceptos que cobra la obra social.</DialogDescription>
-        </DialogHeader>
+        <DialogHeading
+          icon={Building2}
+          title="Nueva obra social"
+          description="Ingresá los datos y los conceptos que cobra."
+        />
         <form onSubmit={handleSubmit}>
           <div className="grid gap-4 py-4">
             <div className="space-y-2">

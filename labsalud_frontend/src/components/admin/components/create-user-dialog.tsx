@@ -3,7 +3,8 @@
 import type React from "react"
 import { useState, useEffect, useCallback } from "react"
 import type { User, Role } from "@/types"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogFooter, DialogClose } from "@/components/ui/dialog"
+import { DialogHeading } from "@/components/common/dialog-heading"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -12,7 +13,7 @@ import { useToast } from "@/hooks/use-toast"
 import type { ApiRequestOptions } from "@/hooks/use-api"
 import { USER_ENDPOINTS, AC_ENDPOINTS } from "@/config/api"
 import { formatApiError } from "@/lib/api-error"
-import { Clock, Eye, EyeOff } from "lucide-react"
+import { Clock, Eye, EyeOff, UserPlus } from "lucide-react"
 
 interface CreateUserDialogProps {
   open: boolean
@@ -238,9 +239,7 @@ export function CreateUserDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="w-[95vw] sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Crear Nuevo Usuario</DialogTitle>
-        </DialogHeader>
+        <DialogHeading icon={UserPlus} title="Nuevo usuario" description="Creá una cuenta y asigná sus roles." />
         <form onSubmit={handleSubmit} className="grid gap-4 py-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">

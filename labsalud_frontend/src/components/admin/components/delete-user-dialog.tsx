@@ -1,7 +1,9 @@
 "use client"
 
 import type React from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogFooter, DialogClose } from "@/components/ui/dialog"
+import { DialogHeading } from "@/components/common/dialog-heading"
+import { Trash } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
 import type { User } from "@/types"
@@ -64,9 +66,7 @@ export function DeleteUserDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="w-[95vw] sm:max-w-[425px]">
-        <DialogHeader>
-          <DialogTitle>Eliminar Usuario</DialogTitle>
-        </DialogHeader>
+        <DialogHeading icon={Trash} tone="danger" title="Eliminar usuario" description="Esta acción no se puede deshacer." />
         <div className="py-4">
           <p className="text-sm sm:text-base">
             ¿Estás seguro de que deseas eliminar al usuario <strong>{user.username}</strong>? Esta acción no se puede

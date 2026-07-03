@@ -2,22 +2,15 @@
 
 import type React from "react"
 import { useState, useEffect } from "react"
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-  DialogDescription,
-  DialogClose,
-} from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogFooter, DialogClose } from "@/components/ui/dialog"
+import { DialogHeading } from "@/components/common/dialog-heading"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { useApi } from "@/hooks/use-api"
 import { useToast } from "@/hooks/use-toast"
-import { Loader2 } from "lucide-react"
+import { Loader2, FlaskConical } from "lucide-react"
 import type { Determination } from "@/types"
 import { CATALOG_ENDPOINTS } from "@/config/api"
 import { formatApiError, getErrorMessage } from "@/lib/api-error"
@@ -167,10 +160,7 @@ export const EditDeterminationDialog: React.FC<EditDeterminationDialogProps> = (
   return (
     <Dialog open={isDialogOpen} onOpenChange={handleOpenChange}>
       <DialogContent className="w-[95vw] max-w-[500px] max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-base md:text-lg">Editar Determinación: {determination.name}</DialogTitle>
-          <DialogDescription className="text-xs md:text-sm">Modifica los datos de la determinación.</DialogDescription>
-        </DialogHeader>
+        <DialogHeading icon={FlaskConical} title="Editar determinación" description={determination.name} />
         <div className="space-y-4 md:space-y-6 py-4">
           {errors.form && (
             <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded text-xs md:text-sm">

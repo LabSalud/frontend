@@ -5,7 +5,8 @@ import type React from "react"
 import { useState, useEffect } from "react"
 import type { User, Permission } from "@/types"
 import { AC_ENDPOINTS } from "@/config/api"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogFooter, DialogClose } from "@/components/ui/dialog"
+import { DialogHeading } from "@/components/common/dialog-heading"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
@@ -13,6 +14,7 @@ import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
 import type { ApiRequestOptions } from "@/hooks/use-api"
 import { formatApiError } from "@/lib/api-error"
+import { Shield, ShieldX } from "lucide-react"
 
 const extractErrorMessage = (errorData: unknown): string => formatApiError(errorData, "Error desconocido")
 
@@ -195,11 +197,11 @@ export function TempPermissionDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="w-[95vw] sm:max-w-[500px]">
-        <DialogHeader>
-          <DialogTitle className="text-base sm:text-lg">
-            {mode === "assign" ? "Asignar Permiso Temporal" : "Revocar Permiso Temporal"}
-          </DialogTitle>
-        </DialogHeader>
+        <DialogHeading
+          icon={mode === "assign" ? Shield : ShieldX}
+          tone={mode === "assign" ? "brand" : "danger"}
+          title={mode === "assign" ? "Asignar permiso temporal" : "Revocar permiso temporal"}
+        />
         <div className="space-y-4 py-4">
           {loadingPerms ? (
             <p className="text-center text-sm sm:text-base">Cargando permisos…</p>
@@ -286,7 +288,7 @@ export function TempPermissionDialog({
             <Button
               onClick={handleAssign}
               disabled={isSubmitting || missingPerms.length === 0}
-              className="w-full sm:w-auto"
+              className="w-full bg-[#204983] hover:bg-[#1a3d6f] sm:w-auto"
             >
               {isSubmitting ? "Asignando…" : "Asignar"}
             </Button>

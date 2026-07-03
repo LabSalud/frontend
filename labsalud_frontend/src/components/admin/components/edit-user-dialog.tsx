@@ -3,7 +3,8 @@
 import type React from "react"
 import { useState, useEffect, useCallback } from "react"
 import type { User, Role, Group } from "@/types"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogFooter, DialogClose } from "@/components/ui/dialog"
+import { DialogHeading } from "@/components/common/dialog-heading"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -12,7 +13,7 @@ import { useToast } from "@/hooks/use-toast"
 import type { ApiRequestOptions } from "@/hooks/use-api"
 import { USER_ENDPOINTS, AC_ENDPOINTS } from "@/config/api"
 import { formatApiError } from "@/lib/api-error"
-import { Camera, Clock } from "lucide-react"
+import { Camera, Clock, Pencil } from "lucide-react"
 
 const extractErrorMessage = (errorData: unknown): string => formatApiError(errorData, "Error desconocido")
 
@@ -185,9 +186,7 @@ export function EditUserDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="w-[95vw] sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Editar Usuario: {user?.username}</DialogTitle>
-        </DialogHeader>
+        <DialogHeading icon={Pencil} title="Editar usuario" description={user ? `@${user.username}` : undefined} />
         <form onSubmit={handleSubmit} className="grid gap-4 py-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
@@ -315,8 +314,8 @@ export function EditUserDialog({
                 Cancelar
               </Button>
             </DialogClose>
-            <Button type="submit" disabled={isSubmitting} className="w-full sm:w-auto">
-              {isSubmitting ? "Guardando..." : "Guardar Cambios"}
+            <Button type="submit" disabled={isSubmitting} className="w-full bg-[#204983] hover:bg-[#1a3d6f] sm:w-auto">
+              {isSubmitting ? "Guardando..." : "Guardar cambios"}
             </Button>
           </DialogFooter>
         </form>

@@ -4,17 +4,11 @@ import type React from "react"
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogFooter } from "@/components/ui/dialog"
+import { DialogHeading } from "@/components/common/dialog-heading"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { AlertCircle, CheckCircle } from "lucide-react"
+import { AlertCircle, CheckCircle, Stethoscope } from "lucide-react"
 import { useApi } from "@/hooks/use-api"
 import { toast } from "sonner"
 import { MEDICAL_ENDPOINTS } from "@/config/api"
@@ -146,10 +140,7 @@ export function CreateMedicoDialog({ isOpen, onOpenChange, onSuccess }: CreateMe
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
-          <DialogTitle>Crear Nuevo Médico</DialogTitle>
-          <DialogDescription>Ingresa los datos del nuevo médico. Todos los campos son obligatorios.</DialogDescription>
-        </DialogHeader>
+        <DialogHeading icon={Stethoscope} title="Nuevo médico" description="Ingresá los datos del nuevo médico." />
         <form onSubmit={handleSubmit}>
           <div className="grid gap-4 py-4">
             <div className="space-y-2">
@@ -225,8 +216,8 @@ export function CreateMedicoDialog({ isOpen, onOpenChange, onSuccess }: CreateMe
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
               Cancelar
             </Button>
-            <Button type="submit" disabled={!isFormValid() || loading}>
-              {loading ? "Creando..." : "Crear Médico"}
+            <Button type="submit" className="bg-[#204983] hover:bg-[#1a3d6f]" disabled={!isFormValid() || loading}>
+              {loading ? "Creando..." : "Crear médico"}
             </Button>
           </DialogFooter>
         </form>

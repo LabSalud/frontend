@@ -6,14 +6,8 @@ import { useApi } from "@/hooks/use-api"
 import { toast } from "sonner"
 import { CATALOG_ENDPOINTS } from "@/config/api"
 import { Button } from "@/components/ui/button"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogFooter } from "@/components/ui/dialog"
+import { DialogHeading } from "@/components/common/dialog-heading"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -103,15 +97,11 @@ export function ImportDataDialog({ open, onOpenChange, onSuccess }: ImportDataDi
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="w-[95vw] max-w-[600px] max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-base md:text-lg">
-            <FileSpreadsheet className="h-4 w-4 md:h-5 md:w-5" />
-            Importar Catálogo de Análisis y Determinaciones
-          </DialogTitle>
-          <DialogDescription className="text-xs md:text-sm">
-            Selecciona un archivo Excel (.xls o .xlsx) con el formato correcto para importar análisis y determinaciones.
-          </DialogDescription>
-        </DialogHeader>
+        <DialogHeading
+          icon={FileSpreadsheet}
+          title="Importar catálogo"
+          description="Seleccioná un Excel (.xls o .xlsx) con el formato correcto para importar análisis y determinaciones."
+        />
 
         <div className="space-y-4 py-4">
           <Alert className="bg-blue-50 border-blue-200">

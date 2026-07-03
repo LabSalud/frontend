@@ -2,7 +2,9 @@
 
 import type React from "react"
 import { useState, useEffect } from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogFooter } from "@/components/ui/dialog"
+import { DialogHeading } from "@/components/common/dialog-heading"
+import { Stethoscope } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -67,9 +69,7 @@ export const EditMedicoDialog: React.FC<EditMedicoDialogProps> = ({ isOpen, medi
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Editar Médico</DialogTitle>
-        </DialogHeader>
+        <DialogHeading icon={Stethoscope} title="Editar médico" description="Modificá los datos del médico." />
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>

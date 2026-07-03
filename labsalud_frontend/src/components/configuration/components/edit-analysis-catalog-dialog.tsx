@@ -3,22 +3,15 @@
 import type React from "react"
 import type { Analysis } from "@/types"
 import { useState, useEffect } from "react"
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-  DialogDescription,
-  DialogClose,
-} from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogFooter, DialogClose } from "@/components/ui/dialog"
+import { DialogHeading } from "@/components/common/dialog-heading"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { useApi } from "@/hooks/use-api"
 import { useToast } from "@/hooks/use-toast"
-import { Loader2 } from "lucide-react"
+import { Loader2, TestTube } from "lucide-react"
 import { CATALOG_ENDPOINTS } from "@/config/api"
 import { formatApiError, getErrorMessage } from "@/lib/api-error"
 
@@ -131,10 +124,7 @@ export const EditAnalysisCatalogDialog: React.FC<EditAnalysisCatalogDialogProps>
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px]">
-        <DialogHeader>
-          <DialogTitle>Editar Análisis: {analysis.name}</DialogTitle>
-          <DialogDescription>Modifica los datos del análisis.</DialogDescription>
-        </DialogHeader>
+        <DialogHeading icon={TestTube} title="Editar análisis" description={analysis.name} />
         <div className="space-y-6 py-4">
           {errors.form && (
             <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded text-sm">{errors.form}</div>

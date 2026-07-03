@@ -47,7 +47,7 @@ export function AuditAvatars({ creation, lastChange, size = "md", className = ""
           <Tooltip>
             <TooltipTrigger asChild>
               <Avatar className={`${sizeClass} border-2 border-green-500 cursor-help`}>
-                <AvatarImage src={creation.user.photo || "/placeholder.svg"} alt={creation.user.username} />
+                <AvatarImage src={creation.user.photo || undefined} alt={creation.user.username} />
                 <AvatarFallback className="bg-green-100 text-green-700">
                   {creation.user.username.charAt(0).toUpperCase()}
                 </AvatarFallback>
@@ -69,7 +69,7 @@ export function AuditAvatars({ creation, lastChange, size = "md", className = ""
           <Tooltip>
             <TooltipTrigger asChild>
               <Avatar className={`${sizeClass} border-2 border-blue-500 cursor-help`}>
-                <AvatarImage src={lastChange.user.photo || "/placeholder.svg"} alt={lastChange.user.username} />
+                <AvatarImage src={lastChange.user.photo || undefined} alt={lastChange.user.username} />
                 <AvatarFallback className="bg-blue-100 text-blue-700">
                   {lastChange.user.username.charAt(0).toUpperCase()}
                 </AvatarFallback>

@@ -72,7 +72,7 @@ export function UserCard({
     <div className="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md">
       <div className="flex items-start gap-3">
         <Avatar className="h-12 w-12">
-          <AvatarImage src={user.photo || "/placeholder.svg"} alt={user.username} />
+          <AvatarImage src={user.photo || undefined} alt={user.username} />
           <AvatarFallback className="bg-[#204983] text-sm text-white">{initials(user)}</AvatarFallback>
         </Avatar>
         <div className="min-w-0 flex-1">

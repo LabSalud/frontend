@@ -54,7 +54,7 @@ export function AuditCard({ entry }: AuditCardProps) {
       <CardContent className="p-3 sm:p-4 min-w-0">
         <div className="flex flex-col gap-3 min-w-0 sm:flex-row sm:items-start">
           <Avatar className="h-8 w-8 shrink-0 sm:h-10 sm:w-10">
-            <AvatarImage src={user.photo || "/placeholder.svg"} alt={user.username} />
+            <AvatarImage src={user.photo || undefined} alt={user.username} />
             <AvatarFallback>
               <User className="h-4 w-4 sm:h-5 sm:w-5" />
             </AvatarFallback>

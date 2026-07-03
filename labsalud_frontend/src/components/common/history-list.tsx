@@ -167,7 +167,7 @@ export function HistoryList({ history, emptyMessage = "No hay historial disponib
             <CardContent className="p-2 sm:p-3 min-w-0">
               <div className="flex flex-col sm:flex-row sm:items-start gap-2 min-w-0">
                 <Avatar className="h-6 w-6 sm:h-8 sm:w-8 shrink-0">
-                  <AvatarImage src={user.photo || "/placeholder.svg"} alt={user.username} />
+                  <AvatarImage src={user.photo || undefined} alt={user.username} />
                   <AvatarFallback>
                     <User className="h-3 w-3 sm:h-4 sm:w-4" />
                   </AvatarFallback>

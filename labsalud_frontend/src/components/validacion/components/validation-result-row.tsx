@@ -3,7 +3,7 @@
 import { Loader2, Check, X, ShieldCheck, History, AlertTriangle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import {
   formatEvaluatedReference,
   formatReferenceRange,
@@ -35,8 +35,10 @@ function fmtDate(v?: string | null) {
   return Number.isNaN(d.getTime()) ? "" : d.toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" })
 }
 
-// Muestra los valores anteriores del paciente al pasar el mouse (carga on-open).
-// Reutilizable: se envuelve tanto el nombre de la determinación como el chip.
+// Muestra los valores anteriores del paciente al abrir (click/tap; carga on-open).
+// Popover en vez de hover: en tablet/mobile no hay puntero persistente, así que
+// un trigger basado en hover queda inalcanzable por touch. Reutilizable: se
+// envuelve tanto el nombre de la determinación como el chip.
 function HistoryHover({
   previous,
   loading,
@@ -49,9 +51,9 @@ function HistoryHover({
   children: React.ReactNode
 }) {
   return (
-    <HoverCard openDelay={120} closeDelay={80} onOpenChange={(o) => o && onOpen()}>
-      <HoverCardTrigger asChild>{children}</HoverCardTrigger>
-      <HoverCardContent align="start" className="w-60 p-2">
+    <Popover onOpenChange={(o) => o && onOpen()}>
+      <PopoverTrigger asChild>{children}</PopoverTrigger>
+      <PopoverContent align="start" className="w-60 p-2">
         <p className="mb-1 text-xs font-semibold text-gray-700">Valores anteriores del paciente</p>
         {loading ? (
           <p className="py-2 text-xs text-gray-400">Buscando…</p>
@@ -67,8 +69,8 @@ function HistoryHover({
             ))}
           </ul>
         )}
-      </HoverCardContent>
-    </HoverCard>
+      </PopoverContent>
+    </Popover>
   )
 }
 
@@ -97,9 +99,12 @@ export function ValidationResultRow({ result, saving, onValidate, onLoadPrevious
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-baseline gap-x-2">
           <HistoryHover previous={previous} loading={loadingPrevious} onOpen={onLoadPrevious}>
-            <span className="cursor-help font-semibold text-gray-900 underline decoration-dotted decoration-gray-300 underline-offset-2">
+            <button
+              type="button"
+              className="cursor-pointer bg-transparent p-0 font-semibold text-gray-900 underline decoration-dotted decoration-gray-300 underline-offset-2"
+            >
               {det.name}
-            </span>
+            </button>
           </HistoryHover>
           <span className={cn("text-lg font-bold", isOutOfRange ? "text-red-600" : "text-gray-900")}>
             {hasValue ? result.value : "—"}
@@ -128,14 +133,17 @@ export function ValidationResultRow({ result, saving, onValidate, onLoadPrevious
         {result.notes && <p className="mt-1 text-xs text-gray-500">Nota: {result.notes}</p>}
       </div>
 
-      {/* Acción: validar / rechazar (mouse-first) con sección de historial por hover */}
+      {/* Acción: validar / rechazar + historial (funciona con mouse y touch) */}
       <div className="flex shrink-0 items-center gap-2 lg:w-72 lg:justify-end">
-        {/* Sección de historial: al pasar el mouse por acá se despliega */}
+        {/* Sección de historial: click/tap despliega los valores anteriores */}
         <HistoryHover previous={previous} loading={loadingPrevious} onOpen={onLoadPrevious}>
-          <span className="flex cursor-help items-center gap-1 rounded-md border border-dashed border-gray-200 px-2 py-1.5 text-[11px] text-gray-400 transition-colors hover:border-[#204983] hover:text-[#204983]">
+          <button
+            type="button"
+            className="flex cursor-pointer items-center gap-1 rounded-md border border-dashed border-gray-200 bg-transparent px-2 py-1.5 text-[11px] text-gray-400 transition-colors hover:border-[#204983] hover:text-[#204983]"
+          >
             <History className="h-3.5 w-3.5" />
             Historial
-          </span>
+          </button>
         </HistoryHover>
         {saving ? (
           <Loader2 className="h-5 w-5 animate-spin text-gray-400" />

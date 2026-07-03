@@ -8,7 +8,7 @@ import { DialogHeading } from "@/components/common/dialog-heading"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Checkbox } from "@/components/ui/checkbox"
+import { RoleChips } from "./role-chips"
 import { useToast } from "@/hooks/use-toast"
 import type { ApiRequestOptions } from "@/hooks/use-api"
 import { USER_ENDPOINTS, AC_ENDPOINTS } from "@/config/api"
@@ -95,8 +95,8 @@ export function EditUserDialog({
     }))
   }, [])
 
-  const handleRoleChange = useCallback((roleId: number, checked: boolean) => {
-    setSelectedRoles((prev) => (checked ? [...prev, roleId] : prev.filter((id) => id !== roleId)))
+  const handleToggleRole = useCallback((roleId: number) => {
+    setSelectedRoles((prev) => (prev.includes(roleId) ? prev.filter((id) => id !== roleId) : [...prev, roleId]))
   }, [])
 
   const handlePhotoChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -281,26 +281,12 @@ export function EditUserDialog({
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label>Roles</Label>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-40 overflow-y-auto border rounded-md p-2">
-              {Array.isArray(roles) && roles.length > 0 ? (
-                roles.map((role) => (
-                  <div key={role.id} className="flex items-center space-x-2">
-                    <Checkbox
-                      id={`role-${role.id}`}
-                      checked={selectedRoles.includes(role.id)}
-                      onCheckedChange={(checked) => handleRoleChange(role.id, Boolean(checked))}
-                    />
-                    <Label htmlFor={`role-${role.id}`} className="text-sm">
-                      {role.name}
-                    </Label>
-                  </div>
-                ))
-              ) : (
-                <p className="col-span-2 text-gray-500 text-sm">No hay roles disponibles.</p>
-              )}
+          <div className="space-y-2 rounded-xl border border-gray-100 bg-gray-50/60 p-3">
+            <div className="flex items-center justify-between">
+              <Label>Roles</Label>
+              <span className="text-xs text-gray-400">{selectedRoles.length} seleccionado{selectedRoles.length === 1 ? "" : "s"}</span>
             </div>
+            <RoleChips roles={Array.isArray(roles) ? roles : []} selectedIds={selectedRoles} onToggle={handleToggleRole} />
           </div>
 
           <DialogFooter className="flex-col sm:flex-row gap-2">

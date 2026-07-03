@@ -8,12 +8,12 @@ import { DialogHeading } from "@/components/common/dialog-heading"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Checkbox } from "@/components/ui/checkbox"
+import { RoleChips } from "./role-chips"
 import { useToast } from "@/hooks/use-toast"
 import type { ApiRequestOptions } from "@/hooks/use-api"
 import { USER_ENDPOINTS, AC_ENDPOINTS } from "@/config/api"
 import { formatApiError } from "@/lib/api-error"
-import { Clock, Eye, EyeOff, UserPlus } from "lucide-react"
+import { Clock, Eye, EyeOff, UserPlus, Camera } from "lucide-react"
 
 interface CreateUserDialogProps {
   open: boolean
@@ -50,6 +50,7 @@ export function CreateUserDialog({
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [passwordError, setPasswordError] = useState("")
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null)
 
   useEffect(() => {
     if (open) {
@@ -78,6 +79,10 @@ export function CreateUserDialog({
       setShowPassword(false)
       setShowConfirmPassword(false)
       setPasswordError("")
+      setPhotoPreview((prev) => {
+        if (prev) URL.revokeObjectURL(prev)
+        return null
+      })
       localStorage.removeItem("create-user-form")
     }
   }, [open])
@@ -119,17 +124,20 @@ export function CreateUserDialog({
   const handlePhotoChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
-      setUserData((prev) => ({
-        ...prev,
-        photo: file,
-      }))
+      setUserData((prev) => ({ ...prev, photo: file }))
+      setPhotoPreview((prev) => {
+        if (prev) URL.revokeObjectURL(prev)
+        return URL.createObjectURL(file)
+      })
     }
   }, [])
 
-  const handleRoleChange = useCallback((roleId: number, checked: boolean) => {
+  const handleToggleRole = useCallback((roleId: number) => {
     setUserData((prev) => ({
       ...prev,
-      selectedRoles: checked ? [...prev.selectedRoles, roleId] : prev.selectedRoles.filter((id) => id !== roleId),
+      selectedRoles: prev.selectedRoles.includes(roleId)
+        ? prev.selectedRoles.filter((id) => id !== roleId)
+        : [...prev.selectedRoles, roleId],
     }))
   }, [])
 
@@ -342,10 +350,21 @@ export function CreateUserDialog({
 
           <div className="space-y-2">
             <Label htmlFor="photo">Foto de perfil</Label>
-            <Input id="photo" name="photo" type="file" accept="image/*" onChange={handlePhotoChange} />
-            {userData.photo && (
-              <p className="text-sm text-muted-foreground">Archivo seleccionado: {userData.photo.name}</p>
-            )}
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+              <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-full border border-gray-200 bg-gray-50">
+                {photoPreview ? (
+                  <img src={photoPreview} alt="Foto seleccionada" className="h-full w-full object-cover" />
+                ) : (
+                  <Camera className="h-5 w-5 text-gray-400" />
+                )}
+              </div>
+              <div className="flex-1 space-y-1">
+                <Input id="photo" name="photo" type="file" accept="image/*" onChange={handlePhotoChange} />
+                <p className="text-xs text-gray-500">
+                  {userData.photo ? `Archivo seleccionado: ${userData.photo.name}` : "Opcional (PNG/JPG)."}
+                </p>
+              </div>
+            </div>
           </div>
 
           <div className="space-y-2">
@@ -367,26 +386,12 @@ export function CreateUserDialog({
             <p className="text-xs text-gray-500">Minutos sin actividad antes de cerrar sesión.</p>
           </div>
 
-          <div className="space-y-2">
-            <Label>Roles</Label>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-40 overflow-y-auto border rounded-md p-2">
-              {Array.isArray(roles) && roles.length > 0 ? (
-                roles.map((role) => (
-                  <div key={role.id} className="flex items-center space-x-2">
-                    <Checkbox
-                      id={`role-${role.id}`}
-                      checked={userData.selectedRoles.includes(role.id)}
-                      onCheckedChange={(checked) => handleRoleChange(role.id, Boolean(checked))}
-                    />
-                    <Label htmlFor={`role-${role.id}`} className="text-sm">
-                      {role.name}
-                    </Label>
-                  </div>
-                ))
-              ) : (
-                <p className="col-span-2 text-gray-500 text-sm">No hay roles disponibles.</p>
-              )}
+          <div className="space-y-2 rounded-xl border border-gray-100 bg-gray-50/60 p-3">
+            <div className="flex items-center justify-between">
+              <Label>Roles</Label>
+              <span className="text-xs text-gray-400">{userData.selectedRoles.length} seleccionado{userData.selectedRoles.length === 1 ? "" : "s"}</span>
             </div>
+            <RoleChips roles={Array.isArray(roles) ? roles : []} selectedIds={userData.selectedRoles} onToggle={handleToggleRole} />
           </div>
 
           <DialogFooter className="flex-col sm:flex-row gap-2">
@@ -405,7 +410,7 @@ export function CreateUserDialog({
               disabled={isSubmitting || !!passwordError}
               className="w-full sm:w-auto bg-[#204983] hover:bg-[#1a3d6f]"
             >
-              {isSubmitting ? "Creando..." : "Crear Usuario"}
+              {isSubmitting ? "Creando..." : "Crear usuario"}
             </Button>
           </DialogFooter>
         </form>

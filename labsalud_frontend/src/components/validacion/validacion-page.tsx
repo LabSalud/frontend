@@ -12,6 +12,15 @@ import { useApiQuery } from "@/hooks/use-api-query"
 import { useInfiniteScroll } from "@/hooks/use-infinite-scroll"
 import { useDebounce } from "@/hooks/use-debounce"
 import { usePersistedState } from "@/hooks/use-persisted-state"
+import {
+  type StatusFilterState,
+  normalizeStatusFilter,
+  toggleStatusFilter,
+  getStatusFilterState,
+  hasAnyStatusFilter,
+  appendStatusParams,
+  statusFilterKey,
+} from "@/lib/status-filter"
 import { ResultsQueueTable } from "@/components/results/components/results-queue-table"
 import { RESULTS_ENDPOINTS, ANALYTICS_ENDPOINTS } from "@/config/api"
 import { getProtocolStatusStyle, normalizeProtocolStatusName } from "@/lib/status-styles"
@@ -34,7 +43,11 @@ export default function ValidacionPage() {
 
   const [searchTerm, setSearchTerm] = useState("")
   const debouncedSearch = useDebounce(searchTerm, 300)
-  const [statusIds, setStatusIds] = usePersistedState<number[]>("labsalud_validacion_status", [2, 11])
+  const [rawStatusFilter, setStatusFilter] = usePersistedState<StatusFilterState>("labsalud_validacion_status", {
+    include: [2, 11],
+    exclude: [],
+  })
+  const statusFilter = normalizeStatusFilter(rawStatusFilter)
   const [sort, setSort] = useState<SortState>(null)
 
   const statsQuery = useApiQuery<StatusStatsResponse>({
@@ -46,18 +59,19 @@ export default function ValidacionPage() {
   const states = (statsQuery.data?.states || []).filter((s) => !HIDDEN_STATUS.has(normalizeProtocolStatusName(s.status_name)))
 
   const orderingParam = sort ? `${sort.dir === "desc" ? "-" : ""}${sort.field}` : undefined
-  const statusKey = statusIds.slice().sort((a, b) => a - b).join(",")
+  const statusKey = statusFilterKey(statusFilter)
   const queryKey = ["validacion", "queue", statusKey, debouncedSearch.trim(), orderingParam ?? ""] as const
 
   const buildUrl = useCallback(
     (offset: number) => {
       const params = new URLSearchParams({ limit: String(PAGE_LIMIT), offset: String(offset) })
-      if (statusIds.length > 0) params.append("status", statusIds.join(","))
+      appendStatusParams(params, statusFilter)
       if (debouncedSearch.trim()) params.append("search", debouncedSearch.trim())
       if (orderingParam) params.append("ordering", orderingParam)
       return `${RESULTS_ENDPOINTS.QUEUE}?${params.toString()}`
     },
-    [statusIds, debouncedSearch, orderingParam],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [statusKey, debouncedSearch, orderingParam],
   )
 
   const query = useApiInfiniteQuery<ProtocolListItem>({ queryKey, buildUrl, enabled: canValidate })
@@ -74,7 +88,7 @@ export default function ValidacionPage() {
     dependencies: [statusKey, debouncedSearch, orderingParam, hasMore, isLoadingMore],
   })
 
-  const toggleStatus = (id: number) => setStatusIds((prev) => (prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id]))
+  const toggleStatus = (id: number) => setStatusFilter((prev) => toggleStatusFilter(normalizeStatusFilter(prev), id))
 
   if (!canValidate) {
     return (
@@ -114,24 +128,57 @@ export default function ValidacionPage() {
           <div className="hidden lg:block lg:w-56 lg:shrink-0" aria-hidden />
         </div>
 
+        {/* Toggles de estado tri-estado: neutral → incluir → excluir → neutral */}
         <div className="mt-4 flex flex-wrap justify-center gap-2">
           {statsQuery.isLoading
             ? Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-8 w-28 rounded-full" />)
             : states.map((s) => {
-                const active = statusIds.includes(s.status_id)
+                const filterState = getStatusFilterState(statusFilter, s.status_id)
                 const style = getProtocolStatusStyle(s.status_id)
+                const title =
+                  filterState === "include"
+                    ? "Incluido. Click para excluir."
+                    : filterState === "exclude"
+                      ? "Excluido. Click para quitar filtro."
+                      : "Sin filtro. Click para incluir."
                 return (
                   <button
                     key={s.status_id}
                     type="button"
                     onClick={() => toggleStatus(s.status_id)}
-                    className={cn("flex h-8 items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition-colors", active ? `${style.solid} border-transparent text-white` : style.badgeOutline)}
+                    title={title}
+                    className={cn(
+                      "flex h-8 items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition-colors",
+                      filterState === "include"
+                        ? `${style.solid} border-transparent text-white`
+                        : filterState === "exclude"
+                          ? "border-red-300 bg-red-100 text-red-700 line-through"
+                          : style.badgeOutline,
+                    )}
                   >
+                    {filterState === "exclude" && <X className="h-3.5 w-3.5" />}
                     {s.status_name}
-                    <span className={cn("rounded-full px-1.5 text-[11px]", active ? "bg-white/25" : "bg-white/70 text-gray-700")}>{s.count}</span>
+                    <span
+                      className={cn(
+                        "rounded-full px-1.5 text-[11px] no-underline",
+                        filterState === "include" ? "bg-white/25" : "bg-white/70 text-gray-700",
+                      )}
+                    >
+                      {s.count}
+                    </span>
                   </button>
                 )
               })}
+          {hasAnyStatusFilter(statusFilter) && (
+            <button
+              type="button"
+              onClick={() => setStatusFilter({ include: [], exclude: [] })}
+              className="flex h-8 items-center gap-1 rounded-full px-3 text-xs font-medium text-gray-500 hover:text-gray-700"
+            >
+              <X className="h-3.5 w-3.5" />
+              Limpiar
+            </button>
+          )}
         </div>
 
         <div className="mt-4 space-y-4">

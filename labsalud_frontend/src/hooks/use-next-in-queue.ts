@@ -3,6 +3,7 @@
 import { useMemo } from "react"
 import { useApiQuery } from "@/hooks/use-api-query"
 import { RESULTS_ENDPOINTS } from "@/config/api"
+import { appendStatusParams, normalizeStatusFilter, statusFilterKey } from "@/lib/status-filter"
 
 /**
  * Devuelve el protocolo anterior y siguiente en la cola (resultados/validación),
@@ -10,20 +11,21 @@ import { RESULTS_ENDPOINTS } from "@/config/api"
  * localStorage. Sirve para saltar entre detalles sin volver a la tabla.
  */
 export function useQueueNav(currentId: number, statusStorageKey: string): { prevId: number | null; nextId: number | null } {
-  const statusIds = useMemo(() => {
+  const filter = useMemo(() => {
     try {
       const raw = localStorage.getItem(statusStorageKey)
-      return raw ? (JSON.parse(raw) as number[]) : []
+      return normalizeStatusFilter(raw ? JSON.parse(raw) : null)
     } catch {
-      return []
+      return { include: [], exclude: [] }
     }
   }, [statusStorageKey])
 
-  const statusParam = statusIds.length ? `&status=${statusIds.join(",")}` : ""
-  const url = `${RESULTS_ENDPOINTS.QUEUE}?limit=100&offset=0${statusParam}`
+  const params = new URLSearchParams({ limit: "100", offset: "0" })
+  appendStatusParams(params, filter)
+  const url = `${RESULTS_ENDPOINTS.QUEUE}?${params.toString()}`
 
   const query = useApiQuery<{ results: Array<{ id: number }> }>({
-    queryKey: ["queue-nav", statusStorageKey, statusIds.join(",")],
+    queryKey: ["queue-nav", statusStorageKey, statusFilterKey(filter)],
     url,
     enabled: Number.isFinite(currentId) && currentId > 0,
     staleTime: 30 * 1000,

@@ -12,6 +12,7 @@ import {
   FileText,
   Loader2,
   RotateCcw,
+  type LucideIcon,
 } from "lucide-react"
 import { DataTable, type Column, type SortState } from "@/components/common/data-table"
 import { InitialsAvatar } from "@/components/common/initials-avatar"
@@ -110,7 +111,7 @@ function ActionButton({
   disabled,
   strike,
 }: {
-  icon: typeof Printer
+  icon: LucideIcon
   label: string
   onClick: () => void
   className?: string

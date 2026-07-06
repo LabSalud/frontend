@@ -1,850 +1,218 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
-import { CalendarRange, ChevronDown, ChevronUp, FileCheck2, Loader2, Receipt, Save } from "lucide-react"
-import { Button } from "../ui/button"
-import { Card, CardContent } from "../ui/card"
-import { Input } from "../ui/input"
-import { Skeleton } from "../ui/skeleton"
-import { Badge } from "../ui/badge"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "../ui/dialog"
-import { useApi } from "../../hooks/use-api"
-import { BILLING_ENDPOINTS, MEDICAL_ENDPOINTS, TOAST_DURATION } from "@/config/api"
-import { toast } from "sonner"
-import type { Invoice, ProtocolToBill } from "@/types"
-import { formatApiError, getErrorMessage } from "@/lib/api-error"
+import { useState } from "react"
+import { AlertTriangle, CalendarRange, Clock } from "lucide-react"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { useFacturacionMock } from "./use-facturacion-mock"
+import { ProtocolBillingRow } from "./components/protocol-billing-row"
+import { OssSummaryRow } from "./components/oss-summary-row"
+import { EditableCloseDate } from "./components/editable-close-date"
+import { ClosePresentationDialog } from "./components/close-presentation-dialog"
+import { PresentationHistoryCard } from "./components/presentation-history-card"
+import { PresentationEarningsChart } from "./components/presentation-earnings-chart"
+import { ReminderSettingsPanel } from "./components/reminder-settings-panel"
+import type { BillingEntityId } from "./mock-data"
 
-type ActiveTab = "current" | "history"
+const tabClass =
+  "flex-shrink-0 rounded-full border border-transparent bg-transparent px-4 py-1.5 text-sm font-medium text-gray-600 shadow-none transition-colors hover:bg-gray-100 data-[state=active]:border-[#204983] data-[state=active]:bg-[#204983] data-[state=active]:text-white data-[state=active]:shadow-sm"
 
-interface CurrentTotalResponse {
-  protocols_count: number
-  total_ub_authorized: string
-  expected_total_amount: string
-  expected_by_ooss: Array<{
-    insurance_id: number
-    insurance_name: string
-    protocols_count: number
-    total_ub_authorized: string
-    expected_amount: string
-  }>
-}
-
-interface DailyBillingSeries {
-  from: string
-  to: string
-  days: number
-  series: Array<{ date: string; particular: string; oss: string; total: string }>
-  totals: { particular: string; oss: string; total: string }
-}
-
-interface ClosedPresentation {
-  id: number
-  reference: string
-  name: string
-  period_start: string
-  period_end: string
-  invoice_count: number
-  expected_amount: string
-  expected_by_ooss: Array<{
-    insurance_id: number
-    insurance_name: string
-    protocol_count: number
-    expected_amount: string
-  }>
-  protocols?: Array<{
-    protocol_id: number
-    invoice_id: number
-    invoice_number: string
-    insurance?: {
-      id: number
-      name: string
-    } | null
-    patient?: {
-      id: number
-      first_name: string
-      last_name: string
-    } | null
-    expected_amount: string
-  }>
-  status: "cerrada" | "cobrada"
-  notes: string
-  is_active: boolean
-  created_by_id: number | null
-  created_at: string
-}
-
-const parseMoney = (value: number | string | null | undefined): number => {
-  if (typeof value === "number") return value
-  if (typeof value === "string") {
-    const parsed = parseFloat(value)
-    return Number.isNaN(parsed) ? 0 : parsed
-  }
-  return 0
-}
-
-const formatCurrency = (value: number | string | null | undefined): string => {
-  const amount = parseMoney(value)
-  return amount.toLocaleString("es-AR", {
-    style: "currency",
-    currency: "ARS",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })
-}
-
-// El valor UB de OOSS se carga al cierre, no al ingreso: hasta que se cargue,
-// el monto esperado llega en 0. Mostramos "—" en lugar de $0,00.
-const formatExpected = (value: number | string | null | undefined): string => {
-  return parseMoney(value) === 0 ? "—" : formatCurrency(value)
+function daysUntil(dateStr: string | null): number | null {
+  if (!dateStr) return null
+  const diff = new Date(dateStr).getTime() - new Date().setHours(0, 0, 0, 0)
+  return Math.round(diff / (1000 * 60 * 60 * 24))
 }
 
 export default function FacturacionPage() {
-  const { apiRequest } = useApi()
+  const m = useFacturacionMock()
+  const [entityId, setEntityId] = useState<BillingEntityId>(m.entities[0].id)
+  const [closeDialogOpen, setCloseDialogOpen] = useState(false)
 
-  const [activeTab, setActiveTab] = useState<ActiveTab>("current")
+  const entity = m.entities.find((e) => e.id === entityId)!
+  const openPresentation = m.openPresentationFor(entityId)
+  const pending = m.pendingProtocolsFor(entityId)
+  const history = m.historyFor(entityId)
+  const allPresentations = m.presentationsFor(entityId)
 
-  const [protocolsToBill, setProtocolsToBill] = useState<ProtocolToBill[]>([])
-  const [loadingProtocolsToBill, setLoadingProtocolsToBill] = useState(false)
-  const [creatingInvoiceForProtocol, setCreatingInvoiceForProtocol] = useState<number | null>(null)
-  const [protocolRowErrors, setProtocolRowErrors] = useState<Record<number, string>>({})
-
-  const [currentBilled, setCurrentBilled] = useState<Invoice[]>([])
-  const [loadingCurrentBilled, setLoadingCurrentBilled] = useState(false)
-
-  const [currentTotal, setCurrentTotal] = useState<CurrentTotalResponse | null>(null)
-  const [loadingCurrentTotal, setLoadingCurrentTotal] = useState(false)
-
-  const [closedPresentations, setClosedPresentations] = useState<ClosedPresentation[]>([])
-  const [loadingClosedPresentations, setLoadingClosedPresentations] = useState(false)
-  const [expandedPresentationId, setExpandedPresentationId] = useState<number | null>(null)
-
-  const [closeModalOpen, setCloseModalOpen] = useState(false)
-  const [closeName, setCloseName] = useState("")
-  const [closeDateTo, setCloseDateTo] = useState("")
-  const [closeNotes, setCloseNotes] = useState("")
-  const [closingPresentation, setClosingPresentation] = useState(false)
-  const [unbillingProtocolId, setUnbillingProtocolId] = useState<number | null>(null)
-  const [dailySeries, setDailySeries] = useState<DailyBillingSeries | null>(null)
-  const [loadingDailySeries, setLoadingDailySeries] = useState(false)
-  const [ubValueDraft, setUbValueDraft] = useState<Record<string, string>>({})
-  const [savingUbKey, setSavingUbKey] = useState<string | null>(null)
-  const [insuranceUbMap, setInsuranceUbMap] = useState<Record<number, string>>({})
-
-  const fetchProtocolsToBill = useCallback(async () => {
-    try {
-      setLoadingProtocolsToBill(true)
-      const response = await apiRequest(BILLING_ENDPOINTS.PROTOCOLS_TO_BILL)
-      if (!response.ok) return
-      const data = await response.json()
-      setProtocolsToBill(data.results || data)
-    } catch (error) {
-      console.error("Error fetching protocols to bill:", error)
-    } finally {
-      setLoadingProtocolsToBill(false)
-    }
-  }, [apiRequest])
-
-  const fetchCurrentBilled = useCallback(async () => {
-    try {
-      setLoadingCurrentBilled(true)
-      const response = await apiRequest(`${BILLING_ENDPOINTS.FACTURADOS}?current=true`)
-      if (!response.ok) return
-      const data = await response.json()
-      setCurrentBilled(data.results || data)
-    } catch (error) {
-      console.error("Error fetching current billed invoices:", error)
-    } finally {
-      setLoadingCurrentBilled(false)
-    }
-  }, [apiRequest])
-
-  const fetchCurrentTotal = useCallback(async () => {
-    try {
-      setLoadingCurrentTotal(true)
-      const response = await apiRequest(BILLING_ENDPOINTS.CURRENT_TOTAL)
-      if (!response.ok) {
-        setCurrentTotal(null)
-        return
-      }
-      const data = await response.json()
-      setCurrentTotal(data)
-    } catch (error) {
-      console.error("Error fetching current total:", error)
-      setCurrentTotal(null)
-    } finally {
-      setLoadingCurrentTotal(false)
-    }
-  }, [apiRequest])
-
-  const fetchDailySeries = useCallback(async (days = 14) => {
-    try {
-      setLoadingDailySeries(true)
-      const response = await apiRequest(`${BILLING_ENDPOINTS.ANALYTICS_DAILY}?days=${days}`)
-      if (!response.ok) {
-        setDailySeries(null)
-        return
-      }
-      const data: DailyBillingSeries = await response.json()
-      setDailySeries(data)
-    } catch (error) {
-      console.error("Error fetching daily billing series:", error)
-      setDailySeries(null)
-    } finally {
-      setLoadingDailySeries(false)
-    }
-  }, [apiRequest])
-
-  const fetchClosedPresentations = useCallback(async () => {
-    try {
-      setLoadingClosedPresentations(true)
-      const response = await apiRequest(BILLING_ENDPOINTS.CLOSED_PRESENTATIONS)
-      if (!response.ok) return
-      const data = await response.json()
-      setClosedPresentations(data.results || data)
-    } catch (error) {
-      console.error("Error fetching closed presentations:", error)
-    } finally {
-      setLoadingClosedPresentations(false)
-    }
-  }, [apiRequest])
-
-  const refreshCurrent = useCallback(async () => {
-    await Promise.all([
-      fetchProtocolsToBill(),
-      fetchCurrentBilled(),
-      fetchCurrentTotal(),
-      fetchDailySeries(14),
-    ])
-  }, [fetchProtocolsToBill, fetchCurrentBilled, fetchCurrentTotal, fetchDailySeries])
-
-  const handleUnbillProtocol = useCallback(
-    async (protocolId: number) => {
-      try {
-        setUnbillingProtocolId(protocolId)
-        const response = await apiRequest(BILLING_ENDPOINTS.UNBILL_PROTOCOL(protocolId), {
-          method: "POST",
-        })
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}))
-          throw new Error(formatApiError(errorData, "No se pudo desfacturar el protocolo"))
-        }
-        toast.success(`Protocolo #${protocolId} desfacturado`, { duration: TOAST_DURATION })
-        await refreshCurrent()
-      } catch (error) {
-        toast.error(getErrorMessage(error, "Error al desfacturar el protocolo"), { duration: TOAST_DURATION })
-      } finally {
-        setUnbillingProtocolId(null)
-      }
-    },
-    [apiRequest, refreshCurrent],
-  )
-
-  const fetchInsuranceUbValues = useCallback(async () => {
-    try {
-      const response = await apiRequest(MEDICAL_ENDPOINTS.INSURANCES)
-      if (!response.ok) return
-      const data = await response.json()
-      const list: Array<{ id: number; ub_value: string }> = data.results || data
-      if (!Array.isArray(list)) return
-      const map: Record<number, string> = {}
-      for (const ins of list) {
-        map[ins.id] = ins.ub_value
-      }
-      setInsuranceUbMap(map)
-    } catch (error) {
-      console.error("Error fetching insurance UB values:", error)
-    }
-  }, [apiRequest])
-
-  const refreshHistory = useCallback(async () => {
-    await Promise.all([fetchClosedPresentations(), fetchInsuranceUbValues()])
-  }, [fetchClosedPresentations, fetchInsuranceUbValues])
-
-  const handleSetUbValue = useCallback(
-    async (presentationId: number, insuranceId: number) => {
-      const key = `${presentationId}-${insuranceId}`
-      const raw = (ubValueDraft[key] ?? "").trim()
-      const parsed = Number.parseFloat(raw)
-      if (raw === "" || Number.isNaN(parsed) || parsed < 0) {
-        toast.error("Ingresá un valor UB válido (no negativo)", { duration: TOAST_DURATION })
-        return
-      }
-      try {
-        setSavingUbKey(key)
-        const response = await apiRequest(BILLING_ENDPOINTS.SET_UB_VALUE_FOR_INSURANCE(presentationId), {
-          method: "POST",
-          body: { insurance_id: insuranceId, ub_value: raw },
-        })
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}))
-          throw new Error(formatApiError(errorData, "No se pudo cargar el valor UB"))
-        }
-        const data = await response.json().catch(() => ({}))
-        const updated = Array.isArray(data.invoices_updated) ? data.invoices_updated.length : 0
-        toast.success(`Valor UB aplicado a ${updated} factura(s)`, { duration: TOAST_DURATION })
-        setUbValueDraft((prev) => {
-          const next = { ...prev }
-          delete next[key]
-          return next
-        })
-        await refreshHistory()
-      } catch (error) {
-        toast.error(getErrorMessage(error, "No se pudo cargar el valor UB"), { duration: TOAST_DURATION })
-      } finally {
-        setSavingUbKey(null)
-      }
-    },
-    [apiRequest, ubValueDraft, refreshHistory],
-  )
-
-  useEffect(() => {
-    if (activeTab === "current") {
-      void refreshCurrent()
-    } else {
-      void refreshHistory()
-    }
-  }, [activeTab, refreshCurrent, refreshHistory])
-
-  const currentProtocolsCount = currentTotal?.protocols_count ?? currentBilled.length
-
-  const togglePresentationExpanded = (presentationId: number) => {
-    setExpandedPresentationId((prev) => (prev === presentationId ? null : presentationId))
-  }
-
-  const handleCreateInvoice = async (protocolId: number) => {
-    setCreatingInvoiceForProtocol(protocolId)
-    setProtocolRowErrors((prev) => ({ ...prev, [protocolId]: "" }))
-    try {
-      const response = await apiRequest(BILLING_ENDPOINTS.CREATE_FOR_PROTOCOL(protocolId), {
-        method: "POST",
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        throw new Error(formatApiError(errorData, "No se pudo marcar como facturado"))
-      }
-
-      toast.success("Protocolo facturado y agregado a la presentación actual", { duration: TOAST_DURATION })
-      setProtocolRowErrors((prev) => {
-        const next = { ...prev }
-        delete next[protocolId]
-        return next
-      })
-      await refreshCurrent()
-    } catch (error) {
-      const message = getErrorMessage(error, "No se pudo marcar como facturado")
-      setProtocolRowErrors((prev) => ({ ...prev, [protocolId]: message }))
-      toast.error(message, { duration: TOAST_DURATION })
-    } finally {
-      setCreatingInvoiceForProtocol(null)
-    }
-  }
-
-  const handleClosePresentation = async () => {
-    setClosingPresentation(true)
-    try {
-      const payload: Record<string, string> = {}
-      if (closeName.trim()) payload.name = closeName.trim()
-      if (closeDateTo) payload.date_to = closeDateTo
-      if (closeNotes.trim()) payload.notes = closeNotes.trim()
-
-      const response = await apiRequest(BILLING_ENDPOINTS.CLOSE_PRESENTATION, {
-        method: "POST",
-        body: payload,
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        throw new Error(formatApiError(errorData, "No se pudo cerrar la presentación"))
-      }
-
-      toast.success("Presentación cerrada correctamente", { duration: TOAST_DURATION })
-      setCloseModalOpen(false)
-      setCloseName("")
-      setCloseDateTo("")
-      setCloseNotes("")
-      await Promise.all([refreshCurrent(), refreshHistory()])
-      setActiveTab("history")
-    } catch (error) {
-      const message = getErrorMessage(error, "No se pudo cerrar la presentación")
-      toast.error(message, { duration: TOAST_DURATION })
-    } finally {
-      setClosingPresentation(false)
-    }
-  }
+  const remaining = daysUntil(openPresentation?.closeDate ?? null)
+  // No se auto-cierra al llegar la fecha: solo avisa (una vez por día, vía WhatsApp)
+  // que ya está vencida y hay que cerrarla a mano.
+  const isOverdue = remaining != null && remaining < 0
+  const withinReminderWindow = remaining != null && remaining <= m.reminderDaysBefore && remaining >= 0
 
   return (
-    <div className="w-full max-w-full mx-auto px-4 py-4">
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-6 mb-4">
-        <h1 className="text-xl md:text-2xl font-bold text-slate-800">Facturación por Presentaciones</h1>
-        <p className="text-sm text-slate-500 mt-1">
-          Marca protocolos facturados, consolida la presentación actual y valida montos esperados por OOSS.
-        </p>
-      </div>
-
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200 mb-4">
-        <div className="grid grid-cols-2 border-b border-slate-200">
-          <button
-            onClick={() => setActiveTab("current")}
-            className={`px-4 py-3 text-sm font-medium ${
-              activeTab === "current" ? "text-[#204983] bg-blue-50 border-b-2 border-[#204983]" : "text-slate-500"
-            }`}
-          >
-            Presentación actual
-          </button>
-          <button
-            onClick={() => setActiveTab("history")}
-            className={`px-4 py-3 text-sm font-medium ${
-              activeTab === "history" ? "text-[#204983] bg-blue-50 border-b-2 border-[#204983]" : "text-slate-500"
-            }`}
-          >
-            Historial de presentaciones
-          </button>
+    <div className="mx-auto w-full max-w-6xl px-4 py-4">
+      <div className="rounded-2xl bg-white/95 p-4 shadow-md backdrop-blur-sm md:p-6">
+        <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-xl font-bold text-gray-800 md:text-2xl">Facturación</h1>
+            <p className="text-sm text-gray-500">Ayuda memoria para presentar y cobrar a las obras sociales.</p>
+          </div>
+          {/* Selector de entidad: cada una tiene su propio ciclo de presentación */}
+          <div className="flex gap-1 rounded-full bg-gray-100 p-1">
+            {m.entities.map((e) => (
+              <button
+                key={e.id}
+                type="button"
+                onClick={() => setEntityId(e.id)}
+                className={`rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
+                  entityId === e.id ? "bg-[#204983] text-white shadow-sm" : "text-gray-600 hover:bg-gray-200"
+                }`}
+              >
+                {e.name}
+              </button>
+            ))}
+          </div>
         </div>
 
-        <div className="p-4 md:p-6">
-          {activeTab === "current" && (
-            <div className="space-y-4">
-              <Card className="border-slate-200">
-                <CardContent className="p-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <div className="rounded-lg border border-slate-200 p-3">
-                      <p className="text-xs text-slate-500">Protocolos facturados en presentación actual</p>
-                      <p className="text-xl font-bold text-slate-800">{currentProtocolsCount}</p>
-                    </div>
-                    <div className="rounded-lg border border-slate-200 p-3">
-                      <p className="text-xs text-slate-500">Estado</p>
-                      <p className="text-sm font-semibold text-slate-800 mt-1">Presentación abierta</p>
-                    </div>
+        <Tabs defaultValue="actual" className="w-full">
+          <TabsList className="mb-5 flex h-auto w-full flex-wrap justify-start gap-2 rounded-none border-0 bg-transparent p-0">
+            <TabsTrigger value="actual" className={tabClass}>
+              Presentación actual
+            </TabsTrigger>
+            <TabsTrigger value="historial" className={tabClass}>
+              Historial
+            </TabsTrigger>
+            <TabsTrigger value="graficos" className={tabClass}>
+              Gráficos
+            </TabsTrigger>
+            <TabsTrigger value="recordatorios" className={tabClass}>
+              Recordatorios
+            </TabsTrigger>
+          </TabsList>
+
+          {/* ===== Presentación actual ===== */}
+          <TabsContent value="actual" className="space-y-4">
+            {openPresentation && (
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+                <div>
+                  <p className="font-semibold text-gray-800">{openPresentation.label}</p>
+                  <div className="text-xs text-gray-500">
+                    {openPresentation.periodStart} →{" "}
+                    <EditableCloseDate
+                      closeDate={openPresentation.closeDate}
+                      onSave={(date) => m.setTargetCloseDate(openPresentation.id, date)}
+                    />
                   </div>
-                </CardContent>
-              </Card>
-
-              {/* Serie diaria facturación particular vs OOSS (últimos 14 días) */}
-              <Card className="border-slate-200">
-                <CardContent className="p-4">
-                  <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
-                    <p className="text-sm font-semibold text-slate-800">Facturación diaria (últimos 14 días)</p>
-                    <div className="flex items-center gap-3 text-xs">
-                      <span className="flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded-sm bg-sky-500" />Particular</span>
-                      <span className="flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded-sm bg-violet-500" />OOSS</span>
-                    </div>
-                  </div>
-                  {loadingDailySeries && !dailySeries ? (
-                    <Skeleton className="h-40 w-full rounded" />
-                  ) : !dailySeries || dailySeries.series.length === 0 ? (
-                    <p className="text-xs text-slate-500">Sin datos en el período.</p>
-                  ) : (
-                    (() => {
-                      const max = Math.max(
-                        1,
-                        ...dailySeries.series.map((d) => Number.parseFloat(d.particular) + Number.parseFloat(d.oss) || 0),
-                      )
-                      return (
-                        <>
-                          <div className="flex h-40 items-stretch gap-1 overflow-x-auto pb-1">
-                            {dailySeries.series.map((d) => {
-                              const part = Number.parseFloat(d.particular) || 0
-                              const oss = Number.parseFloat(d.oss) || 0
-                              const partH = (part / max) * 100
-                              const ossH = (oss / max) * 100
-                              return (
-                                <div key={d.date} className="flex min-w-[28px] flex-1 flex-col items-center gap-1">
-                                  <div className="flex w-full flex-1 flex-col-reverse overflow-hidden rounded-t bg-slate-100">
-                                    <div
-                                      className="w-full bg-sky-500"
-                                      style={{ height: `${partH}%` }}
-                                      title={`Particular: ${formatCurrency(part)}`}
-                                    />
-                                    <div
-                                      className="w-full bg-violet-500"
-                                      style={{ height: `${ossH}%` }}
-                                      title={`OOSS: ${formatCurrency(oss)}`}
-                                    />
-                                  </div>
-                                  <span className="text-[9px] text-slate-500">{d.date.slice(5)}</span>
-                                </div>
-                              )
-                            })}
-                          </div>
-                          <div className="mt-2 grid grid-cols-3 gap-2 rounded-md bg-slate-50 px-3 py-2 text-xs">
-                            <div className="flex flex-col">
-                              <span className="text-slate-500">Particular</span>
-                              <span className="font-semibold text-sky-700">{formatCurrency(dailySeries.totals.particular)}</span>
-                            </div>
-                            <div className="flex flex-col">
-                              <span className="text-slate-500">OOSS</span>
-                              <span className="font-semibold text-violet-700">{formatCurrency(dailySeries.totals.oss)}</span>
-                            </div>
-                            <div className="flex flex-col">
-                              <span className="text-slate-500">Total</span>
-                              <span className="font-semibold text-slate-800">{formatCurrency(dailySeries.totals.total)}</span>
-                            </div>
-                          </div>
-                        </>
-                      )
-                    })()
-                  )}
-                </CardContent>
-              </Card>
-
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                <Card className="border-slate-200">
-                  <CardContent className="p-4">
-                    <p className="text-sm font-semibold text-slate-800">Protocolos no facturados</p>
-                    <p className="text-xs text-slate-500 mt-1">Al facturar, pasan automáticamente al contenedor de la derecha.</p>
-
-                    {loadingProtocolsToBill ? (
-                      <div className="space-y-2 mt-3">
-                        {Array.from({ length: 4 }).map((_, idx) => (
-                          <Skeleton key={idx} className="h-20 rounded-lg" />
-                        ))}
-                      </div>
-                    ) : protocolsToBill.length === 0 ? (
-                      <div className="text-xs text-slate-500 mt-3">No hay protocolos pendientes de facturar.</div>
-                    ) : (
-                      <div className="space-y-2 mt-3">
-                        {protocolsToBill.map((protocol) => (
-                          <div key={protocol.protocol_id} className="border border-slate-200 rounded-lg p-3 bg-white">
-                            <div className="flex flex-col gap-2">
-                              <div>
-                                <p className="font-semibold text-slate-800">Protocolo #{protocol.protocol_id}</p>
-                                <p className="text-sm text-slate-600">
-                                  {protocol.patient?.first_name || ""} {protocol.patient?.last_name || ""} · {protocol.insurance?.name || "Sin OOSS"}
-                                </p>
-                                <p className="text-sm mt-1 text-slate-700">
-                                  UB autorizadas: {protocol.total_ub_authorized}
-                                </p>
-                                <p className="text-[11px] text-slate-400">El valor UB de OOSS se carga al cerrar la presentación.</p>
-                              </div>
-                              <div className="flex flex-col items-end">
-                                <Button
-                                  className="bg-[#204983]"
-                                  disabled={creatingInvoiceForProtocol === protocol.protocol_id}
-                                  onClick={() => handleCreateInvoice(protocol.protocol_id)}
-                                >
-                                  {creatingInvoiceForProtocol === protocol.protocol_id ? (
-                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                  ) : (
-                                    <FileCheck2 className="h-4 w-4 mr-2" />
-                                  )}
-                                  Facturar protocolo
-                                </Button>
-                                {protocolRowErrors[protocol.protocol_id] && (
-                                  <p className="text-xs text-red-600 mt-1 text-right max-w-[280px]">
-                                    {protocolRowErrors[protocol.protocol_id]}
-                                  </p>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-
-                <Card className="border-slate-200">
-                  <CardContent className="p-4">
-                    <p className="text-sm font-semibold text-slate-800">Protocolos facturados</p>
-                    <p className="text-xs text-slate-500 mt-1">Facturados en la presentación actual (current=true).</p>
-
-                    {loadingCurrentBilled ? (
-                      <div className="space-y-2 mt-3">
-                        {Array.from({ length: 4 }).map((_, idx) => (
-                          <Skeleton key={idx} className="h-16 rounded-lg" />
-                        ))}
-                      </div>
-                    ) : currentBilled.length === 0 ? (
-                      <div className="text-xs text-slate-500 mt-3">No hay protocolos facturados en la presentación actual.</div>
-                    ) : (
-                      <div className="space-y-2 mt-3">
-                        {currentBilled.map((invoice) => (
-                          <div key={invoice.id} className="border border-slate-200 rounded-lg p-2 text-sm">
-                            <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
-                              <div className="min-w-0">
-                                <p className="font-medium text-slate-800">
-                                  Protocolo #{invoice.protocol_id} · {invoice.insurance_name}
-                                </p>
-                                <p className="text-xs text-slate-500 mt-1">
-                                  Factura #{invoice.id}
-                                </p>
-                              </div>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="self-start text-xs text-red-600 hover:bg-red-50 hover:text-red-700 border-red-200"
-                                disabled={unbillingProtocolId === invoice.protocol_id}
-                                onClick={() => handleUnbillProtocol(invoice.protocol_id)}
-                                title="Anular esta factura: el protocolo vuelve a Pendiente de facturación"
-                              >
-                                {unbillingProtocolId === invoice.protocol_id ? (
-                                  <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                                ) : null}
-                                Desfacturar
-                              </Button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    <div className="mt-4 pt-3 border-t border-slate-200">
-                      <p className="text-sm font-semibold text-slate-700 mb-2">Resumen por OOSS</p>
-                      {loadingCurrentTotal ? (
-                        <Skeleton className="h-16 rounded" />
-                      ) : !currentTotal || currentTotal.expected_by_ooss.length === 0 ? (
-                        <p className="text-xs text-slate-500">Sin datos para mostrar.</p>
-                      ) : (
-                        <div className="space-y-2">
-                          {currentTotal.expected_by_ooss.map((row) => (
-                            <div key={`${row.insurance_id}-${row.insurance_name}`} className="border rounded p-2">
-                              <div className="flex items-center justify-between text-sm">
-                                <span className="font-medium text-slate-800">{row.insurance_name}</span>
-                                <span className="text-xs text-slate-500">{row.protocols_count} protocolo(s)</span>
-                              </div>
-                              <p className="text-xs text-slate-500 mt-1">
-                                UB autorizadas: {row.total_ub_authorized}
-                              </p>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-
-              <div className="flex justify-end">
-                <Button className="bg-[#204983]" onClick={() => setCloseModalOpen(true)}>
-                  <CalendarRange className="h-4 w-4 mr-2" />
-                  Cerrar facturación
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {activeTab === "history" && (
-            <div className="space-y-3">
-              <Card className="border-slate-200">
-                <CardContent className="p-4">
-                  <p className="text-sm font-semibold text-slate-800">Presentaciones cerradas</p>
-                  <p className="text-xs text-slate-500 mt-1">
-                    Tocá una presentación para ver protocolos cerrados y detalle por OOSS.
-                  </p>
-                </CardContent>
-              </Card>
-
-              {loadingClosedPresentations ? (
-                <div className="space-y-2">
-                  {Array.from({ length: 4 }).map((_, idx) => (
-                    <Skeleton key={idx} className="h-24 rounded-lg" />
-                  ))}
                 </div>
-              ) : closedPresentations.length === 0 ? (
-                <div className="text-sm text-slate-500 py-8 text-center border rounded-lg">No hay presentaciones cerradas.</div>
+                <div className="flex items-center gap-2">
+                  {isOverdue ? (
+                    <Badge variant="outline" className="gap-1 border-red-200 bg-red-50 text-red-700">
+                      <AlertTriangle className="h-3 w-3" />
+                      Vencida hace {Math.abs(remaining!)} día{Math.abs(remaining!) === 1 ? "" : "s"}
+                    </Badge>
+                  ) : (
+                    remaining != null && (
+                      <Badge
+                        variant="outline"
+                        className={
+                          withinReminderWindow
+                            ? "gap-1 border-amber-200 bg-amber-50 text-amber-700"
+                            : "gap-1 border-gray-200 bg-gray-50 text-gray-600"
+                        }
+                      >
+                        <Clock className="h-3 w-3" />
+                        Faltan {remaining} días
+                      </Badge>
+                    )
+                  )}
+                  <Button size="sm" className="bg-[#204983] hover:bg-[#1a3d6f]" onClick={() => setCloseDialogOpen(true)}>
+                    <CalendarRange className="mr-1.5 h-4 w-4" />
+                    Cerrar presentación
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            <div>
+              <h2 className="mb-2 text-sm font-semibold text-gray-700">
+                Protocolos pendientes de facturar ({pending.length})
+              </h2>
+              {pending.length === 0 ? (
+                <p className="rounded-lg border border-dashed border-gray-200 py-6 text-center text-sm text-gray-400">
+                  No hay protocolos pendientes para {entity.name}.
+                </p>
               ) : (
                 <div className="space-y-2">
-                  {closedPresentations.map((presentation) => (
-                    <div
-                      key={presentation.id}
-                      className={`border rounded-lg transition-all ${
-                        expandedPresentationId === presentation.id
-                          ? "border-[#204983] shadow-sm bg-blue-50/20"
-                          : "border-slate-200 bg-white"
-                      }`}
-                    >
-                      <button
-                        type="button"
-                        className="w-full text-left p-3"
-                        onClick={() => togglePresentationExpanded(presentation.id)}
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <p className="font-semibold text-slate-800 truncate">{presentation.name || presentation.reference}</p>
-                            <p className="text-sm text-slate-600 mt-1">
-                              {presentation.period_start} a {presentation.period_end}
-                            </p>
-                          </div>
-                          <div className="flex items-center gap-2 flex-shrink-0">
-                            <Badge variant="outline">{presentation.status}</Badge>
-                            {expandedPresentationId === presentation.id ? (
-                              <ChevronUp className="h-4 w-4 text-slate-500" />
-                            ) : (
-                              <ChevronDown className="h-4 w-4 text-slate-500" />
-                            )}
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mt-3 text-xs">
-                          <div className="border border-slate-200 rounded-md p-2 bg-white">
-                            <p className="text-slate-500">Facturas cerradas</p>
-                            <p className="text-sm font-semibold text-slate-800">{presentation.invoice_count}</p>
-                          </div>
-                          <div className="border border-slate-200 rounded-md p-2 bg-white">
-                            <p className="text-slate-500">Monto esperado</p>
-                            <p className="text-sm font-semibold text-slate-800">{formatExpected(presentation.expected_amount)}</p>
-                          </div>
-                          <div className="border border-slate-200 rounded-md p-2 bg-white">
-                            <p className="text-slate-500">Protocolos</p>
-                            <p className="text-sm font-semibold text-slate-800">{presentation.protocols?.length || 0}</p>
-                          </div>
-                        </div>
-                      </button>
-
-                      {expandedPresentationId === presentation.id && (
-                        <div className="px-3 pb-3 border-t border-slate-200 space-y-3">
-                          <div className="pt-3">
-                            <p className="text-xs font-semibold text-slate-700">Protocolos de la presentación</p>
-                            {!presentation.protocols || presentation.protocols.length === 0 ? (
-                              <p className="text-xs text-slate-500 mt-1">Sin protocolos informados en este cierre.</p>
-                            ) : (
-                              <div className="space-y-2 mt-2">
-                                {presentation.protocols.map((protocol) => (
-                                  <div
-                                    key={`${presentation.id}-${protocol.invoice_id}-${protocol.protocol_id}`}
-                                    className="border border-slate-200 rounded-md p-2 bg-white"
-                                  >
-                                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-1">
-                                      <p className="text-sm font-medium text-slate-800">
-                                        Protocolo #{protocol.protocol_id} · Factura #{protocol.invoice_id}
-                                      </p>
-                                      <p className="text-sm font-semibold text-slate-800">{formatExpected(protocol.expected_amount)}</p>
-                                    </div>
-                                    <p className="text-xs text-slate-500 mt-1">
-                                      {(protocol.patient?.first_name || "").trim()} {(protocol.patient?.last_name || "").trim()}
-                                      {protocol.patient ? " · " : ""}
-                                      {protocol.insurance?.name || "Sin obra social"}
-                                    </p>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-
-                          <div>
-                            <p className="text-xs font-semibold text-slate-700">Desglose esperado por OOSS</p>
-                            {presentation.expected_by_ooss.length === 0 ? (
-                              <p className="text-xs text-slate-500 mt-1">Sin detalle por OOSS.</p>
-                            ) : (
-                              <div className="space-y-2 mt-2">
-                                {presentation.expected_by_ooss.map((ooss) => {
-                                  const ubKey = `${presentation.id}-${ooss.insurance_id}`
-                                  const currentUb = insuranceUbMap[ooss.insurance_id]
-                                  return (
-                                  <div key={ubKey} className="border border-slate-200 rounded-md p-2 text-xs bg-white">
-                                    <div className="flex items-center justify-between gap-2">
-                                      <div className="min-w-0">
-                                        <p className="font-medium text-slate-800">{ooss.insurance_name}</p>
-                                        {currentUb !== undefined && (
-                                          <p className="text-[11px] text-slate-500">
-                                            Valor UB actual: <span className="font-semibold text-slate-700">{formatCurrency(currentUb)}</span>
-                                          </p>
-                                        )}
-                                      </div>
-                                      <p className="font-semibold text-slate-800">{formatExpected(ooss.expected_amount)}</p>
-                                    </div>
-                                    <p className="text-slate-500 mt-1">{ooss.protocol_count} protocolo(s)</p>
-                                    <div className="flex items-center gap-2 mt-2">
-                                      <Input
-                                        type="number"
-                                        min="0"
-                                        step="0.01"
-                                        className="h-8 text-xs"
-                                        placeholder={currentUb !== undefined ? `Actual: ${currentUb}` : "Valor UB de la OOSS"}
-                                        value={ubValueDraft[ubKey] ?? ""}
-                                        onChange={(e) =>
-                                          setUbValueDraft((prev) => ({ ...prev, [ubKey]: e.target.value }))
-                                        }
-                                      />
-                                      <Button
-                                        size="sm"
-                                        className="h-8 bg-[#204983] shrink-0"
-                                        disabled={savingUbKey === ubKey}
-                                        onClick={() => handleSetUbValue(presentation.id, ooss.insurance_id)}
-                                        title="Aplica el valor UB a todas las facturas de esta OOSS y recalcula los totales"
-                                      >
-                                        {savingUbKey === ubKey ? (
-                                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                        ) : (
-                                          <Save className="h-3.5 w-3.5" />
-                                        )}
-                                      </Button>
-                                    </div>
-                                  </div>
-                                  )
-                                })}
-                              </div>
-                            )}
-                          </div>
-
-                          {presentation.notes && (
-                            <div className="border border-slate-200 rounded-md p-2 bg-white">
-                              <p className="text-xs font-semibold text-slate-700">Observaciones del cierre</p>
-                              <p className="text-xs text-slate-600 mt-1">{presentation.notes}</p>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
+                  {pending.map((p) => (
+                    <ProtocolBillingRow
+                      key={p.protocolId}
+                      protocol={p}
+                      onMarkBilled={m.markProtocolBilled}
+                      isMarking={m.markingProtocolId === p.protocolId}
+                    />
                   ))}
                 </div>
               )}
             </div>
-          )}
-        </div>
+
+            <div>
+              <h2 className="mb-2 text-sm font-semibold text-gray-700">Facturados en esta presentación</h2>
+              <p className="mb-2 text-xs text-gray-400">
+                El valor UB y lo cobrado de cada OOSS se cargan una vez que la presentación esté cerrada, desde Historial.
+              </p>
+              {!openPresentation || openPresentation.ossBreakdown.length === 0 ? (
+                <p className="rounded-lg border border-dashed border-gray-200 py-6 text-center text-sm text-gray-400">
+                  Todavía no se facturó ningún protocolo en esta presentación.
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {openPresentation.ossBreakdown.map((entry) => (
+                    <OssSummaryRow key={entry.ossId} entry={entry} />
+                  ))}
+                </div>
+              )}
+            </div>
+          </TabsContent>
+
+          {/* ===== Historial ===== */}
+          <TabsContent value="historial" className="space-y-2">
+            {history.length === 0 ? (
+              <p className="rounded-lg border border-dashed border-gray-200 py-8 text-center text-sm text-gray-400">
+                {entity.name} todavía no tiene presentaciones cerradas.
+              </p>
+            ) : (
+              history.map((p) => (
+                <PresentationHistoryCard
+                  key={p.id}
+                  presentation={p}
+                  entity={entity}
+                  onSaveUbValue={m.saveUbValue}
+                  onSaveCollected={m.saveCollected}
+                  onSaveCollectedTotal={m.saveCollectedTotal}
+                />
+              ))
+            )}
+          </TabsContent>
+
+          {/* ===== Gráficos ===== */}
+          <TabsContent value="graficos">
+            <PresentationEarningsChart entity={entity} presentations={allPresentations} />
+          </TabsContent>
+
+          {/* ===== Recordatorios (config global, no por entidad) ===== */}
+          <TabsContent value="recordatorios">
+            <ReminderSettingsPanel
+              phones={m.reminderPhones}
+              daysBefore={m.reminderDaysBefore}
+              onAddPhone={m.addReminderPhone}
+              onTogglePhone={m.togglePhone}
+              onRemovePhone={m.removePhone}
+              onChangeDaysBefore={m.changeDaysBefore}
+            />
+          </TabsContent>
+        </Tabs>
       </div>
 
-      <Dialog open={closeModalOpen} onOpenChange={setCloseModalOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Cerrar facturación</DialogTitle>
-            <DialogDescription>
-              Se cerrará la presentación actual con todos los protocolos facturados acumulados.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-3">
-            <div>
-              <label className="text-xs text-slate-500 mb-1 block">Nombre de presentación (opcional)</label>
-              <Input
-                value={closeName}
-                onChange={(e) => setCloseName(e.target.value)}
-                placeholder="Ej: Presentación Marzo 2026"
-              />
-            </div>
-            <div>
-              <label className="text-xs text-slate-500 mb-1 block">Fecha de cierre (opcional)</label>
-              <Input type="date" value={closeDateTo} onChange={(e) => setCloseDateTo(e.target.value)} />
-            </div>
-            <div>
-              <label className="text-xs text-slate-500 mb-1 block">Observaciones</label>
-              <Input
-                value={closeNotes}
-                onChange={(e) => setCloseNotes(e.target.value)}
-                placeholder="Opcional"
-              />
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setCloseModalOpen(false)}>
-              Cancelar
-            </Button>
-            <Button className="bg-[#204983]" onClick={handleClosePresentation} disabled={closingPresentation}>
-              {closingPresentation ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Receipt className="h-4 w-4 mr-2" />}
-              Confirmar cierre
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {openPresentation && (
+        <ClosePresentationDialog
+          open={closeDialogOpen}
+          onOpenChange={setCloseDialogOpen}
+          entity={entity}
+          onConfirm={(nextDate) => m.closePresentation(entityId, nextDate)}
+        />
+      )}
     </div>
   )
 }

@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { Navigate } from "react-router-dom"
+import { Navigate, useLocation } from "react-router-dom"
 import useAuth from "@/contexts/auth-context"
 
 interface ProtectedRouteProps {
@@ -12,6 +12,7 @@ interface ProtectedRouteProps {
 
 export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requiredPermission, fallbackPath = "/" }) => {
   const { user, isLoading, isInitialized, hasPermission } = useAuth()
+  const location = useLocation()
 
   // Mostrar loading mientras se inicializa la autenticación
   if (!isInitialized || isLoading) {
@@ -25,9 +26,10 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requir
     )
   }
 
-  // Solo redirigir al login si ya terminó la inicialización y no hay usuario
+  // Solo redirigir al login si ya terminó la inicialización y no hay usuario.
+  // Guardamos la ruta pedida en el state para volver acá después de loguearse.
   if (!user) {
-    return <Navigate to="/login" replace />
+    return <Navigate to="/login" state={{ from: location }} replace />
   }
 
   if (requiredPermission && !hasPermission(requiredPermission)) {

@@ -2,7 +2,7 @@
 
 import type React from "react"
 import { useState, useEffect } from "react"
-import { useNavigate, Link } from "react-router-dom"
+import { useNavigate, useLocation, Link, type Location } from "react-router-dom"
 import { User, Lock, AlertCircle } from "lucide-react"
 import useAuth from "@/contexts/auth-context"
 
@@ -14,13 +14,18 @@ export default function Login() {
   const [isPageLoaded, setIsPageLoaded] = useState(false)
   const { login, isLoading, user } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
+  // ProtectedRoute guarda acá la ruta que el usuario quería visitar antes de
+  // ser mandado a /login, para volver ahí una vez que inicia sesión.
+  const from = (location.state as { from?: Location } | null)?.from
 
   // Redirect if already authenticated
   useEffect(() => {
     if (user) {
-      navigate("/", { replace: true })
+      const target = from ? `${from.pathname}${from.search}${from.hash}` : "/"
+      navigate(target, { replace: true })
     }
-  }, [user, navigate])
+  }, [user, navigate, from])
 
   useEffect(() => {
     const lastUsername = localStorage.getItem("last_username")

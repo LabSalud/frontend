@@ -876,6 +876,9 @@ export interface Result {
   } | null
   validated_at?: string | null
   date?: string | null
+  /** Estado NUEVO del protocolo dueño, recalculado por el backend tras guardar/validar. */
+  protocol_status?: { id: number; name: string } | null
+  protocol_id?: number | null
 }
 
 // Response from GET /results/results/by-analysis/{id}/

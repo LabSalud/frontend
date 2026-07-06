@@ -121,6 +121,9 @@ export function useProtocolResults(protocolId: number) {
         const updated: Result = await res.json()
         setResults((prev) => prev.map((r) => (r.id === resultId ? updated : r)))
         setValues((prev) => ({ ...prev, [resultId]: { value: updated.value, notes: updated.notes } }))
+        if (updated.protocol_status !== undefined) {
+          setProtocol((prev) => (prev ? { ...prev, status: updated.protocol_status ?? null } : prev))
+        }
         return true
       } catch (e) {
         toast.error(e instanceof Error ? e.message : "Error al guardar el resultado")
@@ -147,6 +150,9 @@ export function useProtocolResults(protocolId: number) {
         }
         const updated: Result = await res.json()
         setResults((prev) => prev.map((r) => (r.id === resultId ? updated : r)))
+        if (updated.protocol_status !== undefined) {
+          setProtocol((prev) => (prev ? { ...prev, status: updated.protocol_status ?? null } : prev))
+        }
         toast.success(isValid ? "Resultado validado" : "Resultado rechazado")
         return true
       } catch (e) {

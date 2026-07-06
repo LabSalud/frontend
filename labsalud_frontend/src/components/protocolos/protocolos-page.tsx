@@ -97,6 +97,18 @@ export default function ProtocolosPage() {
 
   // Estados principales
   const [allProtocols, setAllProtocols] = useState<ProtocolListItem[]>([])
+  // Aplica el estado nuevo (ya devuelto por la respuesta de la acción) a una o
+  // varias filas de la lista, sin pedirle al backend toda la página de nuevo.
+  const applyStatusUpdates = useCallback(
+    (updates: Array<{ id: number; status: ProtocolListItem["status"] | null }>) => {
+      if (updates.length === 0) return
+      const byId = new Map(updates.map((u) => [u.id, u.status]))
+      setAllProtocols((prev) =>
+        prev.map((p) => (byId.has(p.id) ? { ...p, status: byId.get(p.id) ?? p.status } : p)),
+      )
+    },
+    [],
+  )
   const [isInitialLoading, setIsInitialLoading] = useState(true)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
   const [isSearching, setIsSearching] = useState(false)
@@ -282,11 +294,15 @@ export default function ProtocolosPage() {
     [apiRequest, buildUrl, nextUrl, isInitialLoading, isLoadingMore, isSearching],
   )
 
-  // Acciones rápidas de fila (pago / imprimir / enviar). Tras cada una,
-  // recargamos el listado para reflejar el nuevo estado.
-  const quickActions = useProtocolQuickActions(() =>
-    fetchProtocolsFromAPI(debouncedSearchTerm, true, true),
-  )
+  // Acciones rápidas de fila (pago / imprimir / enviar). Si la respuesta trae
+  // el estado nuevo lo aplicamos directo; si no, recargamos el listado.
+  const quickActions = useProtocolQuickActions((statusUpdate) => {
+    if (statusUpdate) {
+      applyStatusUpdates([statusUpdate])
+    } else {
+      fetchProtocolsFromAPI(debouncedSearchTerm, true, true)
+    }
+  })
 
   const { user, hasPermission } = useAuth()
   const canUncancel = Boolean(user?.is_superuser || hasPermission(PERMISSIONS.UNCANCEL_PROTOCOLS.codename))
@@ -466,6 +482,10 @@ export default function ProtocolosPage() {
         } else {
           const data = await response.json().catch(() => ({}))
           toast.success(data.detail || "Reporte unificado enviado", { duration: TOAST_DURATION })
+          // El envío puede completar el protocolo (pasa a "Completado"): la
+          // respuesta trae el estado nuevo de cada uno combinado.
+          const statuses = (data.protocol_statuses || []) as Array<{ protocol_id: number; status: ProtocolListItem["status"] | null }>
+          applyStatusUpdates(statuses.map((s) => ({ id: s.protocol_id, status: s.status })))
         }
         setSelectedProtocols(new Set())
       } else {
@@ -541,6 +561,12 @@ export default function ProtocolosPage() {
               { duration: TOAST_DURATION },
             )
           }
+          // El envío puede completar el protocolo (pasa a "Completado"): cada
+          // item exitoso trae el estado nuevo de ese protocolo.
+          const successes = (data.successes || []) as Array<{ protocol_id: number; status?: ProtocolListItem["status"] | null }>
+          applyStatusUpdates(
+            successes.filter((s) => s.status !== undefined).map((s) => ({ id: s.protocol_id, status: s.status ?? null })),
+          )
         }
         setSelectedProtocols(new Set())
       } else {

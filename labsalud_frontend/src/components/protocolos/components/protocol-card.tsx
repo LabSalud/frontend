@@ -185,6 +185,14 @@ export function ProtocolCard({
   const navigate = useNavigate()
   const [isExpanded, setIsExpanded] = useState(pageMode)
   const [protocolDetail, setProtocolDetail] = useState<ProtocolDetailResponse | null>(initialDetail)
+  // Estado más fresco que la prop `protocol.status`: algunas acciones (autorizar
+  // análisis, transacciones no planificadas) refrescan el detalle en segundo
+  // plano sin pedirle al padre que recargue toda la lista. Mientras eso no pasa,
+  // `liveStatus` es lo que se muestra; se descarta apenas la prop trae uno nuevo.
+  const [liveStatus, setLiveStatus] = useState<ProtocolStatus | null>(null)
+  useEffect(() => {
+    setLiveStatus(null)
+  }, [protocol.id, protocol.status?.id, protocol.status?.name])
   const [auditEvents, setAuditEvents] = useState<ProtocolAuditEvent[]>([])
   const [protocolDetails, setProtocolDetails] = useState<ReportProtocolDetail[]>([])
   const [loadingDetail, setLoadingDetail] = useState(false)
@@ -327,16 +335,19 @@ export function ProtocolCard({
     }
   }, [apiRequest, protocol.id, protocolDetails])
 
-  const refreshProtocolDetail = useCallback(async () => {
+  const refreshProtocolDetail = useCallback(async (): Promise<ProtocolDetailResponse | null> => {
     try {
       const response = await apiRequest(PROTOCOL_ENDPOINTS.PROTOCOL_DETAIL(protocol.id))
       if (response.ok) {
         const data: ProtocolDetailResponse = await response.json()
         setProtocolDetail(data)
+        setLiveStatus(data.status)
+        return data
       }
     } catch (error) {
       console.error("Error refreshing protocol detail:", error)
     }
+    return null
   }, [apiRequest, protocol.id])
 
   const fetchProtocolDetail = async (): Promise<ProtocolDetailResponse | null> => {
@@ -518,8 +529,13 @@ export function ProtocolCard({
       })
 
       if (response.ok) {
+        const data = await response.json().catch(() => ({}))
         const label = operation === "patient_paid" ? "Pago" : "Devolución"
         toast.success(`${label} de $${amount.toFixed(2)} registrado exitosamente`, { duration: TOAST_DURATION })
+        // Registrar un pago suele cambiar el estado (ej. "Pago incompleto" ->
+        // "Pendiente de envío"): la respuesta ya lo trae, no hace falta esperar
+        // el refresh de fondo para reflejarlo.
+        if (data.status !== undefined) setLiveStatus(data.status)
         await refreshProtocolDetail()
         onUpdate()
         return true
@@ -679,6 +695,7 @@ export function ProtocolCard({
       if (response.ok) {
         const data = await response.json()
         toast.success(data.detail || "Email enviado exitosamente", { duration: TOAST_DURATION })
+        if (data.protocol_status !== undefined) setLiveStatus(data.protocol_status)
         setReportDialogOpen(false)
         await refreshProtocolDetail()
         onUpdate()
@@ -703,6 +720,7 @@ export function ProtocolCard({
       if (response.ok) {
         const data = await response.json()
         toast.success(data.detail || "WhatsApp enviado exitosamente", { duration: TOAST_DURATION })
+        if (data.protocol_status !== undefined) setLiveStatus(data.protocol_status)
         setReportDialogOpen(false)
         await refreshProtocolDetail()
         onUpdate()
@@ -752,16 +770,24 @@ export function ProtocolCard({
       })
 
       if (response.ok) {
-        const updatedDetail = await response.json().catch(() => null)
+        // La respuesta es el protocolo completo (detalle + status actualizado),
+        // no solo la fila del análisis: hay que sacar la fila puntual de
+        // `.details` en vez de mezclar el objeto entero sobre `d` (pisaría
+        // `d.id` con el id del protocolo).
+        const updatedProtocol: ProtocolDetailResponse | null = await response.json().catch(() => null)
+        const updatedRow = updatedProtocol?.details.find((d) => d.id === detail.id)
         setProtocolDetails((prev) =>
-          prev.map((d) => (d.id === detail.id ? { ...d, ...(updatedDetail || {}), is_authorized: !detail.is_authorized } : d)),
+          prev.map((d) => (d.id === detail.id ? { ...d, ...(updatedRow || { is_authorized: !detail.is_authorized }) } : d)),
         )
+        if (updatedProtocol) {
+          setProtocolDetail(updatedProtocol)
+          setLiveStatus(updatedProtocol.status)
+        }
         toast.success(`Análisis ${!detail.is_authorized ? "autorizado" : "desautorizado"} exitosamente`, {
           duration: TOAST_DURATION,
         })
-        // Refresca solo el detail local (totales, balance) en background.
-        // No llama onUpdate() para evitar recargar toda la lista de protocolos.
-        void refreshProtocolDetail()
+        // La respuesta ya trae el protocolo completo actualizado: no hace falta
+        // un refreshProtocolDetail() aparte, ni recargar toda la lista con onUpdate().
       } else {
         const errorData = await response.json().catch(() => ({}))
         throw new Error(extractErrorMessage(errorData, "Error al actualizar la autorización"))
@@ -946,8 +972,9 @@ export function ProtocolCard({
     return "Cargando..."
   }
 
-  const statusId = protocol.status?.id ?? 0
-  const statusName = protocol.status?.name || "este estado"
+  const effectiveStatus = liveStatus ?? protocol.status
+  const statusId = effectiveStatus?.id ?? 0
+  const statusName = effectiveStatus?.name || "este estado"
   const isCancelled = statusId === 4
   const isCompleted = statusId === 5
   const isLockedForChanges = isCancelled || isCompleted
@@ -1011,7 +1038,7 @@ export function ProtocolCard({
     <>
       {pageMode ? (
         <ProtocolDetailView
-          detail={protocolDetail ?? { id: protocol.id, status: protocol.status }}
+          detail={protocolDetail ?? { id: protocol.id, status: effectiveStatus }}
           patientName={getPatientName()}
           patientAge={protocol.patient?.age}
           doctorName={getDoctorName()}
@@ -1094,7 +1121,7 @@ export function ProtocolCard({
             <div className="flex-1 min-w-0">
               <ProtocolHeader
                 protocolId={protocol.id}
-                status={protocol.status}
+                status={effectiveStatus}
                 patientName={getPatientName()}
                 isAnonymousPatient={Boolean(protocol.patient?.is_anonymous)}
                 paymentStatus={protocol.payment_status}
@@ -1365,6 +1392,7 @@ export function ProtocolCard({
         onChanged={() => {
           void refreshProtocolDetail()
         }}
+        onStatusChange={(status) => setLiveStatus(status)}
       />
 
       <OrderStatusDialog

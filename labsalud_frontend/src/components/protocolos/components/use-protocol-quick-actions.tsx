@@ -6,7 +6,7 @@ import { useApi } from "@/hooks/use-api"
 import { PROTOCOL_ENDPOINTS, TOAST_DURATION } from "@/config/api"
 import { formatApiError, getErrorMessage } from "@/lib/api-error"
 import { PaymentDialog } from "./dialogs/payment-dialog"
-import type { ProtocolListItem } from "@/types"
+import type { ProtocolListItem, ProtocolStatus } from "@/types"
 
 /**
  * Acciones rápidas desde la fila de la tabla (sin abrir el detalle):
@@ -14,8 +14,14 @@ import type { ProtocolListItem } from "@/types"
  * paciente. La página monta `dialogs` una sola vez y dispara las acciones por
  * fila. Reusa el endpoint de reporte/regularización; no duplica la lógica de
  * los diálogos pesados del detalle.
+ *
+ * `onChanged` recibe el estado nuevo cuando la respuesta lo trae (se aplica al
+ * toque, sin recargar la lista); si no viene se llama sin argumento y el
+ * caller decide si recargar todo.
  */
-export function useProtocolQuickActions(onChanged: () => void) {
+export function useProtocolQuickActions(
+  onChanged: (statusUpdate?: { id: number; status: ProtocolStatus | null }) => void,
+) {
   const { apiRequest } = useApi()
   const [paymentTarget, setPaymentTarget] = useState<ProtocolListItem | null>(null)
   const [isProcessingPayment, setIsProcessingPayment] = useState(false)
@@ -32,11 +38,12 @@ export function useProtocolQuickActions(onChanged: () => void) {
         body: { operation, amount: amount.toFixed(2) },
       })
       if (res.ok) {
+        const data = await res.json().catch(() => ({}))
         toast.success(
           `${operation === "patient_paid" ? "Pago" : "Devolución"} de $${amount.toFixed(2)} registrado`,
           { duration: TOAST_DURATION },
         )
-        onChanged()
+        onChanged(data.status !== undefined ? { id: paymentTarget.id, status: data.status } : undefined)
         setPaymentTarget(null)
         return true
       }
@@ -63,7 +70,7 @@ export function useProtocolQuickActions(onChanged: () => void) {
       }
       const data = await res.json().catch(() => ({}))
       toast.success(data.detail || "Informe enviado", { duration: TOAST_DURATION })
-      onChanged()
+      onChanged(data.protocol_status !== undefined ? { id: p.id, status: data.protocol_status } : undefined)
     } catch (e) {
       toast.error(getErrorMessage(e, "Error al enviar el informe"), { duration: TOAST_DURATION })
     } finally {
@@ -117,8 +124,9 @@ export function useProtocolQuickActions(onChanged: () => void) {
         const err = await res.json().catch(() => ({}))
         throw new Error(formatApiError(err, "No se pudo reactivar el protocolo"))
       }
+      const data = await res.json().catch(() => ({}))
       toast.success("Protocolo reactivado", { duration: TOAST_DURATION })
-      onChanged()
+      onChanged(data.status !== undefined ? { id: p.id, status: data.status } : undefined)
     } catch (e) {
       toast.error(getErrorMessage(e, "Error al reactivar el protocolo"), { duration: TOAST_DURATION })
     } finally {

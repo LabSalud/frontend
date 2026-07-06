@@ -24,7 +24,7 @@ import { Skeleton } from "../../../ui/skeleton"
 import { toast } from "sonner"
 import { useApi } from "../../../../hooks/use-api"
 import { PROTOCOL_ENDPOINTS, TOAST_DURATION } from "@/config/api"
-import type { UnplannedTransaction } from "@/types"
+import type { ProtocolStatus, UnplannedTransaction } from "@/types"
 import { formatApiError, getErrorMessage } from "@/lib/api-error"
 
 interface UnplannedTransactionsDialogProps {
@@ -33,6 +33,9 @@ interface UnplannedTransactionsDialogProps {
   protocolId: number
   isEditable: boolean
   onChanged: () => void
+  /** La transacción puede cambiar el estado del protocolo (recalcula pagos);
+   * si la respuesta lo trae, se aplica directo sin esperar el refresh de fondo. */
+  onStatusChange?: (status: ProtocolStatus | null) => void
 }
 
 const formatMoney = (value: string | number) => {
@@ -47,6 +50,7 @@ export function UnplannedTransactionsDialog({
   protocolId,
   isEditable,
   onChanged,
+  onStatusChange,
 }: UnplannedTransactionsDialogProps) {
   const { apiRequest } = useApi()
   const [items, setItems] = useState<UnplannedTransaction[]>([])
@@ -105,7 +109,9 @@ export function UnplannedTransactionsDialog({
         const errorData = await response.json().catch(() => ({}))
         throw new Error(formatApiError(errorData, "No se pudo crear la transacción."))
       }
+      const data = await response.json().catch(() => ({}))
       toast.success("Transacción agregada", { duration: TOAST_DURATION })
+      if (data.protocol_status !== undefined) onStatusChange?.(data.protocol_status)
       setForm({ kind: "charge", description: "", amount: "" })
       await fetchItems()
       onChanged()

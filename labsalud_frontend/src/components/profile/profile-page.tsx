@@ -3,8 +3,10 @@
 import type React from "react"
 
 import { useState, useEffect } from "react"
+import { useQueryClient } from "@tanstack/react-query"
 import useAuth from "@/contexts/auth-context"
 import { useApi } from "@/hooks/use-api"
+import { useApiQuery } from "@/hooks/use-api-query"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -47,7 +49,14 @@ const extractErrorMessage = (error: unknown): string => formatApiError(error, "E
 export default function ProfilePage() {
   const { user, refreshUser } = useAuth()
   const { apiRequest } = useApi()
-  const [profileData, setProfileData] = useState<ProfileData | null>(null)
+  const queryClient = useQueryClient()
+  // Cacheado (staleTime del QueryClient): volver a "Mi Perfil" no vuelve a
+  // mostrar el skeleton si los datos siguen frescos.
+  const { data: profileData, isLoading: isLoadingProfile } = useApiQuery<ProfileData>({
+    queryKey: ["profile", "me"],
+    url: USER_ENDPOINTS.ME,
+    enabled: Boolean(user),
+  })
   const [formData, setFormData] = useState<ProfileFormData>({
     email: "",
     password: "",
@@ -57,43 +66,16 @@ export default function ProfilePage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [photoPreview, setPhotoPreview] = useState<string | null>(null)
-  const [isLoadingProfile, setIsLoadingProfile] = useState(true)
 
   useEffect(() => {
-    const fetchProfile = async () => {
-      try {
-        const response = await apiRequest(USER_ENDPOINTS.ME, {
-          method: "GET",
-        })
-
-        if (response.ok) {
-          const data: ProfileData = await response.json()
-          setProfileData(data)
-          setFormData((prev) => ({
-            ...prev,
-            email: data.email || "",
-            inactivity_logout_minutes: String(data.inactivity_logout_minutes ?? 30),
-          }))
-        } else {
-          const errorData = await response.json().catch(() => ({}))
-          toast.error(extractErrorMessage(errorData), {
-            duration: TOAST_DURATION,
-          })
-        }
-      } catch (error) {
-        console.error("Error fetching profile:", error)
-        toast.error("Error de conexión al cargar el perfil", {
-          duration: TOAST_DURATION,
-        })
-      } finally {
-        setIsLoadingProfile(false)
-      }
+    if (profileData) {
+      setFormData((prev) => ({
+        ...prev,
+        email: profileData.email || "",
+        inactivity_logout_minutes: String(profileData.inactivity_logout_minutes ?? 30),
+      }))
     }
-
-    if (user) {
-      fetchProfile()
-    }
-  }, [user, apiRequest])
+  }, [profileData])
 
   const validateEmail = (email: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -203,7 +185,7 @@ export default function ProfilePage() {
 
         if (response.ok) {
           const updatedProfile: ProfileData = await response.json()
-          setProfileData((prev) => ({ ...prev, ...updatedProfile }))
+          queryClient.setQueryData<ProfileData>(["profile", "me"], (prev) => ({ ...prev, ...updatedProfile }))
 
           // Actualizar el usuario almacenado con los campos que pueden haber cambiado
           const currentUser = getStoredUser<{

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react"
 import { useApi } from "@/hooks/use-api"
+import { useDebounce } from "@/hooks/use-debounce"
 import { AC_ENDPOINTS } from "@/config/api"
 import type { Permission } from "@/types"
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table"
@@ -21,6 +22,7 @@ export function PermissionManagement({ permission }: PermissionManagementProps) 
   const [hasMore, setHasMore] = useState(true)
   const [loading, setLoading] = useState(false)
   const [search, setSearch] = useState("")
+  const debouncedSearch = useDebounce(search, 300)
   const [searching, setSearching] = useState(false)
   const permsContainerRef = useRef<HTMLDivElement>(null)
 
@@ -29,7 +31,7 @@ export function PermissionManagement({ permission }: PermissionManagementProps) 
     setLoading(true)
     try {
       const res = await apiRequest(
-        `${AC_ENDPOINTS.PERMISSIONS}?limit=20&offset=${reset ? 0 : offset}&search=${encodeURIComponent(search)}`,
+        `${AC_ENDPOINTS.PERMISSIONS}?limit=20&offset=${reset ? 0 : offset}&search=${encodeURIComponent(debouncedSearch)}`,
       )
       if (res.ok) {
         const data = await res.json()
@@ -51,9 +53,9 @@ export function PermissionManagement({ permission }: PermissionManagementProps) 
     setOffset(0)
     setHasMore(true)
     setPermissions([])
-    if (search) setSearching(true)
+    if (debouncedSearch) setSearching(true)
     loadMore(true).then(() => setSearching(false))
-  }, [search])
+  }, [debouncedSearch])
 
   const onPermsScroll = (e: UIEvent<HTMLDivElement>) => {
     const target = e.currentTarget

@@ -1,4 +1,4 @@
-import { useInfiniteQuery, type QueryKey } from "@tanstack/react-query"
+import { useInfiniteQuery, keepPreviousData, type QueryKey } from "@tanstack/react-query"
 import { useApi } from "@/hooks/use-api"
 import { readApiError } from "@/lib/api-error"
 
@@ -27,6 +27,9 @@ export interface UseApiInfiniteQueryParams {
   buildUrl: (offset: number) => string
   enabled?: boolean
   staleTime?: number
+  /** Mientras cambian filtros/búsqueda (queryKey nueva), sigue mostrando la
+   * página anterior en vez de vaciar todo a blanco+skeleton. */
+  keepPrevious?: boolean
 }
 
 export function useApiInfiniteQuery<T = unknown>({
@@ -34,13 +37,19 @@ export function useApiInfiniteQuery<T = unknown>({
   buildUrl,
   enabled,
   staleTime,
+  keepPrevious,
 }: UseApiInfiniteQueryParams) {
   const { apiRequest } = useApi()
 
   return useInfiniteQuery({
     queryKey,
-    enabled,
-    staleTime,
+    // `enabled`/`staleTime` sólo se incluyen si el caller los pasó: como
+    // parámetros destructurados, meterlos siempre en el objeto (aunque sea
+    // `undefined`) pisa el default global del QueryClient (staleTime: 60s)
+    // con "siempre stale", forzando un refetch en cada visita.
+    ...(enabled !== undefined ? { enabled } : {}),
+    ...(staleTime !== undefined ? { staleTime } : {}),
+    placeholderData: keepPrevious ? keepPreviousData : undefined,
     initialPageParam: 0,
     queryFn: async ({ pageParam }) => {
       const url = buildUrl(pageParam as number)

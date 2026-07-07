@@ -47,7 +47,9 @@ export default function PatientsPage() {
     [debouncedSearchTerm, orderingParam],
   )
 
-  const patientsQuery = useApiInfiniteQuery<Patient>({ queryKey, buildUrl })
+  // keepPrevious: al cambiar búsqueda/orden sigue mostrando la tabla anterior
+  // (con el spinner sutil de abajo) en vez de vaciar todo a blanco+skeleton.
+  const patientsQuery = useApiInfiniteQuery<Patient>({ queryKey, buildUrl, keepPrevious: true })
 
   const patients = flattenPages<Patient>(patientsQuery.data?.pages)
   const totalCount = patientsQuery.data?.pages[0]?.count ?? patients.length

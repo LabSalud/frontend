@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useEffect, useCallback, useMemo, useRef } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useQueryClient } from "@tanstack/react-query"
 import {
   Search,
   Plus,
@@ -31,6 +32,7 @@ import { PERMISSIONS } from "@/config/permissions"
 import type { SortState } from "@/components/common/data-table"
 import { useApi } from "../../hooks/use-api"
 import { useApiQuery } from "@/hooks/use-api-query"
+import { useApiInfiniteQuery, flattenPages } from "@/hooks/use-api-infinite-query"
 import { useInfiniteScroll } from "../../hooks/use-infinite-scroll"
 import { useDebounce } from "../../hooks/use-debounce"
 import { useNavigate } from "react-router-dom"
@@ -42,13 +44,6 @@ import {
   getProtocolStatusStyleByName,
   normalizeProtocolStatusName,
 } from "@/lib/status-styles"
-
-interface PaginatedResponse {
-  count: number
-  next: string | null
-  previous: string | null
-  results: ProtocolListItem[]
-}
 
 interface ProtocolsByStatusResponse {
   total_protocols: number
@@ -96,23 +91,7 @@ export default function ProtocolosPage() {
   const searchInputRef = useRef<HTMLInputElement>(null)
 
   // Estados principales
-  const [allProtocols, setAllProtocols] = useState<ProtocolListItem[]>([])
-  // Aplica el estado nuevo (ya devuelto por la respuesta de la acción) a una o
-  // varias filas de la lista, sin pedirle al backend toda la página de nuevo.
-  const applyStatusUpdates = useCallback(
-    (updates: Array<{ id: number; status: ProtocolListItem["status"] | null }>) => {
-      if (updates.length === 0) return
-      const byId = new Map(updates.map((u) => [u.id, u.status]))
-      setAllProtocols((prev) =>
-        prev.map((p) => (byId.has(p.id) ? { ...p, status: byId.get(p.id) ?? p.status } : p)),
-      )
-    },
-    [],
-  )
-  const [isInitialLoading, setIsInitialLoading] = useState(true)
-  const [isLoadingMore, setIsLoadingMore] = useState(false)
-  const [isSearching, setIsSearching] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const queryClient = useQueryClient()
   const [searchTerm, setSearchTerm] = useState("")
   type StatusFilterState = { include: number[]; exclude: number[] }
   const [statusFilter, setStatusFilter] = useState<StatusFilterState>(() => {
@@ -133,8 +112,6 @@ export default function ProtocolosPage() {
   })
   const [isPrintedFilter, setIsPrintedFilter] = usePersistedState<string>("labsalud_protocols_printed_filter", "all")
   const [paymentStatusFilter, setPaymentStatusFilter] = usePersistedState<string>("labsalud_protocols_payment_filter", "all")
-  const [hasMore, setHasMore] = useState(true)
-  const [nextUrl, setNextUrl] = useState<string | null>(null)
   const [sort, setSort] = useState<SortState>(null)
 
   // Selección batch (el checkbox está siempre visible; el modo se infiere de la selección)
@@ -207,9 +184,7 @@ export default function ProtocolosPage() {
     : signaturesQuery.data?.results || []
 
   const buildUrl = useCallback(
-    (search = "", offset = 0) => {
-      const baseEndpoint = PROTOCOL_ENDPOINTS.PROTOCOLS
-
+    (offset: number) => {
       const params = new URLSearchParams({
         limit: "20",
         offset: offset.toString(),
@@ -218,8 +193,8 @@ export default function ProtocolosPage() {
         view: "table",
       })
 
-      if (search.trim()) {
-        params.append("search", search.trim())
+      if (debouncedSearchTerm.trim()) {
+        params.append("search", debouncedSearchTerm.trim())
       }
 
       if (sort) {
@@ -241,57 +216,62 @@ export default function ProtocolosPage() {
         params.append("payment_status", paymentStatusFilter)
       }
 
-      return `${baseEndpoint}?${params.toString()}`
+      return `${PROTOCOL_ENDPOINTS.PROTOCOLS}?${params.toString()}`
     },
-    [statusFilter, isPrintedFilter, paymentStatusFilter, sort],
+    [debouncedSearchTerm, statusFilter, isPrintedFilter, paymentStatusFilter, sort],
   )
 
-  // Función para cargar protocolos desde la API
-  const fetchProtocolsFromAPI = useCallback(
-    async (search = "", reset = true, showSearching = false) => {
-      if (reset && !showSearching && isInitialLoading) return
-      if (!reset && isLoadingMore) return
-      if (reset && showSearching && isSearching) return
+  // queryKey estable por combinación de filtros: cachea cada vista (ej. volver
+  // de un detalle a la misma búsqueda/filtro) sin pedirle todo de nuevo al
+  // backend. `keepPrevious` evita el blanco+skeleton al cambiar de filtro.
+  const protocolsQueryKey = [
+    "protocols",
+    "list",
+    debouncedSearchTerm.trim(),
+    statusFilter.include.slice().sort((a, b) => a - b).join(","),
+    statusFilter.exclude.slice().sort((a, b) => a - b).join(","),
+    isPrintedFilter,
+    paymentStatusFilter,
+    sort ? `${sort.dir}:${sort.field}` : "",
+  ] as const
 
-      if (reset && !showSearching) {
-        setIsInitialLoading(true)
-        setError(null)
-      } else if (reset && showSearching) {
-        setIsSearching(true)
-      } else {
-        setIsLoadingMore(true)
-      }
+  const protocolsQuery = useApiInfiniteQuery<ProtocolListItem>({
+    queryKey: protocolsQueryKey,
+    buildUrl,
+    keepPrevious: true,
+  })
 
-      try {
-        const url = reset ? buildUrl(search, 0) : nextUrl
-        if (!url) return
+  const allProtocols = flattenPages<ProtocolListItem>(protocolsQuery.data?.pages)
+  const isInitialLoading = protocolsQuery.isLoading
+  // Fetching pero ya con datos previos en pantalla (búsqueda/filtro cambiando
+  // o refetch en background): spinner sutil sin vaciar la tabla.
+  const isSearching = protocolsQuery.isFetching && !protocolsQuery.isLoading && !protocolsQuery.isFetchingNextPage
+  const isLoadingMore = protocolsQuery.isFetchingNextPage
+  const hasMore = Boolean(protocolsQuery.hasNextPage)
+  const error = protocolsQuery.isError ? "Error al cargar los protocolos. Por favor, intenta nuevamente." : null
 
-        const response = await apiRequest(url)
-
-        if (response.ok) {
-          const data: PaginatedResponse = await response.json()
-
-          if (reset) {
-            setAllProtocols(data.results)
-          } else {
-            setAllProtocols((prev) => [...prev, ...data.results])
+  // Aplica el estado nuevo (ya devuelto por la respuesta de la acción) a una o
+  // varias filas de la lista, en cualquier combinación de filtros cacheada,
+  // sin pedirle al backend toda la página de nuevo.
+  const applyStatusUpdates = useCallback(
+    (updates: Array<{ id: number; status: ProtocolListItem["status"] | null }>) => {
+      if (updates.length === 0) return
+      const byId = new Map(updates.map((u) => [u.id, u.status]))
+      queryClient.setQueriesData<{ pages: Array<{ results: ProtocolListItem[]; next: string | null }> }>(
+        { queryKey: ["protocols", "list"] },
+        (data) => {
+          if (!data) return data
+          return {
+            ...data,
+            pages: data.pages.map((page) => ({
+              ...page,
+              results: page.results.map((p) => (byId.has(p.id) ? { ...p, status: byId.get(p.id) ?? p.status } : p)),
+            })),
           }
-
-          setNextUrl(data.next)
-          setHasMore(!!data.next)
-        } else {
-          setError("Error al cargar los protocolos")
-        }
-      } catch (err) {
-        console.error("Error al cargar datos:", err)
-        setError("Error al cargar los datos. Por favor, intenta nuevamente.")
-      } finally {
-        setIsInitialLoading(false)
-        setIsLoadingMore(false)
-        setIsSearching(false)
-      }
+        },
+      )
     },
-    [apiRequest, buildUrl, nextUrl, isInitialLoading, isLoadingMore, isSearching],
+    [queryClient],
   )
 
   // Acciones rápidas de fila (pago / imprimir / enviar). Si la respuesta trae
@@ -300,7 +280,7 @@ export default function ProtocolosPage() {
     if (statusUpdate) {
       applyStatusUpdates([statusUpdate])
     } else {
-      fetchProtocolsFromAPI(debouncedSearchTerm, true, true)
+      protocolsQuery.refetch()
     }
   })
 
@@ -309,41 +289,25 @@ export default function ProtocolosPage() {
 
   // Cargar más protocolos (scroll infinito)
   const loadMore = useCallback(() => {
-    if (!isLoadingMore && hasMore && nextUrl && !isSearching) {
-      fetchProtocolsFromAPI("", false)
+    if (!protocolsQuery.isFetchingNextPage && protocolsQuery.hasNextPage) {
+      protocolsQuery.fetchNextPage()
     }
-  }, [isLoadingMore, hasMore, nextUrl, isSearching, fetchProtocolsFromAPI])
+  }, [protocolsQuery])
 
   // Hook de scroll infinito
   const sentinelRef = useInfiniteScroll({
     loading: isLoadingMore || isSearching,
     hasMore: hasMore,
     onLoadMore: loadMore,
-    dependencies: [hasMore, nextUrl],
+    dependencies: [hasMore],
   })
 
-  // Efecto para carga inicial
+  // Estadísticas por estado: refetch explícito además del automático al
+  // montar (usado también tras acciones batch para refrescar los conteos).
   useEffect(() => {
-    fetchProtocolsFromAPI()
     fetchStateStats()
-  }, [])
-
-  useEffect(() => {
-    setNextUrl(null)
-    setHasMore(true)
-    // No vaciar `allProtocols` ni mostrar skeleton de página completa.
-    // Refetch con `showSearching=true` -> isSearching=true muestra spinner sutil sin
-    // resetear toda la UI; al llegar la respuesta, `setAllProtocols(data.results)`
-    // reemplaza la lista atómicamente.
-    fetchProtocolsFromAPI(debouncedSearchTerm, true, true)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [statusFilter, isPrintedFilter, paymentStatusFilter, sort])
-
-  useEffect(() => {
-    if (debouncedSearchTerm !== searchTerm) return
-
-    fetchProtocolsFromAPI(debouncedSearchTerm, true, true)
-  }, [debouncedSearchTerm])
+  }, [])
 
   useEffect(() => {
     localStorage.setItem(STATUS_FILTER_KEY, JSON.stringify(statusFilter))
@@ -592,7 +556,7 @@ export default function ProtocolosPage() {
               <AlertCircle className="h-5 w-5 mr-2" />
               <p>{error}</p>
             </div>
-            <Button onClick={() => fetchProtocolsFromAPI("", true)} className="mt-3 bg-[#204983]" size="sm">
+            <Button onClick={() => protocolsQuery.refetch()} className="mt-3 bg-[#204983]" size="sm">
               Reintentar
             </Button>
           </div>

@@ -278,9 +278,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
 
     try {
-      setToken(tokenValue)
-      setUser(savedUser)
-      setIsAuthenticated(true)
+      // Evita renders en cascada de todo lo que consume useAuth() cuando no
+      // cambió nada: sessionStorage.getItem + JSON.parse siempre da una
+      // referencia nueva, así que sin esto cada cambio de ruta (ver
+      // route-change-listener.tsx) tiraba abajo el bail-out de React.
+      setToken((prev) => (prev === tokenValue ? prev : tokenValue))
+      setUser((prev) => (prev && JSON.stringify(prev) === JSON.stringify(savedUser) ? prev : savedUser))
+      setIsAuthenticated((prev) => (prev ? prev : true))
     } catch {
       expireSession("No se pudo recuperar la sesión guardada. Volvé a iniciar sesión.")
     } finally {
@@ -293,19 +297,26 @@ export function AuthProvider({ children }: AuthProviderProps) {
     refreshUser()
   }, [refreshUser])
 
-  const value = {
-    user,
-    token,
-    isAuthenticated,
-    isInitialized,
-    isLoading,
-    login,
-    logout,
-    hasPermission,
-    isInGroup,
-    refreshUser,
-    refreshToken,
-  }
+  // Memoizado: sin esto, cualquier render de AuthProvider (incluido el que
+  // dispara RouteChangeListener en cada cambio de ruta) crea un objeto nuevo
+  // y fuerza el re-render de los ~15 componentes que consumen useAuth(),
+  // aunque ningún dato de auth haya cambiado.
+  const value = useMemo(
+    () => ({
+      user,
+      token,
+      isAuthenticated,
+      isInitialized,
+      isLoading,
+      login,
+      logout,
+      hasPermission,
+      isInGroup,
+      refreshUser,
+      refreshToken,
+    }),
+    [user, token, isAuthenticated, isInitialized, isLoading, login, logout, hasPermission, isInGroup, refreshUser, refreshToken],
+  )
 
   if (!isInitialized) {
     return null

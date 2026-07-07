@@ -7,18 +7,21 @@
     <link rel="shortcut icon" href="/icono_adm.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Gestion de Labsalud</title>
+    <!-- Handshake DNS/TLS adelantado con gtag.js, en vez de esperar a que el
+         parser llegue al script (estaba fuera de <body>, después del cierre). -->
+    <link rel="preconnect" href="https://www.googletagmanager.com" />
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-PHVRKEJ2DN"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+
+      gtag('config', 'G-PHVRKEJ2DN');
+    </script>
   </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
-  <!-- Google tag (gtag.js) -->
-  <script async src="https://www.googletagmanager.com/gtag/js?id=G-PHVRKEJ2DN"></script>
-  <script>
-    window.dataLayer = window.dataLayer || [];
-    function gtag(){dataLayer.push(arguments);}
-    gtag('js', new Date());
-
-    gtag('config', 'G-PHVRKEJ2DN');
-  </script>
 </html>

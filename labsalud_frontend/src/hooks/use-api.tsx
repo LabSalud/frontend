@@ -98,8 +98,6 @@ export const useApi = () => {
           finalUrl = `${cleanBaseUrl}${cleanUrl}`
         }
 
-        console.log(`[v0] Making ${method} request to: ${finalUrl}`)
-
         try {
           let requestBody: string | FormData | undefined
           if (isFormData) {
@@ -119,7 +117,6 @@ export const useApi = () => {
           })
 
           clearTimeout(timeoutId)
-          console.log(`[v0] Response status: ${response.status} for ${finalUrl}`)
 
           return response
         } catch (error) {

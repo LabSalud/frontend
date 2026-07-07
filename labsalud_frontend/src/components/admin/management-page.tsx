@@ -1,8 +1,10 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useCallback } from "react"
+import type { Dispatch, SetStateAction } from "react"
+import { useQueryClient } from "@tanstack/react-query"
 import useAuth from "@/contexts/auth-context"
-import { useApi } from "@/hooks/use-api"
+import { useApiQuery } from "@/hooks/use-api-query"
 import { USER_ENDPOINTS, AC_ENDPOINTS } from "@/config/api"
 import { PERMISSIONS } from "@/config/permissions"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -18,14 +20,13 @@ const TAB_LIST = "mb-6 flex h-auto w-full flex-wrap justify-start gap-2 rounded-
 const TAB_TRIGGER =
   "rounded-full border border-transparent bg-transparent px-4 py-1.5 text-sm font-medium text-gray-600 shadow-none transition-colors hover:bg-gray-100 data-[state=active]:border-[#204983] data-[state=active]:bg-[#204983] data-[state=active]:text-white data-[state=active]:shadow-sm"
 
+interface PaginatedResponse<T> {
+  results: T[]
+}
+
 export default function ManagementPage() {
   const { hasPermission, user: currentUser } = useAuth()
-  const { apiRequest } = useApi()
-  const [users, setUsers] = useState<User[]>([])
-  const [roles, setRoles] = useState<Role[]>([])
-  const [permissions, setPermissions] = useState<Permission[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const queryClient = useQueryClient()
 
   const canManageUsers = hasPermission(PERMISSIONS.MANAGE_USERS.codename)
   const canManageRoles = hasPermission(PERMISSIONS.MANAGE_ROLES.codename)
@@ -33,58 +34,77 @@ export default function ManagementPage() {
 
   const canAccessManagement = canManageUsers || canManageRoles || canManageTempPermissions
 
-  const refreshData = async () => {
-    setIsLoading(true)
-    setError(null)
+  const usersUrl = currentUser?.is_superuser
+    ? USER_ENDPOINTS.USERS
+    : `${USER_ENDPOINTS.USERS}?is_superuser=false&is_active=True`
+  const usersQueryKey = ["admin", "users", currentUser?.is_superuser ?? false] as const
+  const rolesQueryKey = ["admin", "roles"] as const
+  const permissionsQueryKey = ["admin", "permissions"] as const
 
-    try {
-      if (canManageUsers) {
-        let usersUrl = USER_ENDPOINTS.USERS
-        if (!currentUser?.is_superuser) {
-          usersUrl = `${USER_ENDPOINTS.USERS}?is_superuser=false&is_active=True`
-        }
+  // Cacheado: volver a esta pantalla no recarga usuarios/roles/permisos desde
+  // cero si los datos siguen frescos (staleTime del QueryClient).
+  const usersQuery = useApiQuery<PaginatedResponse<User>>({
+    queryKey: usersQueryKey,
+    url: usersUrl,
+    enabled: canManageUsers,
+  })
+  const rolesQuery = useApiQuery<PaginatedResponse<Role>>({
+    queryKey: rolesQueryKey,
+    url: `${AC_ENDPOINTS.ROLES}?limit=100`,
+    enabled: canManageRoles,
+  })
+  const permissionsQuery = useApiQuery<PaginatedResponse<Permission>>({
+    queryKey: permissionsQueryKey,
+    url: `${AC_ENDPOINTS.PERMISSIONS}?limit=100`,
+    enabled: canManageRoles,
+  })
 
-        const usersResponse = await apiRequest(usersUrl)
-        if (usersResponse.ok) {
-          const usersData = await usersResponse.json()
-          if (usersData && Array.isArray(usersData.results)) {
-            setUsers(usersData.results)
-          }
-        }
-      }
+  const users = usersQuery.data?.results ?? []
+  const roles = rolesQuery.data?.results ?? []
+  const permissions = permissionsQuery.data?.results ?? []
 
-      if (canManageRoles) {
-        const rolesResponse = await apiRequest(`${AC_ENDPOINTS.ROLES}?limit=100`)
-        if (rolesResponse.ok) {
-          const rolesData = await rolesResponse.json()
-          if (rolesData && Array.isArray(rolesData.results)) {
-            setRoles(rolesData.results)
-          }
-        }
-      }
+  // Los hijos (UserManagement/RoleManagement) esperan setters estilo useState
+  // para actualizar la lista tras un CRUD propio; acá los respaldamos con la
+  // cache de React Query en vez de estado local, sin cambiar su interfaz.
+  const setUsers: Dispatch<SetStateAction<User[]>> = useCallback(
+    (update) => {
+      queryClient.setQueryData<PaginatedResponse<User>>(usersQueryKey, (prev) => {
+        const prevList = prev?.results ?? []
+        const nextList = typeof update === "function" ? (update as (p: User[]) => User[])(prevList) : update
+        return { ...prev, results: nextList }
+      })
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [queryClient, currentUser?.is_superuser],
+  )
 
-      if (canManageRoles) {
-        const permissionsResponse = await apiRequest(`${AC_ENDPOINTS.PERMISSIONS}?limit=100`)
-        if (permissionsResponse.ok) {
-          const permissionsData = await permissionsResponse.json()
-          if (permissionsData && Array.isArray(permissionsData.results)) {
-            setPermissions(permissionsData.results)
-          }
-        }
-      }
-    } catch (err) {
-      console.error("Error al cargar datos:", err)
-      setError("Error al cargar los datos. Por favor, intenta nuevamente.")
-    } finally {
-      setIsLoading(false)
-    }
-  }
+  const setRoles: Dispatch<SetStateAction<Role[]>> = useCallback(
+    (update) => {
+      queryClient.setQueryData<PaginatedResponse<Role>>(rolesQueryKey, (prev) => {
+        const prevList = prev?.results ?? []
+        const nextList = typeof update === "function" ? (update as (p: Role[]) => Role[])(prevList) : update
+        return { ...prev, results: nextList }
+      })
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [queryClient],
+  )
 
-  useEffect(() => {
-    if (canAccessManagement) {
-      refreshData()
-    }
-  }, [canAccessManagement])
+  const refreshData = useCallback(async () => {
+    await Promise.all([
+      canManageUsers ? usersQuery.refetch() : Promise.resolve(),
+      canManageRoles ? rolesQuery.refetch() : Promise.resolve(),
+      canManageRoles ? permissionsQuery.refetch() : Promise.resolve(),
+    ])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canManageUsers, canManageRoles])
+
+  // v5: `isLoading` (= isPending && isFetching) es false para queries
+  // deshabilitadas, así que con !canAccessManagement esto ya da false solo.
+  const isLoading = usersQuery.isLoading || rolesQuery.isLoading || permissionsQuery.isLoading
+  const error = usersQuery.isError || rolesQuery.isError || permissionsQuery.isError
+    ? "Error al cargar los datos. Por favor, intenta nuevamente."
+    : null
 
   if (isLoading) {
     return (

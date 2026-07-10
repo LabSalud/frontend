@@ -2,6 +2,7 @@ import { useState } from "react"
 import { Loader2, Pencil, Save, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { formatDateAR } from "../format"
 
 interface EditableCloseDateProps {
   closeDate: string | null
@@ -54,7 +55,7 @@ export function EditableCloseDate({ closeDate, onSave }: EditableCloseDateProps)
       className="group inline-flex items-center gap-1 text-xs text-gray-500 hover:text-[#204983]"
     >
       {closeDate ? (
-        <>cierra {closeDate}</>
+        <>cierra {formatDateAR(closeDate)}</>
       ) : (
         <span className="font-medium text-amber-600">fecha de cierre pendiente</span>
       )}

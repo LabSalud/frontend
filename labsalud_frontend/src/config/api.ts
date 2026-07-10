@@ -152,9 +152,20 @@ export const BILLING_ENDPOINTS = {
   CURRENT_TOTAL: buildApiUrl("/billing/invoices/current-total/"),
   CLOSED_PRESENTATIONS: buildApiUrl("/billing/presentations/closed/"),
   CLOSE_PRESENTATION: buildApiUrl("/billing/presentations/close-period/"),
+  PRESENTATION_DETAIL: (id: number) => buildApiUrl(`/billing/presentations/${id}/`),
+  PRESENTATION_PROTOCOLS: (id: number) => buildApiUrl(`/billing/presentations/${id}/protocols/`),
   SET_UB_VALUE_FOR_INSURANCE: (id: number) =>
     buildApiUrl(`/billing/presentations/${id}/set-ub-value-for-insurance/`),
+  SET_COLLECTED_FOR_INSURANCE: (id: number) =>
+    buildApiUrl(`/billing/presentations/${id}/set-collected-for-insurance/`),
+  SET_COLLECTED_TOTAL: (id: number) => buildApiUrl(`/billing/presentations/${id}/set-collected-total/`),
   ANALYTICS_DAILY: buildApiUrl("/billing/analytics/daily/"),
+  ANALYTICS_PRESENTATIONS_SUMMARY: buildApiUrl("/billing/analytics/presentations-summary/"),
+  ENTITIES: buildApiUrl("/billing/entities/"),
+  ENTITY_DETAIL: (id: number) => buildApiUrl(`/billing/entities/${id}/`),
+  REMINDER_PHONES: buildApiUrl("/billing/reminders/phones/"),
+  REMINDER_PHONE_DETAIL: (id: number) => buildApiUrl(`/billing/reminders/phones/${id}/`),
+  REMINDER_CONFIG: buildApiUrl("/billing/reminders/config/"),
 } as const
 
 // Core endpoints

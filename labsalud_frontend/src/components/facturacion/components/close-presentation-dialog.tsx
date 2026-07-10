@@ -5,7 +5,7 @@ import { DialogHeading } from "@/components/common/dialog-heading"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import type { BillingEntity } from "../mock-data"
+import type { BillingEntity } from "../types"
 
 interface ClosePresentationDialogProps {
   open: boolean

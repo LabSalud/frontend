@@ -1,45 +1,70 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { AlertTriangle, CalendarRange, Clock } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { useFacturacionMock } from "./use-facturacion-mock"
+import { Skeleton } from "@/components/ui/skeleton"
+import { useFacturacionApi } from "./use-facturacion-api"
 import { ProtocolBillingRow } from "./components/protocol-billing-row"
-import { OssSummaryRow } from "./components/oss-summary-row"
+import { CurrentInvoicesList } from "./components/current-invoices-list"
 import { EditableCloseDate } from "./components/editable-close-date"
 import { ClosePresentationDialog } from "./components/close-presentation-dialog"
 import { PresentationHistoryCard } from "./components/presentation-history-card"
 import { PresentationEarningsChart } from "./components/presentation-earnings-chart"
-import { ReminderSettingsPanel } from "./components/reminder-settings-panel"
-import type { BillingEntityId } from "./mock-data"
+import { formatDateAR } from "./format"
 
 const tabClass =
   "flex-shrink-0 rounded-full border border-transparent bg-transparent px-4 py-1.5 text-sm font-medium text-gray-600 shadow-none transition-colors hover:bg-gray-100 data-[state=active]:border-[#204983] data-[state=active]:bg-[#204983] data-[state=active]:text-white data-[state=active]:shadow-sm"
 
-function daysUntil(dateStr: string | null): number | null {
+function daysUntil(dateStr: string | null | undefined): number | null {
   if (!dateStr) return null
   const diff = new Date(dateStr).getTime() - new Date().setHours(0, 0, 0, 0)
   return Math.round(diff / (1000 * 60 * 60 * 24))
 }
 
 export default function FacturacionPage() {
-  const m = useFacturacionMock()
-  const [entityId, setEntityId] = useState<BillingEntityId>(m.entities[0].id)
+  const [entityId, setEntityId] = useState<number | null>(null)
   const [closeDialogOpen, setCloseDialogOpen] = useState(false)
+  const m = useFacturacionApi(entityId)
 
-  const entity = m.entities.find((e) => e.id === entityId)!
-  const openPresentation = m.openPresentationFor(entityId)
-  const pending = m.pendingProtocolsFor(entityId)
-  const history = m.historyFor(entityId)
-  const allPresentations = m.presentationsFor(entityId)
+  // Selecciona la primera entidad apenas carga la lista.
+  useEffect(() => {
+    if (entityId == null && m.entities.length > 0) {
+      setEntityId(m.entities[0].id)
+    }
+  }, [entityId, m.entities])
 
-  const remaining = daysUntil(openPresentation?.closeDate ?? null)
+  const entity = m.entities.find((e) => e.id === entityId) ?? null
+  const openPresentation = m.currentTotal?.presentation ?? null
+  const remaining = daysUntil(openPresentation?.target_close_date)
   // No se auto-cierra al llegar la fecha: solo avisa (una vez por día, vía WhatsApp)
   // que ya está vencida y hay que cerrarla a mano.
   const isOverdue = remaining != null && remaining < 0
   const withinReminderWindow = remaining != null && remaining <= m.reminderDaysBefore && remaining >= 0
+
+  if (m.entitiesLoading && m.entities.length === 0) {
+    return (
+      <div className="mx-auto w-full max-w-6xl px-4 py-4">
+        <div className="rounded-2xl bg-white/95 p-4 shadow-md backdrop-blur-sm md:p-6 space-y-4">
+          <Skeleton className="h-8 w-64 rounded" />
+          <Skeleton className="h-10 w-full max-w-md rounded" />
+          <Skeleton className="h-40 w-full rounded" />
+        </div>
+      </div>
+    )
+  }
+
+  if (!entity) {
+    return (
+      <div className="mx-auto w-full max-w-6xl px-4 py-4">
+        <div className="rounded-2xl bg-white/95 p-6 shadow-md backdrop-blur-sm text-center text-sm text-gray-500">
+          Todavía no hay entidades de facturación configuradas. Creá una en Configuración → Facturación.
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-4">
@@ -77,21 +102,18 @@ export default function FacturacionPage() {
             <TabsTrigger value="graficos" className={tabClass}>
               Gráficos
             </TabsTrigger>
-            <TabsTrigger value="recordatorios" className={tabClass}>
-              Recordatorios
-            </TabsTrigger>
           </TabsList>
 
           {/* ===== Presentación actual ===== */}
           <TabsContent value="actual" className="space-y-4">
-            {openPresentation && (
+            {openPresentation ? (
               <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
                 <div>
-                  <p className="font-semibold text-gray-800">{openPresentation.label}</p>
+                  <p className="font-semibold text-gray-800">{openPresentation.name || openPresentation.reference}</p>
                   <div className="text-xs text-gray-500">
-                    {openPresentation.periodStart} →{" "}
+                    {formatDateAR(openPresentation.period_start)} →{" "}
                     <EditableCloseDate
-                      closeDate={openPresentation.closeDate}
+                      closeDate={openPresentation.target_close_date}
                       onSave={(date) => m.setTargetCloseDate(openPresentation.id, date)}
                     />
                   </div>
@@ -123,24 +145,39 @@ export default function FacturacionPage() {
                   </Button>
                 </div>
               </div>
+            ) : (
+              <div className="flex items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+                <p className="text-sm text-gray-500">Presentación en curso de {entity.name}.</p>
+                <Button size="sm" className="bg-[#204983] hover:bg-[#1a3d6f]" onClick={() => setCloseDialogOpen(true)}>
+                  <CalendarRange className="mr-1.5 h-4 w-4" />
+                  Cerrar presentación
+                </Button>
+              </div>
             )}
 
             <div>
               <h2 className="mb-2 text-sm font-semibold text-gray-700">
-                Protocolos pendientes de facturar ({pending.length})
+                Protocolos pendientes de facturar ({m.pendingProtocols.length})
               </h2>
-              {pending.length === 0 ? (
+              {m.pendingLoading ? (
+                <div className="space-y-2">
+                  {[...Array(3)].map((_, i) => (
+                    <Skeleton key={i} className="h-16 w-full rounded-lg" />
+                  ))}
+                </div>
+              ) : m.pendingProtocols.length === 0 ? (
                 <p className="rounded-lg border border-dashed border-gray-200 py-6 text-center text-sm text-gray-400">
                   No hay protocolos pendientes para {entity.name}.
                 </p>
               ) : (
                 <div className="space-y-2">
-                  {pending.map((p) => (
+                  {m.pendingProtocols.map((p) => (
                     <ProtocolBillingRow
-                      key={p.protocolId}
+                      key={p.protocol_id}
                       protocol={p}
                       onMarkBilled={m.markProtocolBilled}
-                      isMarking={m.markingProtocolId === p.protocolId}
+                      isMarking={m.markingProtocolId === p.protocol_id}
+                      otherEntities={m.entities.filter((e) => e.id !== entityId)}
                     />
                   ))}
                 </div>
@@ -151,29 +188,34 @@ export default function FacturacionPage() {
               <h2 className="mb-2 text-sm font-semibold text-gray-700">Facturados en esta presentación</h2>
               <p className="mb-2 text-xs text-gray-400">
                 El valor UB y lo cobrado de cada OOSS se cargan una vez que la presentación esté cerrada, desde Historial.
+                Si marcaste algo por error, desmarcalo acá.
               </p>
-              {!openPresentation || openPresentation.ossBreakdown.length === 0 ? (
-                <p className="rounded-lg border border-dashed border-gray-200 py-6 text-center text-sm text-gray-400">
-                  Todavía no se facturó ningún protocolo en esta presentación.
-                </p>
+              {m.currentInvoicesLoading ? (
+                <Skeleton className="h-16 w-full rounded-lg" />
               ) : (
-                <div className="space-y-2">
-                  {openPresentation.ossBreakdown.map((entry) => (
-                    <OssSummaryRow key={entry.ossId} entry={entry} />
-                  ))}
-                </div>
+                <CurrentInvoicesList
+                  invoices={m.currentInvoices}
+                  onUnbill={m.unbillProtocol}
+                  unbillingProtocolId={m.unbillingProtocolId}
+                />
               )}
             </div>
           </TabsContent>
 
           {/* ===== Historial ===== */}
           <TabsContent value="historial" className="space-y-2">
-            {history.length === 0 ? (
+            {m.closedLoading ? (
+              <div className="space-y-2">
+                {[...Array(3)].map((_, i) => (
+                  <Skeleton key={i} className="h-20 w-full rounded-lg" />
+                ))}
+              </div>
+            ) : m.closedPresentations.length === 0 ? (
               <p className="rounded-lg border border-dashed border-gray-200 py-8 text-center text-sm text-gray-400">
                 {entity.name} todavía no tiene presentaciones cerradas.
               </p>
             ) : (
-              history.map((p) => (
+              m.closedPresentations.map((p) => (
                 <PresentationHistoryCard
                   key={p.id}
                   presentation={p}
@@ -188,31 +230,23 @@ export default function FacturacionPage() {
 
           {/* ===== Gráficos ===== */}
           <TabsContent value="graficos">
-            <PresentationEarningsChart entity={entity} presentations={allPresentations} />
-          </TabsContent>
-
-          {/* ===== Recordatorios (config global, no por entidad) ===== */}
-          <TabsContent value="recordatorios">
-            <ReminderSettingsPanel
-              phones={m.reminderPhones}
-              daysBefore={m.reminderDaysBefore}
-              onAddPhone={m.addReminderPhone}
-              onTogglePhone={m.togglePhone}
-              onRemovePhone={m.removePhone}
-              onChangeDaysBefore={m.changeDaysBefore}
-            />
+            {m.summaryLoading ? (
+              <Skeleton className="h-64 w-full rounded-xl" />
+            ) : (
+              <PresentationEarningsChart entity={entity} items={m.presentationsSummary} />
+            )}
           </TabsContent>
         </Tabs>
       </div>
 
-      {openPresentation && (
-        <ClosePresentationDialog
-          open={closeDialogOpen}
-          onOpenChange={setCloseDialogOpen}
-          entity={entity}
-          onConfirm={(nextDate) => m.closePresentation(entityId, nextDate)}
-        />
-      )}
+      <ClosePresentationDialog
+        open={closeDialogOpen}
+        onOpenChange={setCloseDialogOpen}
+        entity={entity}
+        onConfirm={async (nextDate) => {
+          await m.closePresentation(nextDate)
+        }}
+      />
     </div>
   )
 }

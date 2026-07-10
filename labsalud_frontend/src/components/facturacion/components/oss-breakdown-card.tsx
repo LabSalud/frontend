@@ -4,12 +4,16 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
-import type { OssBreakdown } from "../mock-data"
+import { useApiQuery } from "@/hooks/use-api-query"
+import { MEDICAL_ENDPOINTS } from "@/config/api"
+import type { ClosedOssBreakdown } from "../types"
 
-const formatCurrency = (value: number | null) =>
-  value == null
-    ? "—"
-    : value.toLocaleString("es-AR", { style: "currency", currency: "ARS", minimumFractionDigits: 2, maximumFractionDigits: 2 })
+const formatCurrency = (value: string | number | null) => {
+  if (value == null) return "—"
+  const n = typeof value === "number" ? value : Number.parseFloat(value)
+  if (Number.isNaN(n)) return "—"
+  return n.toLocaleString("es-AR", { style: "currency", currency: "ARS", minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
 
 interface EditableAmountProps {
   label: string
@@ -81,31 +85,40 @@ function EditableAmount({ label, value, placeholder, onSave }: EditableAmountPro
 }
 
 interface OssBreakdownCardProps {
-  entry: OssBreakdown
+  entry: ClosedOssBreakdown
   /** Si la entidad informa cobro discriminado por OOSS (ej. la Clínica). Si no
    * (ej. el Centro), el cobro se carga a nivel de presentación completa. */
   showCollectedInput: boolean
-  onSaveUbValue: (ossId: number, value: number) => Promise<void>
-  onSaveCollected?: (ossId: number, value: number) => Promise<void>
+  onSaveUbValue: (insuranceId: number, ubValue: number) => Promise<void>
+  onSaveCollected?: (insuranceId: number, value: number) => Promise<void>
 }
 
 /**
  * Desglose por OOSS de una presentación ya CERRADA: acá se carga (y se puede
  * volver a editar en cualquier momento) el valor UB que publicó la OOSS y lo
- * cobrado. Mientras la presentación está abierta no se muestra precio, solo
- * el resumen de protocolos (ver oss-summary-row.tsx).
+ * cobrado. El valor UB se sugiere pre-cargado con el último que se cargó
+ * (Insurance.ub_value, a donde cascadea cada vez que se guarda acá).
  */
 export function OssBreakdownCard({ entry, showCollectedInput, onSaveUbValue, onSaveCollected }: OssBreakdownCardProps) {
-  const difference =
-    entry.expectedAmount != null && entry.collectedAmount != null ? entry.collectedAmount - entry.expectedAmount : null
+  const expected = Number.parseFloat(entry.expected_amount)
+  const collected = entry.collected_amount != null ? Number.parseFloat(entry.collected_amount) : null
+  const difference = entry.difference_amount != null ? Number.parseFloat(entry.difference_amount) : null
+
+  const insuranceQuery = useApiQuery<{ ub_value?: string }>({
+    queryKey: ["insurances", "detail", entry.insurance_id],
+    url: MEDICAL_ENDPOINTS.INSURANCE_DETAIL(entry.insurance_id),
+    staleTime: 60 * 1000,
+  })
+  const currentUbValue = insuranceQuery.data?.ub_value ? Number.parseFloat(insuranceQuery.data.ub_value) : null
 
   return (
     <div className="rounded-lg border border-gray-200 bg-white p-3">
       <div className="flex items-start justify-between gap-2">
         <div>
-          <p className="font-semibold text-gray-800">{entry.ossName}</p>
+          <p className="font-semibold text-gray-800">{entry.insurance_name}</p>
           <p className="text-xs text-gray-500">
-            {entry.protocolsCount} protocolo{entry.protocolsCount === 1 ? "" : "s"} · UB total: {entry.totalUb}
+            {entry.protocol_count} protocolo{entry.protocol_count === 1 ? "" : "s"}
+            {entry.total_ub ? ` · UB total: ${entry.total_ub}` : ""}
           </p>
         </div>
         {difference != null && (
@@ -127,13 +140,13 @@ export function OssBreakdownCard({ entry, showCollectedInput, onSaveUbValue, onS
       <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
         <EditableAmount
           label="Valor UB"
-          value={entry.ubValue}
+          value={currentUbValue}
           placeholder="Valor que publicó la OOSS"
-          onSave={(value) => onSaveUbValue(entry.ossId, value)}
+          onSave={(value) => onSaveUbValue(entry.insurance_id, value)}
         />
         <div className="rounded-md bg-gray-50 px-2 py-1.5">
           <p className="text-gray-500">Esperado</p>
-          <p className="font-semibold text-gray-800">{formatCurrency(entry.expectedAmount)}</p>
+          <p className="font-semibold text-gray-800">{formatCurrency(Number.isNaN(expected) ? null : expected)}</p>
         </div>
       </div>
 
@@ -141,9 +154,9 @@ export function OssBreakdownCard({ entry, showCollectedInput, onSaveUbValue, onS
         <div className="mt-2 border-t border-gray-100 pt-2 text-xs">
           <EditableAmount
             label="Cobrado"
-            value={entry.collectedAmount}
+            value={collected}
             placeholder="Monto cobrado de esta OOSS"
-            onSave={(value) => onSaveCollected(entry.ossId, value)}
+            onSave={(value) => onSaveCollected(entry.insurance_id, value)}
           />
         </div>
       )}

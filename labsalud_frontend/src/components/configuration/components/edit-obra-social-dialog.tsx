@@ -16,6 +16,7 @@ import { MEDICAL_ENDPOINTS, TOAST_DURATION } from "@/config/api"
 import type { ObraSocial } from "@/types"
 import { formatApiError, getErrorMessage } from "@/lib/api-error"
 import { NbuSelect } from "./nbu-select"
+import { BillingEntitySelect } from "./billing-entity-select"
 
 interface EditObraSocialDialogProps {
   open: boolean
@@ -29,6 +30,7 @@ interface FormData {
   description: string
   ub_value: string
   nbu_id: string
+  billing_entity_id: string
   charges_coseguro: boolean
   charges_material_descartable: boolean
   charges_derivacion: boolean
@@ -58,6 +60,7 @@ export function EditObraSocialDialog({ open, onOpenChange, obraSocial, onSuccess
     description: "",
     ub_value: "",
     nbu_id: "",
+    billing_entity_id: "",
     charges_coseguro: false,
     charges_material_descartable: false,
     charges_derivacion: false,
@@ -79,6 +82,7 @@ export function EditObraSocialDialog({ open, onOpenChange, obraSocial, onSuccess
         description: obraSocial.description || "",
         ub_value: obraSocial.ub_value || "",
         nbu_id: extractNbuId(obraSocial.nbu),
+        billing_entity_id: obraSocial.billing_entity ? String(obraSocial.billing_entity.id) : "",
         charges_coseguro: obraSocial.charges_coseguro ?? false,
         charges_material_descartable: obraSocial.charges_material_descartable ?? false,
         charges_derivacion: obraSocial.charges_derivacion ?? false,
@@ -157,6 +161,10 @@ export function EditObraSocialDialog({ open, onOpenChange, obraSocial, onSuccess
     }
     if (formData.nbu_id !== extractNbuId(obraSocial.nbu)) {
       changes.nbu = formData.nbu_id ? Number.parseInt(formData.nbu_id, 10) : null
+    }
+    const currentBillingEntityId = obraSocial.billing_entity ? String(obraSocial.billing_entity.id) : ""
+    if (formData.billing_entity_id !== currentBillingEntityId) {
+      changes.billing_entity_id = formData.billing_entity_id ? Number.parseInt(formData.billing_entity_id, 10) : null
     }
     return changes
   }
@@ -287,6 +295,19 @@ export function EditObraSocialDialog({ open, onOpenChange, obraSocial, onSuccess
               />
               <p className="text-xs text-gray-500">
                 Nomenclador que usa esta obra social para calcular la UB.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="billing_entity_id">Entidad de facturación (por defecto)</Label>
+              <BillingEntitySelect
+                id="billing_entity_id"
+                value={formData.billing_entity_id}
+                onValueChange={(value) => setFormData((prev) => ({ ...prev, billing_entity_id: value }))}
+              />
+              <p className="text-xs text-gray-500">
+                A qué entidad se presenta habitualmente esta obra social. El cambio rige solo hacia adelante. Para
+                un protocolo puntual se puede facturar a la otra entidad desde Facturación, sin tocar esto.
               </p>
             </div>
 

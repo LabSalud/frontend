@@ -131,6 +131,11 @@ export function ObraSocialDetailDialog({
             <p className="text-sm font-medium text-gray-800">{nbuLabel || "—"}</p>
           </div>
 
+          <div className="space-y-1">
+            <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Entidad de facturación</p>
+            <p className="text-sm font-medium text-gray-800">{data.billing_entity?.name || "Sin asignar"}</p>
+          </div>
+
           {(data.creation || data.last_change) && (
             <>
               <Separator />

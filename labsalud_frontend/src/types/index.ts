@@ -342,6 +342,8 @@ export interface Insurance {
   charges_derivacion?: boolean
   requires_preauthorization?: boolean
   nbu?: Nbu | number | null
+  /** Entidad de facturación a la que se presenta esta OOSS actualmente (null = sin asignar). */
+  billing_entity?: { id: number; name: string } | null
   creation?: CreationAudit
   last_change?: LastChangeAudit
   history?: HistoryEntry[]

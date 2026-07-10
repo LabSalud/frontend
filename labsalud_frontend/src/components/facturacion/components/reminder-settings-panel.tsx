@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
-import type { ReminderPhone } from "../mock-data"
+import type { ReminderPhone } from "../types"
 
 interface ReminderSettingsPanelProps {
   phones: ReminderPhone[]
@@ -95,7 +95,7 @@ export function ReminderSettingsPanel({
               <p className="truncate text-xs text-gray-500">{p.phone}</p>
             </div>
             <div className="flex shrink-0 items-center gap-2">
-              <Switch checked={p.active} onCheckedChange={(v) => onTogglePhone(p.id, v)} className="data-[state=checked]:bg-[#204983]" />
+              <Switch checked={p.is_active} onCheckedChange={(v) => onTogglePhone(p.id, v)} className="data-[state=checked]:bg-[#204983]" />
               <Button
                 variant="ghost"
                 size="sm"

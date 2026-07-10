@@ -2,11 +2,19 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/icono_adm.svg" />
-    <link rel="apple-touch-icon" href="/icono_adm.svg" />
-    <link rel="shortcut icon" href="/icono_adm.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Gestion de Labsalud</title>
+
+    <!-- Favicons generados desde icono_adm.svg. Los de pestaña van con alpha;
+         los de iOS/Android con fondo sólido y margen, porque iOS compone la
+         transparencia sobre negro y Android recorta el ícono al enmascararlo. -->
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
+    <link rel="icon" type="image/svg+xml" href="/icono_adm.svg" />
+    <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48.png" />
+    <link rel="icon" type="image/png" sizes="96x96" href="/favicon-96.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <meta name="theme-color" content="#204983" />
     <!-- Handshake DNS/TLS adelantado con gtag.js, en vez de esperar a que el
          parser llegue al script (estaba fuera de <body>, después del cierre). -->
     <link rel="preconnect" href="https://www.googletagmanager.com" />

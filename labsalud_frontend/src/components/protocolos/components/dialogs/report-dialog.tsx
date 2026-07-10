@@ -11,6 +11,7 @@ import { Label } from "../../../ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../ui/select"
 import { Separator } from "../../../ui/separator"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import { ACTO_BIOQUIMICO_CODES } from "@/lib/acto-bioquimico"
 import type { ProtocolDetail, ReportSignature } from "@/types"
 
 type ReportProtocolAnalysis = ProtocolDetail & {
@@ -131,7 +132,7 @@ interface ReportCustomizationDrawerProps {
   onToggleOpen: (open: boolean) => void
 }
 
-const EXCLUDED_ANALYSIS_CODES = new Set([660001, 661001])
+const EXCLUDED_ANALYSIS_CODES = ACTO_BIOQUIMICO_CODES
 
 // Se puede incluir cualquier análisis con resultados cargados, aunque no esté
 // validado por completo: el backend imprime sólo los resultados validados

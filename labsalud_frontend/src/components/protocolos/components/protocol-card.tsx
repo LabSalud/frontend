@@ -8,6 +8,7 @@ import { useApi } from "../../../hooks/use-api"
 import { toast } from "sonner"
 import { PROTOCOL_ENDPOINTS, TOAST_DURATION } from "@/config/api"
 import { PERMISSIONS } from "@/config/permissions"
+import { ACTO_BIOQUIMICO_CODES } from "@/lib/acto-bioquimico"
 import { Mail, MessageCircle } from "lucide-react"
 import {
   AlertDialog,
@@ -133,7 +134,7 @@ type ReportProtocolDetail = ProtocolDetailType
 
 type ReportAction = "download" | "email" | "whatsapp"
 
-const EXCLUDED_REPORT_ANALYSIS_CODES = new Set([660001, 661001])
+const EXCLUDED_REPORT_ANALYSIS_CODES = ACTO_BIOQUIMICO_CODES
 
 // Incluible en el reporte: alcanza con tener resultados cargados (el backend
 // imprime sólo los validados). Permite impresión parcial de análisis a medio validar.

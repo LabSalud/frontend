@@ -26,6 +26,7 @@ import { InitialsAvatar } from "@/components/common/initials-avatar"
 import { StatusPill } from "@/components/common/status-pill"
 import { AuditTimelineMini } from "@/components/common/audit-timeline-mini"
 import { getPreauthStatusInfo } from "@/lib/status-styles"
+import { isActoBioquimico } from "@/lib/acto-bioquimico"
 import { cn } from "@/lib/utils"
 import type {
   ProtocolAuditEvent,
@@ -269,25 +270,40 @@ export function ProtocolDetailView(props: ProtocolDetailViewProps) {
             <p className="py-6 text-center text-sm text-gray-400">Sin análisis cargados</p>
           ) : (
             <ul className="divide-y divide-gray-100">
-              {details.map((d) => (
+              {details.map((d) => {
+                const isBillingAct = isActoBioquimico(d.code)
+                return (
                 <li key={d.id} className="flex items-center justify-between gap-3 py-2.5">
                   <div className="flex min-w-0 items-center gap-2.5">
                     <span
                       title={
-                        d.is_valid ? "Resultado validado" : d.is_loaded ? "Resultado cargado, sin validar" : "Resultado sin cargar"
+                        isBillingAct
+                          ? "Acto de facturación: no lleva resultado"
+                          : d.is_valid
+                            ? "Resultado validado"
+                            : d.is_loaded
+                              ? "Resultado cargado, sin validar"
+                              : "Resultado sin cargar"
                       }
                       className={cn(
                         "rounded px-1.5 py-0.5 font-mono text-xs font-medium",
-                        d.is_valid
-                          ? "bg-emerald-100 text-emerald-700"
-                          : d.is_loaded
-                            ? "bg-amber-100 text-amber-700"
-                            : "bg-gray-100 text-gray-500",
+                        isBillingAct
+                          ? "bg-slate-100 text-slate-500"
+                          : d.is_valid
+                            ? "bg-emerald-100 text-emerald-700"
+                            : d.is_loaded
+                              ? "bg-amber-100 text-amber-700"
+                              : "bg-gray-100 text-gray-500",
                       )}
                     >
                       {d.code}
                     </span>
                     <span className="truncate text-sm font-medium text-gray-800">{d.name}</span>
+                    {isBillingAct && (
+                      <Badge variant="outline" className="shrink-0 border-slate-200 text-slate-500">
+                        Sin resultado
+                      </Badge>
+                    )}
                     {d.is_urgent && <Badge className="bg-rose-100 text-rose-700">Urgente</Badge>}
                   </div>
                   {isPrivate ? (
@@ -310,7 +326,8 @@ export function ProtocolDetailView(props: ProtocolDetailViewProps) {
                     </div>
                   )}
                 </li>
-              ))}
+                )
+              })}
             </ul>
           )}
         </Section>

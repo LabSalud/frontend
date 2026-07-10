@@ -310,7 +310,7 @@ export default function Home() {
             })}
       </section>
 
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(340px,0.65fr)]">
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(340px,0.65fr)]">
         <section className="rounded-lg border border-slate-200 bg-white/70 p-4 shadow-sm backdrop-blur-sm sm:p-5">
           <div className="mb-4 flex items-center justify-between gap-3">
             <div className="flex min-w-0 items-center gap-2">
@@ -452,27 +452,29 @@ export default function Home() {
         {loading ? (
           <Skeleton className="h-32 w-full rounded-md" />
         ) : (
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <div className="rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3">
               <p className="text-xs font-medium text-emerald-700">Cobrado hoy</p>
-              <p className="mt-1 text-2xl font-bold text-emerald-800">{formatMoney(cash?.total_paid)}</p>
+              {/* En la franja 640-1024px las tres tarjetas quedan angostas y un importe de
+                  millones no entra en text-2xl. */}
+              <p className="mt-1 text-2xl font-bold text-emerald-800 sm:text-lg md:text-xl lg:text-2xl">{formatMoney(cash?.total_paid)}</p>
             </div>
             <div className="rounded-md border border-slate-200 bg-slate-50 px-4 py-3">
               <p className="text-xs font-medium text-slate-600">Total a cobrar</p>
-              <p className="mt-1 text-2xl font-bold text-slate-800">{formatMoney(cash?.total_due)}</p>
+              <p className="mt-1 text-2xl font-bold text-slate-800 sm:text-lg md:text-xl lg:text-2xl">{formatMoney(cash?.total_due)}</p>
             </div>
             <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3">
               <p className="text-xs font-medium text-amber-700">Pendiente</p>
-              <p className="mt-1 text-2xl font-bold text-amber-800">{formatMoney(cash?.pending_to_collect)}</p>
+              <p className="mt-1 text-2xl font-bold text-amber-800 sm:text-lg md:text-xl lg:text-2xl">{formatMoney(cash?.pending_to_collect)}</p>
             </div>
             {cashBreakdown && (
-              <div className="sm:col-span-3 grid grid-cols-2 gap-1.5 rounded-md bg-slate-50 px-3 py-2 text-xs sm:grid-cols-3 lg:grid-cols-6">
-                <div className="flex justify-between gap-2"><span className="text-slate-500">Particulares</span><span className="font-semibold">{formatMoney(cashBreakdown.analyses_amount_due)}</span></div>
-                <div className="flex justify-between gap-2"><span className="text-slate-500">Coseguro</span><span className="font-semibold">{formatMoney(cashBreakdown.coseguro)}</span></div>
-                <div className="flex justify-between gap-2"><span className="text-slate-500">Material</span><span className="font-semibold">{formatMoney(cashBreakdown.material_descartable)}</span></div>
-                <div className="flex justify-between gap-2"><span className="text-slate-500">Derivación</span><span className="font-semibold">{formatMoney(cashBreakdown.derivacion)}</span></div>
-                <div className="flex justify-between gap-2"><span className="text-slate-500">Cobros extra</span><span className="font-semibold">{formatMoney(cashBreakdown.unplanned_charges)}</span></div>
-                <div className="flex justify-between gap-2"><span className="text-slate-500">Pagos extra</span><span className="font-semibold">{formatMoney(cashBreakdown.unplanned_payments_today)}</span></div>
+              <div className="sm:col-span-3 grid grid-cols-1 gap-1.5 rounded-md bg-slate-50 px-3 py-2 text-xs sm:grid-cols-3 lg:grid-cols-6">
+                <CashBreakdownItem label="Particulares" amount={formatMoney(cashBreakdown.analyses_amount_due)} />
+                <CashBreakdownItem label="Coseguro" amount={formatMoney(cashBreakdown.coseguro)} />
+                <CashBreakdownItem label="Material" amount={formatMoney(cashBreakdown.material_descartable)} />
+                <CashBreakdownItem label="Derivación" amount={formatMoney(cashBreakdown.derivacion)} />
+                <CashBreakdownItem label="Cobros extra" amount={formatMoney(cashBreakdown.unplanned_charges)} />
+                <CashBreakdownItem label="Pagos extra" amount={formatMoney(cashBreakdown.unplanned_payments_today)} />
               </div>
             )}
           </div>
@@ -528,13 +530,13 @@ export default function Home() {
           <h2 className="text-base font-semibold text-slate-900">Obras sociales del mes</h2>
         </div>
         {loading ? (
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
             {Array.from({ length: 5 }).map((_, index) => (
               <Skeleton key={index} className="h-16 w-full rounded-md" />
             ))}
           </div>
         ) : insuranceMix.length > 0 ? (
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
             {insuranceMix.map((insurance) => (
               <div key={insurance.insurance_id} className="rounded-md border border-teal-100 bg-teal-50 px-3 py-3 text-teal-800">
                 <p className="truncate text-sm font-semibold" title={insurance.name}>
@@ -551,6 +553,17 @@ export default function Home() {
           </p>
         )}
       </section>
+    </div>
+  )
+}
+
+// El importe no tiene espacios, así que nunca puede cortarse en dos líneas:
+// se lleva shrink-0 y el que cede espacio es el label.
+function CashBreakdownItem({ label, amount }: { label: string; amount: string }) {
+  return (
+    <div className="flex min-w-0 justify-between gap-2">
+      <span className="truncate text-slate-500" title={label}>{label}</span>
+      <span className="shrink-0 font-semibold">{amount}</span>
     </div>
   )
 }

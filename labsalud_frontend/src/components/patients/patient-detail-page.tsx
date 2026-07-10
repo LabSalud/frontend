@@ -31,6 +31,7 @@ import { EditPatientDialog } from "./components/edit-patient-dialog"
 import DeletePatientDialog from "./components/delete-patient-dialog"
 import { MergePatientDialog } from "./components/merge-patient-dialog"
 import { PatientHistoryDialog } from "./components/patient-history-dialog"
+import { PatientDetailSkeleton } from "./components/patient-detail-skeleton"
 import { PATIENT_ENDPOINTS, PROTOCOL_ENDPOINTS } from "@/config/api"
 import { cn } from "@/lib/utils"
 import type { Patient, ProtocolAuditEvent, ProtocolListItem } from "@/types"
@@ -110,8 +111,9 @@ export default function PatientDetailPage() {
 
   if (patientQuery.isLoading) {
     return (
-      <div className="flex min-h-[60vh] items-center justify-center">
-        <div className="h-10 w-10 animate-spin rounded-full border-4 border-[#204983] border-t-transparent" />
+      <div className="mx-auto w-full max-w-7xl px-3 py-4 sm:px-4">
+        {Breadcrumb}
+        <PatientDetailSkeleton />
       </div>
     )
   }

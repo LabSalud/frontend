@@ -5,6 +5,7 @@ import { Link, useParams, useSearchParams } from "react-router-dom"
 import { ArrowLeft, ChevronRight, AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ProtocolCard } from "./components/protocol-card"
+import { ProtocolDetailSkeleton } from "./components/protocol-detail-skeleton"
 import { useApiQuery } from "@/hooks/use-api-query"
 import { useQueryClient } from "@tanstack/react-query"
 import { PROTOCOL_ENDPOINTS, REPORTING_ENDPOINTS } from "@/config/api"
@@ -91,8 +92,9 @@ export default function ProtocolDetailPage() {
 
   if (detailQuery.isLoading) {
     return (
-      <div className="flex min-h-[60vh] items-center justify-center">
-        <div className="h-10 w-10 animate-spin rounded-full border-4 border-[#204983] border-t-transparent" />
+      <div className="mx-auto w-full max-w-7xl px-3 py-4 sm:px-4">
+        {Breadcrumb}
+        <ProtocolDetailSkeleton />
       </div>
     )
   }

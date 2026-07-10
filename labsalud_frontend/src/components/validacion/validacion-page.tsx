@@ -44,7 +44,7 @@ export default function ValidacionPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const debouncedSearch = useDebounce(searchTerm, 300)
   const [rawStatusFilter, setStatusFilter] = usePersistedState<StatusFilterState>("labsalud_validacion_status", {
-    include: [2, 11],
+    include: [],
     exclude: [],
   })
   const statusFilter = normalizeStatusFilter(rawStatusFilter)

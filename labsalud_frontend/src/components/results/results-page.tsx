@@ -39,7 +39,7 @@ export default function ResultadosPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const debouncedSearch = useDebounce(searchTerm, 300)
   const [rawStatusFilter, setStatusFilter] = usePersistedState<StatusFilterState>("labsalud_results_status", {
-    include: [1, 2],
+    include: [],
     exclude: [],
   })
   const statusFilter = normalizeStatusFilter(rawStatusFilter)

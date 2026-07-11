@@ -1,7 +1,8 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { AlertTriangle, CalendarRange, Clock } from "lucide-react"
+import { Link } from "react-router-dom"
+import { AlertTriangle, CalendarRange, Clock, Settings } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -17,6 +18,9 @@ import { formatDateAR } from "./format"
 
 const tabClass =
   "flex-shrink-0 rounded-full border border-transparent bg-transparent px-4 py-1.5 text-sm font-medium text-gray-600 shadow-none transition-colors hover:bg-gray-100 data-[state=active]:border-[#204983] data-[state=active]:bg-[#204983] data-[state=active]:text-white data-[state=active]:shadow-sm"
+
+// Deep-link a la pestaña de Facturación dentro de Configuración.
+const BILLING_CONFIG_PATH = "/configuracion?tab=facturacion"
 
 function daysUntil(dateStr: string | null | undefined): number | null {
   if (!dateStr) return null
@@ -59,8 +63,16 @@ export default function FacturacionPage() {
   if (!entity) {
     return (
       <div className="mx-auto w-full max-w-6xl px-4 py-4">
-        <div className="rounded-2xl bg-white/95 p-6 shadow-md backdrop-blur-sm text-center text-sm text-gray-500">
-          Todavía no hay entidades de facturación configuradas. Creá una en Configuración → Facturación.
+        <div className="flex flex-col items-center gap-4 rounded-2xl bg-white/95 p-6 text-center shadow-md backdrop-blur-sm">
+          <p className="text-sm text-gray-500">
+            Todavía no hay entidades de facturación configuradas.
+          </p>
+          <Button asChild className="bg-[#204983] hover:bg-[#1a3d6f]">
+            <Link to={BILLING_CONFIG_PATH}>
+              <Settings className="mr-1.5 h-4 w-4" />
+              Ir a configuración de facturación
+            </Link>
+          </Button>
         </div>
       </div>
     )
@@ -74,20 +86,28 @@ export default function FacturacionPage() {
             <h1 className="text-xl font-bold text-gray-800 md:text-2xl">Facturación</h1>
             <p className="text-sm text-gray-500">Ayuda memoria para presentar y cobrar a las obras sociales.</p>
           </div>
-          {/* Selector de entidad: cada una tiene su propio ciclo de presentación */}
-          <div className="flex gap-1 rounded-full bg-gray-100 p-1">
-            {m.entities.map((e) => (
-              <button
-                key={e.id}
-                type="button"
-                onClick={() => setEntityId(e.id)}
-                className={`rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
-                  entityId === e.id ? "bg-[#204983] text-white shadow-sm" : "text-gray-600 hover:bg-gray-200"
-                }`}
-              >
-                {e.name}
-              </button>
-            ))}
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Selector de entidad: cada una tiene su propio ciclo de presentación */}
+            <div className="flex gap-1 rounded-full bg-gray-100 p-1">
+              {m.entities.map((e) => (
+                <button
+                  key={e.id}
+                  type="button"
+                  onClick={() => setEntityId(e.id)}
+                  className={`rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
+                    entityId === e.id ? "bg-[#204983] text-white shadow-sm" : "text-gray-600 hover:bg-gray-200"
+                  }`}
+                >
+                  {e.name}
+                </button>
+              ))}
+            </div>
+            <Button asChild variant="outline" size="sm" className="gap-1.5 text-gray-600">
+              <Link to={BILLING_CONFIG_PATH}>
+                <Settings className="h-4 w-4" />
+                Configuración
+              </Link>
+            </Button>
           </div>
         </div>
 

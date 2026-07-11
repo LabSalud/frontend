@@ -1,6 +1,7 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
+import { useSearchParams } from "react-router-dom"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { MedicosManagement } from "./medicos-management"
 import { ObrasSocialesManagement } from "./obras-sociales-management"
@@ -10,17 +11,40 @@ import { NbuManagement } from "./nbu-management"
 import { SignaturesManagement } from "./signatures-management"
 import { BillingManagement } from "./billing-management"
 
+const CONFIG_TABS = [
+  "medicos",
+  "obras-sociales",
+  "nomencladores",
+  "analisis",
+  "firmas",
+  "facturacion",
+  "auditoria",
+] as const
+
 export default function ConfigurationPage() {
+  const [searchParams, setSearchParams] = useSearchParams()
+
   const [activeTab, setActiveTab] = useState(() => {
+    // Deep-link ?tab=... tiene prioridad (p. ej. el botón desde Facturación).
+    const urlTab = searchParams.get("tab")
+    if (urlTab && CONFIG_TABS.includes(urlTab as (typeof CONFIG_TABS)[number])) return urlTab
     const savedTab = localStorage.getItem("config-active-tab")
-    if (
-      savedTab &&
-      ["medicos", "obras-sociales", "nomencladores", "analisis", "firmas", "facturacion", "auditoria"].includes(savedTab)
-    ) {
-      return savedTab
-    }
+    if (savedTab && CONFIG_TABS.includes(savedTab as (typeof CONFIG_TABS)[number])) return savedTab
     return "medicos"
   })
+
+  // Consumimos el query param: lo persistimos y lo sacamos de la URL para que un
+  // reload posterior no vuelva a forzar la pestaña.
+  useEffect(() => {
+    const urlTab = searchParams.get("tab")
+    if (urlTab && CONFIG_TABS.includes(urlTab as (typeof CONFIG_TABS)[number])) {
+      localStorage.setItem("config-active-tab", urlTab)
+      searchParams.delete("tab")
+      setSearchParams(searchParams, { replace: true })
+    }
+    // Solo al montar: es un valor inicial, no una sincronización continua.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const handleTabChange = (value: string) => {
     setActiveTab(value)

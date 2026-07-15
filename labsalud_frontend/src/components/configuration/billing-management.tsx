@@ -13,6 +13,7 @@ import { useApi } from "@/hooks/use-api"
 import { BILLING_ENDPOINTS, TOAST_DURATION } from "@/config/api"
 import { formatApiError, getErrorMessage } from "@/lib/api-error"
 import { ReminderSettingsPanel } from "@/components/facturacion/components/reminder-settings-panel"
+import { BillingEntityCard } from "./components/billing-entity-card"
 import type { BillingEntity, ReminderPhone } from "@/components/facturacion/types"
 
 interface PaginatedResponse<T> {
@@ -35,7 +36,6 @@ export function BillingManagement() {
   const [creating, setCreating] = useState(false)
 
   const [phones, setPhones] = useState<ReminderPhone[]>([])
-  const [daysBefore, setDaysBefore] = useState(7)
   const [loadingReminders, setLoadingReminders] = useState(true)
 
   const fetchEntities = useCallback(async () => {
@@ -56,21 +56,17 @@ export function BillingManagement() {
     }
   }, [apiRequest])
 
-  const fetchReminders = useCallback(async () => {
+  // Los teléfonos son compartidos por todas las entidades. La anticipación y
+  // si el aviso está activo se configuran por entidad (el cron ya no lee la
+  // config global `/reminders/config/`).
+  const fetchPhones = useCallback(async () => {
     setLoadingReminders(true)
     try {
-      const [phonesRes, configRes] = await Promise.all([
-        apiRequest(BILLING_ENDPOINTS.REMINDER_PHONES),
-        apiRequest(BILLING_ENDPOINTS.REMINDER_CONFIG),
-      ])
+      const phonesRes = await apiRequest(BILLING_ENDPOINTS.REMINDER_PHONES)
       if (phonesRes.ok) {
         const data = await phonesRes.json()
         const list: ReminderPhone[] = Array.isArray(data) ? data : (data as PaginatedResponse<ReminderPhone>).results || []
         setPhones(list)
-      }
-      if (configRes.ok) {
-        const data = await configRes.json()
-        setDaysBefore(data.days_before ?? 7)
       }
     } catch (err) {
       toast.error("Error", { description: getErrorMessage(err), duration: TOAST_DURATION })
@@ -81,8 +77,8 @@ export function BillingManagement() {
 
   useEffect(() => {
     void fetchEntities()
-    void fetchReminders()
-  }, [fetchEntities, fetchReminders])
+    void fetchPhones()
+  }, [fetchEntities, fetchPhones])
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -111,7 +107,7 @@ export function BillingManagement() {
     }
   }
 
-  const patchEntity = async (id: number, body: Partial<Pick<BillingEntity, "reports_breakdown_by_ooss" | "is_active">>) => {
+  const patchEntity = async (id: number, body: Partial<Omit<BillingEntity, "id" | "name">>) => {
     setSavingEntityId(id)
     try {
       const res = await apiRequest(BILLING_ENDPOINTS.ENTITY_DETAIL(id), { method: "PATCH", body })
@@ -134,7 +130,7 @@ export function BillingManagement() {
       throw new Error(formatApiError(err, "No se pudo agregar el número"))
     }
     toast.success("Número agregado", { duration: TOAST_DURATION })
-    await fetchReminders()
+    await fetchPhones()
   }
 
   const togglePhone = async (id: number, active: boolean) => {
@@ -152,16 +148,6 @@ export function BillingManagement() {
     }
     toast.success("Número eliminado", { duration: TOAST_DURATION })
     setPhones((prev) => prev.filter((p) => p.id !== id))
-  }
-
-  const changeDaysBefore = async (days: number) => {
-    const res = await apiRequest(BILLING_ENDPOINTS.REMINDER_CONFIG, { method: "PATCH", body: { days_before: days } })
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}))
-      throw new Error(formatApiError(err, "No se pudo guardar la configuración"))
-    }
-    toast.success(`Ahora se avisa ${days} días antes del cierre`, { duration: TOAST_DURATION })
-    setDaysBefore(days)
   }
 
   return (
@@ -209,38 +195,9 @@ export function BillingManagement() {
             No hay entidades de facturación todavía.
           </p>
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-3">
             {entities.map((e) => (
-              <div
-                key={e.id}
-                className="flex flex-col gap-3 rounded-lg border border-gray-200 bg-white p-3 sm:flex-row sm:items-center sm:justify-between"
-              >
-                <div>
-                  <p className="font-medium text-gray-800">{e.name}</p>
-                  <p className="text-xs text-gray-500">
-                    {e.reports_breakdown_by_ooss ? "Informa el cobro discriminado por OOSS" : "Deposita un monto único"}
-                  </p>
-                </div>
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-2">
-                    <Switch
-                      checked={e.reports_breakdown_by_ooss}
-                      disabled={savingEntityId === e.id}
-                      onCheckedChange={(v) => patchEntity(e.id, { reports_breakdown_by_ooss: v })}
-                    />
-                    <span className="text-xs text-gray-600">Desglosa por OOSS</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Switch
-                      checked={e.is_active}
-                      disabled={savingEntityId === e.id}
-                      onCheckedChange={(v) => patchEntity(e.id, { is_active: v })}
-                      className="data-[state=checked]:bg-emerald-600"
-                    />
-                    <span className="text-xs text-gray-600">Activa</span>
-                  </div>
-                </div>
-              </div>
+              <BillingEntityCard key={e.id} entity={e} saving={savingEntityId === e.id} onPatch={patchEntity} />
             ))}
           </div>
         )}
@@ -252,11 +209,9 @@ export function BillingManagement() {
         ) : (
           <ReminderSettingsPanel
             phones={phones}
-            daysBefore={daysBefore}
             onAddPhone={addReminderPhone}
             onTogglePhone={togglePhone}
             onRemovePhone={removePhone}
-            onChangeDaysBefore={changeDaysBefore}
           />
         )}
       </div>

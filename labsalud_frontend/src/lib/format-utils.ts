@@ -2,6 +2,13 @@
 // UTILIDADES DE FORMATO
 // ============================================================================
 
+// El backend serializa las fechas/horas YA en hora Argentina (offset -03:00),
+// así que ese es el valor correcto a mostrar. Fijamos la zona horaria del
+// laboratorio en el formateo para que el horario NO dependa de la zona horaria
+// de la máquina del usuario (si no, `toLocaleString` lo convertiría y cambiaría
+// la hora). Así se muestra tal cual lo manda el backend.
+export const LAB_TIME_ZONE = "America/Argentina/Cordoba"
+
 export const formatUtils = {
   // Formatear DNI con puntos de miles (XX.XXX.XXX)
   formatDni: (dni: string): string => {
@@ -101,6 +108,7 @@ export const formatUtcDateTime = (value: string | null | undefined): string => {
   const parsed = parseUtcDate(value)
   if (!parsed) return "Sin fecha"
   return parsed.toLocaleString("es-AR", {
+    timeZone: LAB_TIME_ZONE,
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
@@ -117,6 +125,7 @@ export const formatUtcDate = (value: string | null | undefined): string => {
   const parsed = parseUtcDate(value)
   if (!parsed) return "Sin fecha"
   return parsed.toLocaleDateString("es-AR", {
+    timeZone: LAB_TIME_ZONE,
     day: "2-digit",
     month: "2-digit",
     year: "numeric",

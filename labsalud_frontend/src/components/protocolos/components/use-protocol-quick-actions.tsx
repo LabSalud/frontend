@@ -20,7 +20,11 @@ import type { ProtocolListItem, ProtocolStatus } from "@/types"
  * caller decide si recargar todo.
  */
 export function useProtocolQuickActions(
-  onChanged: (statusUpdate?: { id: number; status: ProtocolStatus | null }) => void,
+  onChanged: (statusUpdate?: {
+    id: number
+    status: ProtocolStatus | null
+    payment_status?: ProtocolListItem["payment_status"] | null
+  }) => void,
 ) {
   const { apiRequest } = useApi()
   const [paymentTarget, setPaymentTarget] = useState<ProtocolListItem | null>(null)
@@ -38,12 +42,15 @@ export function useProtocolQuickActions(
         body: { operation, amount: amount.toFixed(2) },
       })
       if (res.ok) {
-        const data = await res.json().catch(() => ({}))
         toast.success(
           `${operation === "patient_paid" ? "Pago" : "Devolución"} de $${amount.toFixed(2)} registrado`,
           { duration: TOAST_DURATION },
         )
-        onChanged(data.status !== undefined ? { id: paymentTarget.id, status: data.status } : undefined)
+        // El "Pago" de la tabla es el `balance` (method field, fresco) y el
+        // serializer de esta respuesta NO lo trae; por eso refrescamos la
+        // lista (onChanged sin args → refetch) y quedan balance + estado de
+        // pago + estado actualizados.
+        onChanged()
         setPaymentTarget(null)
         return true
       }

@@ -2,37 +2,25 @@ import { useState } from "react"
 import { Bell, Loader2, Plus, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import type { ReminderPhone } from "../types"
 
 interface ReminderSettingsPanelProps {
   phones: ReminderPhone[]
-  daysBefore: number
   onAddPhone: (label: string, phone: string) => Promise<void>
   onTogglePhone: (id: number, active: boolean) => Promise<void>
   onRemovePhone: (id: number) => Promise<void>
-  onChangeDaysBefore: (days: number) => Promise<void>
 }
 
 /**
- * Recordatorio por WhatsApp de cierre de presentación: varios números
- * configurables (todos reciben el mismo aviso) y una cantidad de días de
- * anticipación, compartida por todas las entidades.
+ * Números que reciben el recordatorio de cierre por WhatsApp. Son
+ * **compartidos por todas las entidades**: la anticipación (días antes) y si
+ * el aviso está activo se configuran por entidad en cada ficha.
  */
-export function ReminderSettingsPanel({
-  phones,
-  daysBefore,
-  onAddPhone,
-  onTogglePhone,
-  onRemovePhone,
-  onChangeDaysBefore,
-}: ReminderSettingsPanelProps) {
+export function ReminderSettingsPanel({ phones, onAddPhone, onTogglePhone, onRemovePhone }: ReminderSettingsPanelProps) {
   const [newLabel, setNewLabel] = useState("")
   const [newPhone, setNewPhone] = useState("")
   const [adding, setAdding] = useState(false)
-  const [daysDraft, setDaysDraft] = useState(String(daysBefore))
-  const [savingDays, setSavingDays] = useState(false)
 
   const handleAdd = async () => {
     if (!newPhone.trim()) return
@@ -46,46 +34,16 @@ export function ReminderSettingsPanel({
     }
   }
 
-  const handleSaveDays = async () => {
-    const parsed = Number.parseInt(daysDraft, 10)
-    if (Number.isNaN(parsed) || parsed < 1) return
-    setSavingDays(true)
-    try {
-      await onChangeDaysBefore(parsed)
-    } finally {
-      setSavingDays(false)
-    }
-  }
-
   return (
     <div className="space-y-4 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
       <div className="flex items-center gap-2">
         <Bell className="h-5 w-5 text-[#204983]" />
-        <h2 className="text-base font-bold text-gray-800">Recordatorio de cierre por WhatsApp</h2>
+        <h2 className="text-base font-bold text-gray-800">Números para el recordatorio de cierre</h2>
       </div>
       <p className="text-sm text-gray-500">
-        Cuando falten los días configurados para el cierre de cualquier presentación abierta, se manda un WhatsApp a
-        todos los números activos de la lista. Si se pasa la fecha y todavía no se cerró, se manda un recordatorio
-        adicional una vez por día hasta que se cierre (nunca se cierra sola).
+        Todos los números activos reciben el mismo aviso de WhatsApp cuando una presentación abierta se acerca a su
+        cierre. La anticipación y si el recordatorio está activo se configuran por entidad, arriba.
       </p>
-
-      <div className="flex items-center gap-2">
-        <Label htmlFor="days-before" className="text-sm text-gray-700">
-          Avisar con
-        </Label>
-        <Input
-          id="days-before"
-          type="number"
-          min="1"
-          className="h-8 w-20 text-sm"
-          value={daysDraft}
-          onChange={(e) => setDaysDraft(e.target.value)}
-        />
-        <span className="text-sm text-gray-700">días de anticipación</span>
-        <Button size="sm" variant="outline" className="h-8" disabled={savingDays || daysDraft === String(daysBefore)} onClick={handleSaveDays}>
-          {savingDays ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Guardar"}
-        </Button>
-      </div>
 
       <div className="space-y-2 border-t border-gray-100 pt-3">
         {phones.map((p) => (

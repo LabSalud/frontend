@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogFooter } from "@/components/ui/dialog"
 import { DialogHeading } from "@/components/common/dialog-heading"
@@ -11,11 +11,11 @@ import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { AlertCircle, CheckCircle, Building2 } from "lucide-react"
 import { useApi } from "@/hooks/use-api"
-import { getPreferredNbuId, useNbuOptions } from "@/hooks/use-nbu-options"
 import { toast } from "sonner"
 import { MEDICAL_ENDPOINTS, TOAST_DURATION } from "@/config/api"
 import { formatApiError, getErrorMessage } from "@/lib/api-error"
 import { NbuSelect } from "./nbu-select"
+import { BillingEntitySelect } from "./billing-entity-select"
 
 interface CreateObraSocialDialogProps {
   open: boolean
@@ -28,6 +28,7 @@ interface FormData {
   description: string
   ub_value: string
   nbu_id: string
+  billing_entity_id: string
   charges_coseguro: boolean
   charges_material_descartable: boolean
   charges_derivacion: boolean
@@ -45,6 +46,7 @@ const initialFormData: FormData = {
   description: "",
   ub_value: "",
   nbu_id: "",
+  billing_entity_id: "",
   charges_coseguro: false,
   charges_material_descartable: false,
   charges_derivacion: false,
@@ -61,15 +63,9 @@ export function CreateObraSocialDialog({ open, onOpenChange, onSuccess }: Create
   const [loading, setLoading] = useState(false)
 
   const { apiRequest } = useApi()
-  const { nbus } = useNbuOptions()
 
-  useEffect(() => {
-    if (!open || formData.nbu_id || nbus.length === 0) return
-    const preferredNbu = getPreferredNbuId(nbus)
-    if (preferredNbu) {
-      setFormData((prev) => ({ ...prev, nbu_id: preferredNbu }))
-    }
-  }, [formData.nbu_id, nbus, open])
+  // El NBU ya NO se pre-selecciona (antes se elegía el principal por defecto):
+  // el usuario elige explícitamente, o lo deja vacío (usa el principal en back).
 
   const validateField = (name: keyof ValidationState, value: string) => {
     let isValid = false
@@ -131,6 +127,7 @@ export function CreateObraSocialDialog({ open, onOpenChange, onSuccess }: Create
       if (formData.description.trim()) body.description = formData.description
       if (formData.ub_value.trim()) body.ub_value = Number.parseFloat(formData.ub_value)
       if (formData.nbu_id) body.nbu = Number.parseInt(formData.nbu_id, 10)
+      if (formData.billing_entity_id) body.billing_entity_id = Number.parseInt(formData.billing_entity_id, 10)
 
       const response = await apiRequest(MEDICAL_ENDPOINTS.INSURANCES, {
         method: "POST",
@@ -254,6 +251,18 @@ export function CreateObraSocialDialog({ open, onOpenChange, onSuccess }: Create
               />
               <p className="text-xs text-gray-500">
                 Define qué UB usa la obra social. Si un análisis no tiene UB propio, sube por la cadena de fallback.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="billing_entity_id">Entidad a facturar</Label>
+              <BillingEntitySelect
+                id="billing_entity_id"
+                value={formData.billing_entity_id}
+                onValueChange={(value) => setFormData((prev) => ({ ...prev, billing_entity_id: value }))}
+              />
+              <p className="text-xs text-gray-500">
+                A través de qué entidad (Centro/Clínica) se presenta esta OOSS. Podés dejarla sin asignar.
               </p>
             </div>
 

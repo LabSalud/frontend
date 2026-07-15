@@ -25,6 +25,24 @@ interface EditDeterminationDialogProps {
   analysisId?: number
 }
 
+// Los valores de referencia siempre son estos 4 grupos (y puede no tener).
+const REF_GROUPS = [
+  { key: "hombre", label: "Hombre", sex: "male", age_group: "adult" },
+  { key: "mujer", label: "Mujer", sex: "female", age_group: "adult" },
+  { key: "nino", label: "Niño", sex: "male", age_group: "child" },
+  { key: "nina", label: "Niña", sex: "female", age_group: "child" },
+] as const
+
+type RangeMap = Record<string, { min: string; max: string }>
+type RefRange = { sex?: string; age_group?: string; min_value?: string; max_value?: string }
+
+const emptyRanges = (): RangeMap => ({
+  hombre: { min: "", max: "" },
+  mujer: { min: "", max: "" },
+  nino: { min: "", max: "" },
+  nina: { min: "", max: "" },
+})
+
 export const EditDeterminationDialog: React.FC<EditDeterminationDialogProps> = ({
   open,
   onOpenChange,
@@ -38,7 +56,7 @@ export const EditDeterminationDialog: React.FC<EditDeterminationDialogProps> = (
   const [name, setName] = useState("")
   const [measureUnit, setMeasureUnit] = useState("")
   const [formula, setFormula] = useState("")
-  const [referenceValues, setReferenceValues] = useState("")
+  const [ranges, setRanges] = useState<RangeMap>(emptyRanges)
   const [isLoading, setIsLoading] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
 
@@ -56,32 +74,27 @@ export const EditDeterminationDialog: React.FC<EditDeterminationDialogProps> = (
       setName(determination.name)
       setMeasureUnit(determination.measure_unit)
       setFormula(determination.formula || "")
-      setReferenceValues(
-        determination.reference_values ? JSON.stringify(determination.reference_values, null, 2) : "",
-      )
+      // Cargar los valores de referencia estructurados (reference_ranges) en los
+      // 4 grupos. Antes se leía el JSON `reference_values`, por eso no aparecían.
+      const existing = ((determination as { reference_ranges?: RefRange[] }).reference_ranges || [])
+      const map = emptyRanges()
+      REF_GROUPS.forEach((g) => {
+        const found = existing.find((r) => r.sex === g.sex && r.age_group === g.age_group)
+        if (found) map[g.key] = { min: found.min_value ?? "", max: found.max_value ?? "" }
+      })
+      setRanges(map)
       setErrors({})
       setIsLoading(false)
     }
   }, [determination, isDialogOpen])
 
-  const parseReferenceValues = () => {
-    if (!referenceValues.trim()) return undefined
-
-    try {
-      return JSON.parse(referenceValues)
-    } catch {
-      return null
-    }
-  }
+  const setRange = (key: string, field: "min" | "max", value: string) =>
+    setRanges((prev) => ({ ...prev, [key]: { ...prev[key], [field]: value } }))
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {}
     if (!name.trim()) newErrors.name = "El nombre es requerido."
     if (!measureUnit.trim()) newErrors.measureUnit = "La unidad de medida es requerida."
-    if (referenceValues.trim() && parseReferenceValues() === null) {
-      newErrors.referenceValues = "Los valores de referencia deben ser un JSON válido."
-    }
-
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
@@ -91,30 +104,24 @@ export const EditDeterminationDialog: React.FC<EditDeterminationDialogProps> = (
 
     setIsLoading(true)
     try {
-      const determinationUpdateData: Partial<Determination> = {}
-      const parsedReferenceValues = parseReferenceValues()
-      const originalReferenceValues = determination.reference_values
-        ? JSON.stringify(determination.reference_values, null, 2)
-        : ""
+      const body: Record<string, unknown> = {}
+      if (name !== determination.name) body.name = name
+      if (measureUnit !== determination.measure_unit) body.measure_unit = measureUnit
+      if (formula !== (determination.formula || "")) body.formula = formula.trim() || ""
 
-      if (name !== determination.name) determinationUpdateData.name = name
-      if (measureUnit !== determination.measure_unit) determinationUpdateData.measure_unit = measureUnit
-      if (formula !== (determination.formula || "")) {
-        determinationUpdateData.formula = formula.trim() || ""
-      }
-      if (referenceValues !== originalReferenceValues) {
-        determinationUpdateData.reference_values = parsedReferenceValues || {}
-      }
-
-      if (Object.keys(determinationUpdateData).length === 0) {
-        toastActions.info("Sin cambios", { description: "No se realizaron modificaciones." })
-        handleOpenChange(false)
-        return
-      }
+      // Siempre mandamos los valores de referencia (por si se limpió un grupo).
+      body.reference_ranges = REF_GROUPS
+        .filter((g) => ranges[g.key].min.trim() || ranges[g.key].max.trim())
+        .map((g) => ({
+          sex: g.sex,
+          age_group: g.age_group,
+          min_value: ranges[g.key].min.trim(),
+          max_value: ranges[g.key].max.trim(),
+        }))
 
       const response = await apiRequest(CATALOG_ENDPOINTS.DETERMINATION_DETAIL(determination.id), {
         method: "PATCH",
-        body: determinationUpdateData,
+        body,
       })
 
       if (response.ok) {
@@ -123,27 +130,10 @@ export const EditDeterminationDialog: React.FC<EditDeterminationDialogProps> = (
         onSuccess(updatedDetermination)
         handleOpenChange(false)
       } else {
-        const errorData = await response.json()
+        const errorData = await response.json().catch(() => ({}))
         const errorMessage = formatApiError(errorData, "No se pudo actualizar la determinación.")
-        const backendErrors = errorData.detail || errorData.errors || errorData.error || errorData
-        if (typeof backendErrors === "string") {
-          setErrors({ form: backendErrors })
-          toastActions.error("Error", { description: backendErrors })
-        } else if (typeof backendErrors === "object" && backendErrors !== null) {
-          const formattedErrors: Record<string, string> = {}
-          for (const key in backendErrors) {
-            if (Array.isArray(backendErrors[key])) {
-              formattedErrors[key] = backendErrors[key].join(", ")
-            } else {
-              formattedErrors[key] = String(backendErrors[key])
-            }
-          }
-          setErrors(formattedErrors)
-          toastActions.error("Error", { description: errorMessage })
-        } else {
-          setErrors({ form: "Error al actualizar la determinación." })
-          toastActions.error("Error", { description: errorMessage })
-        }
+        setErrors({ form: errorMessage })
+        toastActions.error("Error", { description: errorMessage })
       }
     } catch (error) {
       console.error("Error updating determination:", error)
@@ -218,24 +208,35 @@ export const EditDeterminationDialog: React.FC<EditDeterminationDialogProps> = (
               rows={3}
               className="text-sm"
             />
-            {errors.formula && <p className="text-xs md:text-sm text-red-500">{errors.formula}</p>}
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="edit-determination-reference-values" className="text-sm">
-              Valores de Referencia (JSON opcional)
-            </Label>
-            <Textarea
-              id="edit-determination-reference-values"
-              value={referenceValues}
-              onChange={(e) => setReferenceValues(e.target.value)}
-              placeholder='{"hombre_mayor":{"min":"70","max":"110"}}'
-              rows={4}
-              className="font-mono text-xs"
-            />
-            {errors.referenceValues && (
-              <p className="text-xs md:text-sm text-red-500">{errors.referenceValues}</p>
-            )}
+            <Label className="text-sm">Valores de referencia (opcional)</Label>
+            <p className="text-xs text-gray-500">Dejá vacío el grupo que no aplique. Acepta decimales con «,» o «.».</p>
+            <div className="space-y-2">
+              <div className="grid grid-cols-[80px_1fr_1fr] items-center gap-2 text-xs font-medium text-gray-500">
+                <span />
+                <span>Mínimo</span>
+                <span>Máximo</span>
+              </div>
+              {REF_GROUPS.map((g) => (
+                <div key={g.key} className="grid grid-cols-[80px_1fr_1fr] items-center gap-2">
+                  <span className="text-sm font-medium text-gray-700">{g.label}</span>
+                  <Input
+                    value={ranges[g.key].min}
+                    onChange={(e) => setRange(g.key, "min", e.target.value)}
+                    placeholder="—"
+                    className="h-9 text-sm"
+                  />
+                  <Input
+                    value={ranges[g.key].max}
+                    onChange={(e) => setRange(g.key, "max", e.target.value)}
+                    placeholder="—"
+                    className="h-9 text-sm"
+                  />
+                </div>
+              ))}
+            </div>
           </div>
         </div>
 

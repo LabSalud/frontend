@@ -26,6 +26,7 @@ import { useApi } from "../../../../hooks/use-api"
 import { PROTOCOL_ENDPOINTS, TOAST_DURATION } from "@/config/api"
 import type { ProtocolStatus, UnplannedTransaction } from "@/types"
 import { formatApiError, getErrorMessage } from "@/lib/api-error"
+import { LAB_TIME_ZONE } from "@/lib/format-utils"
 
 interface UnplannedTransactionsDialogProps {
   open: boolean
@@ -254,7 +255,7 @@ export function UnplannedTransactionsDialog({
                         {tx.created_by && (
                           <p className="mt-1 text-[10px] text-gray-500">
                             {tx.created_by.first_name || tx.created_by.username}
-                            {tx.created_at ? ` · ${new Date(tx.created_at).toLocaleString("es-AR")}` : ""}
+                            {tx.created_at ? ` · ${new Date(tx.created_at).toLocaleString("es-AR", { timeZone: LAB_TIME_ZONE })}` : ""}
                           </p>
                         )}
                       </div>

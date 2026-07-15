@@ -37,6 +37,25 @@ import type {
   QuoteDetail,
 } from "../../types"
 
+// Todo lo que hace falta para reconstruir el formulario si el usuario deshace
+// un protocolo recién creado (botón "Deshacer" de la pantalla de éxito).
+type FormSnapshot = {
+  currentPatient: Patient | null
+  searchedDni: string
+  searchedSex: "M" | "F" | ""
+  selectedAnalyses: SelectedAnalysis[]
+  selectedDoctor: Doctor | null
+  selectedInsurance: Insurance | null
+  patientPaid: string
+  selectedSendMethod: SendMethod | null
+  affiliateNumber: string
+  trajoOrden: TrajoOrdenStatus | ""
+  preauthStatus: PreauthStatus | ""
+  extraAmounts: { material_descartable_amount: string; derivacion_amount: string }
+  coseguroAmount: string
+  unplannedTransactions: UnplannedTransactionInput[]
+}
+
 export default function IngresoPage() {
   const { apiRequest } = useApi()
 
@@ -76,7 +95,11 @@ export default function IngresoPage() {
     doctor: Doctor
     insurance: Insurance | null
     sendMethod: SendMethod
+    // Foto del formulario tal como se envió: si el usuario deshace (rollback),
+    // restauramos exactamente estos datos para que los edite.
+    formSnapshot: FormSnapshot
   } | null>(null)
+  const [isRollingBack, setIsRollingBack] = useState(false)
   const createProgress = useEndpointProgress()
   const location = useLocation()
   const navigate = useNavigate()
@@ -290,6 +313,55 @@ export default function IngresoPage() {
     setUnplannedTransactions([])
   }
 
+  // Deshace un protocolo recién creado desde la pantalla de éxito: pide al
+  // backend el rollback (borrado físico) y restaura el formulario con los datos
+  // que se habían cargado, para que el usuario los corrija y vuelva a crearlo.
+  const handleRollbackAndEdit = async () => {
+    if (!successData) return
+    setIsRollingBack(true)
+    try {
+      const response = await apiRequest(PROTOCOL_ENDPOINTS.ROLLBACK(successData.protocol.id), {
+        method: "POST",
+      })
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        toast.error("No se pudo deshacer el protocolo", {
+          description: formatApiError(errorData, "El protocolo no se pudo deshacer."),
+        })
+        return
+      }
+
+      const s = successData.formSnapshot
+      setCurrentPatient(s.currentPatient)
+      setPatientNotFound(false)
+      setSearchedDni(s.searchedDni)
+      setSearchedSex(s.searchedSex)
+      setCreatingAnonymous(false)
+      setSelectedAnalyses(s.selectedAnalyses)
+      setSelectedDoctor(s.selectedDoctor)
+      setSelectedInsurance(s.selectedInsurance)
+      setPatientPaid(s.patientPaid)
+      setSelectedSendMethod(s.selectedSendMethod)
+      setAffiliateNumber(s.affiliateNumber)
+      setTrajoOrden(s.trajoOrden)
+      setPreauthStatus(s.preauthStatus)
+      setExtraAmounts(s.extraAmounts)
+      setCoseguroAmount(s.coseguroAmount)
+      setUnplannedTransactions(s.unplannedTransactions)
+
+      setSuccessData(null)
+      toast.success("Protocolo deshecho", {
+        description: "Cargamos de nuevo los datos para que los modifiques y lo vuelvas a crear.",
+      })
+    } catch (error) {
+      toast.error("No se pudo deshacer el protocolo", {
+        description: getErrorMessage(error, "Error de conexión con el servidor"),
+      })
+    } finally {
+      setIsRollingBack(false)
+    }
+  }
+
   const isPrivateInsurance = selectedInsurance?.name.toLowerCase() === "particular"
   const isAnonymousPatient = Boolean(currentPatient?.is_anonymous)
   const treatAsPrivate = isPrivateInsurance || (isAnonymousPatient && !selectedInsurance)
@@ -393,6 +465,20 @@ export default function IngresoPage() {
       return
     }
 
+    // Regla del médico "N/A": si la OOSS no es Particular, hubo una orden y por
+    // lo tanto un médico real; no puede quedar en 'N/A'. (El backend también lo
+    // valida, pero acá lo avisamos antes de mandar.)
+    if (
+      selectedInsurance &&
+      !isPrivateInsurance &&
+      (selectedDoctor.license || "").trim().toLowerCase() === "n/a"
+    ) {
+      toast.error("Cargá el médico que hizo la orden", {
+        description: "La obra social no es Particular, así que el médico no puede quedar en 'N/A'.",
+      })
+      return
+    }
+
     const patientForSuccess = currentPatient
     const doctorForSuccess = selectedDoctor
     const insuranceForSuccess = selectedInsurance
@@ -493,6 +579,22 @@ export default function IngresoPage() {
         doctor: doctorForSuccess,
         insurance: insuranceForSuccess,
         sendMethod: sendMethodForSuccess,
+        formSnapshot: {
+          currentPatient,
+          searchedDni,
+          searchedSex,
+          selectedAnalyses,
+          selectedDoctor,
+          selectedInsurance,
+          patientPaid,
+          selectedSendMethod,
+          affiliateNumber,
+          trajoOrden,
+          preauthStatus,
+          extraAmounts,
+          coseguroAmount,
+          unplannedTransactions,
+        },
       })
       toast.success("Protocolo creado exitosamente")
       handleReset()
@@ -725,6 +827,8 @@ export default function IngresoPage() {
             insurance={successData.insurance}
             sendMethod={successData.sendMethod}
             onClose={() => setSuccessData(null)}
+            onRollback={handleRollbackAndEdit}
+            isRollingBack={isRollingBack}
           />
         )}
       </div>

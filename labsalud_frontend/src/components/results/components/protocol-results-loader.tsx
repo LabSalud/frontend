@@ -1,8 +1,8 @@
 "use client"
 
 import type React from "react"
-import { useCallback, useMemo, useRef, useState } from "react"
-import { FlaskConical, AlertCircle, Search, X } from "lucide-react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { FlaskConical, AlertCircle, ChevronDown, Search, X } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -23,8 +23,33 @@ export function ProtocolResultsLoader({ controller }: ProtocolResultsLoaderProps
   const { loading, error, protocol, results, groups, orderedIds, values, saving, onChange, onSave, previousResults, loadingPrevious, loadPrevious } =
     controller
   const patientId = protocol?.patient?.id ?? 0
+  // Protocolo cancelado: se muestra la info pero en SOLO LECTURA (hay que
+  // descancelarlo para editar). El backend además bloquea la escritura.
+  const isCancelled = (protocol?.status?.name || "").trim().toLowerCase() === "cancelado"
 
   const [search, setSearch] = useState("")
+  // Análisis colapsables: por defecto colapsados si ya tienen todos los
+  // resultados cargados; expandidos si les falta cargar (para reducir ruido).
+  const [collapsedIds, setCollapsedIds] = useState<Set<number>>(new Set())
+  const [collapseInit, setCollapseInit] = useState(false)
+  useEffect(() => {
+    if (collapseInit || groups.length === 0) return
+    const collapsed = new Set<number>()
+    groups.forEach((g) => {
+      const allLoaded =
+        g.determinations.length > 0 && g.determinations.every((d) => !!d.value)
+      if (allLoaded) collapsed.add(g.analysis.id)
+    })
+    setCollapsedIds(collapsed)
+    setCollapseInit(true)
+  }, [groups, collapseInit])
+  const toggleCollapse = (id: number) =>
+    setCollapsedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
   const inputRefs = useRef<Record<number, HTMLInputElement | null>>({})
   const textareaRefs = useRef<Record<number, HTMLTextAreaElement | null>>({})
 
@@ -110,6 +135,12 @@ export function ProtocolResultsLoader({ controller }: ProtocolResultsLoaderProps
 
   return (
     <div className="space-y-4">
+      {isCancelled && (
+        <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+          <AlertCircle className="h-4 w-4 shrink-0" />
+          Protocolo cancelado: se muestra en solo lectura. Descancelalo para poder editar los resultados.
+        </div>
+      )}
       {/* Búsqueda de análisis */}
       <div className="relative">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
@@ -133,15 +164,23 @@ export function ProtocolResultsLoader({ controller }: ProtocolResultsLoaderProps
           const loaded = group.determinations.filter((d) => !!d.value).length
           return (
             <section key={group.analysis.id}>
-              <div className="mb-2 flex items-center justify-between">
+              <button
+                type="button"
+                onClick={() => toggleCollapse(group.analysis.id)}
+                className="mb-2 flex w-full items-center justify-between gap-2 text-left"
+              >
                 <h3 className="flex items-center gap-2 text-sm font-bold text-gray-800">
+                  <ChevronDown
+                    className={`h-4 w-4 shrink-0 text-gray-400 transition-transform ${collapsedIds.has(group.analysis.id) ? "-rotate-90" : ""}`}
+                  />
                   <FlaskConical className="h-4 w-4 text-[#204983]" />
                   {group.analysis.name}
                 </h3>
                 <Badge variant="outline" className="text-xs text-gray-500">
                   {loaded}/{group.determinations.length} cargados
                 </Badge>
-              </div>
+              </button>
+              {!collapsedIds.has(group.analysis.id) && (
               <div className="space-y-2">
                 {group.determinations.map((result) => {
                   const calc = calculateFormulaValue(result, results, values)
@@ -153,7 +192,7 @@ export function ProtocolResultsLoader({ controller }: ProtocolResultsLoaderProps
                       result={result}
                       value={values[result.id] || { value: "", notes: "" }}
                       saving={!!saving[result.id]}
-                      readOnly={formulaResolved}
+                      readOnly={formulaResolved || isCancelled}
                       isFormula={isFormula}
                       formulaResolved={formulaResolved}
                       onChange={(field, val) => onChange(result.id, field, val)}
@@ -173,6 +212,7 @@ export function ProtocolResultsLoader({ controller }: ProtocolResultsLoaderProps
                   )
                 })}
               </div>
+              )}
             </section>
           )
         })

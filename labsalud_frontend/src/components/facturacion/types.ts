@@ -8,6 +8,11 @@ export interface BillingEntity {
   name: string
   /** true = informa el cobro discriminado por OOSS (ej. la Clínica). false = deposita un monto único (ej. el Centro). */
   reports_breakdown_by_ooss: boolean
+  /** Recordatorio de cierre POR ENTIDAD (el cron ya no usa la config global). */
+  reminder_enabled: boolean
+  reminder_days_before: number
+  /** Días del mes (1-31) sugeridos para el próximo cierre. Solo sugerencia; la fecha la calcula el front. */
+  default_close_days: number[]
   is_active: boolean
 }
 

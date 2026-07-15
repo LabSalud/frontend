@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react"
 import { createPortal } from "react-dom"
-import { CheckIcon, X, User, FileText, Stethoscope, Building, Send, DollarSign, TestTube, ClipboardCheck } from "lucide-react"
+import { CheckIcon, X, User, FileText, Stethoscope, Building, Send, DollarSign, TestTube, ClipboardCheck, Undo2, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "../../ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "../../ui/card"
@@ -19,9 +19,12 @@ interface ProtocolSuccessProps {
   insurance: Insurance | null
   sendMethod: SendMethod
   onClose: () => void
+  /** Deshace (rollback) el protocolo recién creado y devuelve los datos al form. */
+  onRollback?: () => void
+  isRollingBack?: boolean
 }
 
-export function ProtocolSuccess({ protocol, patient, doctor, insurance, sendMethod, onClose }: ProtocolSuccessProps) {
+export function ProtocolSuccess({ protocol, patient, doctor, insurance, sendMethod, onClose, onRollback, isRollingBack }: ProtocolSuccessProps) {
   const [animationPhase, setAnimationPhase] = useState<"initial" | "expand" | "moveUp" | "showSummary">("initial")
   const trajoOrdenInfo = getTrajoOrdenInfo(protocol.trajo_orden)
 
@@ -64,7 +67,10 @@ export function ProtocolSuccess({ protocol, patient, doctor, insurance, sendMeth
     const timer1 = setTimeout(() => setAnimationPhase("expand"), 80)
     const timer2 = setTimeout(() => setAnimationPhase("moveUp"), 600)
     const timer3 = setTimeout(() => setAnimationPhase("showSummary"), 850)
-    const closeTimer = setTimeout(() => onClose(), 10000)
+    // Si se puede deshacer, NO autocerramos: el usuario tiene que tener tiempo
+    // de decidir si deshace el protocolo. Sin rollback, se mantiene el cierre
+    // automático de siempre.
+    const closeTimer = onRollback ? undefined : setTimeout(() => onClose(), 10000)
 
     return () => {
       window.removeEventListener("keydown", handleKeyDown)
@@ -72,9 +78,9 @@ export function ProtocolSuccess({ protocol, patient, doctor, insurance, sendMeth
       clearTimeout(timer1)
       clearTimeout(timer2)
       clearTimeout(timer3)
-      clearTimeout(closeTimer)
+      if (closeTimer) clearTimeout(closeTimer)
     }
-  }, [onClose, handleKeyDown])
+  }, [onClose, handleKeyDown, onRollback])
 
   const overlay = (
     <div className="fixed inset-0 z-[100] overflow-hidden">
@@ -269,9 +275,42 @@ export function ProtocolSuccess({ protocol, patient, doctor, insurance, sendMeth
                 </div>
               )}
 
-              <div className="pt-4 text-center text-sm text-gray-500">
-                Presione <kbd className="px-2 py-1 bg-gray-100 rounded text-xs font-mono">ESC</kbd> o la X para cerrar
-              </div>
+              {onRollback ? (
+                <div className="space-y-2 pt-4">
+                  <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-between">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={onRollback}
+                      disabled={isRollingBack}
+                      className="border-red-200 bg-transparent text-red-600 hover:bg-red-50 hover:text-red-700"
+                    >
+                      {isRollingBack ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <Undo2 className="mr-2 h-4 w-4" />
+                      )}
+                      Deshacer y modificar
+                    </Button>
+                    <Button
+                      type="button"
+                      onClick={onClose}
+                      disabled={isRollingBack}
+                      className="bg-green-600 text-white hover:bg-green-700"
+                    >
+                      <CheckIcon className="mr-2 h-4 w-4" />
+                      Listo
+                    </Button>
+                  </div>
+                  <p className="text-center text-xs text-gray-500">
+                    "Deshacer" borra este protocolo y te devuelve los datos para corregirlos.
+                  </p>
+                </div>
+              ) : (
+                <div className="pt-4 text-center text-sm text-gray-500">
+                  Presione <kbd className="px-2 py-1 bg-gray-100 rounded text-xs font-mono">ESC</kbd> o la X para cerrar
+                </div>
+              )}
             </CardContent>
           </Card>
           </div>

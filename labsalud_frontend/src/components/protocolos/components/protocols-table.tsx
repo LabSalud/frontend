@@ -1,7 +1,6 @@
 "use client"
 
 import type { ReactNode } from "react"
-import { Link } from "react-router-dom"
 import {
   CreditCard,
   AlertTriangle,
@@ -81,8 +80,8 @@ function Flag({ tone, icon: Icon, children, title }: { tone: "red" | "amber"; ic
 // Bloqueos del flujo: lo que impide avanzar el protocolo, de un vistazo.
 function BlockersCell({ p }: { p: ProtocolListItem }) {
   const flags: ReactNode[] = []
-  if (p.missing_info && p.missing_info.length > 0)
-    flags.push(<Flag key="mi" tone="red" icon={AlertTriangle} title={p.missing_info.join("\n")}>Falta info</Flag>)
+  // El badge genérico "Falta info" se removió: los flags específicos de abajo
+  // (orden / preautorización) ya indican qué falta.
   if (p.trajo_orden === "no_trajo")
     flags.push(<Flag key="ord" tone="amber" icon={ClipboardList} title="No trajo la orden">Sin orden</Flag>)
   else if (p.trajo_orden === "incompleta")
@@ -211,17 +210,9 @@ export function ProtocolsTable({
         <div className="flex min-w-0 max-w-[150px] items-center gap-2.5 sm:max-w-[200px] xl:max-w-[260px]">
           <InitialsAvatar name={fullName(p)} size="sm" />
           <div className="min-w-0">
-            {p.patient?.id && !p.patient?.is_anonymous ? (
-              <Link
-                to={`/pacientes/${p.patient.id}`}
-                onClick={(e) => e.stopPropagation()}
-                className="block truncate font-semibold text-gray-800 hover:text-[#204983] hover:underline"
-              >
-                {fullName(p)}
-              </Link>
-            ) : (
-              <div className="truncate font-semibold text-gray-800">{fullName(p)}</div>
-            )}
+            {/* El nombre del paciente ya NO linkea a su página (generaba
+                confusiones en la tabla); queda como texto plano. */}
+            <div className="truncate font-semibold text-gray-800">{fullName(p)}</div>
             {!p.patient?.is_anonymous && (
               <div className="truncate text-xs text-gray-500">
                 DNI {formatDni(p.patient?.dni)}

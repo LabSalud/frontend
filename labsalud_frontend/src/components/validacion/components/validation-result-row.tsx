@@ -10,12 +10,14 @@ import {
   formatReferenceValues,
   getReferenceEvaluationLabel,
 } from "@/lib/catalog-format"
+import { LAB_TIME_ZONE } from "@/lib/format-utils"
 import { cn } from "@/lib/utils"
 import type { PreviousResult, Result } from "@/types"
 
 interface ValidationResultRowProps {
   result: Result
   saving: boolean
+  disabled?: boolean
   onValidate: (isValid: boolean) => void
   onLoadPrevious: () => void
   previous: PreviousResult[]
@@ -27,7 +29,7 @@ function fmtDateTime(v?: string | null) {
   const d = new Date(v)
   return Number.isNaN(d.getTime())
     ? ""
-    : d.toLocaleString("es-AR", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" })
+    : d.toLocaleString("es-AR", { timeZone: LAB_TIME_ZONE, day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" })
 }
 function fmtDate(v?: string | null) {
   if (!v) return ""
@@ -74,7 +76,7 @@ function HistoryHover({
   )
 }
 
-export function ValidationResultRow({ result, saving, onValidate, onLoadPrevious, previous, loadingPrevious }: ValidationResultRowProps) {
+export function ValidationResultRow({ result, saving, disabled = false, onValidate, onLoadPrevious, previous, loadingPrevious }: ValidationResultRowProps) {
   const det = result.determination
   const unit = det.measure_unit || ""
   const isValidated = result.is_valid
@@ -160,7 +162,7 @@ export function ValidationResultRow({ result, saving, onValidate, onLoadPrevious
                 </p>
               )}
             </div>
-            <Button size="sm" variant="outline" className="h-8 text-red-600 hover:bg-red-50" onClick={() => onValidate(false)}>
+            <Button size="sm" variant="outline" className="h-8 text-red-600 hover:bg-red-50" onClick={() => onValidate(false)} disabled={disabled}>
               Rechazar
             </Button>
           </div>
@@ -171,7 +173,7 @@ export function ValidationResultRow({ result, saving, onValidate, onLoadPrevious
               variant="outline"
               className="h-9 border-red-200 text-red-600 hover:bg-red-50"
               onClick={() => onValidate(false)}
-              disabled={!hasValue}
+              disabled={!hasValue || disabled}
             >
               <X className="mr-1 h-4 w-4" />
               Rechazar
@@ -180,7 +182,7 @@ export function ValidationResultRow({ result, saving, onValidate, onLoadPrevious
               size="sm"
               className="h-9 bg-emerald-600 hover:bg-emerald-700"
               onClick={() => onValidate(true)}
-              disabled={!hasValue}
+              disabled={!hasValue || disabled}
             >
               <Check className="mr-1 h-4 w-4" />
               Validar

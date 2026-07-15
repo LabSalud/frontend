@@ -1,9 +1,9 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import type React from "react"
+import { useEffect, useRef, useState } from "react"
 import {
   AlertTriangle,
-  BarChart3,
   Building2,
   CheckCircle2,
   ChevronLeft,
@@ -13,14 +13,13 @@ import {
   FlaskConical,
   Receipt,
   ShieldCheck,
-  TestTube2,
   TrendingUp,
   Users,
 } from "lucide-react"
 import useAuth from "@/contexts/auth-context"
 import { useApiQuery } from "@/hooks/use-api-query"
 import { useToast } from "@/hooks/use-toast"
-import { ANALYTICS_ENDPOINTS, BILLING_ENDPOINTS } from "@/config/api"
+import { ANALYTICS_ENDPOINTS } from "@/config/api"
 import { PERMISSIONS } from "@/config/permissions"
 import { Skeleton } from "@/components/ui/skeleton"
 
@@ -78,27 +77,17 @@ interface DashboardResponse {
       unplanned_payments_today?: string
     }
   }
-}
-
-interface ProtocolsToBillResponse {
-  count?: number
+  // Dashboard rework
+  patients_daily_last_35?: Array<{ date: string; patients_served: number }>
+  cash_daily_last_35?: Array<{ date: string; collected: string }>
+  cash_pending_total?: string
+  top_urgent_analyses?: Array<{ code: number; name: string; protocols: number }>
+  urgent_pending?: number
+  avg_resolution_time_human?: string
+  ready_to_bill?: number
 }
 
 type TrendTone = "emerald" | "rose" | "slate"
-
-type DailyMetricKey = "protocols" | "patients_served" | "analyses_loaded" | "results_loaded"
-
-const DAILY_METRICS: ReadonlyArray<{
-  key: DailyMetricKey
-  label: string
-  noun: (n: number) => string
-  icon: typeof BarChart3
-}> = [
-  { key: "protocols", label: "Protocolos creados", noun: (n) => (n === 1 ? "protocolo" : "protocolos"), icon: BarChart3 },
-  { key: "patients_served", label: "Pacientes atendidos", noun: (n) => (n === 1 ? "paciente" : "pacientes"), icon: Users },
-  { key: "analyses_loaded", label: "Análisis cargados", noun: () => "análisis", icon: TestTube2 },
-  { key: "results_loaded", label: "Resultados cargados", noun: (n) => (n === 1 ? "resultado" : "resultados"), icon: FlaskConical },
-]
 
 const numberOrZero = (value?: number) => value ?? 0
 
@@ -130,13 +119,6 @@ export default function Home() {
     staleTime: 30 * 1000,
   })
 
-  const protocolsToBillQuery = useApiQuery<ProtocolsToBillResponse>({
-    queryKey: ["billing", "protocols-to-bill", "count"],
-    url: BILLING_ENDPOINTS.PROTOCOLS_TO_BILL,
-    enabled: canAccessBilling,
-    staleTime: 30 * 1000,
-  })
-
   useEffect(() => {
     if (dashboardQuery.error) {
       showErrorToast("Error al cargar las estadísticas")
@@ -144,23 +126,40 @@ export default function Home() {
   }, [dashboardQuery.error, showErrorToast])
 
   const dashboard = dashboardQuery.data
-  const loading = dashboardQuery.isLoading || (canAccessBilling && protocolsToBillQuery.isLoading)
+  const loading = dashboardQuery.isLoading
   const growthValue = parsePercent(dashboard?.protocols_completed_growth_percent)
   const growthTone = getTrendTone(growthValue)
-  const dailySeries = dashboard?.protocols_daily_last_7 || []
-  const [metricIndex, setMetricIndex] = useState(0)
-  const activeMetric = DAILY_METRICS[metricIndex]
-  const ActiveMetricIcon = activeMetric.icon
-  const metricValueFor = (
-    metric: (typeof DAILY_METRICS)[number],
-    item: NonNullable<DashboardResponse["protocols_daily_last_7"]>[number],
-  ) => {
-    const value = item[metric.key]
-    if (typeof value === "number") return value
-    return metric.key === "protocols" ? item.count : 0
+  // Gráfico: PACIENTES ATENDIDOS. 35 días (5 semanas de 7) con carrusel por
+  // semana. weekIndex 0 = semana actual (más reciente); subir el índice = atrás.
+  const patientsSeries = dashboard?.patients_daily_last_35 || []
+  const weeks: Array<typeof patientsSeries> = []
+  for (let start = patientsSeries.length - 7; start >= 0; start -= 7) {
+    weeks.push(patientsSeries.slice(start, start + 7))
   }
-  const goPrevMetric = () => setMetricIndex((prev) => (prev === 0 ? DAILY_METRICS.length - 1 : prev - 1))
-  const goNextMetric = () => setMetricIndex((prev) => (prev === DAILY_METRICS.length - 1 ? 0 : prev + 1))
+  const [weekIndex, setWeekIndex] = useState(0)
+  const activeWeek = weeks[weekIndex] || []
+  const goOlderWeek = () => setWeekIndex((prev) => Math.min(Math.max(weeks.length - 1, 0), prev + 1))
+  const goNewerWeek = () => setWeekIndex((prev) => Math.max(0, prev - 1))
+  // Swipe horizontal (mobile) para mover el carrusel entre semanas: arrastrar
+  // hacia la derecha muestra semanas anteriores; hacia la izquierda, más nuevas.
+  const swipeStartX = useRef<number | null>(null)
+  const onCarouselTouchStart = (e: React.TouchEvent) => {
+    swipeStartX.current = e.touches[0]?.clientX ?? null
+  }
+  const onCarouselTouchEnd = (e: React.TouchEvent) => {
+    if (swipeStartX.current == null) return
+    const dx = (e.changedTouches[0]?.clientX ?? swipeStartX.current) - swipeStartX.current
+    swipeStartX.current = null
+    if (Math.abs(dx) < 40) return
+    if (dx > 0) goOlderWeek()
+    else goNewerWeek()
+  }
+  const weekRangeLabel = (() => {
+    if (activeWeek.length === 0) return ""
+    const fmt = (iso: string) =>
+      new Date(`${iso}T00:00:00`).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" })
+    return `${fmt(activeWeek[0].date)} – ${fmt(activeWeek[activeWeek.length - 1].date)}`
+  })()
   const todayKey = (() => {
     const now = new Date()
     const year = now.getFullYear()
@@ -169,12 +168,21 @@ export default function Home() {
     return `${year}-${month}-${day}`
   })()
   const insuranceMix = dashboard?.insurance_mix_month || []
+  const topUrgent = dashboard?.top_urgent_analyses || []
   const missingInfo = dashboard?.missing_info
   const preauth = dashboard?.preauth_breakdown
   const arca = dashboard?.arca_month
-  const pendingBilling = Number(protocolsToBillQuery.data?.count || 0)
   const cash = dashboard?.today_cash_revenue
   const cashBreakdown = cash?.breakdown
+  // Caja: cobrado por día (35 días = 5 semanas) con el mismo carrusel de 7.
+  const cashSeries = dashboard?.cash_daily_last_35 || []
+  const cashWeeks: Array<typeof cashSeries> = []
+  for (let start = cashSeries.length - 7; start >= 0; start -= 7) {
+    cashWeeks.push(cashSeries.slice(start, start + 7))
+  }
+  const [cashWeekIndex, setCashWeekIndex] = useState(0)
+  const goOlderCashWeek = () => setCashWeekIndex((p) => Math.min(Math.max(cashWeeks.length - 1, 0), p + 1))
+  const goNewerCashWeek = () => setCashWeekIndex((p) => Math.max(0, p - 1))
   const formatMoney = (v?: string) => {
     const n = Number.parseFloat(v || "0")
     return Number.isFinite(n) ? `$${n.toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "$0.00"
@@ -182,33 +190,37 @@ export default function Home() {
 
   const mainKpis = [
     {
-      label: "Análisis hoy",
-      value: numberOrZero(dashboard?.analysis_today).toLocaleString(),
-      detail: "Análisis asociados a protocolos de hoy",
-      icon: TestTube2,
-      className: "border-blue-200 bg-blue-50 text-blue-800",
-    },
-    {
-      label: "Pacientes hoy",
-      value: numberOrZero(dashboard?.patients_today).toLocaleString(),
-      detail: "Pacientes distintos atendidos",
-      icon: Users,
-      className: "border-emerald-200 bg-emerald-50 text-emerald-800",
-    },
-    {
-      label: "Completados del mes",
-      value: numberOrZero(dashboard?.protocols_completed_month).toLocaleString(),
-      detail: "Protocolos cerrados en el mes",
-      icon: CheckCircle2,
-      className: "border-violet-200 bg-violet-50 text-violet-800",
-    },
-    {
       label: "Carga promedio",
       value: dashboard?.avg_result_load_time_human === "N/A" ? "Sin datos" : dashboard?.avg_result_load_time_human || "Sin datos",
       detail: "Tiempo de carga de resultados",
       icon: Clock3,
       className: "border-cyan-200 bg-cyan-50 text-cyan-800",
     },
+    {
+      label: "Tiempo de resolución",
+      value: dashboard?.avg_resolution_time_human || "—",
+      detail: "Promedio ingreso → completado",
+      icon: Clock3,
+      className: "border-violet-200 bg-violet-50 text-violet-800",
+    },
+    {
+      label: "Urgentes pendientes",
+      value: numberOrZero(dashboard?.urgent_pending).toLocaleString(),
+      detail: "Protocolos urgentes sin cerrar",
+      icon: AlertTriangle,
+      className: "border-rose-200 bg-rose-50 text-rose-800",
+    },
+    ...(canAccessBilling
+      ? [
+          {
+            label: "Listos para facturar",
+            value: numberOrZero(dashboard?.ready_to_bill).toLocaleString(),
+            detail: "Protocolos con papeles listos",
+            icon: CheckCircle2,
+            className: "border-teal-200 bg-teal-50 text-teal-800",
+          },
+        ]
+      : []),
   ]
 
   const operationalItems = [
@@ -227,15 +239,6 @@ export default function Home() {
       value: numberOrZero(dashboard?.printed_with_incomplete_payment),
       className: "border-rose-200 bg-rose-50 text-rose-800",
     },
-    ...(canAccessBilling
-      ? [
-          {
-            label: "Protocolos para facturar",
-            value: pendingBilling,
-            className: "border-teal-200 bg-teal-50 text-teal-800",
-          },
-        ]
-      : []),
   ]
 
   const missingItems = [
@@ -314,62 +317,61 @@ export default function Home() {
         <section className="rounded-lg border border-slate-200 bg-white/70 p-4 shadow-sm backdrop-blur-sm sm:p-5">
           <div className="mb-4 flex items-center justify-between gap-3">
             <div className="flex min-w-0 items-center gap-2">
-              <ActiveMetricIcon className="h-5 w-5 flex-shrink-0 text-[#204983]" />
-              <h2 className="truncate text-base font-semibold text-slate-900">{activeMetric.label}</h2>
+              <Users className="h-5 w-5 flex-shrink-0 text-[#204983]" />
+              <h2 className="truncate text-base font-semibold text-slate-900">Pacientes atendidos</h2>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="hidden text-xs text-slate-500 sm:inline">Últimos 7 días</span>
-              <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  onClick={goPrevMetric}
-                  aria-label="Métrica anterior"
-                  className="flex h-7 w-7 items-center justify-center rounded-md border border-slate-200 text-slate-500 transition hover:bg-slate-50 hover:text-[#204983]"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </button>
-                <button
-                  type="button"
-                  onClick={goNextMetric}
-                  aria-label="Métrica siguiente"
-                  className="flex h-7 w-7 items-center justify-center rounded-md border border-slate-200 text-slate-500 transition hover:bg-slate-50 hover:text-[#204983]"
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
+            <span className="hidden text-xs text-slate-500 sm:inline">
+              {weekIndex === 0 ? "Semana actual" : `Hace ${weekIndex} sem.`}
+              {weekRangeLabel ? ` · ${weekRangeLabel}` : ""}
+            </span>
           </div>
           <div className="mb-3 flex items-center justify-center gap-1.5">
-            {DAILY_METRICS.map((metric, idx) => (
-              <button
-                key={metric.key}
-                type="button"
-                onClick={() => setMetricIndex(idx)}
-                aria-label={metric.label}
-                className={`h-1.5 rounded-full transition-all ${
-                  idx === metricIndex ? "w-5 bg-[#204983]" : "w-1.5 bg-slate-300 hover:bg-slate-400"
-                }`}
-              />
-            ))}
+            {weeks.map((_, pos) => {
+              // pos 0 = izquierda = semana más vieja; última = derecha = actual.
+              const wIdx = weeks.length - 1 - pos
+              return (
+                <button
+                  key={pos}
+                  type="button"
+                  onClick={() => setWeekIndex(wIdx)}
+                  aria-label={wIdx === 0 ? "Semana actual" : `Hace ${wIdx} semanas`}
+                  className={`h-1.5 rounded-full transition-all ${
+                    wIdx === weekIndex ? "w-5 bg-[#204983]" : "w-1.5 bg-slate-300 hover:bg-slate-400"
+                  }`}
+                />
+              )
+            })}
           </div>
           {loading ? (
             <Skeleton className="h-64 w-full rounded-md" />
           ) : (
-            // Carrusel: un slide por métrica; las flechas/puntos deslizan el track.
-            <div className="overflow-hidden">
-              <div
-                className="flex transition-transform duration-300 ease-out"
-                style={{ transform: `translateX(-${metricIndex * 100}%)` }}
+            <div className="flex items-stretch gap-1 sm:gap-2">
+              <button
+                type="button"
+                onClick={goOlderWeek}
+                disabled={weekIndex >= weeks.length - 1}
+                aria-label="Semana anterior"
+                className="flex w-7 shrink-0 items-center justify-center rounded-md border border-slate-200 text-slate-500 transition hover:bg-slate-50 hover:text-[#204983] disabled:opacity-40"
               >
-                {DAILY_METRICS.map((metric) => {
-                  const maxForMetric = Math.max(1, ...dailySeries.map((it) => metricValueFor(metric, it)))
-                  return (
-                    <div key={metric.key} className="w-full shrink-0">
-                      <div className="flex h-64 flex-col">
+                <ChevronLeft className="h-5 w-5" />
+              </button>
+              <div
+                className="flex-1 overflow-hidden"
+                onTouchStart={onCarouselTouchStart}
+                onTouchEnd={onCarouselTouchEnd}
+              >
+                <div
+                  className="flex transition-transform duration-300 ease-out"
+                  style={{ transform: `translateX(-${(weeks.length - 1 - weekIndex) * 100}%)` }}
+                >
+                  {[...weeks].reverse().map((week, revIdx) => {
+                    const maxForWeek = Math.max(1, ...week.map((it) => it.patients_served))
+                    return (
+                      <div key={revIdx} className="flex h-64 w-full shrink-0 flex-col">
                         <div className="flex flex-1 items-end gap-1.5 sm:gap-3">
-                          {dailySeries.map((item) => {
+                          {week.map((item) => {
                             const isToday = item.date === todayKey
-                            const value = metricValueFor(metric, item)
+                            const value = item.patients_served
                             return (
                               <div key={item.date} className="flex min-w-0 flex-1 flex-col items-center justify-end">
                                 <span className={`mb-1 text-xs font-semibold ${isToday ? "text-[#204983]" : "text-slate-700"}`}>
@@ -383,8 +385,8 @@ export default function Home() {
                                 >
                                   <div
                                     className={`w-full rounded-t-md transition-all duration-300 ${isToday ? "bg-amber-500" : "bg-[#204983]"}`}
-                                    style={{ height: `${Math.max(6, (value / maxForMetric) * 168)}px` }}
-                                    title={`${value} ${metric.noun(value)}${isToday ? " (hoy)" : ""}`}
+                                    style={{ height: `${Math.max(6, (value / maxForWeek) * 168)}px` }}
+                                    title={`${value} paciente${value === 1 ? "" : "s"}${isToday ? " (hoy)" : ""}`}
                                   />
                                 </div>
                               </div>
@@ -392,7 +394,7 @@ export default function Home() {
                           })}
                         </div>
                         <div className="mt-2 flex gap-1.5 sm:gap-3">
-                          {dailySeries.map((item) => {
+                          {week.map((item) => {
                             const dateObj = new Date(`${item.date}T00:00:00`)
                             const weekday = dateObj.toLocaleDateString("es-AR", { weekday: "short" }).replace(".", "")
                             const day = dateObj.toLocaleDateString("es-AR", { day: "2-digit" })
@@ -411,10 +413,19 @@ export default function Home() {
                           })}
                         </div>
                       </div>
-                    </div>
-                  )
-                })}
+                    )
+                  })}
+                </div>
               </div>
+              <button
+                type="button"
+                onClick={goNewerWeek}
+                disabled={weekIndex === 0}
+                aria-label="Semana siguiente"
+                className="flex w-7 shrink-0 items-center justify-center rounded-md border border-slate-200 text-slate-500 transition hover:bg-slate-50 hover:text-[#204983] disabled:opacity-40"
+              >
+                <ChevronRight className="h-5 w-5" />
+              </button>
             </div>
           )}
         </section>
@@ -443,41 +454,111 @@ export default function Home() {
         <div className="mb-4 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <Receipt className="h-5 w-5 text-emerald-600" />
-            <h2 className="text-base font-semibold text-slate-900">Caja del día (pacientes)</h2>
+            <h2 className="text-base font-semibold text-slate-900">Caja (pacientes)</h2>
           </div>
-          <span className="text-xs text-slate-500">
-            {numberOrZero(cash?.protocols_count).toLocaleString()} protocolos hoy
+          <span className="hidden text-xs text-slate-500 sm:inline">
+            {cashWeekIndex === 0 ? "Semana actual" : `Hace ${cashWeekIndex} sem.`}
           </span>
         </div>
         {loading ? (
-          <Skeleton className="h-32 w-full rounded-md" />
+          <Skeleton className="h-48 w-full rounded-md" />
         ) : (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <div className="rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3">
-              <p className="text-xs font-medium text-emerald-700">Cobrado hoy</p>
-              {/* En la franja 640-1024px las tres tarjetas quedan angostas y un importe de
-                  millones no entra en text-2xl. */}
-              <p className="mt-1 text-2xl font-bold text-emerald-800 sm:text-lg md:text-xl lg:text-2xl">{formatMoney(cash?.total_paid)}</p>
-            </div>
-            <div className="rounded-md border border-slate-200 bg-slate-50 px-4 py-3">
-              <p className="text-xs font-medium text-slate-600">Total a cobrar</p>
-              <p className="mt-1 text-2xl font-bold text-slate-800 sm:text-lg md:text-xl lg:text-2xl">{formatMoney(cash?.total_due)}</p>
-            </div>
-            <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3">
-              <p className="text-xs font-medium text-amber-700">Pendiente</p>
-              <p className="mt-1 text-2xl font-bold text-amber-800 sm:text-lg md:text-xl lg:text-2xl">{formatMoney(cash?.pending_to_collect)}</p>
-            </div>
-            {cashBreakdown && (
-              <div className="sm:col-span-3 grid grid-cols-1 gap-1.5 rounded-md bg-slate-50 px-3 py-2 text-xs sm:grid-cols-3 lg:grid-cols-6">
-                <CashBreakdownItem label="Particulares" amount={formatMoney(cashBreakdown.analyses_amount_due)} />
-                <CashBreakdownItem label="Coseguro" amount={formatMoney(cashBreakdown.coseguro)} />
-                <CashBreakdownItem label="Material" amount={formatMoney(cashBreakdown.material_descartable)} />
-                <CashBreakdownItem label="Derivación" amount={formatMoney(cashBreakdown.derivacion)} />
-                <CashBreakdownItem label="Cobros extra" amount={formatMoney(cashBreakdown.unplanned_charges)} />
-                <CashBreakdownItem label="Pagos extra" amount={formatMoney(cashBreakdown.unplanned_payments_today)} />
+          <>
+            {/* Cobrado por día (7 días, carrusel por semana) */}
+            <div className="mb-4 flex items-stretch gap-1 sm:gap-2">
+              <button
+                type="button"
+                onClick={goOlderCashWeek}
+                disabled={cashWeekIndex >= cashWeeks.length - 1}
+                aria-label="Semana anterior"
+                className="flex w-7 shrink-0 items-center justify-center rounded-md border border-slate-200 text-slate-500 transition hover:bg-slate-50 hover:text-emerald-600 disabled:opacity-40"
+              >
+                <ChevronLeft className="h-5 w-5" />
+              </button>
+              <div className="flex-1 overflow-hidden">
+                <div
+                  className="flex transition-transform duration-300 ease-out"
+                  style={{ transform: `translateX(-${(cashWeeks.length - 1 - cashWeekIndex) * 100}%)` }}
+                >
+                  {[...cashWeeks].reverse().map((week, revIdx) => {
+                    const maxCash = Math.max(1, ...week.map((it) => Number.parseFloat(it.collected || "0")))
+                    return (
+                      <div key={revIdx} className="flex h-40 w-full shrink-0 flex-col">
+                        <div className="flex flex-1 items-end gap-1.5 sm:gap-3">
+                          {week.map((item) => {
+                            const value = Number.parseFloat(item.collected || "0")
+                            const isToday = item.date === todayKey
+                            return (
+                              <div key={item.date} className="flex min-w-0 flex-1 flex-col items-center justify-end">
+                                <div
+                                  className={`flex w-full items-end rounded-md ${isToday ? "bg-amber-100/70 ring-1 ring-amber-300" : "bg-slate-100/80"}`}
+                                  style={{ height: "104px" }}
+                                  title={`${formatMoney(item.collected)}${isToday ? " (hoy)" : ""}`}
+                                >
+                                  <div
+                                    className={`w-full rounded-t-md transition-all duration-300 ${isToday ? "bg-amber-500" : "bg-emerald-500"}`}
+                                    style={{ height: `${Math.max(4, (value / maxCash) * 100)}px` }}
+                                  />
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                        <div className="mt-2 flex gap-1.5 sm:gap-3">
+                          {week.map((item) => {
+                            const dateObj = new Date(`${item.date}T00:00:00`)
+                            const weekday = dateObj.toLocaleDateString("es-AR", { weekday: "short" }).replace(".", "")
+                            const isToday = item.date === todayKey
+                            return (
+                              <div
+                                key={item.date}
+                                className={`flex min-w-0 flex-1 flex-col items-center leading-tight ${isToday ? "font-semibold text-emerald-700" : "text-slate-500"}`}
+                              >
+                                <span className="text-[10px] capitalize sm:text-[11px]">{isToday ? "Hoy" : weekday}</span>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
               </div>
-            )}
-          </div>
+              <button
+                type="button"
+                onClick={goNewerCashWeek}
+                disabled={cashWeekIndex === 0}
+                aria-label="Semana siguiente"
+                className="flex w-7 shrink-0 items-center justify-center rounded-md border border-slate-200 text-slate-500 transition hover:bg-slate-50 hover:text-emerald-600 disabled:opacity-40"
+              >
+                <ChevronRight className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <div className="rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3">
+                <p className="text-xs font-medium text-emerald-700">Cobrado hoy</p>
+                <p className="mt-1 text-2xl font-bold text-emerald-800 sm:text-lg md:text-xl lg:text-2xl">{formatMoney(cash?.total_paid)}</p>
+              </div>
+              <div className="rounded-md border border-slate-200 bg-slate-50 px-4 py-3">
+                <p className="text-xs font-medium text-slate-600">A cobrar hoy</p>
+                <p className="mt-1 text-2xl font-bold text-slate-800 sm:text-lg md:text-xl lg:text-2xl">{formatMoney(cash?.total_due)}</p>
+              </div>
+              <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3">
+                <p className="text-xs font-medium text-amber-700">Pendiente (total sistema)</p>
+                <p className="mt-1 text-2xl font-bold text-amber-800 sm:text-lg md:text-xl lg:text-2xl">{formatMoney(dashboard?.cash_pending_total)}</p>
+              </div>
+              {cashBreakdown && (
+                <div className="sm:col-span-3 grid grid-cols-1 gap-1.5 rounded-md bg-slate-50 px-3 py-2 text-xs sm:grid-cols-3 lg:grid-cols-6">
+                  <CashBreakdownItem label="Particulares" amount={formatMoney(cashBreakdown.analyses_amount_due)} />
+                  <CashBreakdownItem label="Coseguro" amount={formatMoney(cashBreakdown.coseguro)} />
+                  <CashBreakdownItem label="Material" amount={formatMoney(cashBreakdown.material_descartable)} />
+                  <CashBreakdownItem label="Derivación" amount={formatMoney(cashBreakdown.derivacion)} />
+                  <CashBreakdownItem label="Cobros extra" amount={formatMoney(cashBreakdown.unplanned_charges)} />
+                  <CashBreakdownItem label="Pagos extra" amount={formatMoney(cashBreakdown.unplanned_payments_today)} />
+                </div>
+              )}
+            </div>
+          </>
         )}
       </section>
 
@@ -550,6 +631,39 @@ export default function Home() {
         ) : (
           <p className="rounded-md border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
             Sin protocolos de obras sociales este mes
+          </p>
+        )}
+      </section>
+
+      <section className="mt-5 rounded-lg border border-slate-200 bg-white/70 p-4 shadow-sm backdrop-blur-sm sm:p-5">
+        <div className="mb-4 flex items-center gap-2">
+          <AlertTriangle className="h-5 w-5 text-rose-600" />
+          <h2 className="text-base font-semibold text-slate-900">Top 3 análisis urgentes</h2>
+          <span className="text-xs text-slate-500">en más protocolos</span>
+        </div>
+        {loading ? (
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            {Array.from({ length: 3 }).map((_, index) => (
+              <Skeleton key={index} className="h-16 w-full rounded-md" />
+            ))}
+          </div>
+        ) : topUrgent.length > 0 ? (
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            {topUrgent.map((a, idx) => (
+              <div key={a.code} className="flex items-center gap-3 rounded-md border border-rose-100 bg-rose-50 px-3 py-3 text-rose-900">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-rose-200 text-sm font-bold text-rose-800">
+                  {idx + 1}
+                </span>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold" title={a.name}>{a.name}</p>
+                  <p className="text-xs text-rose-700">{a.protocols.toLocaleString()} protocolos · cód. {a.code}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="rounded-md border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
+            No hay análisis urgentes con protocolos.
           </p>
         )}
       </section>

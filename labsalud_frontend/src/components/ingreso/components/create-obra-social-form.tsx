@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { Building, Save, X } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "../../ui/card"
 import { Button } from "../../ui/button"
@@ -11,12 +11,12 @@ import { Label } from "../../ui/label"
 import { Switch } from "../../ui/switch"
 import { Textarea } from "../../ui/textarea"
 import { useApi } from "../../../hooks/use-api"
-import { getPreferredNbuId, useNbuOptions } from "@/hooks/use-nbu-options"
 import { toast } from "sonner"
 import type { Insurance } from "../../../types"
 import { MEDICAL_ENDPOINTS } from "@/config/api"
 import { formatApiError } from "@/lib/api-error"
 import { NbuSelect } from "@/components/configuration/components/nbu-select"
+import { BillingEntitySelect } from "@/components/configuration/components/billing-entity-select"
 
 interface CreateObraSocialFormProps {
   onObraSocialCreated: (obraSocial: Insurance) => void
@@ -31,6 +31,7 @@ export function CreateObraSocialForm({ onObraSocialCreated, onCancel }: CreateOb
     name: "",
     ub_value: "",
     nbu_id: "",
+    billing_entity_id: "",
     description: "",
     charges_coseguro: false,
     charges_material_descartable: false,
@@ -38,15 +39,8 @@ export function CreateObraSocialForm({ onObraSocialCreated, onCancel }: CreateOb
     requires_preauthorization: false,
   })
   const [isCreating, setIsCreating] = useState(false)
-  const { nbus } = useNbuOptions()
 
-  useEffect(() => {
-    if (formData.nbu_id || nbus.length === 0) return
-    const preferredNbu = getPreferredNbuId(nbus)
-    if (preferredNbu) {
-      setFormData((prev) => ({ ...prev, nbu_id: preferredNbu }))
-    }
-  }, [formData.nbu_id, nbus])
+  // El NBU ya NO se pre-selecciona por defecto: lo elige el usuario o queda vacío.
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
@@ -74,6 +68,7 @@ export function CreateObraSocialForm({ onObraSocialCreated, onCancel }: CreateOb
         name: formData.name,
         ub_value: formData.ub_value,
         ...(formData.nbu_id && { nbu: Number.parseInt(formData.nbu_id, 10) }),
+        ...(formData.billing_entity_id && { billing_entity_id: Number.parseInt(formData.billing_entity_id, 10) }),
         charges_coseguro: formData.charges_coseguro,
         charges_material_descartable: formData.charges_material_descartable,
         charges_derivacion: formData.charges_derivacion,
@@ -150,6 +145,15 @@ export function CreateObraSocialForm({ onObraSocialCreated, onCancel }: CreateOb
             id="quick_nbu_id"
             value={formData.nbu_id}
             onValueChange={(value) => setFormData((prev) => ({ ...prev, nbu_id: value }))}
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="quick_billing_entity_id">Entidad a facturar</Label>
+          <BillingEntitySelect
+            id="quick_billing_entity_id"
+            value={formData.billing_entity_id}
+            onValueChange={(value) => setFormData((prev) => ({ ...prev, billing_entity_id: value }))}
           />
         </div>
 

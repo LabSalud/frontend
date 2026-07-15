@@ -1,7 +1,6 @@
 "use client"
 
 import { ChevronRight } from "lucide-react"
-import { Link } from "react-router-dom"
 import { DataTable, type Column, type SortState } from "@/components/common/data-table"
 import { InitialsAvatar } from "@/components/common/initials-avatar"
 import { StatusPill } from "@/components/common/status-pill"
@@ -65,17 +64,8 @@ export function ResultsQueueTable({ protocols, onRowClick, sort, onSortChange, i
         <div className="flex min-w-0 max-w-[220px] items-center gap-2.5">
           <InitialsAvatar name={fullName(p)} size="sm" />
           <div className="min-w-0">
-            {p.patient?.id && !p.patient?.is_anonymous ? (
-              <Link
-                to={`/pacientes/${p.patient.id}`}
-                onClick={(e) => e.stopPropagation()}
-                className="block truncate font-semibold text-gray-800 hover:text-[#204983] hover:underline"
-              >
-                {fullName(p)}
-              </Link>
-            ) : (
-              <span className="truncate font-semibold text-gray-800">{fullName(p)}</span>
-            )}
+            {/* Sin link a la página del paciente (evita confusiones en la cola). */}
+            <span className="truncate font-semibold text-gray-800">{fullName(p)}</span>
           </div>
         </div>
       ),

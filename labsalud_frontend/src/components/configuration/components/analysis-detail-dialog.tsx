@@ -7,7 +7,8 @@ import { Separator } from "@/components/ui/separator"
 import { AuditAvatars } from "@/components/common/audit-avatars"
 import { History, Pencil, Trash, TestTube } from "lucide-react"
 import { AnalysisList } from "./analysis-list"
-import { formatBioUnitValues } from "@/lib/catalog-format"
+import { AnalysisCompositionManager } from "./analysis-composition-manager"
+import { formatBioUnitValues, formatAnalysisCategory } from "@/lib/catalog-format"
 import type { Analysis } from "@/types"
 
 interface AnalysisDetailDialogProps {
@@ -41,9 +42,29 @@ export function AnalysisDetailDialog({
               <TestTube className="h-5 w-5" />
             </span>
             <div className="min-w-0">
-              <DialogTitle className="flex items-center gap-2 truncate text-lg">
-                {analysis.name || "Sin nombre"}
+              <DialogTitle className="flex flex-wrap items-center gap-2 text-lg">
+                <span className="truncate">{analysis.name || "Sin nombre"}</span>
                 {analysis.is_urgent && <Badge variant="destructive">Urgente</Badge>}
+                {analysis.category && formatAnalysisCategory(analysis.category) && (
+                  <Badge variant="outline" className="bg-violet-50 text-violet-700">
+                    {formatAnalysisCategory(analysis.category)}
+                  </Badge>
+                )}
+                {analysis.is_module && (
+                  <Badge variant="outline" className="bg-blue-50 text-blue-700">
+                    Módulo
+                  </Badge>
+                )}
+                {analysis.is_ref_normalized && (
+                  <Badge variant="outline" className="bg-emerald-50 text-emerald-700" title="Normalizado (N) en el NBU">
+                    N
+                  </Badge>
+                )}
+                {analysis.is_obsolete && (
+                  <Badge variant="outline" className="bg-amber-50 text-amber-700">
+                    En desuso
+                  </Badge>
+                )}
               </DialogTitle>
               <DialogDescription>
                 Código <span className="font-mono font-semibold text-blue-800">{analysis.code || "N/A"}</span> · UB{" "}
@@ -67,12 +88,46 @@ export function AnalysisDetailDialog({
             </div>
           )}
 
+          {analysis.nbu_info && (analysis.nbu_info.work_minimum || analysis.nbu_info.interpretation || analysis.nbu_info.patient_instructions || analysis.nbu_info.report_note) && (
+            <div className="space-y-2 rounded-lg border border-gray-200 bg-gray-50 p-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Ficha NBU</p>
+              {analysis.nbu_info.work_minimum && (
+                <p className="text-sm text-gray-700">
+                  <span className="font-medium text-gray-500">Norma mínima de trabajo: </span>
+                  {analysis.nbu_info.work_minimum}
+                </p>
+              )}
+              {analysis.nbu_info.interpretation && (
+                <p className="text-sm text-gray-700">
+                  <span className="font-medium text-gray-500">Interpretación (alcance/facturación): </span>
+                  {analysis.nbu_info.interpretation}
+                </p>
+              )}
+              {analysis.nbu_info.patient_instructions && (
+                <p className="text-sm text-gray-700">
+                  <span className="font-medium text-gray-500">Instrucciones al paciente: </span>
+                  {analysis.nbu_info.patient_instructions}
+                </p>
+              )}
+              {analysis.nbu_info.report_note && (
+                <p className="text-sm text-gray-700">
+                  <span className="font-medium text-gray-500">Nota de informe: </span>
+                  {analysis.nbu_info.report_note}
+                </p>
+              )}
+            </div>
+          )}
+
           {(analysis.creation || analysis.last_change) && (
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">Auditoría</span>
               <AuditAvatars creation={analysis.creation} lastChange={analysis.last_change} size="sm" />
             </div>
           )}
+
+          <Separator />
+
+          <AnalysisCompositionManager analysis={analysis} />
 
           <Separator />
 

@@ -174,15 +174,10 @@ export function AnalysisSearch({ selectedAnalyses, onAnalysisChange }: AnalysisS
     }
 
     const needsNormalAct = analysisCode < THRESHOLD_CODE
-    const needsSpecialAct = analysisCode > THRESHOLD_CODE
 
     const hasNormalAct = selectedAnalyses.some((a) => {
       const code = typeof a.code === "string" ? Number.parseInt(a.code, 10) : Number(a.code)
       return code === BIOCHEMICAL_ACT_CODE
-    })
-    const hasSpecialAct = selectedAnalyses.some((a) => {
-      const code = typeof a.code === "string" ? Number.parseInt(a.code, 10) : Number(a.code)
-      return code === SPECIAL_BIOCHEMICAL_ACT_CODE
     })
 
     let newAnalyses = [...selectedAnalyses]
@@ -199,16 +194,9 @@ export function AnalysisSearch({ selectedAnalyses, onAnalysisChange }: AnalysisS
       }
     }
 
-    if (needsSpecialAct && !hasSpecialAct) {
-      const specialAct = await fetchBiochemicalAct(SPECIAL_BIOCHEMICAL_ACT_CODE)
-      if (specialAct) {
-        actsToAdd.push({
-          ...specialAct,
-          is_authorized: false,
-        })
-        toast.success(`Acto bioquímico especial (${SPECIAL_BIOCHEMICAL_ACT_CODE}) agregado automáticamente`)
-      }
-    }
+    // El acto bioquímico de INTERNACIÓN (661001) ya NO se auto-agrega: se
+    // carga manualmente cuando corresponde. Solo el acto normal (660001) sigue
+    // siendo automático.
 
     const existingWithoutBioActs = newAnalyses.filter((a) => {
       const code = typeof a.code === "string" ? Number.parseInt(a.code, 10) : Number(a.code)
@@ -246,7 +234,11 @@ export function AnalysisSearch({ selectedAnalyses, onAnalysisChange }: AnalysisS
     newAnalyses = [...uniqueBioActs, ...existingWithoutBioActs, selectedAnalysis]
 
     onAnalysisChange(newAnalyses)
-    toast.success(`Análisis "${analysis.name}" agregado`)
+    if (analysis.is_obsolete) {
+      toast.warning(`"${analysis.name}" está marcado como en desuso (sin UB vigente). Verificá antes de continuar.`)
+    } else {
+      toast.success(`Análisis "${analysis.name}" agregado`)
+    }
 
     setSearchTerm("")
     setShowResults(false)
@@ -353,6 +345,16 @@ export function AnalysisSearch({ selectedAnalyses, onAnalysisChange }: AnalysisS
                 {analysis.is_urgent && (
                   <Badge variant="destructive" className="text-xs">
                     Urgente
+                  </Badge>
+                )}
+                {analysis.is_module && (
+                  <Badge variant="outline" className="bg-blue-50 text-blue-700 text-xs">
+                    Módulo
+                  </Badge>
+                )}
+                {analysis.is_obsolete && (
+                  <Badge variant="outline" className="bg-amber-50 text-amber-700 text-xs">
+                    En desuso
                   </Badge>
                 )}
               </div>

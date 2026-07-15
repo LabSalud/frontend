@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useCallback, useEffect } from "react"
+import { useState, useCallback, useEffect, useRef } from "react"
 import { Card, CardContent } from "../../ui/card"
 import { Skeleton } from "../../ui/skeleton"
 import { useApi } from "../../../hooks/use-api"
@@ -132,7 +132,7 @@ interface ProtocolDetailResponse {
 
 type ReportProtocolDetail = ProtocolDetailType
 
-type ReportAction = "download" | "email" | "whatsapp"
+type ReportAction = "download" | "email" | "whatsapp" | "preview"
 
 const EXCLUDED_REPORT_ANALYSIS_CODES = ACTO_BIOQUIMICO_CODES
 
@@ -201,6 +201,9 @@ export function ProtocolCard({
   const [isCancelling, setIsCancelling] = useState(false)
   const [isUncancelling, setIsUncancelling] = useState(false)
   const [isArcaBilling, setIsArcaBilling] = useState(false)
+  // El PDF de la factura ARCA ya no viene en el detalle del protocolo: se pide
+  // bajo demanda a arca-detail/ (el detalle solo trae is_arca_billed/cae/cbte).
+  const [arcaInvoicePdfUrl, setArcaInvoicePdfUrl] = useState<string | null>(null)
   const [coseguroDialogOpen, setCoseguroDialogOpen] = useState(false)
   const [isProcessingCoseguro, setIsProcessingCoseguro] = useState(false)
   const [unplannedDialogOpen, setUnplannedDialogOpen] = useState(false)
@@ -247,6 +250,14 @@ export function ProtocolCard({
   const [isSendingWhatsApp, setIsSendingWhatsApp] = useState(false)
   const [sendConfirmationOpen, setSendConfirmationOpen] = useState(false)
   const [pendingSendMethod, setPendingSendMethod] = useState<"email" | "whatsapp" | null>(null)
+  // Preview del PDF (mismo que se enviará) para confirmar antes de mandar.
+  const [sendPreviewUrl, setSendPreviewUrl] = useState<string | null>(null)
+  const [sendPreviewLoading, setSendPreviewLoading] = useState(false)
+  const [sendPreviewError, setSendPreviewError] = useState<string | null>(null)
+  // Confirmación al editar un protocolo COMPLETADO (antes de cada cambio).
+  const [completedEditConfirmOpen, setCompletedEditConfirmOpen] = useState(false)
+  const pendingCompletedEditRef = useRef<null | (() => void)>(null)
+  const bypassCompletedGuardRef = useRef(false)
   const [historyDialogOpen, setHistoryDialogOpen] = useState(false)
 
   const handleReportDateChange = (newDate: string) => {
@@ -480,9 +491,24 @@ export function ProtocolCard({
     }
   }
 
+  // El detalle del protocolo ya no embebe la URL del PDF: se pide aparte al
+  // bloque arca-detail/ (solo tiene sentido si el protocolo ya está facturado).
+  const fetchArcaInvoicePdfUrl = useCallback(async () => {
+    try {
+      const res = await apiRequest(PROTOCOL_ENDPOINTS.ARCA_DETAIL(protocol.id))
+      if (res.ok) {
+        const data = await res.json()
+        setArcaInvoicePdfUrl(data.arca_invoice_pdf_url ?? null)
+      }
+    } catch (error) {
+      console.error("Error fetching ARCA detail:", error)
+    }
+  }, [apiRequest, protocol.id])
+
   const handleOpenArcaDialog = async () => {
-    if (!protocolDetail) {
-      await fetchProtocolDetail()
+    const detail = protocolDetail ?? (await fetchProtocolDetail())
+    if (detail?.is_arca_billed) {
+      await fetchArcaInvoicePdfUrl()
     }
     setArcaDialogOpen(true)
   }
@@ -498,6 +524,8 @@ export function ProtocolCard({
       if (response.ok) {
         const data = await response.json().catch(() => ({}))
         toast.success(data.detail || "Facturación ARCA generada exitosamente", { duration: TOAST_DURATION })
+        // El POST de ARCA devuelve la URL del PDF recién generado.
+        if (data.invoice_pdf_url) setArcaInvoicePdfUrl(data.invoice_pdf_url)
         await refreshProtocolDetail()
         onUpdate()
         return true
@@ -515,6 +543,7 @@ export function ProtocolCard({
   }
 
   const handleOpenPaymentDialog = async () => {
+    if (needsCompletedConfirm(handleOpenPaymentDialog)) return
     if (!protocolDetail) {
       await fetchProtocolDetail()
     }
@@ -555,6 +584,7 @@ export function ProtocolCard({
   }
 
   const handleOpenEditDialog = async () => {
+    if (needsCompletedConfirm(handleOpenEditDialog)) return
     const detail = protocolDetail || (await fetchProtocolDetail())
     if (detail) {
       setEditFormData({
@@ -738,20 +768,50 @@ export function ProtocolCard({
     }
   }
 
-  const handleSendEmail = () => {
-    setPendingSendMethod("email")
-    setSendConfirmationOpen(true)
+  const clearSendPreview = () => {
+    setSendPreviewUrl((prev) => {
+      if (prev) window.URL.revokeObjectURL(prev)
+      return null
+    })
+    setSendPreviewError(null)
+    setSendPreviewLoading(false)
   }
 
-  const handleSendWhatsApp = () => {
-    setPendingSendMethod("whatsapp")
-    setSendConfirmationOpen(true)
+  // Genera el MISMO PDF que se enviará (modo 'preview', sin marcar como
+  // enviado) para mostrarlo embebido y confirmar antes de mandar.
+  const loadSendPreview = async () => {
+    clearSendPreview()
+    setSendPreviewLoading(true)
+    try {
+      const response = await executeSingleReportRequest("preview")
+      if (response.ok) {
+        const blob = await response.blob()
+        setSendPreviewUrl(window.URL.createObjectURL(blob))
+      } else {
+        const errorData = await response.json().catch(() => ({}))
+        setSendPreviewError(extractErrorMessage(errorData, "No se pudo generar la vista previa"))
+      }
+    } catch (error) {
+      setSendPreviewError(getErrorMessage(error, "No se pudo generar la vista previa"))
+    } finally {
+      setSendPreviewLoading(false)
+    }
   }
+
+  const openSendConfirmation = (method: "email" | "whatsapp") => {
+    setPendingSendMethod(method)
+    setSendConfirmationOpen(true)
+    void loadSendPreview()
+  }
+
+  const handleSendEmail = () => openSendConfirmation("email")
+  const handleSendWhatsApp = () => openSendConfirmation("whatsapp")
 
   const handleConfirmSend = async () => {
     setSendConfirmationOpen(false)
     const method = pendingSendMethod
     setPendingSendMethod(null)
+    clearSendPreview()
 
     if (method === "email") {
       await executeSendEmail()
@@ -763,6 +823,7 @@ export function ProtocolCard({
   }
 
   const handleToggleAuthorization = async (detail: ProtocolDetailType) => {
+    if (needsCompletedConfirm(() => handleToggleAuthorization(detail))) return
     setUpdatingDetailId(detail.id)
     try {
       const response = await apiRequest(PROTOCOL_ENDPOINTS.PROTOCOL_DETAIL_UPDATE(protocol.id, detail.id), {
@@ -834,6 +895,7 @@ export function ProtocolCard({
   }
 
   const handleOpenCoseguroDialog = async () => {
+    if (needsCompletedConfirm(handleOpenCoseguroDialog)) return
     if (!protocolDetail) {
       await fetchProtocolDetail()
     }
@@ -866,6 +928,7 @@ export function ProtocolCard({
   }
 
   const handleOpenOrderStatusDialog = async () => {
+    if (needsCompletedConfirm(handleOpenOrderStatusDialog)) return
     const detail = protocolDetail || (await fetchProtocolDetail())
     if (!detail) return
 
@@ -910,6 +973,7 @@ export function ProtocolCard({
   }
 
   const handleOpenPreauthDialog = async () => {
+    if (needsCompletedConfirm(handleOpenPreauthDialog)) return
     if (!protocolDetail) {
       const detail = await fetchProtocolDetail()
       if (!detail) return
@@ -978,9 +1042,43 @@ export function ProtocolCard({
   const statusName = effectiveStatus?.name || "este estado"
   const isCancelled = statusId === 4
   const isCompleted = statusId === 5
-  const isLockedForChanges = isCancelled || isCompleted
-  const canBeCancelled = !isLockedForChanges
+  // Un protocolo COMPLETADO ahora se puede editar (el backend ya lo permite):
+  // solo Cancelado bloquea de verdad. Cada cambio sobre un completado pide
+  // confirmación antes (needsCompletedConfirm).
+  const isLockedForChanges = isCancelled
   const isEditable = !isLockedForChanges
+  // Un protocolo Completado ahora SÍ se puede cancelar (solo se excluye el que
+  // ya está cancelado).
+  const canBeCancelled = !isCancelled
+
+  // Guarda de edición sobre completados: frena la acción y pide confirmar; al
+  // confirmar se re-ejecuta la misma acción (con un flag de bypass puntual).
+  const needsCompletedConfirm = (rerun: () => void) => {
+    if (bypassCompletedGuardRef.current) {
+      bypassCompletedGuardRef.current = false
+      return false
+    }
+    if (isCompleted) {
+      pendingCompletedEditRef.current = rerun
+      setCompletedEditConfirmOpen(true)
+      return true
+    }
+    return false
+  }
+  const handleConfirmCompletedEdit = () => {
+    setCompletedEditConfirmOpen(false)
+    const rerun = pendingCompletedEditRef.current
+    pendingCompletedEditRef.current = null
+    if (rerun) {
+      bypassCompletedGuardRef.current = true
+      rerun()
+    }
+  }
+  const handleOpenUnplanned = () => {
+    if (needsCompletedConfirm(handleOpenUnplanned)) return
+    setUnplannedDialogOpen(true)
+  }
+
   const showReports = !isCancelled
   const editDisabledReason = !isEditable ? `No se puede editar un protocolo en estado "${statusName}".` : undefined
   const cancelDisabledReason = !canBeCancelled ? `No se puede cancelar un protocolo en estado "${statusName}".` : undefined
@@ -994,17 +1092,17 @@ export function ProtocolCard({
   const isPrivateProtocol = protocolDetail?.insurance?.name?.toLowerCase() === "particular"
   const insuranceChargesCoseguro = Boolean(protocolDetail?.insurance?.charges_coseguro)
   const insuranceRequiresPreauth = Boolean(protocolDetail?.insurance?.requires_preauthorization)
-  const showOrderAction = !isCancelled && !isCompleted && !isPrivateProtocol
-  const orderDisabledReason = isCancelled || isCompleted
+  const showOrderAction = !isCancelled && !isPrivateProtocol
+  const orderDisabledReason = isCancelled
     ? `No se puede modificar la orden en estado "${statusName}".`
     : undefined
-  const showCoseguroAction = !isCancelled && !isCompleted && insuranceChargesCoseguro
-  const coseguroDisabledReason = isCancelled || isCompleted
+  const showCoseguroAction = !isCancelled && insuranceChargesCoseguro
+  const coseguroDisabledReason = isCancelled
     ? `No se puede cargar coseguro en estado "${statusName}".`
     : undefined
   const hasPreauthStatus = Boolean(protocol.preauth_status && protocol.preauth_status !== "not_required")
-  const showPreauthAction = !isCancelled && !isCompleted && (insuranceRequiresPreauth || hasPreauthStatus)
-  const preauthDisabledReason = isCancelled || isCompleted
+  const showPreauthAction = !isCancelled && (insuranceRequiresPreauth || hasPreauthStatus)
+  const preauthDisabledReason = isCancelled
     ? `No se puede aplicar preautorización en estado "${statusName}".`
     : undefined
 
@@ -1015,7 +1113,7 @@ export function ProtocolCard({
   const labOwesPatient = amountToReturn > 0
   const hasBalanceToRegularize = hasPatientDebt || labOwesPatient
   const paymentDisabledReason =
-    hasBalanceToRegularize && !canBeCancelled
+    hasBalanceToRegularize && !isEditable
       ? `No se pueden registrar pagos o devoluciones en estado "${statusName}".`
       : undefined
   const patientEmail = protocolDetail?.patient.email?.trim()
@@ -1057,7 +1155,7 @@ export function ProtocolCard({
           onPreauth={handleOpenPreauthDialog}
           onCoseguro={handleOpenCoseguroDialog}
           onHistory={() => setHistoryDialogOpen(true)}
-          onUnplanned={() => setUnplannedDialogOpen(true)}
+          onUnplanned={handleOpenUnplanned}
           onToggleAuthorization={handleToggleAuthorization}
           updatingDetailId={updatingDetailId}
           auditEvents={auditEvents}
@@ -1128,8 +1226,8 @@ export function ProtocolCard({
                 paymentStatus={protocol.payment_status}
                 balance={balance}
                 isPrinted={protocol.is_printed}
-                canRegisterPayment={hasPatientDebt && canBeCancelled}
-                labOwesPatient={labOwesPatient && canBeCancelled}
+                canRegisterPayment={hasPatientDebt && isEditable}
+                labOwesPatient={labOwesPatient && isEditable}
                 paymentDisabledReason={paymentDisabledReason}
                 isExpanded={isExpanded}
                 creation={protocol.creation}
@@ -1194,7 +1292,7 @@ export function ProtocolCard({
                   unplannedTransactions={protocolDetail?.unplanned_transactions}
                   unplannedChargesTotal={protocolDetail?.unplanned_charges_total}
                   unplannedPaymentsTotal={protocolDetail?.unplanned_payments_total}
-                  onOpenUnplanned={() => setUnplannedDialogOpen(true)}
+                  onOpenUnplanned={handleOpenUnplanned}
                   onOpenHistoryDialog={() => setHistoryDialogOpen(true)}
                   onSetOrder={handleOpenOrderStatusDialog}
                   onApplyPreauthorization={handleOpenPreauthDialog}
@@ -1322,15 +1420,16 @@ export function ProtocolCard({
           setSendConfirmationOpen(open)
           if (!open) {
             setPendingSendMethod(null)
+            clearSendPreview()
           }
         }}
       >
-        <AlertDialogContent className="overflow-hidden border-0 p-0 shadow-2xl">
+        <AlertDialogContent className="flex max-h-[calc(100dvh-1rem)] flex-col overflow-hidden border-0 p-0 shadow-2xl sm:max-w-3xl">
           <div
             className={
               pendingSendMethod === "email"
-                ? "bg-gradient-to-r from-[#204983] to-sky-600 px-6 py-5 text-white"
-                : "bg-gradient-to-r from-emerald-600 to-green-500 px-6 py-5 text-white"
+                ? "shrink-0 bg-gradient-to-r from-[#204983] to-sky-600 px-6 py-5 text-white"
+                : "shrink-0 bg-gradient-to-r from-emerald-600 to-green-500 px-6 py-5 text-white"
             }
           >
             <AlertDialogHeader>
@@ -1341,27 +1440,94 @@ export function ProtocolCard({
                 {pendingSendMethod === "email" ? "Enviar reporte por email" : "Enviar reporte por WhatsApp"}
               </AlertDialogTitle>
               <AlertDialogDescription className="text-white/85">
+                Revisá la vista previa del reporte tal como se enviará y, si está todo bien, confirmá.{" "}
                 {pendingSendMethod === "email"
-                  ? "Confirmá el envío del reporte al email cargado en el paciente."
-                  : "Confirmá el envío del reporte al teléfono cargado para WhatsApp."}
+                  ? "Se enviará al email cargado en el paciente."
+                  : "Se enviará al teléfono cargado para WhatsApp."}
               </AlertDialogDescription>
             </AlertDialogHeader>
           </div>
-          <div className="bg-white px-6 py-4">
+          <div className="min-h-0 flex-1 overflow-y-auto bg-white px-6 pt-4">
+            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">
+              Vista previa ({reportType === "summary" ? "resumen" : "reporte completo"})
+            </p>
+            <div className="mb-4 h-[45vh] w-full overflow-hidden rounded-lg border border-slate-200 bg-slate-50 sm:h-[440px]">
+              {sendPreviewLoading ? (
+                <div className="flex h-full flex-col items-center justify-center gap-3 text-slate-500">
+                  <div className="h-8 w-8 animate-spin rounded-full border-2 border-slate-300 border-t-[#204983]" />
+                  <span className="text-sm">Generando vista previa…</span>
+                </div>
+              ) : sendPreviewError ? (
+                <div className="flex h-full items-center justify-center px-6 text-center text-sm text-red-600">
+                  {sendPreviewError}
+                </div>
+              ) : sendPreviewUrl ? (
+                <iframe title="Vista previa del reporte" src={sendPreviewUrl} className="h-full w-full" />
+              ) : null}
+            </div>
+            {sendPreviewUrl && (
+              <button
+                type="button"
+                onClick={() => window.open(sendPreviewUrl, "_blank", "noopener,noreferrer")}
+                className="mb-3 self-start text-xs font-medium text-[#204983] underline underline-offset-2 hover:text-[#1a3d6f]"
+              >
+                Abrir vista completa (en el celular, para ver todas las páginas)
+              </button>
+            )}
+          </div>
+          <div className="shrink-0 bg-white px-6 pb-4">
             <AlertDialogFooter>
-              <AlertDialogCancel onClick={() => setPendingSendMethod(null)}>Cancelar</AlertDialogCancel>
+              <AlertDialogCancel
+                onClick={() => {
+                  setPendingSendMethod(null)
+                  clearSendPreview()
+                }}
+              >
+                Cancelar
+              </AlertDialogCancel>
               <AlertDialogAction
                 onClick={handleConfirmSend}
+                disabled={sendPreviewLoading}
                 className={
                   pendingSendMethod === "email"
                     ? "bg-[#204983] text-white hover:bg-[#1a3d6f]"
                     : "bg-emerald-600 text-white hover:bg-emerald-700"
                 }
               >
-                Confirmar envío
+                Confirmar y enviar
               </AlertDialogAction>
             </AlertDialogFooter>
           </div>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={completedEditConfirmOpen}
+        onOpenChange={(open) => {
+          setCompletedEditConfirmOpen(open)
+          if (!open) pendingCompletedEditRef.current = null
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Protocolo completado</AlertDialogTitle>
+            <AlertDialogDescription>
+              Este protocolo ya está <strong>completado</strong>. Igual podés modificarlo
+              (cargar pagos, cambiar la orden, coseguro, análisis, etc.), pero tené en
+              cuenta que el cambio puede recalcular su estado. ¿Querés continuar?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => { pendingCompletedEditRef.current = null }}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmCompletedEdit}
+              className="bg-[#204983] text-white hover:bg-[#1a3d6f]"
+            >
+              Sí, modificar
+            </AlertDialogAction>
+          </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
@@ -1422,7 +1588,7 @@ export function ProtocolCard({
         protocolId={protocol.id}
         patientName={getPatientName()}
         patientDni={protocol.patient?.dni}
-        invoicePdfUrl={protocolDetail?.arca_invoice_pdf_url ?? null}
+        invoicePdfUrl={arcaInvoicePdfUrl ?? protocolDetail?.arca_invoice_pdf_url ?? null}
         arcaCae={protocolDetail?.arca_cae}
         arcaCbteNumber={protocolDetail?.arca_cbte_number ?? null}
         isAlreadyBilled={Boolean(protocolDetail?.is_arca_billed)}

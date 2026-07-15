@@ -16,6 +16,7 @@ import type { ProtocolDetail, ReportSignature } from "@/types"
 
 type ReportProtocolAnalysis = ProtocolDetail & {
   is_sent?: boolean
+  is_sent_summary?: boolean
   is_valid?: boolean
 }
 
@@ -271,8 +272,13 @@ function ReportCustomizationDrawer({
                                 variant={analysis.is_sent ? "default" : "secondary"}
                                 className={analysis.is_sent ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"}
                               >
-                                {analysis.is_sent ? "Ya enviado" : "Pendiente"}
+                                {analysis.is_sent ? "Enviado al paciente" : "Sin enviar"}
                               </Badge>
+                              {analysis.is_sent_summary && (
+                                <Badge variant="secondary" className="bg-indigo-100 text-indigo-700">
+                                  Resumen generado
+                                </Badge>
+                              )}
                               {isPartial && (
                                 <Badge variant="secondary" className="bg-amber-100 text-amber-700">
                                   Parcial
@@ -405,6 +411,11 @@ export function ReportDialog({
 }: ReportDialogProps) {
   const [mobileDragY, setMobileDragY] = useState(0)
   const [isMobileViewport, setIsMobileViewport] = useState(false)
+  // Si no hay firmas cargadas en el sistema, no se puede firmar digitalmente.
+  const hasSignatures = signatures.length > 0
+  useEffect(() => {
+    if (!hasSignatures && signed) onSignedChange(false)
+  }, [hasSignatures, signed, onSignedChange])
   const touchStartYRef = useRef<number | null>(null)
   const canDragToCloseRef = useRef(false)
   const startScrollTopRef = useRef(0)
@@ -535,8 +546,9 @@ export function ReportDialog({
 
               <button
                 type="button"
-                onClick={() => onSignedChange(!signed)}
-                className={`flex items-center gap-3 w-full rounded-lg border px-4 py-3 text-left transition-colors ${
+                onClick={() => hasSignatures && onSignedChange(!signed)}
+                disabled={!hasSignatures}
+                className={`flex items-center gap-3 w-full rounded-lg border px-4 py-3 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
                   signed
                     ? "border-[#204983] bg-blue-50 text-[#204983]"
                     : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
@@ -546,15 +558,21 @@ export function ReportDialog({
                 <div className="flex flex-col min-w-0">
                   <span className="text-sm font-medium leading-tight">Firma digital</span>
                   <span className="text-xs opacity-70 leading-tight mt-0.5">
-                    {signatureDescription}
+                    {hasSignatures ? signatureDescription : "No hay firmas cargadas en el sistema"}
                   </span>
                 </div>
                 <Checkbox
-                  checked={signed}
+                  checked={signed && hasSignatures}
+                  disabled={!hasSignatures}
                   onCheckedChange={(checked) => onSignedChange(checked === true)}
                   className="ml-auto shrink-0"
                 />
               </button>
+              {!hasSignatures && (
+                <p className="text-xs text-amber-600">
+                  Cargá una firma en Configuración para poder enviar con firma digital.
+                </p>
+              )}
 
               <SignatureSelector
                 signed={signed}
@@ -670,7 +688,7 @@ export function ReportDialog({
             onTouchCancel={handleMobileTouchEnd}
           >
             <div
-              className="relative h-[86vh] max-h-[700px] w-full transition-[transform,opacity] duration-300 ease-out"
+              className="relative h-[86dvh] max-h-[700px] w-full transition-[transform,opacity] duration-300 ease-out"
               style={{
                 transform: `translateY(${mobileDragY}px)`,
                 opacity: Math.max(0.7, 1 - mobileDragY / 420),
@@ -731,8 +749,9 @@ export function ReportDialog({
 
                         <button
                           type="button"
-                          onClick={() => onSignedChange(!signed)}
-                          className={`flex items-center gap-3 w-full rounded-lg border px-4 py-3 text-left transition-colors ${
+                          onClick={() => hasSignatures && onSignedChange(!signed)}
+                          disabled={!hasSignatures}
+                          className={`flex items-center gap-3 w-full rounded-lg border px-4 py-3 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
                             signed
                               ? "border-[#204983] bg-blue-50 text-[#204983]"
                               : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
@@ -742,15 +761,21 @@ export function ReportDialog({
                           <div className="flex flex-col min-w-0">
                             <span className="text-sm font-medium leading-tight">Firma digital</span>
                             <span className="text-xs opacity-70 leading-tight mt-0.5">
-                              {signatureDescription}
+                              {hasSignatures ? signatureDescription : "No hay firmas cargadas en el sistema"}
                             </span>
                           </div>
                           <Checkbox
-                            checked={signed}
+                            checked={signed && hasSignatures}
+                            disabled={!hasSignatures}
                             onCheckedChange={(checked) => onSignedChange(checked === true)}
                             className="ml-auto shrink-0"
                           />
                         </button>
+                        {!hasSignatures && (
+                          <p className="text-xs text-amber-600">
+                            Cargá una firma en Configuración para poder enviar con firma digital.
+                          </p>
+                        )}
 
                         <SignatureSelector
                           signed={signed}

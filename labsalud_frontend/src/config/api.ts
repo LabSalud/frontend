@@ -87,6 +87,9 @@ export const CATALOG_ENDPOINTS = {
   NBU_IMPORT_UB_VALUES: (id: number) => buildApiUrl(`/catalog/nbu/${id}/import-ub-values/`),
   NBU_CREATE_WITH_IMPORT: buildApiUrl("/catalog/nbu/create-with-import/"),
   PRICING_CONFIG: buildApiUrl("/catalog/pricing-config/"),
+  // Composición de análisis (módulos): qué prácticas incluye/excluye un análisis.
+  ANALYSIS_COMPOSITION: buildApiUrl("/catalog/analysis-composition/"),
+  ANALYSIS_COMPOSITION_DETAIL: (id: number) => buildApiUrl(`/catalog/analysis-composition/${id}/`),
 } as const
 
 // Protocol management endpoints
@@ -95,6 +98,9 @@ export const PROTOCOL_ENDPOINTS = {
   QUOTE: buildApiUrl("/protocols/protocols/quote/"),
   PROTOCOL_DETAIL: (id: number) => buildApiUrl(`/protocols/protocols/${id}/`),
   ARCA_BILLING: (id: number) => buildApiUrl(`/protocols/protocols/${id}/arca-billing/`),
+  // Bloque ARCA completo (pdf, receptor, CAE, vencimiento). El detalle/listado
+  // ya no lo embeben: solo traen is_arca_billed / arca_cae / arca_cbte_number.
+  ARCA_DETAIL: (id: number) => buildApiUrl(`/protocols/protocols/${id}/arca-detail/`),
   REPORT: (id: number) => buildApiUrl(`/protocols/protocols/${id}/report/`),
   PROTOCOL_DETAILS: (id: number) => buildApiUrl(`/protocols/protocols/${id}/details/`),
   PROTOCOL_DETAIL_UPDATE: (protocolId: number, detailId: number) =>
@@ -103,6 +109,7 @@ export const PROTOCOL_ENDPOINTS = {
   REPORT_BATCH: buildApiUrl("/protocols/protocols/report-batch/"),
   REGULARIZE_BALANCE: (id: number) => buildApiUrl(`/protocols/protocols/${id}/regularize-balance/`),
   UNCANCEL: (id: number) => buildApiUrl(`/protocols/protocols/${id}/uncancel/`),
+  ROLLBACK: (id: number) => buildApiUrl(`/protocols/protocols/${id}/rollback/`),
   SET_COSEGURO: (id: number) => buildApiUrl(`/protocols/protocols/${id}/set-coseguro/`),
   UNPLANNED_LIST: (protocolId: number) => buildApiUrl(`/protocols/protocols/${protocolId}/unplanned/`),
   UNPLANNED_ITEM: (protocolId: number, txId: number) =>
@@ -148,6 +155,9 @@ export const BILLING_ENDPOINTS = {
   UNBILL_PROTOCOL: (protocolId: number) =>
     buildApiUrl(`/billing/invoices/unbill/${protocolId}/`),
   PROTOCOLS_TO_BILL: buildApiUrl("/billing/invoices/protocols-to-bill/"),
+  BILLING_BOARD: buildApiUrl("/billing/invoices/billing-board/"),
+  SET_ELIGIBLE: (protocolId: number) =>
+    buildApiUrl(`/billing/invoices/set-eligible/${protocolId}/`),
   FACTURADOS: buildApiUrl("/billing/invoices/facturados/"),
   CURRENT_TOTAL: buildApiUrl("/billing/invoices/current-total/"),
   CLOSED_PRESENTATIONS: buildApiUrl("/billing/presentations/closed/"),
@@ -165,7 +175,8 @@ export const BILLING_ENDPOINTS = {
   ENTITY_DETAIL: (id: number) => buildApiUrl(`/billing/entities/${id}/`),
   REMINDER_PHONES: buildApiUrl("/billing/reminders/phones/"),
   REMINDER_PHONE_DETAIL: (id: number) => buildApiUrl(`/billing/reminders/phones/${id}/`),
-  REMINDER_CONFIG: buildApiUrl("/billing/reminders/config/"),
+  // Nota: `/billing/reminders/config/` (días global) quedó deprecado — el cron
+  // usa reminder_enabled/reminder_days_before por entidad (BillingEntity).
 } as const
 
 // Core endpoints

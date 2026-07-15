@@ -1,4 +1,4 @@
-import { AlertCircle, ChevronDown, ExternalLink, FileCheck2, Loader2 } from "lucide-react"
+import { ChevronDown, ExternalLink, FileCheck2, Loader2 } from "lucide-react"
 import { Link } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import {
@@ -47,12 +47,8 @@ export function ProtocolBillingRow({ protocol, onMarkBilled, isMarking, otherEnt
           <PaperStatusChips missingPaperwork={protocol.missing_paperwork} />
           <span className="text-xs text-gray-400">UB: {protocol.total_ub_authorized}</span>
         </div>
-        {!complete && (
-          <p className="mt-1 flex items-center gap-1 text-[11px] text-amber-600">
-            <AlertCircle className="h-3 w-3" />
-            Faltan papeles para poder facturarlo
-          </p>
-        )}
+        {/* Se removió el texto genérico "Faltan papeles": los chips de arriba
+            (PaperStatusChips) ya detallan exactamente qué falta. */}
       </div>
       <div className="flex shrink-0 items-center gap-1.5">
         <Button size="sm" variant="outline" asChild title="Ver protocolo">

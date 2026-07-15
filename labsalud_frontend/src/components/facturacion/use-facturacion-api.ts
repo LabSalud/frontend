@@ -92,12 +92,6 @@ export function useFacturacionApi(entityId: number | null) {
     ? phonesQuery.data
     : phonesQuery.data?.results ?? []
 
-  const configQuery = useApiQuery<{ days_before: number }>({
-    queryKey: ["billing", "reminder-config"],
-    url: BILLING_ENDPOINTS.REMINDER_CONFIG,
-  })
-  const reminderDaysBefore = configQuery.data?.days_before ?? 7
-
   const invalidateEntity = () => {
     queryClient.invalidateQueries({ queryKey: ["billing", "protocols-to-bill", entityId] })
     queryClient.invalidateQueries({ queryKey: ["billing", "current-total", entityId] })
@@ -265,19 +259,6 @@ export function useFacturacionApi(entityId: number | null) {
     queryClient.invalidateQueries({ queryKey: ["billing", "reminder-phones"] })
   }
 
-  const changeDaysBefore = async (days: number) => {
-    const res = await apiRequest(BILLING_ENDPOINTS.REMINDER_CONFIG, {
-      method: "PATCH",
-      body: { days_before: days },
-    })
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}))
-      throw new Error(formatApiError(err, "No se pudo guardar la configuración"))
-    }
-    toast.success(`Ahora se avisa ${days} días antes del cierre`)
-    queryClient.invalidateQueries({ queryKey: ["billing", "reminder-config"] })
-  }
-
   return {
     entities,
     entitiesLoading: entitiesQuery.isLoading,
@@ -301,10 +282,8 @@ export function useFacturacionApi(entityId: number | null) {
     closePresentation,
     setTargetCloseDate,
     reminderPhones,
-    reminderDaysBefore,
     addReminderPhone,
     togglePhone,
     removePhone,
-    changeDaysBefore,
   }
 }

@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useFacturacionApi } from "./use-facturacion-api"
 import { ProtocolBillingRow } from "./components/protocol-billing-row"
+import { BillingBoard } from "./components/billing-board"
 import { CurrentInvoicesList } from "./components/current-invoices-list"
 import { EditableCloseDate } from "./components/editable-close-date"
 import { ClosePresentationDialog } from "./components/close-presentation-dialog"
@@ -46,7 +47,9 @@ export default function FacturacionPage() {
   // No se auto-cierra al llegar la fecha: solo avisa (una vez por día, vía WhatsApp)
   // que ya está vencida y hay que cerrarla a mano.
   const isOverdue = remaining != null && remaining < 0
-  const withinReminderWindow = remaining != null && remaining <= m.reminderDaysBefore && remaining >= 0
+  // Anticipación del aviso ahora es por entidad (el cron ya no usa una config global).
+  const withinReminderWindow =
+    !!entity?.reminder_enabled && remaining != null && remaining >= 0 && remaining <= (entity?.reminder_days_before ?? 7)
 
   if (m.entitiesLoading && m.entities.length === 0) {
     return (
@@ -116,6 +119,9 @@ export default function FacturacionPage() {
             <TabsTrigger value="actual" className={tabClass}>
               Presentación actual
             </TabsTrigger>
+            <TabsTrigger value="tablero" className={tabClass}>
+              Tablero
+            </TabsTrigger>
             <TabsTrigger value="historial" className={tabClass}>
               Historial
             </TabsTrigger>
@@ -123,6 +129,11 @@ export default function FacturacionPage() {
               Gráficos
             </TabsTrigger>
           </TabsList>
+
+          {/* ===== Tablero: todos los protocolos no presentados ===== */}
+          <TabsContent value="tablero" className="space-y-4">
+            <BillingBoard entityId={entity.id} entityName={entity.name} />
+          </TabsContent>
 
           {/* ===== Presentación actual ===== */}
           <TabsContent value="actual" className="space-y-4">

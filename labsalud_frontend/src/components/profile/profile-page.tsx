@@ -17,6 +17,7 @@ import { toast } from "sonner"
 import { USER_ENDPOINTS, TOAST_DURATION } from "@/config/api"
 import type { ActiveTempPermission } from "@/types"
 import { formatApiError } from "@/lib/api-error"
+import { LAB_TIME_ZONE } from "@/lib/format-utils"
 import { getStoredUser, setStoredUser } from "@/lib/auth-storage"
 
 interface ProfileData {
@@ -241,6 +242,7 @@ export default function ProfilePage() {
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)
     return date.toLocaleString("es-AR", {
+      timeZone: LAB_TIME_ZONE,
       year: "numeric",
       month: "long",
       day: "numeric",

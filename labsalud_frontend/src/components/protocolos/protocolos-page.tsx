@@ -254,9 +254,15 @@ export default function ProtocolosPage() {
   // varias filas de la lista, en cualquier combinación de filtros cacheada,
   // sin pedirle al backend toda la página de nuevo.
   const applyStatusUpdates = useCallback(
-    (updates: Array<{ id: number; status: ProtocolListItem["status"] | null }>) => {
+    (
+      updates: Array<{
+        id: number
+        status: ProtocolListItem["status"] | null
+        payment_status?: ProtocolListItem["payment_status"] | null
+      }>,
+    ) => {
       if (updates.length === 0) return
-      const byId = new Map(updates.map((u) => [u.id, u.status]))
+      const byId = new Map(updates.map((u) => [u.id, u]))
       queryClient.setQueriesData<{ pages: Array<{ results: ProtocolListItem[]; next: string | null }> }>(
         { queryKey: ["protocols", "list"] },
         (data) => {
@@ -265,7 +271,17 @@ export default function ProtocolosPage() {
             ...data,
             pages: data.pages.map((page) => ({
               ...page,
-              results: page.results.map((p) => (byId.has(p.id) ? { ...p, status: byId.get(p.id) ?? p.status } : p)),
+              results: page.results.map((p) => {
+                const u = byId.get(p.id)
+                if (!u) return p
+                // Aplicamos estado y —si vino— estado de pago, así registrar un
+                // pago desde la lista refresca ambos badges sin recargar.
+                return {
+                  ...p,
+                  status: u.status ?? p.status,
+                  payment_status: u.payment_status ?? p.payment_status,
+                }
+              }),
             })),
           }
         },

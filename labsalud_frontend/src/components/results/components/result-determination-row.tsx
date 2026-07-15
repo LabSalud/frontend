@@ -13,6 +13,7 @@ import {
   formatReferenceValues,
   getReferenceEvaluationLabel,
 } from "@/lib/catalog-format"
+import { LAB_TIME_ZONE } from "@/lib/format-utils"
 import { cn } from "@/lib/utils"
 import type { PreviousResult, Result } from "@/types"
 import type { ResultValue } from "@/hooks/use-protocol-results"
@@ -40,7 +41,7 @@ function fmtDateTime(v?: string | null) {
   const d = new Date(v)
   return Number.isNaN(d.getTime())
     ? ""
-    : d.toLocaleString("es-AR", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" })
+    : d.toLocaleString("es-AR", { timeZone: LAB_TIME_ZONE, day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" })
 }
 function fmtDate(v?: string | null) {
   if (!v) return ""

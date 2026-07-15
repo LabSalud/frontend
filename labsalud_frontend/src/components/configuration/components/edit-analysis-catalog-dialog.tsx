@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useApi } from "@/hooks/use-api"
 import { useToast } from "@/hooks/use-toast"
 import { Loader2, TestTube } from "lucide-react"
@@ -35,6 +36,9 @@ export const EditAnalysisCatalogDialog: React.FC<EditAnalysisCatalogDialogProps>
   const [bioUnit, setBioUnit] = useState("")
   const [isUrgent, setIsUrgent] = useState(false)
   const [requiresDerivacion, setRequiresDerivacion] = useState(false)
+  const [category, setCategory] = useState<string>("")
+  const [isObsolete, setIsObsolete] = useState(false)
+  const [isRefNormalized, setIsRefNormalized] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
 
@@ -45,6 +49,9 @@ export const EditAnalysisCatalogDialog: React.FC<EditAnalysisCatalogDialogProps>
       setBioUnit(analysis.bio_unit)
       setIsUrgent(analysis.is_urgent)
       setRequiresDerivacion(analysis.requires_derivacion ?? false)
+      setCategory(analysis.category ?? "")
+      setIsObsolete(analysis.is_obsolete ?? false)
+      setIsRefNormalized(analysis.is_ref_normalized ?? false)
       setErrors({})
     }
   }, [analysis, open])
@@ -73,6 +80,11 @@ export const EditAnalysisCatalogDialog: React.FC<EditAnalysisCatalogDialogProps>
       if (requiresDerivacion !== (analysis.requires_derivacion ?? false)) {
         analysisUpdateData.requires_derivacion = requiresDerivacion
       }
+      if (category !== (analysis.category ?? "")) {
+        analysisUpdateData.category = category as Analysis["category"]
+      }
+      if (isObsolete !== (analysis.is_obsolete ?? false)) analysisUpdateData.is_obsolete = isObsolete
+      if (isRefNormalized !== (analysis.is_ref_normalized ?? false)) analysisUpdateData.is_ref_normalized = isRefNormalized
 
       if (Object.keys(analysisUpdateData).length === 0) {
         toastActions.info("Sin cambios", { description: "No se realizaron modificaciones." })
@@ -213,6 +225,41 @@ export const EditAnalysisCatalogDialog: React.FC<EditAnalysisCatalogDialogProps>
               checked={requiresDerivacion}
               onCheckedChange={setRequiresDerivacion}
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="edit-category">Categoría NBU</Label>
+            <Select value={category || "none"} onValueChange={(v) => setCategory(v === "none" ? "" : v)}>
+              <SelectTrigger id="edit-category">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Sin clasificar</SelectItem>
+                <SelectItem value="pmo">PMO</SelectItem>
+                <SelectItem value="pe">PE</SelectItem>
+                <SelectItem value="gestion">Gestión</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+            <div>
+              <Label htmlFor="edit-isObsolete" className="font-medium">
+                En desuso
+              </Label>
+              <p className="text-sm text-gray-500">Práctica dada de baja del nomenclador (sin UB vigente).</p>
+            </div>
+            <Switch id="edit-isObsolete" checked={isObsolete} onCheckedChange={setIsObsolete} />
+          </div>
+
+          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+            <div>
+              <Label htmlFor="edit-isRefNormalized" className="font-medium">
+                Normalizado (N)
+              </Label>
+              <p className="text-sm text-gray-500">Marca "N" del NBU (referencia normalizada).</p>
+            </div>
+            <Switch id="edit-isRefNormalized" checked={isRefNormalized} onCheckedChange={setIsRefNormalized} />
           </div>
         </div>
 

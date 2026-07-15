@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useApi } from "@/hooks/use-api"
 import { useToast } from "@/hooks/use-toast"
 import { Loader2, TestTube } from "lucide-react"
@@ -33,6 +34,9 @@ export const CreateAnalysisCatalogDialog: React.FC<CreateAnalysisCatalogDialogPr
   const [bioUnit, setBioUnit] = useState("")
   const [isUrgent, setIsUrgent] = useState(false)
   const [requiresDerivacion, setRequiresDerivacion] = useState(false)
+  const [category, setCategory] = useState<string>("")
+  const [isObsolete, setIsObsolete] = useState(false)
+  const [isRefNormalized, setIsRefNormalized] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
 
@@ -43,6 +47,9 @@ export const CreateAnalysisCatalogDialog: React.FC<CreateAnalysisCatalogDialogPr
       setBioUnit("")
       setIsUrgent(false)
       setRequiresDerivacion(false)
+      setCategory("")
+      setIsObsolete(false)
+      setIsRefNormalized(false)
       setErrors({})
       setIsLoading(false)
     }
@@ -70,6 +77,9 @@ export const CreateAnalysisCatalogDialog: React.FC<CreateAnalysisCatalogDialogPr
         bio_unit: bioUnit,
         is_urgent: isUrgent,
         requires_derivacion: requiresDerivacion,
+        ...(category ? { category } : {}),
+        is_obsolete: isObsolete,
+        is_ref_normalized: isRefNormalized,
       }
       const response = await apiRequest(CATALOG_ENDPOINTS.ANALYSIS, {
         method: "POST",
@@ -176,6 +186,41 @@ export const CreateAnalysisCatalogDialog: React.FC<CreateAnalysisCatalogDialogPr
               checked={requiresDerivacion}
               onCheckedChange={setRequiresDerivacion}
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="category">Categoría NBU</Label>
+            <Select value={category || "none"} onValueChange={(v) => setCategory(v === "none" ? "" : v)}>
+              <SelectTrigger id="category">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Sin clasificar</SelectItem>
+                <SelectItem value="pmo">PMO</SelectItem>
+                <SelectItem value="pe">PE</SelectItem>
+                <SelectItem value="gestion">Gestión</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+            <div>
+              <Label htmlFor="isObsolete" className="font-medium">
+                En desuso
+              </Label>
+              <p className="text-sm text-gray-500">Práctica dada de baja del nomenclador (sin UB vigente).</p>
+            </div>
+            <Switch id="isObsolete" checked={isObsolete} onCheckedChange={setIsObsolete} />
+          </div>
+
+          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+            <div>
+              <Label htmlFor="isRefNormalized" className="font-medium">
+                Normalizado (N)
+              </Label>
+              <p className="text-sm text-gray-500">Marca "N" del NBU (referencia normalizada).</p>
+            </div>
+            <Switch id="isRefNormalized" checked={isRefNormalized} onCheckedChange={setIsRefNormalized} />
           </div>
         </div>
 

@@ -5,9 +5,20 @@ const referenceGroupLabels: Record<string, string> = {
   mujer_mayor: "Mujer adulta",
   nino: "Niño",
   nina: "Niña",
+  neonato: "Neonato",
 }
 
 export const formatReferenceGroup = (group: string): string => referenceGroupLabels[group] || group
+
+const analysisCategoryLabels: Record<string, string> = {
+  pmo: "PMO",
+  pe: "PE",
+  gestion: "Gestión",
+}
+
+/** Etiqueta legible de la categoría NBU del análisis ("" o desconocida → ""). */
+export const formatAnalysisCategory = (category?: string): string =>
+  category ? analysisCategoryLabels[category] || category : ""
 
 export const formatReferenceRange = (range: ReferenceRange): string => {
   const min = range.min_value || "-"

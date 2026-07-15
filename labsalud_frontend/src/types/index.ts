@@ -357,6 +357,30 @@ export type ObraSocial = Insurance
 // CATÁLOGO DE ANÁLISIS
 // ============================================================================
 
+/** Categoría NBU del análisis. "" = sin clasificar. */
+export type AnalysisCategory = "pmo" | "pe" | "gestion" | ""
+
+/** Relación de composición: qué prácticas incluye/excluye un módulo. */
+export type AnalysisRelationType = "includes" | "not_includes" | "included_in"
+
+export interface AnalysisComponent {
+  id: number
+  child: number
+  child_code: number
+  child_name: string
+  relation_type: AnalysisRelationType
+  relation_type_display: string
+  is_active: boolean
+}
+
+/** Ficha NBU del análisis (reglas de alcance/facturación y notas del laboratorio). */
+export interface NbuInfo {
+  work_minimum?: string
+  interpretation?: string
+  patient_instructions?: string
+  report_note?: string
+}
+
 export interface Analysis {
   created_at: string
   created_by: null
@@ -368,6 +392,13 @@ export interface Analysis {
   is_urgent: boolean
   is_active: boolean
   requires_derivacion?: boolean
+  // --- Enriquecimiento NBU (todo opcional / retrocompatible) ---
+  category?: AnalysisCategory
+  is_ref_normalized?: boolean
+  is_obsolete?: boolean
+  is_module?: boolean
+  components?: AnalysisComponent[]
+  nbu_info?: NbuInfo | null
   creation?: CreationAudit
   last_change?: LastChangeAudit
   history?: HistoryEntry[]
@@ -588,6 +619,8 @@ export interface Protocol {
   derivacion_amount?: string
   extras_total?: string
   private_amount_due?: string
+  /** Cuántos componentes no se cobraron por estar incluidos en un módulo presente. */
+  included_components_skipped?: number
   nbu?: Nbu | null
   // Returned by protocol create response
   value_paid?: string
@@ -675,6 +708,8 @@ export interface ProtocolListItem {
   material_descartable_amount?: string
   derivacion_amount?: string
   extras_total?: string
+  /** Cuántos componentes no se cobraron por estar incluidos en un módulo presente. */
+  included_components_skipped?: number
   payment_status: PaymentStatus
   billing_status?: BillingStatus
   is_printed: boolean
@@ -759,6 +794,8 @@ export interface QuoteDetail {
   private_ub: string
   insurance_ub: string | null
   patient_amount: string
+  /** true = ya está cubierta por un módulo presente en el protocolo: no suma UB ni se cobra ($0). */
+  included_in_module?: boolean
 }
 
 export interface QuoteResult {

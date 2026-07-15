@@ -47,9 +47,15 @@ export function AnalysisTable({
   const isParticular = (analysis: SelectedAnalysis) =>
     isPrivateInsurance || forcePrivateAnalyses || !analysis.is_authorized
 
+  // ¿Ya está cubierta por un módulo presente? El backend la cotiza en $0 y no suma UB.
+  const isIncludedInModule = (analysis: SelectedAnalysis): boolean =>
+    quoteById?.[analysis.id]?.included_in_module === true
+
   // Cantidad de UB a mostrar: la del nomenclador correcto (cotización) según si
-  // es particular (private_ub) o lo cubre la OOSS (insurance_ub).
+  // es particular (private_ub) o lo cubre la OOSS (insurance_ub). Las incluidas
+  // en un módulo no suman UB.
   const ubFor = (analysis: SelectedAnalysis): string => {
+    if (isIncludedInModule(analysis)) return "0"
     const q = quoteById?.[analysis.id]
     if (q) return isParticular(analysis) ? q.private_ub : q.insurance_ub ?? q.private_ub
     return analysis.bio_unit
@@ -72,6 +78,7 @@ export function AnalysisTable({
   }
 
   const totalUb = selectedAnalyses.reduce((sum, a) => sum + (Number.parseFloat(ubFor(a)) || 0), 0)
+  const includedCount = selectedAnalyses.filter(isIncludedInModule).length
   const authorizedCount = isPrivateInsurance || forcePrivateAnalyses ? 0 : selectedAnalyses.filter((a) => a.is_authorized).length
 
   return (
@@ -113,10 +120,14 @@ export function AnalysisTable({
                   >
                     <div className="flex items-start justify-between gap-2 mb-2">
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium leading-tight break-words">
+                        <p
+                          className={`text-sm font-medium leading-tight break-words ${
+                            isIncludedInModule(analysis) ? "text-gray-400 line-through" : ""
+                          }`}
+                        >
                           {analysis.name}
                         </p>
-                        <div className="flex items-center gap-2 mt-1">
+                        <div className="flex flex-wrap items-center gap-2 mt-1">
                           <Badge variant="outline" className="font-mono text-xs">
                             {analysis.code || "N/A"}
                           </Badge>
@@ -125,6 +136,16 @@ export function AnalysisTable({
                               Urgente
                             </Badge>
                           ) : null}
+                          {analysis.is_obsolete && (
+                            <Badge variant="outline" className="bg-amber-50 text-amber-700 text-xs">
+                              En desuso
+                            </Badge>
+                          )}
+                          {isIncludedInModule(analysis) && (
+                            <Badge variant="outline" className="bg-blue-50 text-blue-700 text-xs">
+                              Incluida en módulo
+                            </Badge>
+                          )}
                         </div>
                       </div>
                       <Button
@@ -192,8 +213,24 @@ export function AnalysisTable({
                     {selectedAnalyses.map((analysis) => (
                       <TableRow key={analysis.id}>
                         <TableCell className="font-medium text-xs lg:text-sm p-2 align-top">
-                          <div className="leading-tight break-words whitespace-normal">
+                          <div
+                            className={`leading-tight break-words whitespace-normal ${
+                              isIncludedInModule(analysis) ? "text-gray-400 line-through" : ""
+                            }`}
+                          >
                             {analysis.name}
+                          </div>
+                          <div className="mt-1 flex flex-wrap gap-1">
+                            {analysis.is_obsolete && (
+                              <Badge variant="outline" className="bg-amber-50 text-amber-700 text-[10px]">
+                                En desuso
+                              </Badge>
+                            )}
+                            {isIncludedInModule(analysis) && (
+                              <Badge variant="outline" className="bg-blue-50 text-blue-700 text-[10px]">
+                                Incluida en módulo
+                              </Badge>
+                            )}
                           </div>
                         </TableCell>
                         <TableCell className="text-center p-2 align-top">
@@ -252,10 +289,16 @@ export function AnalysisTable({
                 </Table>
               </div>
 
-              <div className="mt-4 pt-4 border-t flex justify-between items-center text-sm">
+              <div className="mt-4 pt-4 border-t flex flex-wrap justify-between items-center gap-2 text-sm">
                 <span className="text-gray-600">
                   Total UB: <strong className="text-[#204983]">{totalUb.toFixed(2)}</strong>
                 </span>
+                {includedCount > 0 && (
+                  <span className="text-xs text-blue-700">
+                    {includedCount} {includedCount === 1 ? "práctica incluida" : "prácticas incluidas"} en módulos (no
+                    se cobran aparte)
+                  </span>
+                )}
               </div>
             </div>
           )}

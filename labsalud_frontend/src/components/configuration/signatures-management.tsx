@@ -159,6 +159,32 @@ export function SignaturesManagement() {
     }
   }
 
+  const handleEdit = async (
+    id: number,
+    data: { name: string; biochemist_name: string; biochemist_mp: string },
+  ) => {
+    try {
+      setActionId(id)
+      const response = await apiRequest(REPORTING_ENDPOINTS.SIGNATURE_DETAIL(id), {
+        method: "PATCH",
+        body: data,
+      })
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(formatApiError(errorData, "No se pudo actualizar la firma."))
+      }
+      const updated = await response.json().catch(() => null)
+      toast.success("Firma actualizada", { duration: TOAST_DURATION })
+      await fetchSignatures()
+      if (updated) setSheetSignature(updated)
+    } catch (err) {
+      toast.error("Error al actualizar", { description: getErrorMessage(err), duration: TOAST_DURATION })
+      throw err
+    } finally {
+      setActionId(null)
+    }
+  }
+
   const setDefaultFromSheet = async (id: number) => {
     await handleSetDefault(id)
     setSheetOpen(false)
@@ -320,6 +346,7 @@ export function SignaturesManagement() {
         onOpenChange={setSheetOpen}
         onSetDefault={setDefaultFromSheet}
         onDelete={deleteFromSheet}
+        onEdit={handleEdit}
         actionId={actionId}
       />
     </div>

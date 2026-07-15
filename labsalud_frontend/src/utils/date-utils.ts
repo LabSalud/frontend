@@ -1,3 +1,5 @@
+import { LAB_TIME_ZONE } from "@/lib/format-utils"
+
 export function formatDate(date: Date | string | null | undefined): string {
   if (!date) return "Sin fecha"
 
@@ -29,6 +31,7 @@ export function formatDateTime(date: Date | string | null | undefined): string {
     }
 
     return dateObj.toLocaleDateString("es-ES", {
+      timeZone: LAB_TIME_ZONE,
       year: "numeric",
       month: "long",
       day: "numeric",
@@ -51,6 +54,7 @@ export function formatTime(date: Date | string | null | undefined): string {
     }
 
     return dateObj.toLocaleTimeString("es-ES", {
+      timeZone: LAB_TIME_ZONE,
       hour: "2-digit",
       minute: "2-digit",
     })

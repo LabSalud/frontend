@@ -39,7 +39,12 @@ function formatCooldown(totalSeconds: number): string {
   return `${seconds} s`
 }
 
-export function SecurityBlocksPanel() {
+interface SecurityBlocksPanelProps {
+  /** Refresca toda la página y reinicia el presupuesto de refrescos automáticos. */
+  onManualRefresh: () => Promise<unknown>
+}
+
+export function SecurityBlocksPanel({ onManualRefresh }: SecurityBlocksPanelProps) {
   const { apiRequest } = useApi()
   const queryClient = useQueryClient()
   const [showHistory, setShowHistory] = useState(false)
@@ -50,10 +55,11 @@ export function SecurityBlocksPanel() {
   // que llegó la respuesta.
   const [now, setNow] = useState(() => Date.now())
 
+  // Sin `refetchInterval` propio: el ciclo automático lo maneja la página, que
+  // tiene un único presupuesto de refrescos para todos los paneles.
   const blocksQuery = useApiQuery<SecurityBlock[]>({
     queryKey: BLOCKS_KEY(showHistory),
     url: SUPERADMIN_ENDPOINTS.BLOCKS(showHistory),
-    refetchInterval: 30_000,
   })
 
   useEffect(() => {
@@ -112,8 +118,9 @@ export function SecurityBlocksPanel() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => blocksQuery.refetch()}
+            onClick={onManualRefresh}
             disabled={blocksQuery.isFetching}
+            title="Actualizar y reanudar la actualización automática"
           >
             <RefreshCw className={`h-4 w-4 ${blocksQuery.isFetching ? "animate-spin" : ""}`} />
           </Button>

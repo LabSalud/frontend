@@ -1354,3 +1354,20 @@ export interface SecurityBlock {
   is_active: boolean
   seconds_remaining: number
 }
+
+export interface RequestLogEntry {
+  id: number
+  timestamp: string
+  method: string
+  path: string
+  status_code: number
+  duration_ms: number
+  username: string
+  ip: string
+  worker_pid: number
+}
+
+export interface RequestLogResponse {
+  count: number
+  results: RequestLogEntry[]
+}

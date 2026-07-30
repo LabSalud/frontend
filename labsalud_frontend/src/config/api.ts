@@ -126,6 +126,8 @@ export const AUDIT_ENDPOINTS = {
 // Superconfiguración (solo superusuarios)
 export const SUPERADMIN_ENDPOINTS = {
   DASHBOARD: (hours: number) => buildApiUrl(`/superadmin/dashboard/?hours=${hours}`),
+  REQUESTS: (params: Record<string, string>) =>
+    buildApiUrl(`/superadmin/requests/?${new URLSearchParams(params).toString()}`),
   BLOCKS: (all: boolean) => buildApiUrl(`/superadmin/blocks/${all ? "?all=true" : ""}`),
   RELEASE_BLOCK: (id: number) => buildApiUrl(`/superadmin/blocks/${id}/release/`),
 } as const

@@ -1,8 +1,9 @@
 "use client"
 
-import { useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import type React from "react"
-import { Activity, AlertTriangle, RefreshCw, Timer } from "lucide-react"
+import { useQueryClient } from "@tanstack/react-query"
+import { Activity, AlertTriangle, PauseCircle, RefreshCw, Timer } from "lucide-react"
 
 import { useApiQuery } from "@/hooks/use-api-query"
 import { SUPERADMIN_ENDPOINTS } from "@/config/api"
@@ -12,12 +13,20 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { formatUtcDateTime } from "@/lib/format-utils"
 import type { SuperadminDashboard } from "@/types"
+import { RequestLogPanel } from "./components/request-log-panel"
 import { SecurityBlocksPanel } from "./components/security-blocks-panel"
 
 // Mismas pestañas tipo pill que Configuración y Usuarios y permisos.
 const TAB_LIST = "mb-6 flex h-auto w-full flex-wrap justify-start gap-2 rounded-none border-0 bg-transparent p-0"
 const TAB_TRIGGER =
   "rounded-full border border-transparent bg-transparent px-4 py-1.5 text-sm font-medium text-gray-600 shadow-none transition-colors hover:bg-gray-100 data-[state=active]:border-[#204983] data-[state=active]:bg-[#204983] data-[state=active]:text-white data-[state=active]:shadow-sm"
+
+// Presupuesto de refrescos automáticos. Una pestaña olvidada abierta deja de
+// pegarle al servidor sola: después de AUTO_REFRESH_LIMIT ciclos se corta y hay
+// que refrescar a mano. Cualquier refresco manual devuelve el presupuesto
+// completo.
+const AUTO_REFRESH_LIMIT = 5
+const AUTO_REFRESH_INTERVAL_MS = 15_000
 
 const WINDOW_OPTIONS = [
   { label: "1 h", hours: 1 },
@@ -101,13 +110,58 @@ function SubTitle({ children }: { children: React.ReactNode }) {
 
 export default function SuperadminPage() {
   const [hours, setHours] = useState(24)
+  const queryClient = useQueryClient()
+  const [autoRefreshesLeft, setAutoRefreshesLeft] = useState(AUTO_REFRESH_LIMIT)
+  // Cambia en cada refresco manual. Sirve para reagendar el timer aunque el
+  // presupuesto ya estuviera lleno: si no, un manual sobre 5/5 no reiniciaba
+  // la cuenta regresiva y el ciclo automático caía un segundo después.
+  const [cycleToken, setCycleToken] = useState(0)
 
   const query = useApiQuery<SuperadminDashboard>({
     queryKey: ["superadmin", "dashboard", hours],
     url: SUPERADMIN_ENDPOINTS.DASHBOARD(hours),
-    refetchInterval: 30_000,
   })
 
+  /**
+   * Refresca TODO lo que está montado en la página de una sola vez.
+   *
+   * El presupuesto es uno solo para toda la página, no uno por panel: si cada
+   * tabla contara sus propios 5 refrescos, tres paneles abiertos harían 15
+   * peticiones y el límite dejaría de significar lo que dice.
+   *
+   * `type: "active"` deja afuera las queries de pestañas que no están a la
+   * vista (Radix desmonta el contenido inactivo), así no se piden datos que
+   * nadie está mirando.
+   */
+  const refreshAll = useCallback(
+    () => queryClient.refetchQueries({ queryKey: ["superadmin"], type: "active" }),
+    [queryClient],
+  )
+
+  const refreshManually = useCallback(async () => {
+    setAutoRefreshesLeft(AUTO_REFRESH_LIMIT)
+    setCycleToken((token) => token + 1)
+    await refreshAll()
+  }, [refreshAll])
+
+  // Cadena de timeouts en vez de un interval: cada ciclo se agenda cuando
+  // termina el anterior, así una petición lenta no encima la siguiente.
+  useEffect(() => {
+    if (autoRefreshesLeft <= 0) return
+
+    let cancelled = false
+    const timer = window.setTimeout(async () => {
+      await refreshAll()
+      if (!cancelled) setAutoRefreshesLeft((left) => left - 1)
+    }, AUTO_REFRESH_INTERVAL_MS)
+
+    return () => {
+      cancelled = true
+      window.clearTimeout(timer)
+    }
+  }, [autoRefreshesLeft, cycleToken, refreshAll])
+
+  const autoRefreshPaused = autoRefreshesLeft <= 0
   const data = query.data
 
   return (
@@ -121,17 +175,34 @@ export default function SuperadminPage() {
               {data && ` · Actualizado ${formatUtcDateTime(data.generated_at)}`}
             </p>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            className="shrink-0"
-            onClick={() => query.refetch()}
-            disabled={query.isFetching}
-          >
-            <RefreshCw className={`mr-2 h-4 w-4 ${query.isFetching ? "animate-spin" : ""}`} />
-            Actualizar
-          </Button>
+          <div className="flex shrink-0 flex-col items-start gap-1 sm:items-end">
+            <Button
+              variant={autoRefreshPaused ? "default" : "outline"}
+              size="sm"
+              onClick={refreshManually}
+              disabled={query.isFetching}
+            >
+              <RefreshCw className={`mr-2 h-4 w-4 ${query.isFetching ? "animate-spin" : ""}`} />
+              Actualizar
+            </Button>
+            <span className="text-xs text-gray-400">
+              {autoRefreshPaused
+                ? "actualización automática pausada"
+                : `${autoRefreshesLeft} actualización${autoRefreshesLeft === 1 ? "" : "es"} automática${autoRefreshesLeft === 1 ? "" : "s"} restante${autoRefreshesLeft === 1 ? "" : "s"}`}
+            </span>
+          </div>
         </div>
+
+        {autoRefreshPaused && (
+          <div className="mb-5 flex items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 p-3 text-sm text-gray-600">
+            <PauseCircle className="h-4 w-4 shrink-0 text-gray-400" />
+            <span>
+              Se pausó la actualización automática para no cargar el servidor con la
+              página abierta. Tocá <strong>Actualizar</strong> para ver los datos al día
+              y reanudar otros {AUTO_REFRESH_LIMIT} ciclos.
+            </span>
+          </div>
+        )}
 
         {query.isError && (
           <SectionError message={`No se pudo cargar el panel: ${query.error.message}`} />
@@ -235,11 +306,16 @@ export default function SuperadminPage() {
                   </div>
                 </>
               )}
+
+              <div className="min-w-0 border-t pt-5">
+                <SubTitle>Peticiones en vivo</SubTitle>
+                <RequestLogPanel onManualRefresh={refreshManually} />
+              </div>
             </TabsContent>
 
             {/* ---------------- Bloqueos ---------------- */}
             <TabsContent value="bloqueos" className="min-w-0 space-y-5">
-              <SecurityBlocksPanel />
+              <SecurityBlocksPanel onManualRefresh={refreshManually} />
 
               {data.security.error ? (
                 <SectionError message={data.security.error} />

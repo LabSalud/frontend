@@ -282,12 +282,21 @@ export function ProtocolCard({
     const date = reportDate.trim()
     const time = reportTime.trim()
     const reportableAnalyses = protocolDetails.filter(isReportableAnalysis)
-    const includedAnalysisIds = selectedReportAnalysisIds.filter((analysisId) =>
-      reportableAnalyses.some((analysis) => analysis.id === analysisId),
+    // `selectedReportAnalysisIds` guarda IDs de DETALLE (ProtocolDetail.id). Al
+    // backend hay que mandarle el analysis_id REAL (`detail.analysis`): si se
+    // manda el id del detalle, puede colisionar con el analysis_id de OTRO
+    // análisis (ej: detalle #4 = Hemograma vs análisis #4 = otra práctica) y el
+    // backend lo resuelve mal, dejando análisis sin marcar como enviados/impresos
+    // — por eso el protocolo no pasaba a "Completado" ni habilitaba facturación.
+    const includedDetailIds = selectedReportAnalysisIds.filter((detailId) =>
+      reportableAnalyses.some((detail) => detail.id === detailId),
     )
+    const includedAnalysisIds = reportableAnalyses
+      .filter((detail) => includedDetailIds.includes(detail.id))
+      .map((detail) => detail.analysis)
     const excludedAnalysisIds = reportableAnalyses
-      .filter((analysis) => !includedAnalysisIds.includes(analysis.id))
-      .map((analysis) => analysis.id)
+      .filter((detail) => !includedDetailIds.includes(detail.id))
+      .map((detail) => detail.analysis)
 
     const body: Record<string, unknown> = {
       signed: reportSigned,

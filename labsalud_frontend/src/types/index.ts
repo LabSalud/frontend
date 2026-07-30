@@ -1245,3 +1245,112 @@ export interface AppConfig {
 export interface SelectedAnalysis extends Analysis {
   is_authorized: boolean
 }
+
+// ============================================================================
+// SUPERCONFIGURACIÓN (solo superusuarios)
+// ============================================================================
+
+/** Una sección del dashboard puede venir con error sin tumbar el resto. */
+export interface SectionError {
+  error?: string
+}
+
+export interface SystemInfo extends SectionError {
+  hostname: string
+  platform: string
+  python_version: string
+  django_version: string
+  debug: boolean
+  timezone: string
+  worker_pid: number
+  process_uptime_seconds: number
+  cpu_count: number | null
+  load_average: number[] | null
+  memory: { total_bytes: number; available_bytes: number; used_percent: number } | null
+  disk: { total_bytes: number; free_bytes: number; used_percent: number } | null
+}
+
+export interface DatabaseInfo extends SectionError {
+  engine: string
+  name: string
+  host: string
+  size_bytes: number | null
+  ping_ms: number | null
+  pending_migrations: number | null
+}
+
+export interface EndpointMetric {
+  endpoint: string
+  count: number
+  avg_ms: number
+  max_ms: number
+}
+
+export interface RequestsInfo extends SectionError {
+  window_hours: number
+  count: number
+  avg_ms: number | null
+  max_ms: number | null
+  p50_ms: number | null
+  p95_ms: number | null
+  p99_ms: number | null
+  client_errors: number
+  server_errors: number
+  error_rate: number
+  slowest_endpoints: EndpointMetric[]
+  busiest_endpoints: EndpointMetric[]
+  latency_histogram: Record<string, number>
+  workers_reporting: number
+}
+
+export interface SecurityInfo extends SectionError {
+  active_blocks: number
+  active_ip_blocks: number
+  active_account_blocks: number
+  blocks_last_24h: number
+  released_last_24h: number
+  config: {
+    failed_login_limit: number | null
+    failed_login_ip_limit: number | null
+    lockout_seconds: number | null
+    throttle_login_ip: string | null
+    throttle_login_account: string | null
+    num_proxies: number | null
+  }
+}
+
+export interface ApplicationInfo extends SectionError {
+  protocols_total: number
+  protocols_today: number
+  patients_total: number
+  results_total: number
+  users_active: number
+  users_total: number
+  audit_events_24h: number
+  audit_events_total: number
+}
+
+export interface SuperadminDashboard {
+  generated_at: string
+  system: SystemInfo
+  database: DatabaseInfo
+  requests: RequestsInfo
+  security: SecurityInfo
+  application: ApplicationInfo
+}
+
+export interface SecurityBlock {
+  id: number
+  kind: "ip" | "account"
+  kind_display: string
+  identifier: string
+  reason: string
+  failure_count: number
+  last_ip: string
+  created_at: string
+  expires_at: string
+  released_at: string | null
+  released_by_username: string | null
+  is_active: boolean
+  seconds_remaining: number
+}

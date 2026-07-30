@@ -29,6 +29,7 @@ const ProtocolResultsPage = lazy(() => import("./components/results/protocol-res
 const ValidacionPage = lazy(() => import("./components/validacion/validacion-page"))
 const ProtocolValidationPage = lazy(() => import("./components/validacion/protocol-validation-page"))
 const FacturacionPage = lazy(() => import("./components/facturacion/facturacion-page"))
+const SuperadminPage = lazy(() => import("./components/superadmin/superadmin-page"))
 
 // React Query client compartido. Cache de 1 min para listados pesados (protocolos, pacientes).
 // Reintentos en mutaciones desactivados (errores 4xx no son
@@ -131,6 +132,16 @@ function App() {
                     }
                   >
                     <Route index element={<ConfigurationPage />} />
+                  </Route>
+                  <Route
+                    path="/superconfiguracion"
+                    element={
+                      <ProtectedRoute requireSuperuser>
+                        <Layout />
+                      </ProtectedRoute>
+                    }
+                  >
+                    <Route index element={<SuperadminPage />} />
                   </Route>
                   <Route
                     path="/ingreso"

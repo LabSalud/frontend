@@ -3,7 +3,7 @@
 import type React from "react"
 import { useState, useCallback, useEffect, useRef } from "react"
 import { Link, useLocation } from "react-router-dom"
-import { Menu, X, UserCircle, Shield, Settings, LogOut, Receipt } from "lucide-react"
+import { Menu, X, UserCircle, Shield, Settings, LogOut, Receipt, ShieldAlert } from "lucide-react"
 import useAuth from "@/contexts/auth-context"
 import { UserDropdown } from "./user-dropdown"
 import { PERMISSIONS } from "@/config/permissions"
@@ -50,6 +50,9 @@ export const Navbar: React.FC = () => {
 
   const canAccessManagement = hasPermission(PERMISSIONS.MANAGE_USERS.codename)
   const canAccessBilling = hasPermission(PERMISSIONS.MANAGE_BILLING.codename)
+  // Superconfiguración es exclusiva de superusuarios: no se resuelve con un
+  // permiso para que no se pueda habilitar por accidente desde un rol.
+  const canAccessSuperadmin = Boolean(user?.is_superuser)
 
   const toggleMobileMenu = () => {
     setIsMobileMenuOpen((prev) => {
@@ -349,6 +352,17 @@ export const Navbar: React.FC = () => {
                   <Settings className="w-5 h-5" />
                   <span>Configuracion</span>
                 </Link>
+
+                {canAccessSuperadmin && (
+                  <Link
+                    to="/superconfiguracion"
+                    className="w-full text-left px-3 py-3 text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-3 rounded-lg transition-colors duration-150"
+                    onClick={closeAllMenus}
+                  >
+                    <ShieldAlert className="w-5 h-5" />
+                    <span>Superconfiguracion</span>
+                  </Link>
+                )}
 
                 <hr className="w-full my-2" />
 

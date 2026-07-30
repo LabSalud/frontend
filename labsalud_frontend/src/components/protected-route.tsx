@@ -7,10 +7,21 @@ import useAuth from "@/contexts/auth-context"
 interface ProtectedRouteProps {
   children: React.ReactNode
   requiredPermission?: number | string // ID o codename del permiso requerido
+  /**
+   * Exige que el usuario sea superusuario. A propósito NO se resuelve con
+   * `requiredPermission`: la superconfiguración no debe poder habilitarse
+   * asignándole un permiso a un rol.
+   */
+  requireSuperuser?: boolean
   fallbackPath?: string // Ruta a la que redirigir si no tiene permiso
 }
 
-export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requiredPermission, fallbackPath = "/" }) => {
+export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
+  children,
+  requiredPermission,
+  requireSuperuser = false,
+  fallbackPath = "/",
+}) => {
   const { user, isLoading, isInitialized, hasPermission } = useAuth()
   const location = useLocation()
 
@@ -30,6 +41,10 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requir
   // Guardamos la ruta pedida en el state para volver acá después de loguearse.
   if (!user) {
     return <Navigate to="/login" state={{ from: location }} replace />
+  }
+
+  if (requireSuperuser && !user.is_superuser) {
+    return <Navigate to={fallbackPath} replace />
   }
 
   if (requiredPermission && !hasPermission(requiredPermission)) {

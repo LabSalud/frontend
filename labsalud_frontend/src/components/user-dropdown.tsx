@@ -2,7 +2,7 @@
 
 import type React from "react"
 import { useState, useRef, useEffect } from "react"
-import { User, LogOut, Settings, UserCircle, Shield, Receipt } from "lucide-react"
+import { User, LogOut, Settings, UserCircle, Shield, Receipt, ShieldAlert } from "lucide-react"
 import useAuth from "@/contexts/auth-context"
 import { Link } from "react-router-dom"
 import { PERMISSIONS } from "@/config/permissions"
@@ -21,6 +21,9 @@ export const UserDropdown: React.FC<UserDropdownProps> = ({ isMobile = false, on
 
   const canAccessManagement = hasPermission(PERMISSIONS.MANAGE_USERS.codename)
   const canAccessBilling = hasPermission(PERMISSIONS.MANAGE_BILLING.codename)
+  // Superconfiguración es exclusiva de superusuarios: no se resuelve con un
+  // permiso para que no se pueda habilitar por accidente desde un rol.
+  const canAccessSuperadmin = Boolean(user?.is_superuser)
 
   // Only handle click-outside for desktop dropdown
   useEffect(() => {
@@ -163,6 +166,17 @@ export const UserDropdown: React.FC<UserDropdownProps> = ({ isMobile = false, on
             <Settings className="w-5 h-5" />
             <span>Configuracion</span>
           </Link>
+
+          {canAccessSuperadmin && (
+            <Link
+              to="/superconfiguracion"
+              className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-2 transition-colors duration-150"
+              onClick={closeMenu}
+            >
+              <ShieldAlert className="w-5 h-5" />
+              <span>Superconfiguracion</span>
+            </Link>
+          )}
 
           <hr className="my-2" />
 

@@ -2,10 +2,12 @@
 
 import type React from "react"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { FlaskConical, AlertCircle, ChevronDown, Search, X } from "lucide-react"
+import { FlaskConical, AlertCircle, ChevronDown, Search, X, Lock } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
+import useAuth from "@/contexts/auth-context"
+import { PERMISSIONS, PERMISSION_MESSAGES } from "@/config/permissions"
 import type { useProtocolResults } from "@/hooks/use-protocol-results"
 import { calculateFormulaValue } from "@/lib/result-formulas"
 import { ResultDeterminationRow } from "./result-determination-row"
@@ -22,6 +24,10 @@ interface ProtocolResultsLoaderProps {
 export function ProtocolResultsLoader({ controller }: ProtocolResultsLoaderProps) {
   const { loading, error, protocol, results, groups, orderedIds, values, saving, onChange, onSave, previousResults, loadingPrevious, loadPrevious } =
     controller
+  const { hasPermission } = useAuth()
+  // Sin `gestionar_resultados` la pantalla no desaparece: se sigue viendo todo
+  // igual que antes, pero en solo lectura y con el aviso de por qué.
+  const canEdit = hasPermission(PERMISSIONS.MANAGE_RESULTS.codename)
   const patientId = protocol?.patient?.id ?? 0
   // Protocolo cancelado: se muestra la info pero en SOLO LECTURA (hay que
   // descancelarlo para editar). El backend además bloquea la escritura.
@@ -71,7 +77,9 @@ export function ProtocolResultsLoader({ controller }: ProtocolResultsLoaderProps
       const i = orderedIds.indexOf(resultId)
       if (e.key === "Enter") {
         e.preventDefault()
-        await onSave(resultId)
+        // Sin permiso, Enter sigue sirviendo para recorrer la lista pero no
+        // dispara el guardado (que igual rebotaría con 403).
+        if (canEdit) await onSave(resultId)
         focusInput(orderedIds[i + 1])
       } else if (e.key === "ArrowDown") {
         e.preventDefault()
@@ -87,7 +95,7 @@ export function ProtocolResultsLoader({ controller }: ProtocolResultsLoaderProps
         }
       }
     },
-    [orderedIds, onSave],
+    [orderedIds, onSave, canEdit],
   )
 
   const onTextareaKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>, resultId: number) => {
@@ -135,6 +143,15 @@ export function ProtocolResultsLoader({ controller }: ProtocolResultsLoaderProps
 
   return (
     <div className="space-y-4">
+      {!canEdit && (
+        <div className="flex items-start gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+          <Lock className="mt-0.5 h-4 w-4 shrink-0 text-slate-500" />
+          <span>
+            <span className="font-semibold">Solo lectura.</span> {PERMISSION_MESSAGES.MANAGE_RESULTS} Podés seguir
+            consultando los resultados cargados.
+          </span>
+        </div>
+      )}
       {isCancelled && (
         <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
           <AlertCircle className="h-4 w-4 shrink-0" />
@@ -192,7 +209,8 @@ export function ProtocolResultsLoader({ controller }: ProtocolResultsLoaderProps
                       result={result}
                       value={values[result.id] || { value: "", notes: "" }}
                       saving={!!saving[result.id]}
-                      readOnly={formulaResolved || isCancelled}
+                      readOnly={formulaResolved || isCancelled || !canEdit}
+                      lockedReason={!canEdit ? PERMISSION_MESSAGES.MANAGE_RESULTS : undefined}
                       isFormula={isFormula}
                       formulaResolved={formulaResolved}
                       onChange={(field, val) => onChange(result.id, field, val)}

@@ -3,7 +3,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { toast } from "sonner"
 import { useApi } from "@/hooks/use-api"
+import { useAuth } from "@/contexts/auth-context"
 import { RESULTS_ENDPOINTS } from "@/config/api"
+import { PERMISSIONS, PERMISSION_MESSAGES } from "@/config/permissions"
 import { applyFormulaCalculations } from "@/lib/result-formulas"
 import { formatApiError } from "@/lib/api-error"
 import type { PreviousResult, Result } from "@/types"
@@ -47,6 +49,11 @@ function groupByAnalysis(results: Result[]): ResultGroup[] {
  */
 export function useProtocolResults(protocolId: number) {
   const { apiRequest } = useApi()
+  const { hasPermission } = useAuth()
+  // La LECTURA sigue abierta a cualquier usuario autenticado; solo el guardado
+  // pide permiso. Se chequea también acá (no solo en la UI) porque el atajo de
+  // teclado Enter llega a `onSave` sin pasar por ningún botón.
+  const canEditResults = hasPermission(PERMISSIONS.MANAGE_RESULTS.codename)
   const [results, setResults] = useState<Result[]>([])
   const [protocol, setProtocol] = useState<ResultsProtocolHeader | null>(null)
   const [values, setValues] = useState<Record<number, ResultValue>>({})
@@ -106,6 +113,10 @@ export function useProtocolResults(protocolId: number) {
 
   const onSave = useCallback(
     async (resultId: number): Promise<boolean> => {
+      if (!canEditResults) {
+        toast.error(PERMISSION_MESSAGES.MANAGE_RESULTS)
+        return false
+      }
       const v = values[resultId]
       if (!v) return false
       setSaving((prev) => ({ ...prev, [resultId]: true }))
@@ -132,7 +143,7 @@ export function useProtocolResults(protocolId: number) {
         setSaving((prev) => ({ ...prev, [resultId]: false }))
       }
     },
-    [apiRequest, values],
+    [apiRequest, values, canEditResults],
   )
 
   // Validar / rechazar un resultado (validación, mouse-first).

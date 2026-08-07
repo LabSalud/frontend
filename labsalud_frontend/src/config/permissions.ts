@@ -2,6 +2,24 @@
 // PERMISSIONS CONSTANTS - Sistema simplificado de permisos
 // ============================================================================
 
+/**
+ * Un permiso tal como lo consume el front.
+ *
+ * Lo ÚNICO estable entre instalaciones es `codename`: es lo que compara
+ * `hasPermission` (ver auth-context) contra `user.permissions`. `id` y
+ * `contentTypeId` son PKs de la base donde se cargaron los permisos, dependen
+ * del orden de inserción y cambian en cada laboratorio donde se instale el
+ * sistema — por eso son opcionales y no se agregan a los permisos nuevos.
+ */
+export interface PermissionDescriptor {
+  codename: string
+  name: string
+  /** PK del permiso en la base ORIGINAL. No es estable entre instalaciones. */
+  id?: string
+  /** PK del ContentType en la base ORIGINAL. Tampoco es estable. */
+  contentTypeId?: number
+}
+
 export const PERMISSIONS = {
   // ID: 1 - ContentType: laboratory_protocols
   UNCANCEL_PROTOCOLS: {
@@ -50,15 +68,37 @@ export const PERMISSIONS = {
     codename: "administrar_facturacion",
     name: "Puede administrar facturación",
   },
+
+  // Sin id/contentTypeId a propósito: los números de arriba no son estables
+  // entre instalaciones y `hasPermission` ya resuelve por codename.
+  MANAGE_RESULTS: {
+    codename: "gestionar_resultados",
+    name: "Puede cargar y modificar resultados",
+  },
+
+  MANAGE_PRINTS: {
+    codename: "gestionar_impresiones",
+    name: "Puede imprimir y enviar protocolos",
+  },
+} as const
+
+/**
+ * Mismos textos que devuelve el backend en el 403, para que el usuario lea lo
+ * mismo si la acción se bloquea acá o si igual llega al servidor.
+ */
+export const PERMISSION_MESSAGES = {
+  MANAGE_RESULTS: "No tenés permiso para cargar ni modificar resultados. Pedíselo a un administrador.",
+  MANAGE_PRINTS: "No tenés permiso para imprimir ni enviar protocolos. Pedíselo a un administrador.",
 } as const
 
 // Helper functions para verificar permisos
 export type PermissionKey = keyof typeof PERMISSIONS
 export type PermissionValue = (typeof PERMISSIONS)[PermissionKey]
 
-// Helper para obtener el ID de un permiso
-export const getPermissionId = (key: PermissionKey): string => {
-  return PERMISSIONS[key].id
+/** Devuelve `undefined` para los permisos que no traen PK hardcodeada. */
+export const getPermissionId = (key: PermissionKey): string | undefined => {
+  const permission: PermissionDescriptor = PERMISSIONS[key]
+  return permission.id
 }
 
 // Helper para obtener el codename de un permiso
@@ -66,7 +106,8 @@ export const getPermissionCodename = (key: PermissionKey): string => {
   return PERMISSIONS[key].codename
 }
 
-// Helper para obtener el ContentType ID asociado al permiso
-export const getPermissionContentTypeId = (key: PermissionKey): number => {
-  return PERMISSIONS[key].contentTypeId
+/** Devuelve `undefined` para los permisos que no traen ContentType hardcodeado. */
+export const getPermissionContentTypeId = (key: PermissionKey): number | undefined => {
+  const permission: PermissionDescriptor = PERMISSIONS[key]
+  return permission.contentTypeId
 }

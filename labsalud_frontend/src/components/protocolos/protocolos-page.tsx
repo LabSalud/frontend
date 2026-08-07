@@ -28,7 +28,7 @@ import { BatchActionBar } from "./components/batch-action-bar"
 import { useProtocolQuickActions } from "./components/use-protocol-quick-actions"
 import { useAuth } from "@/contexts/auth-context"
 import { usePersistedState } from "@/hooks/use-persisted-state"
-import { PERMISSIONS } from "@/config/permissions"
+import { PERMISSIONS, PERMISSION_MESSAGES } from "@/config/permissions"
 import type { SortState } from "@/components/common/data-table"
 import { useApi } from "../../hooks/use-api"
 import { useApiQuery } from "@/hooks/use-api-query"
@@ -302,6 +302,11 @@ export default function ProtocolosPage() {
 
   const { user, hasPermission } = useAuth()
   const canUncancel = Boolean(user?.is_superuser || hasPermission(PERMISSIONS.UNCANCEL_PROTOCOLS.codename))
+  // Todas las acciones de la barra en lote (imprimir / descargar / email /
+  // WhatsApp / unificado) pegan a endpoints de reporte: van todas detrás del
+  // mismo permiso. El listado y el detalle siguen abiertos.
+  const canPrintReports = quickActions.canPrintReports
+  const batchDisabledReason = canPrintReports ? undefined : PERMISSION_MESSAGES.MANAGE_PRINTS
 
   // Cargar más protocolos (scroll infinito)
   const loadMore = useCallback(() => {
@@ -403,6 +408,10 @@ export default function ProtocolosPage() {
     batchSigned && batchSignatureId !== "default" ? { signature_id: Number(batchSignatureId) } : {}
 
   const handleMergeReport = async (action: MergeReportAction) => {
+    if (!canPrintReports) {
+      toast.error(PERMISSION_MESSAGES.MANAGE_PRINTS, { duration: TOAST_DURATION })
+      return
+    }
     if (selectedProtocols.size < 2) {
       toast.error("Seleccioná al menos 2 protocolos del mismo paciente.", { duration: TOAST_DURATION })
       return
@@ -481,6 +490,10 @@ export default function ProtocolosPage() {
   }
 
   const handleBatchAction = async (action: BatchReportAction) => {
+    if (!canPrintReports) {
+      toast.error(PERMISSION_MESSAGES.MANAGE_PRINTS, { duration: TOAST_DURATION })
+      return
+    }
     if (selectedProtocols.size === 0) return
 
     setIsBatchProcessing(true)
@@ -784,6 +797,7 @@ export default function ProtocolosPage() {
             onReport={(p) => navigate(`/protocolos/${p.id}?report=1`)}
             onUncancel={quickActions.uncancel}
             canUncancel={canUncancel}
+            canPrintReports={canPrintReports}
             busyId={quickActions.busyId}
           />
         )}
@@ -824,6 +838,7 @@ export default function ProtocolosPage() {
           date={batchDate}
           onDateChange={setBatchDate}
           isProcessing={isBatchProcessing}
+          disabledReason={batchDisabledReason}
           onSelectAll={selectAll}
           onDeselectAll={deselectAll}
           onBatch={handleBatchAction}

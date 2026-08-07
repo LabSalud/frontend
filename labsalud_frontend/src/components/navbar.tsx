@@ -3,10 +3,11 @@
 import type React from "react"
 import { useState, useCallback, useEffect, useRef } from "react"
 import { Link, useLocation } from "react-router-dom"
-import { Menu, X, UserCircle, Shield, Settings, LogOut, Receipt, ShieldAlert, Search } from "lucide-react"
+import { Menu, X, LogOut, Search } from "lucide-react"
 import useAuth from "@/contexts/auth-context"
 import { UserDropdown } from "./user-dropdown"
 import { PERMISSIONS } from "@/config/permissions"
+import { getVisibleUserMenuItems } from "@/config/user-menu-items"
 import { SessionNotificationToggle } from "@/components/session-notification-toggle"
 import { GlobalSearch } from "@/components/search/global-search"
 
@@ -62,12 +63,6 @@ export const Navbar: React.FC = () => {
   const hamburgerRef = useRef<HTMLButtonElement>(null)
   const userAvatarRef = useRef<HTMLDivElement>(null)
   const logoHoverTimerRef = useRef<number | null>(null)
-
-  const canAccessManagement = hasPermission(PERMISSIONS.MANAGE_USERS.codename)
-  const canAccessBilling = hasPermission(PERMISSIONS.MANAGE_BILLING.codename)
-  // Superconfiguración es exclusiva de superusuarios: no se resuelve con un
-  // permiso para que no se pueda habilitar por accidente desde un rol.
-  const canAccessSuperadmin = Boolean(user?.is_superuser)
 
   const toggleMobileMenu = () => {
     setIsMobileMenuOpen((prev) => {
@@ -205,6 +200,9 @@ export const Navbar: React.FC = () => {
       condition: hasPermission(PERMISSIONS.VALIDATE_RESULTS.codename),
     },
   ]
+
+  // Mismo listado que consume el dropdown de desktop: acá solo cambian los estilos.
+  const userMenuItems = getVisibleUserMenuItems({ user, hasPermission })
 
   return (
     <>
@@ -406,58 +404,19 @@ export const Navbar: React.FC = () => {
                 <p className="text-sm text-gray-500">{user?.username}</p>
               </div>
 
-              {/* Menu Items */}
+              {/* Menu Items — el listado sale de @/config/user-menu-items */}
               <div className="flex flex-col items-center space-y-1">
-                <Link
-                  to="/profile"
-                  className="w-full text-left px-3 py-3 text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-3 rounded-lg transition-colors duration-150"
-                  onClick={closeAllMenus}
-                >
-                  <UserCircle className="w-5 h-5" />
-                  <span>Mi Perfil</span>
-                </Link>
-
-                {canAccessManagement && (
+                {userMenuItems.map(({ id, to, label, icon: Icon }) => (
                   <Link
-                    to="/management"
+                    key={id}
+                    to={to}
                     className="w-full text-left px-3 py-3 text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-3 rounded-lg transition-colors duration-150"
                     onClick={closeAllMenus}
                   >
-                    <Shield className="w-5 h-5" />
-                    <span>Gestion de Usuarios</span>
+                    <Icon className="w-5 h-5" />
+                    <span>{label}</span>
                   </Link>
-                )}
-
-                {canAccessBilling && (
-                  <Link
-                    to="/facturacion"
-                    className="w-full text-left px-3 py-3 text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-3 rounded-lg transition-colors duration-150"
-                    onClick={closeAllMenus}
-                  >
-                    <Receipt className="w-5 h-5" />
-                    <span>Facturacion</span>
-                  </Link>
-                )}
-
-                <Link
-                  to="/configuracion"
-                  className="w-full text-left px-3 py-3 text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-3 rounded-lg transition-colors duration-150"
-                  onClick={closeAllMenus}
-                >
-                  <Settings className="w-5 h-5" />
-                  <span>Configuracion</span>
-                </Link>
-
-                {canAccessSuperadmin && (
-                  <Link
-                    to="/superconfiguracion"
-                    className="w-full text-left px-3 py-3 text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-3 rounded-lg transition-colors duration-150"
-                    onClick={closeAllMenus}
-                  >
-                    <ShieldAlert className="w-5 h-5" />
-                    <span>Superconfiguracion</span>
-                  </Link>
-                )}
+                ))}
 
                 <hr className="w-full my-2" />
 

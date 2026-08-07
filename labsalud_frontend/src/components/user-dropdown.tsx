@@ -2,10 +2,10 @@
 
 import type React from "react"
 import { useState, useRef, useEffect } from "react"
-import { User, LogOut, Settings, UserCircle, Shield, Receipt, ShieldAlert } from "lucide-react"
+import { User, LogOut } from "lucide-react"
 import useAuth from "@/contexts/auth-context"
 import { Link } from "react-router-dom"
-import { PERMISSIONS } from "@/config/permissions"
+import { getVisibleUserMenuItems } from "@/config/user-menu-items"
 import { SessionNotificationToggle } from "@/components/session-notification-toggle"
 
 interface UserDropdownProps {
@@ -19,11 +19,7 @@ export const UserDropdown: React.FC<UserDropdownProps> = ({ isMobile = false, on
   const menuRef = useRef<HTMLDivElement>(null)
   const { user, logout, hasPermission } = useAuth()
 
-  const canAccessManagement = hasPermission(PERMISSIONS.MANAGE_USERS.codename)
-  const canAccessBilling = hasPermission(PERMISSIONS.MANAGE_BILLING.codename)
-  // Superconfiguración es exclusiva de superusuarios: no se resuelve con un
-  // permiso para que no se pueda habilitar por accidente desde un rol.
-  const canAccessSuperadmin = Boolean(user?.is_superuser)
+  const menuItems = getVisibleUserMenuItems({ user, hasPermission })
 
   // Only handle click-outside for desktop dropdown
   useEffect(() => {
@@ -125,58 +121,19 @@ export const UserDropdown: React.FC<UserDropdownProps> = ({ isMobile = false, on
           </p>
         </div>
 
-        {/* Menu Items */}
+        {/* Menu Items — el listado sale de @/config/user-menu-items */}
         <div>
-          <Link
-            to="/profile"
-            className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-2 transition-colors duration-150"
-            onClick={closeMenu}
-          >
-            <UserCircle className="w-5 h-5" />
-            <span>Mi Perfil</span>
-          </Link>
-
-          {canAccessManagement && (
+          {menuItems.map(({ id, to, label, icon: Icon }) => (
             <Link
-              to="/management"
+              key={id}
+              to={to}
               className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-2 transition-colors duration-150"
               onClick={closeMenu}
             >
-              <Shield className="w-5 h-5" />
-              <span>Gestion de Usuarios</span>
+              <Icon className="w-5 h-5" />
+              <span>{label}</span>
             </Link>
-          )}
-
-          {canAccessBilling && (
-            <Link
-              to="/facturacion"
-              className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-2 transition-colors duration-150"
-              onClick={closeMenu}
-            >
-              <Receipt className="w-5 h-5" />
-              <span>Facturacion</span>
-            </Link>
-          )}
-
-          <Link
-            to="/configuracion"
-            className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-2 transition-colors duration-150"
-            onClick={closeMenu}
-          >
-            <Settings className="w-5 h-5" />
-            <span>Configuracion</span>
-          </Link>
-
-          {canAccessSuperadmin && (
-            <Link
-              to="/superconfiguracion"
-              className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-2 transition-colors duration-150"
-              onClick={closeMenu}
-            >
-              <ShieldAlert className="w-5 h-5" />
-              <span>Superconfiguracion</span>
-            </Link>
-          )}
+          ))}
 
           <hr className="my-2" />
 

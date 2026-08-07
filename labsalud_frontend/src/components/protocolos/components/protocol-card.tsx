@@ -7,7 +7,7 @@ import { Skeleton } from "../../ui/skeleton"
 import { useApi } from "../../../hooks/use-api"
 import { toast } from "sonner"
 import { PROTOCOL_ENDPOINTS, TOAST_DURATION } from "@/config/api"
-import { PERMISSIONS } from "@/config/permissions"
+import { PERMISSIONS, PERMISSION_MESSAGES } from "@/config/permissions"
 import { ACTO_BIOQUIMICO_CODES } from "@/lib/acto-bioquimico"
 import { Mail, MessageCircle } from "lucide-react"
 import {
@@ -183,6 +183,9 @@ export function ProtocolCard({
 }: ProtocolCardProps) {
   const { apiRequest } = useApi()
   const { hasPermission, user } = useAuth()
+  // Imprimir / previsualizar / descargar / enviar informes pide permiso.
+  // Consultar el protocolo NO: el resto de la card queda igual que siempre.
+  const canPrintReports = hasPermission(PERMISSIONS.MANAGE_PRINTS.codename)
   const navigate = useNavigate()
   const [isExpanded, setIsExpanded] = useState(pageMode)
   const [protocolDetail, setProtocolDetail] = useState<ProtocolDetailResponse | null>(initialDetail)
@@ -315,6 +318,14 @@ export function ProtocolCard({
     }
   }
 
+  // Corta cualquier camino que termine pegándole a /report/ (imprimir,
+  // descargar, previsualizar, email, WhatsApp) cuando falta el permiso.
+  const ensureCanPrintReports = () => {
+    if (canPrintReports) return true
+    toast.error(PERMISSION_MESSAGES.MANAGE_PRINTS, { duration: TOAST_DURATION })
+    return false
+  }
+
   const executeSingleReportRequest = async (action: ReportAction) => {
     const reportRequest = getReportRequestOptions()
     const reportPayload = (reportRequest.body ?? {}) as Record<string, unknown>
@@ -439,6 +450,9 @@ export function ProtocolCard({
   }
 
   const handleOpenReportDialog = async () => {
+    // También cubre la apertura automática por `?report=1`, que no pasa por
+    // ningún botón de la UI.
+    if (!ensureCanPrintReports()) return
     const analyses = await loadProtocolAnalyses()
     if (!analyses) {
       return
@@ -654,6 +668,7 @@ export function ProtocolCard({
   }
 
   const handleGenerateReport = async () => {
+    if (!ensureCanPrintReports()) return
     setIsGeneratingReport(true)
 
     try {
@@ -692,6 +707,7 @@ export function ProtocolCard({
   }
 
   const handleDownloadReport = async () => {
+    if (!ensureCanPrintReports()) return
     setIsDownloadingReport(true)
 
     try {
@@ -728,6 +744,7 @@ export function ProtocolCard({
   }
 
   const executeSendEmail = async () => {
+    if (!ensureCanPrintReports()) return
     setIsSendingEmail(true)
     try {
       const response = await executeSingleReportRequest("email")
@@ -753,6 +770,7 @@ export function ProtocolCard({
   }
 
   const executeSendWhatsApp = async () => {
+    if (!ensureCanPrintReports()) return
     setIsSendingWhatsApp(true)
     try {
       const response = await executeSingleReportRequest("whatsapp")
@@ -789,6 +807,10 @@ export function ProtocolCard({
   // Genera el MISMO PDF que se enviará (modo 'preview', sin marcar como
   // enviado) para mostrarlo embebido y confirmar antes de mandar.
   const loadSendPreview = async () => {
+    if (!canPrintReports) {
+      setSendPreviewError(PERMISSION_MESSAGES.MANAGE_PRINTS)
+      return
+    }
     clearSendPreview()
     setSendPreviewLoading(true)
     try {
@@ -808,6 +830,7 @@ export function ProtocolCard({
   }
 
   const openSendConfirmation = (method: "email" | "whatsapp") => {
+    if (!ensureCanPrintReports()) return
     setPendingSendMethod(method)
     setSendConfirmationOpen(true)
     void loadSendPreview()
@@ -1091,7 +1114,11 @@ export function ProtocolCard({
   const showReports = !isCancelled
   const editDisabledReason = !isEditable ? `No se puede editar un protocolo en estado "${statusName}".` : undefined
   const cancelDisabledReason = !canBeCancelled ? `No se puede cancelar un protocolo en estado "${statusName}".` : undefined
-  const reportsDisabledReason = !showReports ? "No se pueden generar ni enviar reportes de un protocolo cancelado." : undefined
+  const reportsDisabledReason = !showReports
+    ? "No se pueden generar ni enviar reportes de un protocolo cancelado."
+    : !canPrintReports
+      ? PERMISSION_MESSAGES.MANAGE_PRINTS
+      : undefined
   const arcaDisabledReason = isCancelled ? "No se puede facturar ARCA para un protocolo cancelado." : undefined
   const canUncancel =
     isCancelled &&
@@ -1173,6 +1200,7 @@ export function ProtocolCard({
           onGoPatient={() => (protocol.patient?.id ? navigate(`/pacientes/${protocol.patient.id}`) : navigate("/pacientes"))}
           isEditable={isEditable}
           showReports={showReports}
+          reportsDisabledReason={reportsDisabledReason}
           canBeCancelled={canBeCancelled}
           isCancelled={isCancelled}
           canUncancel={Boolean(canUncancel)}
@@ -1313,7 +1341,9 @@ export function ProtocolCard({
                   isCancelled={isCancelled}
                   canUncancel={Boolean(canUncancel)}
                   isEditable={isEditable}
-                  showReports={showReports}
+                  // ProtocolActions ya deshabilita + muestra el tooltip cuando
+                  // `showReports` es false, así que el permiso entra por acá.
+                  showReports={showReports && canPrintReports}
                   showCoseguro={showCoseguroAction}
                   editDisabledReason={editDisabledReason}
                   reportsDisabledReason={reportsDisabledReason}

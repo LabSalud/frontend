@@ -19,6 +19,7 @@ import { StatusPill } from "@/components/common/status-pill"
 import { AuditAvatars } from "@/components/common/audit-avatars"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { PERMISSION_MESSAGES } from "@/config/permissions"
 import { getProtocolStatusStyleByName } from "@/lib/status-styles"
 import { cn } from "@/lib/utils"
 import type { ProtocolListItem } from "@/types"
@@ -35,6 +36,8 @@ interface ProtocolsTableProps {
   onReport: (p: ProtocolListItem) => void
   onUncancel: (p: ProtocolListItem) => void
   canUncancel: boolean
+  /** Permiso `gestionar_impresiones`: sin él el botón de reporte queda inhabilitado. */
+  canPrintReports: boolean
   busyId?: number | null
 }
 
@@ -109,6 +112,7 @@ function ActionButton({
   className,
   disabled,
   strike,
+  disabledReason,
 }: {
   icon: LucideIcon
   label: string
@@ -116,30 +120,38 @@ function ActionButton({
   className?: string
   disabled?: boolean
   strike?: boolean
+  /** Se muestra en lugar de `label` en el tooltip cuando la acción está bloqueada. */
+  disabledReason?: string
 }) {
+  const tooltip = disabled && disabledReason ? disabledReason : label
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <button
-          type="button"
-          aria-label={label}
-          disabled={disabled}
-          onClick={(e) => {
-            e.stopPropagation()
-            if (!disabled) onClick()
-          }}
-          className={cn(
-            "relative rounded-md p-1.5",
-            disabled ? "cursor-not-allowed text-gray-300" : cn("text-gray-400 hover:bg-gray-100", className),
-          )}
-        >
-          <Icon className="h-4 w-4" />
-          {strike && (
-            <span className="pointer-events-none absolute left-1/2 top-1/2 h-px w-5 -translate-x-1/2 -translate-y-1/2 rotate-45 bg-gray-400" />
-          )}
-        </button>
+        {/* El span envolvente es necesario: un botón deshabilitado no emite
+            eventos de mouse, así que sin él el tooltip que explica por qué la
+            acción está bloqueada nunca aparecería. */}
+        <span className="inline-flex" title={disabled ? tooltip : undefined}>
+          <button
+            type="button"
+            aria-label={label}
+            disabled={disabled}
+            onClick={(e) => {
+              e.stopPropagation()
+              if (!disabled) onClick()
+            }}
+            className={cn(
+              "relative rounded-md p-1.5",
+              disabled ? "cursor-not-allowed text-gray-300" : cn("text-gray-400 hover:bg-gray-100", className),
+            )}
+          >
+            <Icon className="h-4 w-4" />
+            {strike && (
+              <span className="pointer-events-none absolute left-1/2 top-1/2 h-px w-5 -translate-x-1/2 -translate-y-1/2 rotate-45 bg-gray-400" />
+            )}
+          </button>
+        </span>
       </TooltipTrigger>
-      <TooltipContent>{label}</TooltipContent>
+      <TooltipContent className="max-w-[260px]">{tooltip}</TooltipContent>
     </Tooltip>
   )
 }
@@ -172,6 +184,7 @@ export function ProtocolsTable({
   onReport,
   onUncancel,
   canUncancel,
+  canPrintReports,
   busyId,
 }: ProtocolsTableProps) {
   const columns: Column<ProtocolListItem>[] = [
@@ -296,7 +309,15 @@ export function ProtocolsTable({
               ) : (
                 <>
                   <ActionButton icon={DollarSign} label="Registrar pago" onClick={() => onQuickPayment(p)} className="hover:text-[#204983]" />
-                  <ActionButton icon={FileText} label="Reporte (imprimir / enviar)" onClick={() => onReport(p)} className="hover:text-[#204983]" />
+                  <ActionButton
+                    icon={FileText}
+                    label="Reporte (imprimir / enviar)"
+                    onClick={() => onReport(p)}
+                    className="hover:text-[#204983]"
+                    disabled={!canPrintReports}
+                    strike={!canPrintReports}
+                    disabledReason={PERMISSION_MESSAGES.MANAGE_PRINTS}
+                  />
                 </>
               )}
             </div>

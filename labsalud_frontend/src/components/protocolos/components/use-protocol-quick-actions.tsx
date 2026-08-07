@@ -3,7 +3,9 @@
 import { useState } from "react"
 import { toast } from "sonner"
 import { useApi } from "@/hooks/use-api"
+import { useAuth } from "@/contexts/auth-context"
 import { PROTOCOL_ENDPOINTS, TOAST_DURATION } from "@/config/api"
+import { PERMISSIONS, PERMISSION_MESSAGES } from "@/config/permissions"
 import { formatApiError, getErrorMessage } from "@/lib/api-error"
 import { PaymentDialog } from "./dialogs/payment-dialog"
 import type { ProtocolListItem, ProtocolStatus } from "@/types"
@@ -27,11 +29,19 @@ export function useProtocolQuickActions(
   }) => void,
 ) {
   const { apiRequest } = useApi()
+  const { hasPermission } = useAuth()
+  const canPrintReports = hasPermission(PERMISSIONS.MANAGE_PRINTS.codename)
   const [paymentTarget, setPaymentTarget] = useState<ProtocolListItem | null>(null)
   const [isProcessingPayment, setIsProcessingPayment] = useState(false)
   const [busyId, setBusyId] = useState<number | null>(null)
 
   const openPayment = (p: ProtocolListItem) => setPaymentTarget(p)
+
+  const ensureCanPrintReports = () => {
+    if (canPrintReports) return true
+    toast.error(PERMISSION_MESSAGES.MANAGE_PRINTS, { duration: TOAST_DURATION })
+    return false
+  }
 
   const regularize = async (amount: number, operation: "patient_paid" | "refunded_to_patient") => {
     if (!paymentTarget) return false
@@ -65,6 +75,7 @@ export function useProtocolQuickActions(
   }
 
   const sendReport = async (p: ProtocolListItem, action: "email" | "whatsapp") => {
+    if (!ensureCanPrintReports()) return
     setBusyId(p.id)
     try {
       const res = await apiRequest(PROTOCOL_ENDPOINTS.REPORT(p.id), {
@@ -88,6 +99,7 @@ export function useProtocolQuickActions(
   // Imprimir: genera el PDF y lo abre en una pestaña nueva (preview de impresión
   // del navegador), sin descargarlo.
   const printReport = async (p: ProtocolListItem) => {
+    if (!ensureCanPrintReports()) return
     setBusyId(p.id)
     try {
       const res = await apiRequest(PROTOCOL_ENDPOINTS.REPORT(p.id), {
@@ -116,6 +128,7 @@ export function useProtocolQuickActions(
   // Envía por el método cargado en el protocolo (WhatsApp / Email). Si el
   // método no permite envío digital (ej. retiro en laboratorio), avisa.
   const sendByPatientMethod = (p: ProtocolListItem) => {
+    if (!ensureCanPrintReports()) return
     const name = (p.send_method?.name || "").toLowerCase()
     if (name.includes("whats")) return sendReport(p, "whatsapp")
     if (name.includes("mail")) return sendReport(p, "email")
@@ -156,5 +169,5 @@ export function useProtocolQuickActions(
     />
   )
 
-  return { openPayment, printReport, sendByPatientMethod, uncancel, busyId, dialogs }
+  return { openPayment, printReport, sendByPatientMethod, uncancel, busyId, dialogs, canPrintReports }
 }

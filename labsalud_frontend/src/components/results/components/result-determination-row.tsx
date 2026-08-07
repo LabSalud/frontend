@@ -23,6 +23,8 @@ interface ResultDeterminationRowProps {
   value: ResultValue
   saving: boolean
   readOnly: boolean
+  /** Motivo por el que la fila no se puede editar (falta de permiso). Se muestra como tooltip. */
+  lockedReason?: string
   isFormula: boolean
   formulaResolved: boolean
   onChange: (field: "value" | "notes", value: string) => void
@@ -54,6 +56,7 @@ export function ResultDeterminationRow({
   value,
   saving,
   readOnly,
+  lockedReason,
   isFormula,
   formulaResolved,
   onChange,
@@ -73,6 +76,10 @@ export function ResultDeterminationRow({
   const isValidated = result.is_valid
   const isWrong = result.is_wrong
   const locked = isValidated && !isWrong
+  // Sin permiso el input queda readOnly (no disabled) a propósito: así se puede
+  // enfocar y seguir consultando los valores anteriores del paciente.
+  const noWritePermission = Boolean(lockedReason)
+  const cannotSave = locked || noWritePermission
 
   const referenceItems = det.reference_ranges?.length
     ? det.reference_ranges.map(formatReferenceRange)
@@ -200,13 +207,23 @@ export function ResultDeterminationRow({
           value={value.notes}
           onChange={(e) => onChange("notes", e.target.value)}
           onKeyDown={onTextareaKeyDown}
-          disabled={locked}
+          disabled={cannotSave}
           rows={2}
+          title={lockedReason}
           className="min-h-0 flex-1 resize-none text-sm"
         />
-        <Button size="sm" onClick={onSave} disabled={saving || locked} className="h-11 bg-[#204983] hover:bg-[#1a3d6f]">
-          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-        </Button>
+        {/* El title va en el span: un botón deshabilitado no dispara eventos de
+            mouse, así que su propio tooltip nativo no se muestra. */}
+        <span title={lockedReason} className="inline-flex">
+          <Button
+            size="sm"
+            onClick={onSave}
+            disabled={saving || cannotSave}
+            className="h-11 bg-[#204983] hover:bg-[#1a3d6f]"
+          >
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+          </Button>
+        </span>
       </div>
     </div>
   )

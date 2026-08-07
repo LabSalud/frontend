@@ -90,15 +90,22 @@ export interface ApiErrorInfo {
 }
 
 export const classifyApiError = async (response: Response): Promise<ApiErrorInfo> => {
-  const message = await readApiError(response).catch(() => `Error ${response.status}`)
+  const genericMessage = `Error ${response.status}`
+  const message = await readApiError(response, genericMessage).catch(() => genericMessage)
   const status = response.status
+  // El backend manda mensajes de permiso ya escritos para el usuario final
+  // ("No tenés permiso para imprimir…"). Si vino uno, mandamos ESE y no el
+  // texto enlatado: el enlatado solo cubre el caso de un 403 sin cuerpo.
+  const hasBackendMessage = message !== genericMessage
 
   let kind: ApiErrorKind = "unknown"
   let detail: string | undefined
 
   if (status === 403) {
     kind = "permission"
-    detail = "Tu usuario no tiene los permisos necesarios para esta acción. Pedile a un administrador que te asigne el permiso correspondiente o un permiso temporal."
+    detail = hasBackendMessage
+      ? message
+      : "Tu usuario no tiene los permisos necesarios para esta acción. Pedile a un administrador que te asigne el permiso correspondiente o un permiso temporal."
   } else if (status === 401) {
     kind = "permission"
     detail = "Tu sesión expiró o el token es inválido. Volvé a iniciar sesión."

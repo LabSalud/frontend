@@ -1,6 +1,6 @@
 "use client"
 
-import { Printer, Download, Mail, MessageCircle, GitMerge, Loader2, PenLine, X } from "lucide-react"
+import { Printer, Download, Mail, MessageCircle, GitMerge, Loader2, PenLine, X, Lock } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -29,6 +29,12 @@ interface BatchActionBarProps {
   date: string
   onDateChange: (date: string) => void
   isProcessing: boolean
+  /**
+   * Motivo por el que TODAS las acciones de reporte están bloqueadas (falta el
+   * permiso `gestionar_impresiones`). Si viene, la barra se sigue mostrando
+   * pero con los botones deshabilitados y el aviso a la vista.
+   */
+  disabledReason?: string
   onSelectAll: () => void
   onDeselectAll: () => void
   onBatch: (action: BatchAction) => void
@@ -52,12 +58,14 @@ export function BatchActionBar({
   date,
   onDateChange,
   isProcessing,
+  disabledReason,
   onSelectAll,
   onDeselectAll,
   onBatch,
   onMerge,
 }: BatchActionBarProps) {
   const defaultSignature = signatures.find((s) => s.is_default)
+  const blocked = Boolean(disabledReason)
 
   return (
     <div className="fixed inset-x-0 bottom-4 z-50 flex justify-center px-3">
@@ -132,30 +140,49 @@ export function BatchActionBar({
 
         {/* Acciones (centradas) */}
         <div className="mt-2.5 flex flex-wrap items-center justify-center gap-2 border-t border-gray-100 pt-2.5">
-          <Button size="sm" variant="outline" disabled={selectedCount === 0 || isProcessing} onClick={() => onBatch("print")}>
-            {isProcessing ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Printer className="mr-1 h-4 w-4" />}
-            Imprimir
-          </Button>
-          <Button size="sm" disabled={selectedCount === 0 || isProcessing} onClick={() => onBatch("download")} className="bg-[#204983] hover:bg-[#1a3d6f]">
-            {isProcessing ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Download className="mr-1 h-4 w-4" />}
-            Descargar
-          </Button>
-          <Button size="sm" variant="outline" disabled={selectedCount === 0 || isProcessing} onClick={() => onBatch("email")}>
-            <Mail className="mr-1 h-4 w-4" />
-            Email
-          </Button>
-          <Button size="sm" variant="outline" disabled={selectedCount === 0 || isProcessing} onClick={() => onBatch("whatsapp")}>
-            <MessageCircle className="mr-1 h-4 w-4" />
-            WhatsApp
-          </Button>
+          {blocked && (
+            <p className="flex w-full items-center justify-center gap-1.5 text-center text-xs font-medium text-slate-600">
+              <Lock className="h-3.5 w-3.5 shrink-0" />
+              {disabledReason}
+            </p>
+          )}
+          <span title={disabledReason} className="inline-flex">
+            <Button size="sm" variant="outline" disabled={blocked || selectedCount === 0 || isProcessing} onClick={() => onBatch("print")}>
+              {isProcessing ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Printer className="mr-1 h-4 w-4" />}
+              Imprimir
+            </Button>
+          </span>
+          <span title={disabledReason} className="inline-flex">
+            <Button
+              size="sm"
+              disabled={blocked || selectedCount === 0 || isProcessing}
+              onClick={() => onBatch("download")}
+              className="bg-[#204983] hover:bg-[#1a3d6f]"
+            >
+              {isProcessing ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Download className="mr-1 h-4 w-4" />}
+              Descargar
+            </Button>
+          </span>
+          <span title={disabledReason} className="inline-flex">
+            <Button size="sm" variant="outline" disabled={blocked || selectedCount === 0 || isProcessing} onClick={() => onBatch("email")}>
+              <Mail className="mr-1 h-4 w-4" />
+              Email
+            </Button>
+          </span>
+          <span title={disabledReason} className="inline-flex">
+            <Button size="sm" variant="outline" disabled={blocked || selectedCount === 0 || isProcessing} onClick={() => onBatch("whatsapp")}>
+              <MessageCircle className="mr-1 h-4 w-4" />
+              WhatsApp
+            </Button>
+          </span>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
                 size="sm"
                 variant="outline"
-                disabled={selectedCount < 2 || isProcessing}
+                disabled={blocked || selectedCount < 2 || isProcessing}
                 className="border-[#204983] text-[#204983] hover:bg-[#204983] hover:text-white"
-                title="Combinar varios protocolos del mismo paciente en un único reporte"
+                title={disabledReason || "Combinar varios protocolos del mismo paciente en un único reporte"}
               >
                 {isProcessing ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <GitMerge className="mr-1 h-4 w-4" />}
                 Unificar

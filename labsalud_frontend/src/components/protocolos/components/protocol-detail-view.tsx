@@ -90,6 +90,8 @@ export interface ProtocolDetailViewProps {
   // flags
   isEditable: boolean
   showReports: boolean
+  /** Si viene, el botón de Reportes se muestra deshabilitado con este motivo. */
+  reportsDisabledReason?: string
   canBeCancelled: boolean
   isCancelled: boolean
   canUncancel: boolean
@@ -178,6 +180,7 @@ export function ProtocolDetailView(props: ProtocolDetailViewProps) {
     onGoPatient,
     isEditable,
     showReports,
+    reportsDisabledReason,
     canBeCancelled,
     isCancelled,
     canUncancel,
@@ -226,10 +229,14 @@ export function ProtocolDetailView(props: ProtocolDetailViewProps) {
             </div>
             <div className="flex flex-wrap gap-2">
               {showReports && (
-                <Button size="sm" variant="outline" onClick={onReport}>
-                  <FileText className="mr-1.5 h-4 w-4" />
-                  Reportes
-                </Button>
+                // Sin permiso el botón NO se esconde: queda deshabilitado con
+                // el motivo, para que se entienda por qué dejó de andar.
+                <span title={reportsDisabledReason} className="inline-flex">
+                  <Button size="sm" variant="outline" onClick={onReport} disabled={Boolean(reportsDisabledReason)}>
+                    <FileText className="mr-1.5 h-4 w-4" />
+                    Reportes
+                  </Button>
+                </span>
               )}
               {isCancelled
                 ? canUncancel && (

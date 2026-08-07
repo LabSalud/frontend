@@ -1181,6 +1181,61 @@ export interface BillingOossControlResponse {
 }
 
 // ============================================================================
+// BÚSQUEDA GLOBAL
+// ============================================================================
+
+export type GlobalSearchType = "patient" | "protocol" | "result" | "validation"
+
+/** Paciente asociado a un resultado de búsqueda. Puede no existir (ej: si algún día se indexan entidades sin paciente). */
+export interface GlobalSearchPatientRef {
+  id: number
+  name: string
+  dni: string
+}
+
+export interface GlobalSearchItem {
+  type: GlobalSearchType
+  id: number
+  title: string
+  /** Puede venir vacío. */
+  subtitle: string
+  patient: GlobalSearchPatientRef | null
+  /** Nombre del estado del protocolo en español; vacío para tipos que no tienen estado. */
+  status: string
+  date: string | null
+  /** Ruta interna del frontend (ej: `/pacientes/12`), NO una URL absoluta. */
+  url: string
+  /** Por qué matcheó este item ("nombre", "DNI", "N° de protocolo", "análisis"). */
+  matched_on: string
+}
+
+/** Filtro por tipo. `all` es el default: trae los cuatro tipos mezclados. */
+export type GlobalSearchFilter = GlobalSearchType | "all"
+
+/** Totales por tipo para las chips. Vienen completos aunque se filtre por un solo tipo. */
+export type GlobalSearchCounts = Record<GlobalSearchFilter, number>
+
+export interface GlobalSearchResponse {
+  query: string
+  took_ms: number
+  /** Filtro con el que respondió el backend (puede diferir del pedido si mandamos cualquier cosa). */
+  type: GlobalSearchFilter
+  page: number
+  page_size: number
+  has_next: boolean
+  counts: GlobalSearchCounts
+  /**
+   * El backend cortó el conteo en un tope (contar exacto sobre millones de filas
+   * es carísimo): los números que llegaron al tope son un piso, no un total.
+   */
+  counts_capped: boolean
+  /** Valor del tope. Indica a qué conteos hay que ponerles el "+". */
+  counts_cap?: number
+  /** Lista PLANA, ya paginada. Sin coincidencias llega `[]`. */
+  results: GlobalSearchItem[]
+}
+
+// ============================================================================
 // API Y RESPUESTAS
 // ============================================================================
 

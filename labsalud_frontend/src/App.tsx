@@ -29,6 +29,7 @@ const ProtocolResultsPage = lazy(() => import("./components/results/protocol-res
 const ValidacionPage = lazy(() => import("./components/validacion/validacion-page"))
 const ProtocolValidationPage = lazy(() => import("./components/validacion/protocol-validation-page"))
 const FacturacionPage = lazy(() => import("./components/facturacion/facturacion-page"))
+const SearchResultsPage = lazy(() => import("./components/search/search-results-page"))
 const SuperadminPage = lazy(() => import("./components/superadmin/superadmin-page"))
 
 // React Query client compartido. Cache de 1 min para listados pesados (protocolos, pacientes).
@@ -195,6 +196,18 @@ function App() {
                     }
                   >
                     <Route index element={<FacturacionPage />} />
+                  </Route>
+                  {/* Búsqueda global: el término viaja en ?q= para que la
+                      búsqueda sea compartible y el botón atrás funcione. */}
+                  <Route
+                    path="/buscar"
+                    element={
+                      <ProtectedRoute>
+                        <Layout />
+                      </ProtectedRoute>
+                    }
+                  >
+                    <Route index element={<SearchResultsPage />} />
                   </Route>
                   <Route path="*" element={<NotFound />} />
                 </Routes>

@@ -132,6 +132,28 @@ export const SUPERADMIN_ENDPOINTS = {
   RELEASE_BLOCK: (id: number) => buildApiUrl(`/superadmin/blocks/${id}/release/`),
 } as const
 
+// Búsqueda global (pacientes + protocolos + resultados + validaciones)
+export const SEARCH_ENDPOINTS = {
+  GLOBAL: ({
+    q,
+    type,
+    page,
+    pageSize,
+  }: {
+    q: string
+    /** `all` | `patient` | `protocol` | `result` | `validation`. */
+    type?: string
+    page?: number
+    pageSize?: number
+  }) => {
+    const params = new URLSearchParams({ q })
+    if (type) params.set("type", type)
+    if (page) params.set("page", String(page))
+    if (pageSize) params.set("page_size", String(pageSize))
+    return buildApiUrl(`/search/?${params.toString()}`)
+  },
+} as const
+
 // Analytics endpoints
 export const ANALYTICS_ENDPOINTS = {
   DASHBOARD: buildApiUrl("/analytics/dashboard/"),
@@ -271,6 +293,7 @@ export const API_ENDPOINTS = {
   PROTOCOL: PROTOCOL_ENDPOINTS,
   AUDIT: AUDIT_ENDPOINTS,
   SUPERADMIN: SUPERADMIN_ENDPOINTS,
+  SEARCH: SEARCH_ENDPOINTS,
   ANALYTICS: ANALYTICS_ENDPOINTS,
   RESULTS: RESULTS_ENDPOINTS,
   REPORTING: REPORTING_ENDPOINTS,

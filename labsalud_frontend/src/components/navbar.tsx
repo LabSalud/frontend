@@ -3,11 +3,21 @@
 import type React from "react"
 import { useState, useCallback, useEffect, useRef } from "react"
 import { Link, useLocation } from "react-router-dom"
-import { Menu, X, UserCircle, Shield, Settings, LogOut, Receipt, ShieldAlert } from "lucide-react"
+import { Menu, X, UserCircle, Shield, Settings, LogOut, Receipt, ShieldAlert, Search } from "lucide-react"
 import useAuth from "@/contexts/auth-context"
 import { UserDropdown } from "./user-dropdown"
 import { PERMISSIONS } from "@/config/permissions"
 import { SessionNotificationToggle } from "@/components/session-notification-toggle"
+import { GlobalSearch } from "@/components/search/global-search"
+
+// En pantallas táctiles el hover no existe (el navegador lo emula con el tap y
+// deja la barra "pegada"), así que ahí la búsqueda se abre solo con el botón.
+const supportsHover = () =>
+  typeof window !== "undefined" && window.matchMedia("(hover: hover)").matches
+
+// El logo y la barra están separados por el padding de la navbar: sin esta
+// gracia, salir del logo la cerraría justo cuando el mouse va en camino.
+const LOGO_HOVER_GRACE_MS = 250
 
 interface NavLinkProps {
   to: string
@@ -43,10 +53,15 @@ export const Navbar: React.FC = () => {
   const location = useLocation()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false)
+  // Solo el logo despliega la búsqueda; el resto de la navbar no hace nada.
+  const [isLogoHovered, setIsLogoHovered] = useState(false)
+  // Búsqueda abierta a propósito (tap en mobile o Ctrl/⌘+K), no por hover.
+  const [isSearchPinned, setIsSearchPinned] = useState(false)
   const mobileMenuRef = useRef<HTMLDivElement>(null)
   const userMenuRef = useRef<HTMLDivElement>(null)
   const hamburgerRef = useRef<HTMLButtonElement>(null)
   const userAvatarRef = useRef<HTMLDivElement>(null)
+  const logoHoverTimerRef = useRef<number | null>(null)
 
   const canAccessManagement = hasPermission(PERMISSIONS.MANAGE_USERS.codename)
   const canAccessBilling = hasPermission(PERMISSIONS.MANAGE_BILLING.codename)
@@ -59,6 +74,7 @@ export const Navbar: React.FC = () => {
       if (!prev) setIsUserMenuOpen(false) // close user menu when opening hamburger
       return !prev
     })
+    setIsSearchPinned(false)
   }
 
   const toggleUserMenu = () => {
@@ -66,12 +82,51 @@ export const Navbar: React.FC = () => {
       if (!prev) setIsMobileMenuOpen(false) // close hamburger when opening user menu
       return !prev
     })
+    setIsSearchPinned(false)
+  }
+
+  const toggleSearch = () => {
+    // Los tres paneles cuelgan del mismo borde de la navbar: solo uno a la vez.
+    setIsSearchPinned((prev) => {
+      if (!prev) {
+        setIsMobileMenuOpen(false)
+        setIsUserMenuOpen(false)
+      }
+      return !prev
+    })
   }
 
   const closeAllMenus = () => {
     setIsMobileMenuOpen(false)
     setIsUserMenuOpen(false)
+    setIsSearchPinned(false)
   }
+
+  const closeSearch = useCallback(() => setIsSearchPinned(false), [])
+
+  const cancelLogoHoverClose = useCallback(() => {
+    if (logoHoverTimerRef.current === null) return
+    window.clearTimeout(logoHoverTimerRef.current)
+    logoHoverTimerRef.current = null
+  }, [])
+
+  const handleLogoMouseEnter = useCallback(() => {
+    if (!supportsHover()) return
+    cancelLogoHoverClose()
+    setIsLogoHovered(true)
+  }, [cancelLogoHoverClose])
+
+  // No cierra al toque: la barra vive debajo de la navbar y hay que poder
+  // llegar hasta ella. Una vez encima, ella misma se sostiene abierta.
+  const handleLogoMouseLeave = useCallback(() => {
+    cancelLogoHoverClose()
+    logoHoverTimerRef.current = window.setTimeout(() => {
+      logoHoverTimerRef.current = null
+      setIsLogoHovered(false)
+    }, LOGO_HOVER_GRACE_MS)
+  }, [cancelLogoHoverClose])
+
+  useEffect(() => cancelLogoHoverClose, [cancelLogoHoverClose])
 
   // Close menus when clicking outside
   useEffect(() => {
@@ -107,6 +162,23 @@ export const Navbar: React.FC = () => {
   useEffect(() => {
     closeAllMenus()
   }, [location.pathname])
+
+  // Ctrl/⌘+K abre y enfoca la búsqueda: es una búsqueda global, tiene que poder
+  // usarse sin tocar el mouse (y es la única forma de abrirla desde el teclado,
+  // porque el disparador natural es el hover).
+  useEffect(() => {
+    const handleShortcut = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault()
+        setIsMobileMenuOpen(false)
+        setIsUserMenuOpen(false)
+        setIsSearchPinned(true)
+      }
+    }
+
+    window.addEventListener("keydown", handleShortcut)
+    return () => window.removeEventListener("keydown", handleShortcut)
+  }, [])
 
   // Desktop-only: forward user menu state from UserDropdown
   const handleUserMenuToggle = useCallback((isOpen: boolean) => {
@@ -156,8 +228,12 @@ export const Navbar: React.FC = () => {
                 ))}
               </div>
 
-              {/* Center Logo */}
-              <div className="flex-shrink-0 mx-8">
+              {/* Center Logo — es el único disparador de la búsqueda por hover */}
+              <div
+                className="flex-shrink-0 mx-8"
+                onMouseEnter={handleLogoMouseEnter}
+                onMouseLeave={handleLogoMouseLeave}
+              >
                 <Link to="/" className="flex items-center">
                   <img
                     src="/logo_icono.svg"
@@ -216,8 +292,12 @@ export const Navbar: React.FC = () => {
           >
             <div className="flex items-center justify-between">
               {/* Left - User Avatar (toggles user menu panel) */}
-              <div className="flex-shrink-0" ref={userAvatarRef}>
-                <UserDropdown isMobile={true} onMenuToggle={() => toggleUserMenu()} />
+              {/* El flex-1 va afuera del ref: el ref tiene que envolver SOLO al
+                  avatar, o el click-outside del menú de usuario dejaría de andar. */}
+              <div className="flex flex-1 items-center">
+                <div className="flex-shrink-0" ref={userAvatarRef}>
+                  <UserDropdown isMobile={true} onMenuToggle={() => toggleUserMenu()} />
+                </div>
               </div>
 
               {/* Center - Logo */}
@@ -235,15 +315,30 @@ export const Navbar: React.FC = () => {
                 </Link>
               </div>
 
-              {/* Right - Hamburger Menu */}
-              <button
-                ref={hamburgerRef}
-                onClick={toggleMobileMenu}
-                className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
-                aria-label="Toggle menu"
-              >
-                {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-              </button>
+              {/* Right - Búsqueda + Hamburger Menu */}
+              {/* flex-1 en los dos costados para que el logo quede centrado de
+                  verdad, aunque a la derecha ahora haya dos botones. */}
+              <div className="flex flex-1 items-center justify-end">
+                {/* Sin hover en touch: acá la búsqueda se abre con un tap. */}
+                <button
+                  onClick={toggleSearch}
+                  data-global-search-trigger=""
+                  className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                  aria-label={isSearchPinned ? "Cerrar búsqueda" : "Abrir búsqueda"}
+                  aria-expanded={isSearchPinned}
+                >
+                  <Search className={`w-6 h-6 ${isSearchPinned ? "text-[#204983]" : ""}`} />
+                </button>
+
+                <button
+                  ref={hamburgerRef}
+                  onClick={toggleMobileMenu}
+                  className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                  aria-label="Toggle menu"
+                >
+                  {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+                </button>
+              </div>
             </div>
           </div>
 
@@ -385,6 +480,15 @@ export const Navbar: React.FC = () => {
             </div>
           </div>
         </div>
+
+        {/* Búsqueda global: cuelga del borde inferior de la navbar, más angosta
+            que ella. Se despliega con el hover sobre el logo (desktop) o con el
+            botón de lupa (touch). Enter lleva a la página de resultados. */}
+        <GlobalSearch
+          isHovering={isLogoHovered && !isMobileMenuOpen && !isUserMenuOpen}
+          isPinned={isSearchPinned}
+          onRequestClose={closeSearch}
+        />
       </nav>
     </>
   )

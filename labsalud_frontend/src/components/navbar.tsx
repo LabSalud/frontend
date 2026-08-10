@@ -10,6 +10,7 @@ import { PERMISSIONS } from "@/config/permissions"
 import { getVisibleUserMenuItems } from "@/config/user-menu-items"
 import { SessionNotificationToggle } from "@/components/session-notification-toggle"
 import { GlobalSearch } from "@/components/search/global-search"
+import { useScrollReveal } from "@/hooks/use-scroll-reveal"
 
 // En pantallas táctiles el hover no existe (el navegador lo emula con el tap y
 // deja la barra "pegada"), así que ahí la búsqueda se abre solo con el botón.
@@ -52,6 +53,11 @@ const NavLink: React.FC<NavLinkProps> = ({ to, children, isActive, onClick }) =>
 export const Navbar: React.FC = () => {
   const { user, hasPermission, logout } = useAuth()
   const location = useLocation()
+  const scrollState = useScrollReveal()
+  const navRef = useRef<HTMLElement>(null)
+  // Alto real medido, no un valor fijo: la navbar cambia de alto entre desktop
+  // y mobile, y el espaciador tiene que coincidir exacto o el salto se ve.
+  const [navHeight, setNavHeight] = useState(0)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false)
   // Solo el logo despliega la búsqueda; el resto de la navbar no hace nada.
@@ -158,6 +164,27 @@ export const Navbar: React.FC = () => {
     closeAllMenus()
   }, [location.pathname])
 
+  // Alto de la navbar para el espaciador. Se observa en vez de medirse una
+  // sola vez porque cambia: al pasar de mobile a desktop, o cuando el menú de
+  // usuario le agrega la extensión de abajo.
+  useEffect(() => {
+    const elemento = navRef.current
+    if (!elemento) return
+
+    const medir = () => setNavHeight(elemento.getBoundingClientRect().height)
+    medir()
+
+    const observer = new ResizeObserver(medir)
+    observer.observe(elemento)
+    return () => observer.disconnect()
+  }, [])
+
+  // Si la navbar se va mientras hay un menú abierto, el menú se iría con ella
+  // (o peor, quedaría flotando). Al ocultarse se cierra todo.
+  useEffect(() => {
+    if (scrollState === "hidden") closeAllMenus()
+  }, [scrollState])
+
   // Ctrl/⌘+K abre y enfoca la búsqueda: es una búsqueda global, tiene que poder
   // usarse sin tocar el mouse (y es la única forma de abrirla desde el teclado,
   // porque el disparador natural es el hover).
@@ -203,10 +230,28 @@ export const Navbar: React.FC = () => {
 
   // Mismo listado que consume el dropdown de desktop: acá solo cambian los estilos.
   const userMenuItems = getVisibleUserMenuItems({ user, hasPermission })
+  const isAtTop = scrollState === "top"
 
   return (
     <>
-      <nav className="w-full px-0 lg:px-4 relative">
+      {/* Espaciador: cuando la navbar sale del flujo para pegarse arriba, algo
+          tiene que ocupar su lugar o todo el contenido pega un salto hacia
+          arriba de golpe. Arriba de todo no se renderiza: ahí la navbar está
+          en el flujo y ocupa su espacio sola. */}
+      {!isAtTop && <div aria-hidden="true" style={{ height: navHeight }} />}
+
+      <nav
+        ref={navRef}
+        // Se anima `top` y NO `transform`. Un `transform` en un ancestro
+        // convierte a la navbar en el bloque contenedor de sus descendientes
+        // `position: fixed`, y adentro hay dos overlays `fixed inset-0` (el
+        // telón del buscador y el del menú mobile) que dejarían de cubrir la
+        // pantalla para cubrir solo la navbar.
+        style={isAtTop ? undefined : { top: scrollState === "hidden" ? -navHeight : 0 }}
+        className={`w-full px-0 lg:px-4 relative transition-[top] duration-300 ease-out ${
+          isAtTop ? "" : "fixed inset-x-0 z-50"
+        }`}
+      >
         {/* Desktop Navbar */}
         <div className="hidden lg:block">
           <div

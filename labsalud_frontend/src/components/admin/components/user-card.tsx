@@ -14,6 +14,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Clock, Mail, MoreHorizontal, Pencil, Shield, ShieldX, Trash, X, Plus, Check, Loader2, History } from "lucide-react"
+import { UserTwoFactorPanel } from "./user-two-factor-panel"
 
 export type UserCardAction = "edit" | "tempPermission" | "revokeTempPermission" | "delete" | "history"
 
@@ -24,6 +25,8 @@ interface UserCardProps {
   canDelete: boolean
   canAssignRole: boolean
   canManageTempPermissions: boolean
+  /** Sólo para superusuarios: para el resto la sección del 2FA ni se monta. */
+  canManageTwoFactor: boolean
   onAction: (user: User, action: UserCardAction) => void
   onToggleRole: (user: User, roleId: number) => Promise<void>
 }
@@ -50,6 +53,7 @@ export function UserCard({
   canDelete,
   canAssignRole,
   canManageTempPermissions,
+  canManageTwoFactor,
   onAction,
   onToggleRole,
 }: UserCardProps) {
@@ -209,6 +213,8 @@ export function UserCard({
           </Popover>
         )}
       </div>
+
+      {canManageTwoFactor && <UserTwoFactorPanel user={user} />}
     </div>
   )
 }

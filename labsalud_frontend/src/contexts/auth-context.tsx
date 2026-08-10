@@ -7,8 +7,16 @@ import useIdleTimeout from "@/hooks/use-idle-timeout"
 import { useSessionNotifications } from "@/hooks/use-session-notifications"
 import { AUTH_ENDPOINTS } from "@/config/api"
 import { formatApiError } from "@/lib/api-error"
+import { getDeviceId } from "@/lib/device-id"
+import { resolveIdleTimeMs, resolveWarningTimeMs } from "@/lib/idle-config"
 import { SESSION_EXPIRED_EVENT, type SessionExpiredDetail } from "@/lib/session-events"
-import type { User } from "@/types"
+import type {
+  TwoFactorEnrollmentConfirmResponse,
+  TwoFactorEnrollmentRequiredResponse,
+  TwoFactorRequiredResponse,
+  TwoFactorSetupResponse,
+  User,
+} from "@/types"
 import {
   clearSession,
   getAccessToken,
@@ -30,13 +38,54 @@ export interface AuthResponse {
   user: User
 }
 
+/**
+ * Resultado del primer paso del login. `two_factor_required` no es un error:
+ * las credenciales estaban bien, falta el código del celular.
+ */
+export type LoginOutcome =
+  | { status: "success" }
+  | { status: "two_factor_required"; ephemeralToken: string; expiresIn: number }
+  /** Está obligada a tener segundo factor y todavía no se enroló: falta el alta. */
+  | { status: "two_factor_enrollment_required"; ephemeralToken: string; expiresIn: number }
+  | { status: "error" }
+
+export type TwoFactorOutcome =
+  | { status: "success" }
+  /** `expired` distingue "el token de 5 minutos venció" de "el código está mal". */
+  | { status: "error"; message: string; expired?: boolean }
+
+export type TwoFactorEnrollmentStartOutcome =
+  | { status: "success"; setup: TwoFactorSetupResponse }
+  | { status: "error"; message: string; expired?: boolean }
+
+export type TwoFactorEnrollmentConfirmOutcome =
+  /** Los códigos se muestran una única vez; la sesión ya quedó abierta. */
+  | { status: "success"; recoveryCodes: string[] }
+  | { status: "error"; message: string; expired?: boolean }
+
+export interface VerifyTwoFactorParams {
+  ephemeralToken: string
+  code: string
+  rememberDevice: boolean
+}
+
+export interface ConfirmTwoFactorEnrollmentParams {
+  ephemeralToken: string
+  code: string
+}
+
 interface AuthContextType {
   user: User | null
   token: string | null
   isAuthenticated: boolean
   isInitialized: boolean
   isLoading: boolean
-  login: (username: string, password: string) => Promise<boolean>
+  login: (username: string, password: string) => Promise<LoginOutcome>
+  verifyTwoFactor: (params: VerifyTwoFactorParams) => Promise<TwoFactorOutcome>
+  startTwoFactorEnrollment: (ephemeralToken: string) => Promise<TwoFactorEnrollmentStartOutcome>
+  confirmTwoFactorEnrollment: (
+    params: ConfirmTwoFactorEnrollmentParams,
+  ) => Promise<TwoFactorEnrollmentConfirmOutcome>
   logout: (showToast?: boolean) => void
   hasPermission: (permission: number | string) => boolean
   isInGroup: (groupName: string) => boolean
@@ -50,15 +99,44 @@ interface AuthProviderProps {
   children: ReactNode
 }
 
-const DEFAULT_IDLE_MINUTES = 30
-const DEFAULT_WARNING_TIME = 30 * 1000
-const MIN_IDLE_MINUTES = 1
+const getIdleTimeFromUser = (user: User | null) => resolveIdleTimeMs(user?.inactivity_logout_minutes)
 
-const getIdleTimeFromUser = (user: User | null) => {
-  const minutes = Number(user?.inactivity_logout_minutes)
-  const safeMinutes = Number.isFinite(minutes) && minutes >= MIN_IDLE_MINUTES ? minutes : DEFAULT_IDLE_MINUTES
-  return safeMinutes * 60 * 1000
+/**
+ * Detecta si el 400/401 vino porque venció el `ephemeral_token` (5 minutos) en
+ * vez de porque el código está mal. El backend se está escribiendo en paralelo,
+ * así que miramos tanto un campo `code` como el texto del mensaje: no queremos
+ * que un cambio de wording del lado del server le muestre "código incorrecto" a
+ * alguien cuyo token simplemente venció.
+ */
+const EXPIRED_TOKEN_CODES = new Set([
+  "ephemeral_token_expired",
+  "token_expired",
+  "expired_token",
+  "invalid_ephemeral_token",
+  "ephemeral_token_invalid",
+])
+
+const looksLikeExpiredToken = (status: number, body: unknown): boolean => {
+  if (status === 410) return true
+  const record = body && typeof body === "object" ? (body as Record<string, unknown>) : {}
+  const code = typeof record.code === "string" ? record.code.toLowerCase() : ""
+  if (EXPIRED_TOKEN_CODES.has(code)) return true
+  const text = formatApiError(body, "").toLowerCase()
+  return /expir|vencid|caduc/.test(text) && /token|sesi|tiempo/.test(text)
 }
+
+/** Traduce el 429 del backend a una espera concreta usando el `Retry-After`. */
+const throttleMessage = (response: Response): string => {
+  const retryAfter = Number(response.headers.get("Retry-After"))
+  const espera =
+    Number.isFinite(retryAfter) && retryAfter > 0
+      ? ` Volvé a intentar en ${retryAfter >= 60 ? `${Math.ceil(retryAfter / 60)} minuto(s)` : `${retryAfter} segundos`}.`
+      : " Esperá un momento antes de volver a intentar."
+  return `Demasiados intentos fallidos.${espera}`
+}
+
+const ENROLLMENT_EXPIRED_MESSAGE =
+  "El pase para enrolarte venció. Iniciá sesión de nuevo para volver a empezar."
 
 export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null)
@@ -79,13 +157,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
     closeActiveNotification,
   } = useSessionNotifications()
 
-  const idleConfig = useMemo(
-    () => ({
-      idleTime: getIdleTimeFromUser(user),
-      warningTime: DEFAULT_WARNING_TIME,
-    }),
-    [user],
-  )
+  const idleConfig = useMemo(() => {
+    const idleTime = getIdleTimeFromUser(user)
+    return { idleTime, warningTime: resolveWarningTimeMs(idleTime) }
+  }, [user])
 
   const logout = useCallback(
     (showToast = true) => {
@@ -216,8 +291,36 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   }, [expireSession])
 
+  // Cierre de sesión exitoso, compartido por el login directo y por el que pasa
+  // por el segundo factor: ambos terminan con la misma respuesta del backend.
+  const completeSession = useCallback(
+    (data: AuthResponse, typedUsername?: string) => {
+      setAccessToken(data.access)
+      setRefreshToken(data.refresh)
+      setStoredUser(data.user)
+      try {
+        localStorage.setItem("last_username", typedUsername || data.user.username)
+      } catch {
+        // ignore
+      }
+
+      setToken(data.access)
+      setUser(data.user)
+      setIsAuthenticated(true)
+
+      if (resetIdleTimeout) {
+        resetIdleTimeout()
+      }
+
+      success("Inicio de sesión exitoso", {
+        description: `Bienvenido, ${data.user.first_name}`,
+      })
+    },
+    [success, resetIdleTimeout],
+  )
+
   const login = useCallback(
-    async (username: string, password: string): Promise<boolean> => {
+    async (username: string, password: string): Promise<LoginOutcome> => {
       setIsLoading(true)
       try {
         const response = await fetch(AUTH_ENDPOINTS.TOKEN, {
@@ -225,7 +328,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ username, password }),
+          // El device_id le dice al backend si este equipo ya pasó por el
+          // segundo factor dentro de la ventana de confianza.
+          body: JSON.stringify({ username, password, device_id: getDeviceId() }),
         })
 
         if (!response.ok) {
@@ -234,38 +339,199 @@ export function AuthProvider({ children }: AuthProviderProps) {
           error("Error de inicio de sesión", {
             description: formatApiError(errorData, "Credenciales inválidas"),
           })
-          return false
+          return { status: "error" }
         }
 
-        const data: AuthResponse = await response.json()
+        const data: AuthResponse | TwoFactorRequiredResponse | TwoFactorEnrollmentRequiredResponse =
+          await response.json()
 
-        setAccessToken(data.access)
-        setRefreshToken(data.refresh)
-        setStoredUser(data.user)
-        localStorage.setItem("last_username", username)
-
-        setToken(data.access)
-        setUser(data.user)
-        setIsAuthenticated(true)
-
-        if (resetIdleTimeout) {
-          resetIdleTimeout()
+        // 200 pero sin tokens: las credenciales estaban bien y falta el código.
+        if ("two_factor_required" in data && data.two_factor_required) {
+          return {
+            status: "two_factor_required",
+            ephemeralToken: data.ephemeral_token,
+            expiresIn: Number(data.expires_in) > 0 ? Number(data.expires_in) : 300,
+          }
         }
 
-        success("Inicio de sesión exitoso", {
-          description: `Bienvenido, ${data.user.first_name}`,
-        })
-        return true
+        // Mismo caso pero un paso antes: está obligada y ni siquiera se enroló.
+        if ("two_factor_enrollment_required" in data && data.two_factor_enrollment_required) {
+          return {
+            status: "two_factor_enrollment_required",
+            ephemeralToken: data.ephemeral_token,
+            expiresIn: Number(data.expires_in) > 0 ? Number(data.expires_in) : 900,
+          }
+        }
+
+        completeSession(data as AuthResponse, username)
+        return { status: "success" }
       } catch {
         error("Error de conexión", {
           description: "No se pudo conectar con el servidor",
         })
-        return false
+        return { status: "error" }
       } finally {
         setIsLoading(false)
       }
     },
-    [success, error, resetIdleTimeout],
+    [completeSession, error],
+  )
+
+  /**
+   * Segundo paso del login. El `ephemeral_token` llega por parámetro y se queda
+   * en memoria del componente que muestra la pantalla: nunca se guarda en
+   * localStorage/sessionStorage porque es media credencial y ahí queda al
+   * alcance de cualquier XSS.
+   */
+  const verifyTwoFactor = useCallback(
+    async ({ ephemeralToken, code, rememberDevice }: VerifyTwoFactorParams): Promise<TwoFactorOutcome> => {
+      setIsLoading(true)
+      try {
+        const response = await fetch(AUTH_ENDPOINTS.TOKEN_2FA, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            ephemeral_token: ephemeralToken,
+            code,
+            device_id: getDeviceId(),
+            remember_device: rememberDevice,
+          }),
+        })
+
+        if (response.status === 429) {
+          return { status: "error", message: throttleMessage(response) }
+        }
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => null)
+
+          if (looksLikeExpiredToken(response.status, errorData)) {
+            return {
+              status: "error",
+              expired: true,
+              message: "La verificación venció. Iniciá sesión de nuevo para pedir un código nuevo.",
+            }
+          }
+
+          return {
+            status: "error",
+            message: formatApiError(errorData, "Código incorrecto. Revisá la app y probá de nuevo."),
+          }
+        }
+
+        const data: AuthResponse = await response.json()
+        completeSession(data)
+        return { status: "success" }
+      } catch {
+        return { status: "error", message: "No se pudo conectar con el servidor. Revisá la conexión." }
+      } finally {
+        setIsLoading(false)
+      }
+    },
+    [completeSession],
+  )
+
+  /**
+   * Enrolamiento obligatorio, paso 1: pedir el secreto y el QR.
+   *
+   * Va SIN Authorization igual que el login: todavía no hay sesión, y lo único
+   * que autoriza a ver el secreto es el pase de 15 minutos que devolvió el
+   * login. El pase queda en memoria del componente que lo recibió (ver
+   * `login.tsx`), nunca en storage.
+   */
+  const startTwoFactorEnrollment = useCallback(
+    async (ephemeralToken: string): Promise<TwoFactorEnrollmentStartOutcome> => {
+      try {
+        const response = await fetch(AUTH_ENDPOINTS.TWO_FACTOR_SETUP, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ ephemeral_token: ephemeralToken }),
+        })
+
+        if (response.status === 429) {
+          return { status: "error", message: throttleMessage(response) }
+        }
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => null)
+          if (looksLikeExpiredToken(response.status, errorData)) {
+            return { status: "error", expired: true, message: ENROLLMENT_EXPIRED_MESSAGE }
+          }
+          return {
+            status: "error",
+            message: formatApiError(errorData, "No se pudo preparar el enrolamiento."),
+          }
+        }
+
+        const setup: TwoFactorSetupResponse = await response.json()
+        return { status: "success", setup }
+      } catch {
+        return { status: "error", message: "No se pudo conectar con el servidor. Revisá la conexión." }
+      }
+    },
+    [],
+  )
+
+  /**
+   * Enrolamiento obligatorio, paso 2: confirmar con el código de la app.
+   *
+   * A diferencia del alta desde el perfil, esta respuesta cierra el login: trae
+   * los códigos de recuperación Y los tokens. Abrimos la sesión acá mismo, y es
+   * la pantalla la que retiene la navegación hasta que la persona confirme que
+   * guardó los códigos (se muestran una sola vez).
+   */
+  const confirmTwoFactorEnrollment = useCallback(
+    async ({
+      ephemeralToken,
+      code,
+    }: ConfirmTwoFactorEnrollmentParams): Promise<TwoFactorEnrollmentConfirmOutcome> => {
+      setIsLoading(true)
+      try {
+        const response = await fetch(AUTH_ENDPOINTS.TWO_FACTOR_CONFIRM, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ ephemeral_token: ephemeralToken, code, device_id: getDeviceId() }),
+        })
+
+        if (response.status === 429) {
+          return { status: "error", message: throttleMessage(response) }
+        }
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => null)
+
+          if (looksLikeExpiredToken(response.status, errorData)) {
+            return { status: "error", expired: true, message: ENROLLMENT_EXPIRED_MESSAGE }
+          }
+
+          return {
+            status: "error",
+            message: formatApiError(
+              errorData,
+              "El código no coincide. Revisá la hora del celular y probá con el siguiente.",
+            ),
+          }
+        }
+
+        const data: TwoFactorEnrollmentConfirmResponse = await response.json()
+        completeSession(data)
+        return {
+          status: "success",
+          recoveryCodes: Array.isArray(data.recovery_codes) ? data.recovery_codes : [],
+        }
+      } catch {
+        return { status: "error", message: "No se pudo conectar con el servidor. Revisá la conexión." }
+      } finally {
+        setIsLoading(false)
+      }
+    },
+    [completeSession],
   )
 
   const refreshUser = useCallback(async () => {
@@ -309,13 +575,31 @@ export function AuthProvider({ children }: AuthProviderProps) {
       isInitialized,
       isLoading,
       login,
+      verifyTwoFactor,
+      startTwoFactorEnrollment,
+      confirmTwoFactorEnrollment,
       logout,
       hasPermission,
       isInGroup,
       refreshUser,
       refreshToken,
     }),
-    [user, token, isAuthenticated, isInitialized, isLoading, login, logout, hasPermission, isInGroup, refreshUser, refreshToken],
+    [
+      user,
+      token,
+      isAuthenticated,
+      isInitialized,
+      isLoading,
+      login,
+      verifyTwoFactor,
+      startTwoFactorEnrollment,
+      confirmTwoFactorEnrollment,
+      logout,
+      hasPermission,
+      isInGroup,
+      refreshUser,
+      refreshToken,
+    ],
   )
 
   if (!isInitialized) {

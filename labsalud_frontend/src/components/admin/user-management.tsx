@@ -28,7 +28,7 @@ interface UserManagementProps {
 }
 
 export function UserManagement({ users, roles, permissions, setUsers, refreshData }: UserManagementProps) {
-  const { hasPermission } = useAuth()
+  const { hasPermission, user: currentUser } = useAuth()
   const { apiRequest } = useApi()
   const [selectedUser, setSelectedUser] = useState<User | null>(null)
   const [search, setSearch] = useState("")
@@ -45,6 +45,10 @@ export function UserManagement({ users, roles, permissions, setUsers, refreshDat
   const canDeleteUser = hasPermission(PERMISSIONS.MANAGE_USERS.codename)
   const canAssignRole = hasPermission(PERMISSIONS.MANAGE_ROLES.codename)
   const canAssignTempPermission = hasPermission(PERMISSIONS.MANAGE_TEMP_PERMISSIONS.codename)
+  // A propósito con `is_superuser` y no con `hasPermission`: ese deja pasar a
+  // los superusuarios pero también a cualquiera con el permiso, y el segundo
+  // factor ajeno es exclusivo de superusuarios (el backend responde 403).
+  const canManageTwoFactor = Boolean(currentUser?.is_superuser)
 
   const closeAllDialogs = () => {
     setSelectedUser(null)
@@ -152,6 +156,7 @@ export function UserManagement({ users, roles, permissions, setUsers, refreshDat
               canDelete={canDeleteUser}
               canAssignRole={canAssignRole}
               canManageTempPermissions={canAssignTempPermission}
+              canManageTwoFactor={canManageTwoFactor}
               onAction={handleCardAction}
               onToggleRole={handleToggleRole}
             />

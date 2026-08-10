@@ -1426,3 +1426,85 @@ export interface RequestLogResponse {
   count: number
   results: RequestLogEntry[]
 }
+
+// ============================================================================
+// SEGUNDO FACTOR (TOTP)
+// ============================================================================
+
+/**
+ * Respuesta de `POST /auth/token/` cuando el usuario tiene 2FA activo y este
+ * dispositivo no está dentro de la ventana de confianza. Llega con HTTP 200 y
+ * SIN `access`/`refresh`: el login todavía no terminó.
+ */
+export interface TwoFactorRequiredResponse {
+  two_factor_required: true
+  ephemeral_token: string
+  /** Segundos de vida del `ephemeral_token` (el backend usa 300). */
+  expires_in: number
+}
+
+/**
+ * Respuesta de `POST /auth/token/` cuando la persona está OBLIGADA a tener
+ * segundo factor y todavía no se enroló. Las credenciales eran correctas, pero
+ * tampoco vienen tokens: el paso que falta es el alta, no un código.
+ */
+export interface TwoFactorEnrollmentRequiredResponse {
+  two_factor_enrollment_required: true
+  ephemeral_token: string
+  /** Segundos de vida del `ephemeral_token` (el backend usa 900). */
+  expires_in: number
+}
+
+/** Dispositivo con la ventana de confianza abierta. */
+export interface TrustedDevice {
+  id: string | number
+  label: string
+  last_2fa_at: string
+  expires_at: string
+  is_current: boolean
+}
+
+export interface TwoFactorStatus {
+  enabled: boolean
+  confirmed_at: string | null
+  recovery_codes_left: number
+  trusted_devices: TrustedDevice[]
+}
+
+export interface TwoFactorSetupResponse {
+  secret: string
+  otpauth_uri: string
+}
+
+/** Los códigos de recuperación se devuelven una única vez, al confirmar el alta. */
+export interface TwoFactorConfirmResponse {
+  recovery_codes: string[]
+}
+
+/**
+ * `POST /auth/2fa/confirm/` cuando el alta se hace con el pase del login
+ * (enrolamiento obligatorio): además de los códigos cierra el login, así que
+ * trae también los tokens.
+ */
+export interface TwoFactorEnrollmentConfirmResponse extends TwoFactorConfirmResponse {
+  access: string
+  refresh: string
+  user: User
+}
+
+/**
+ * Estado del segundo factor de OTRO usuario, tal como lo ve un superusuario en
+ * la gestión de usuarios (`GET /users/users/<id>/2fa/`).
+ *
+ * Ojo con `trusted_devices`: acá es un CONTADOR, no la lista de equipos que
+ * devuelve el estado propio (`TwoFactorStatus`). Un administrador no necesita
+ * —ni debería— ver los equipos ajenos uno por uno.
+ */
+export interface UserTwoFactorStatus {
+  enabled: boolean
+  confirmed_at: string | null
+  required: boolean
+  recovery_codes_left: number
+  trusted_devices: number
+  last_2fa_at: string | null
+}

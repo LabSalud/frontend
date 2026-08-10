@@ -18,7 +18,9 @@ import { USER_ENDPOINTS, TOAST_DURATION } from "@/config/api"
 import type { ActiveTempPermission } from "@/types"
 import { formatApiError } from "@/lib/api-error"
 import { LAB_TIME_ZONE } from "@/lib/format-utils"
+import { DEFAULT_IDLE_MINUTES } from "@/lib/idle-config"
 import { getStoredUser, setStoredUser } from "@/lib/auth-storage"
+import { TwoFactorSection } from "@/components/profile/components/two-factor-section"
 
 interface ProfileData {
   id: number
@@ -61,7 +63,7 @@ export default function ProfilePage() {
   const [formData, setFormData] = useState<ProfileFormData>({
     email: "",
     password: "",
-    inactivity_logout_minutes: "30",
+    inactivity_logout_minutes: String(DEFAULT_IDLE_MINUTES),
   })
   const [errors, setErrors] = useState<ValidationErrors>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -73,7 +75,7 @@ export default function ProfilePage() {
       setFormData((prev) => ({
         ...prev,
         email: profileData.email || "",
-        inactivity_logout_minutes: String(profileData.inactivity_logout_minutes ?? 30),
+        inactivity_logout_minutes: String(profileData.inactivity_logout_minutes ?? DEFAULT_IDLE_MINUTES),
       }))
     }
   }, [profileData])
@@ -164,7 +166,10 @@ export default function ProfilePage() {
         formDataToSend.append("password", formData.password)
       }
 
-      if (Number(formData.inactivity_logout_minutes) !== Number(profileData?.inactivity_logout_minutes ?? 30)) {
+      if (
+        Number(formData.inactivity_logout_minutes) !==
+        Number(profileData?.inactivity_logout_minutes ?? DEFAULT_IDLE_MINUTES)
+      ) {
         formDataToSend.append("inactivity_logout_minutes", formData.inactivity_logout_minutes)
       }
 
@@ -466,7 +471,9 @@ export default function ProfilePage() {
                   <span className="text-sm text-red-600">{errors.inactivity_logout_minutes}</span>
                 </div>
               ) : (
-                <p className="text-xs text-gray-500 mt-1">Minutos sin actividad antes de cerrar sesión.</p>
+                <p className="text-xs text-gray-500 mt-1">
+                  Minutos sin actividad antes de cerrar sesión (por defecto {DEFAULT_IDLE_MINUTES}).
+                </p>
               )}
             </div>
 
@@ -513,6 +520,10 @@ export default function ProfilePage() {
           </Card>
         )}
       </form>
+
+      {/* Fuera del <form> a propósito: sus botones no tienen que disparar el
+          submit del perfil. */}
+      <TwoFactorSection />
     </div>
   )
 }

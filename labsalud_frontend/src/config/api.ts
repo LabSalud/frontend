@@ -28,6 +28,15 @@ export const AUTH_ENDPOINTS = {
   TOKEN: buildApiUrl("/auth/token/"),
   TOKEN_REFRESH: buildApiUrl("/auth/token/refresh/"),
   PASSWORD_RESET: buildApiUrl("/users/password-reset/"),
+  // Segundo factor (TOTP). TOKEN_2FA cierra el login en dos pasos y, como el
+  // login, va SIN Authorization: todavía no hay access token.
+  TOKEN_2FA: buildApiUrl("/auth/token/2fa/"),
+  TWO_FACTOR_STATUS: buildApiUrl("/auth/2fa/status/"),
+  TWO_FACTOR_SETUP: buildApiUrl("/auth/2fa/setup/"),
+  TWO_FACTOR_CONFIRM: buildApiUrl("/auth/2fa/confirm/"),
+  /** DELETE con `{ password }` para desenrolar. */
+  TWO_FACTOR: buildApiUrl("/auth/2fa/"),
+  TWO_FACTOR_DEVICE_REVOKE: (id: string | number) => buildApiUrl(`/auth/2fa/devices/${id}/revoke/`),
 } as const
 
 // User management endpoints
@@ -36,6 +45,13 @@ export const USER_ENDPOINTS = {
   USER_DETAIL: (id: number) => buildApiUrl(`/users/users/${id}/`),
   USER_AUDIT_TIMELINE: (id: number) => buildApiUrl(`/users/users/${id}/audit-timeline/`),
   ME: buildApiUrl("/users/me/"),
+  // Segundo factor de OTRO usuario, para el panel de gestión. Los tres son
+  // exclusivos de superusuarios: al resto el backend le contesta 403.
+  USER_TWO_FACTOR: (id: number) => buildApiUrl(`/users/users/${id}/2fa/`),
+  /** POST con `{ required: boolean }`. */
+  USER_TWO_FACTOR_REQUIRE: (id: number) => buildApiUrl(`/users/users/${id}/2fa/require/`),
+  /** POST sin cuerpo: borra enrolamiento, códigos y dispositivos de confianza. */
+  USER_TWO_FACTOR_RESET: (id: number) => buildApiUrl(`/users/users/${id}/2fa/reset/`),
 } as const
 
 // Access control endpoints

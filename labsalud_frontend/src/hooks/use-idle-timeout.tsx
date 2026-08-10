@@ -97,7 +97,10 @@ export function useIdleTimeout({ onIdle, idleTime, warningTime, enabled = true }
     clearAllTimers()
     lastActivityRef.current = Date.now()
 
-    const timeUntilWarning = idleTime - warningTime
+    // Piso de 1s: con ventanas cortas (el default bajó a 5 minutos y el mínimo
+    // configurable es 1) un warningTime mal calculado daría negativo y el aviso
+    // saldría de entrada, apenas el usuario inicia sesión.
+    const timeUntilWarning = Math.max(1000, idleTime - warningTime)
 
     idleTimerRef.current = setTimeout(() => {
       startWarning()

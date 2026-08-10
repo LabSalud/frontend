@@ -248,8 +248,13 @@ export const Navbar: React.FC = () => {
         // telón del buscador y el del menú mobile) que dejarían de cubrir la
         // pantalla para cubrir solo la navbar.
         style={isAtTop ? undefined : { top: scrollState === "hidden" ? -navHeight : 0 }}
-        className={`w-full px-0 lg:px-4 relative transition-[top] duration-300 ease-out ${
-          isAtTop ? "" : "fixed inset-x-0 z-50"
+        // OJO con `position`: va entera en el condicional. Si `relative`
+        // quedara en las clases base, Tailwind emitiría las dos reglas y cuál
+        // gana lo decide el ORDEN DE LA HOJA DE ESTILOS, no el orden en el
+        // atributo — y `.relative` está después de `.fixed`, así que ganaría
+        // siempre y la navbar nunca se despegaría.
+        className={`w-full px-0 lg:px-4 transition-[top] duration-300 ease-out ${
+          isAtTop ? "relative" : "fixed inset-x-0 z-50"
         }`}
       >
         {/* Desktop Navbar */}

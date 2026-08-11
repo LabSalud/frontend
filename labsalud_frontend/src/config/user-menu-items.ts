@@ -11,7 +11,7 @@
 // aparece en los dos.
 
 import type { LucideIcon } from "lucide-react"
-import { Receipt, Settings, Shield, ShieldAlert, UserCircle } from "lucide-react"
+import { CloudUpload, Receipt, Settings, Shield, ShieldAlert, UserCircle } from "lucide-react"
 import { PERMISSIONS } from "@/config/permissions"
 import type { User } from "@/types"
 
@@ -58,6 +58,16 @@ export const USER_MENU_ITEMS: readonly UserMenuItem[] = [
     to: "/configuracion",
     label: "Configuracion",
     icon: Settings,
+  },
+  {
+    id: "contingencia",
+    to: "/contingencia",
+    label: "Contingencia",
+    icon: CloudUpload,
+    // Sí va por permiso (y no por superusuario como Superconfiguración): quien
+    // cierra una caída puede no ser quien administra el sistema, y el día que
+    // el servidor vuelve conviene que haya más de una persona capaz de hacerlo.
+    isVisible: ({ hasPermission }) => hasPermission(PERMISSIONS.UPLOAD_CONTINGENCY.codename),
   },
   {
     id: "superconfiguracion",

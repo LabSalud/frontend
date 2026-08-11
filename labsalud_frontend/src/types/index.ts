@@ -1508,3 +1508,56 @@ export interface UserTwoFactorStatus {
   trusted_devices: number
   last_2fa_at: string | null
 }
+
+// ============================================================================
+// CONTINGENCIA — el trabajo que quedó en la PC cuando el servidor estuvo caído
+// ============================================================================
+
+export type EstadoOperacionContingencia =
+  | "pendiente"
+  | "retenida"
+  | "subida"
+  | "conflicto"
+  | "bloqueada"
+  | "descartada"
+
+export interface OperacionContingencia {
+  id: number
+  metodo: string
+  ruta: string
+  resumen: string
+  usuario: string
+  ocurrida_at: string | null
+  estado: EstadoOperacionContingencia
+  estado_legible: string
+  necesita_atencion: boolean
+  intentos: number
+  ultimo_error: string
+  respuesta_codigo: number | null
+  subida_at: string | null
+}
+
+export interface ResumenContingencia {
+  total: number
+  por_estado: Partial<Record<EstadoOperacionContingencia, number>>
+  pendientes: number
+  necesitan_atencion: number
+}
+
+export interface DiarioContingencia {
+  modo_contingencia: boolean
+  resumen: ResumenContingencia
+  operaciones: OperacionContingencia[]
+}
+
+export interface RespuestaSubidaContingencia {
+  subidas?: number
+  con_problema?: number
+  avisos?: string[]
+  resumen?: ResumenContingencia
+  // Cuando el servidor pide el segundo factor no hay subida todavía: hay que
+  // volver a llamar con el código y este pase.
+  two_factor_required?: boolean
+  pase?: string
+  expira_en?: number
+}

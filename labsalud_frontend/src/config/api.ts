@@ -3,9 +3,25 @@
  * Based on Django REST Framework backend documentation
  */
 
+/**
+ * API contra la que se habla, resuelta en tiempo de EJECUCIÓN.
+ *
+ * La app de escritorio de la PC de contingencia sirve este mismo frontend
+ * compilado desde el disco de esa máquina, y necesita cambiar la API sin
+ * recompilar: producción mientras el servidor responde, la copia local de esa
+ * PC cuando se cayó. Como `VITE_API_BASE_URL` queda horneada en el build, la
+ * app inyecta `__LABSALUD_API_BASE__` antes de que arranque la página.
+ *
+ * En el navegador esa variable no existe y todo funciona igual que siempre.
+ */
+const apiBaseInyectada =
+  typeof window !== "undefined"
+    ? (window as unknown as { __LABSALUD_API_BASE__?: string }).__LABSALUD_API_BASE__
+    : undefined
+
 // Base configuration
 export const API_CONFIG = {
-  BASE_URL: import.meta.env.VITE_API_BASE_URL || "http://192.168.1.88:8001",
+  BASE_URL: apiBaseInyectada || import.meta.env.VITE_API_BASE_URL || "http://192.168.1.88:8001",
   API_VERSION: "v1",
   TIMEOUT: 300000,
 } as const

@@ -148,7 +148,9 @@ export function RequestLogPanel({ onManualRefresh }: RequestLogPanelProps) {
         </p>
       ) : (
         <div className="max-h-[26rem] overflow-auto rounded-xl border border-gray-200">
-          <table className="w-full min-w-[680px] text-xs">
+          {/* Sube de 680 a 800 por la columna nueva: si no, la ruta se
+              recorta antes de tiempo en pantallas medianas. */}
+          <table className="w-full min-w-[800px] text-xs">
             <thead className="sticky top-0 bg-gray-50">
               <tr className="text-left uppercase tracking-wide text-gray-500">
                 <th className="px-3 py-2 font-medium">Hora</th>
@@ -157,6 +159,7 @@ export function RequestLogPanel({ onManualRefresh }: RequestLogPanelProps) {
                 <th className="px-3 py-2 text-right font-medium">Código</th>
                 <th className="px-3 py-2 text-right font-medium">Tiempo</th>
                 <th className="px-3 py-2 font-medium">Usuario</th>
+                <th className="px-3 py-2 font-medium">IP</th>
               </tr>
             </thead>
             <tbody className="divide-y font-mono">
@@ -177,8 +180,14 @@ export function RequestLogPanel({ onManualRefresh }: RequestLogPanelProps) {
                   <td className={`whitespace-nowrap px-3 py-1.5 text-right ${durationClass(entry.duration_ms)}`}>
                     {entry.duration_ms.toFixed(1)} ms
                   </td>
-                  <td className="whitespace-nowrap px-3 py-1.5 text-gray-500" title={entry.ip}>
+                  <td className="whitespace-nowrap px-3 py-1.5 text-gray-500">
                     {entry.username || "—"}
+                  </td>
+                  {/* La IP la resuelve el backend respetando NUM_PROXIES, así
+                      que con nginx delante es la del cliente real y no la del
+                      proxy. Vacía cuando la petición no la trajo. */}
+                  <td className="whitespace-nowrap px-3 py-1.5 text-gray-500" title={entry.ip}>
+                    {entry.ip || "—"}
                   </td>
                 </tr>
               ))}

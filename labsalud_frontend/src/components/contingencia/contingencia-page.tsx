@@ -17,7 +17,7 @@
 // nada por su cuenta — marcan la operación para que el servicio la vuelva a
 // tomar, o la dan por perdida a propósito.
 
-import { useCallback, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import type React from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
@@ -141,6 +141,23 @@ export default function ContingenciaPage() {
     () => queryClient.invalidateQueries({ queryKey: ["contingencia"] }),
     [queryClient],
   )
+
+  // Se refresca sola mientras haya algo moviéndose.
+  //
+  // Quien mira esta pantalla no la está mirando: la abrió porque el servidor
+  // volvió y quiere saber cuándo terminó. El que sube es el servicio, en otro
+  // proceso, así que sin esto la pantalla se queda con el número de cuando se
+  // abrió y hay que apretar "Actualizar" para enterarse de algo que ya pasó.
+  //
+  // Cuando no queda nada pendiente se deja de preguntar: lo único que puede
+  // cambiar a partir de ahí es algo que hace la propia persona, y eso ya
+  // refresca solo.
+  const hayMovimiento = (diario?.resumen?.pendientes ?? 0) > 0
+  useEffect(() => {
+    if (!hayMovimiento) return
+    const t = window.setInterval(() => { void refrescar() }, 5000)
+    return () => window.clearInterval(t)
+  }, [hayMovimiento, refrescar])
 
   const accionar = async (
     operacion: OperacionContingencia,

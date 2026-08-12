@@ -31,6 +31,7 @@ const ProtocolValidationPage = lazy(() => import("./components/validacion/protoc
 const FacturacionPage = lazy(() => import("./components/facturacion/facturacion-page"))
 const SearchResultsPage = lazy(() => import("./components/search/search-results-page"))
 const SuperadminPage = lazy(() => import("./components/superadmin/superadmin-page"))
+const ContingenciaPage = lazy(() => import("./components/contingencia/contingencia-page"))
 
 // React Query client compartido. Cache de 1 min para listados pesados (protocolos, pacientes).
 // Reintentos en mutaciones desactivados (errores 4xx no son
@@ -143,6 +144,19 @@ function App() {
                     }
                   >
                     <Route index element={<SuperadminPage />} />
+                  </Route>
+                  {/* Contingencia: la atiende el backend LOCAL de la PC. En el
+                      servidor la ruta existe igual y muestra un diario vacío,
+                      que es la respuesta correcta ahí. */}
+                  <Route
+                    path="/contingencia"
+                    element={
+                      <ProtectedRoute requiredPermission={PERMISSIONS.UPLOAD_CONTINGENCY.codename}>
+                        <Layout />
+                      </ProtectedRoute>
+                    }
+                  >
+                    <Route index element={<ContingenciaPage />} />
                   </Route>
                   <Route
                     path="/ingreso"

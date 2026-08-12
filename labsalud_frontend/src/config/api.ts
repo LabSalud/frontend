@@ -164,6 +164,18 @@ export const SUPERADMIN_ENDPOINTS = {
   RELEASE_BLOCK: (id: number) => buildApiUrl(`/superadmin/blocks/${id}/release/`),
 } as const
 
+// Contingencia: lo que quedó anotado en la PC mientras el servidor estuvo
+// caído. Estos endpoints los atiende el backend LOCAL de la PC, no el servidor
+// central — en el servidor existen igual y contestan un diario vacío, que es la
+// respuesta correcta ahí.
+export const CONTINGENCY_ENDPOINTS = {
+  DIARIO: (estado?: string) =>
+    buildApiUrl(`/sync/contingencia/${estado ? `?estado=${encodeURIComponent(estado)}` : ""}`),
+  SUBIR: () => buildApiUrl("/sync/contingencia/subir/"),
+  OPERACION: (id: number, accion: "reintentar" | "descartar" | "confirmar") =>
+    buildApiUrl(`/sync/contingencia/${id}/${accion}/`),
+} as const
+
 // Búsqueda global (pacientes + protocolos + resultados + validaciones)
 export const SEARCH_ENDPOINTS = {
   GLOBAL: ({
@@ -325,6 +337,7 @@ export const API_ENDPOINTS = {
   PROTOCOL: PROTOCOL_ENDPOINTS,
   AUDIT: AUDIT_ENDPOINTS,
   SUPERADMIN: SUPERADMIN_ENDPOINTS,
+  CONTINGENCY: CONTINGENCY_ENDPOINTS,
   SEARCH: SEARCH_ENDPOINTS,
   ANALYTICS: ANALYTICS_ENDPOINTS,
   RESULTS: RESULTS_ENDPOINTS,

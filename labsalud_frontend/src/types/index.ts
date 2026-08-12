@@ -1550,14 +1550,3 @@ export interface DiarioContingencia {
   operaciones: OperacionContingencia[]
 }
 
-export interface RespuestaSubidaContingencia {
-  subidas?: number
-  con_problema?: number
-  avisos?: string[]
-  resumen?: ResumenContingencia
-  // Cuando el servidor pide el segundo factor no hay subida todavía: hay que
-  // volver a llamar con el código y este pase.
-  two_factor_required?: boolean
-  pase?: string
-  expira_en?: number
-}

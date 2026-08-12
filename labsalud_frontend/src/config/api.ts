@@ -171,7 +171,6 @@ export const SUPERADMIN_ENDPOINTS = {
 export const CONTINGENCY_ENDPOINTS = {
   DIARIO: (estado?: string) =>
     buildApiUrl(`/sync/contingencia/${estado ? `?estado=${encodeURIComponent(estado)}` : ""}`),
-  SUBIR: () => buildApiUrl("/sync/contingencia/subir/"),
   OPERACION: (id: number, accion: "reintentar" | "descartar" | "confirmar") =>
     buildApiUrl(`/sync/contingencia/${id}/${accion}/`),
 } as const

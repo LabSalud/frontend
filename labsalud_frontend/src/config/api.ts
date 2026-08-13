@@ -201,6 +201,12 @@ export const SEARCH_ENDPOINTS = {
 export const ANALYTICS_ENDPOINTS = {
   DASHBOARD: buildApiUrl("/analytics/dashboard/"),
   PROTOCOLS_BY_STATUS: buildApiUrl("/analytics/dashboard/protocols-by-status/"),
+  // El cierre de caja de un día cualquiera, no solo el de hoy: es lo que abre
+  // al hacer clic en una barra del gráfico del inicio.
+  CAJA: (fecha: string) => buildApiUrl(`/analytics/dashboard/caja/?fecha=${fecha}`),
+  // Cuánta plata hay dando vueltas, en las dos direcciones.
+  PENDIENTE: buildApiUrl("/analytics/dashboard/pendiente/"),
+  LIBRO_DIARIO: buildApiUrl("/analytics/dashboard/libro-diario/"),
 } as const
 
 // Results endpoints

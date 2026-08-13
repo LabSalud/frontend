@@ -2,6 +2,8 @@
 
 import type React from "react"
 import { useEffect, useRef, useState } from "react"
+
+import CajaDelDia from "@/components/caja-del-dia"
 import {
   AlertTriangle,
   Building2,
@@ -167,6 +169,25 @@ export default function Home() {
     const day = String(now.getDate()).padStart(2, "0")
     return `${year}-${month}-${day}`
   })()
+  // Swipe en el carrusel de caja. Es el mismo gesto que en pacientes
+  // atendidos: en el celular las flechas son chicas y nadie las usa, así que
+  // sin esto la mitad del gráfico queda inalcanzable en la pantalla donde más
+  // se lo mira.
+  const cashSwipeStartX = useRef<number | null>(null)
+  const onCashTouchStart = (e: React.TouchEvent) => {
+    cashSwipeStartX.current = e.touches[0]?.clientX ?? null
+  }
+  const onCashTouchEnd = (e: React.TouchEvent) => {
+    if (cashSwipeStartX.current == null) return
+    const dx = (e.changedTouches[0]?.clientX ?? cashSwipeStartX.current) - cashSwipeStartX.current
+    cashSwipeStartX.current = null
+    if (Math.abs(dx) < 40) return
+    if (dx > 0) goOlderCashWeek()
+    else goNewerCashWeek()
+  }
+  // El día abierto en el detalle de caja. null = ninguno.
+  const [cajaDelDia, setCajaDelDia] = useState<string | null>(null)
+
   const insuranceMix = dashboard?.insurance_mix_month || []
   const topUrgent = dashboard?.top_urgent_analyses || []
   const missingInfo = dashboard?.missing_info
@@ -475,7 +496,11 @@ export default function Home() {
               >
                 <ChevronLeft className="h-5 w-5" />
               </button>
-              <div className="flex-1 overflow-hidden">
+              <div
+                className="flex-1 overflow-hidden"
+                onTouchStart={onCashTouchStart}
+                onTouchEnd={onCashTouchEnd}
+              >
                 <div
                   className="flex transition-transform duration-300 ease-out"
                   style={{ transform: `translateX(-${(cashWeeks.length - 1 - cashWeekIndex) * 100}%)` }}
@@ -489,18 +514,24 @@ export default function Home() {
                             const value = Number.parseFloat(item.collected || "0")
                             const isToday = item.date === todayKey
                             return (
-                              <div key={item.date} className="flex min-w-0 flex-1 flex-col items-center justify-end">
+                              <button
+                                key={item.date}
+                                type="button"
+                                onClick={() => setCajaDelDia(item.date)}
+                                aria-label={`Ver el detalle de la caja del ${item.date}`}
+                                className="group flex min-w-0 flex-1 cursor-pointer flex-col items-center justify-end rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2"
+                              >
                                 <div
-                                  className={`flex w-full items-end rounded-md ${isToday ? "bg-amber-100/70 ring-1 ring-amber-300" : "bg-slate-100/80"}`}
+                                  className={`flex w-full items-end rounded-md transition-colors ${isToday ? "bg-amber-100/70 ring-1 ring-amber-300" : "bg-slate-100/80"} group-hover:bg-slate-200/90`}
                                   style={{ height: "104px" }}
-                                  title={`${formatMoney(item.collected)}${isToday ? " (hoy)" : ""}`}
+                                  title={`${formatMoney(item.collected)}${isToday ? " (hoy)" : ""} — tocá para ver el detalle`}
                                 >
                                   <div
-                                    className={`w-full rounded-t-md transition-all duration-300 ${isToday ? "bg-amber-500" : "bg-emerald-500"}`}
+                                    className={`w-full rounded-t-md transition-all duration-300 ${isToday ? "bg-amber-500" : "bg-emerald-500"} group-hover:brightness-110`}
                                     style={{ height: `${Math.max(4, (value / maxCash) * 100)}px` }}
                                   />
                                 </div>
-                              </div>
+                              </button>
                             )
                           })}
                         </div>
@@ -667,6 +698,9 @@ export default function Home() {
           </p>
         )}
       </section>
+
+      {/* El detalle de un día, al tocar su barra en el gráfico de caja. */}
+      <CajaDelDia fecha={cajaDelDia} onClose={() => setCajaDelDia(null)} />
     </div>
   )
 }
@@ -733,5 +767,6 @@ function PreauthBar({ label, value, total, className }: { label: string; value: 
         <div className={`h-2 rounded-full ${className}`} style={{ width: `${width}%` }} />
       </div>
     </div>
+
   )
 }

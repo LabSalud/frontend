@@ -32,6 +32,7 @@ const FacturacionPage = lazy(() => import("./components/facturacion/facturacion-
 const SearchResultsPage = lazy(() => import("./components/search/search-results-page"))
 const SuperadminPage = lazy(() => import("./components/superadmin/superadmin-page"))
 const ContingenciaPage = lazy(() => import("./components/contingencia/contingencia-page"))
+const LibroDiarioPage = lazy(() => import("./components/caja/libro-diario-page"))
 
 // React Query client compartido. Cache de 1 min para listados pesados (protocolos, pacientes).
 // Reintentos en mutaciones desactivados (errores 4xx no son
@@ -210,6 +211,18 @@ function App() {
                     }
                   >
                     <Route index element={<FacturacionPage />} />
+                  </Route>
+                  {/* El libro diario. Mismo permiso que facturación: son los
+                      mismos números mirados de otra forma. */}
+                  <Route
+                    path="/libro-diario"
+                    element={
+                      <ProtectedRoute requiredPermission={PERMISSIONS.MANAGE_BILLING.codename}>
+                        <Layout />
+                      </ProtectedRoute>
+                    }
+                  >
+                    <Route index element={<LibroDiarioPage />} />
                   </Route>
                   {/* Búsqueda global: el término viaja en ?q= para que la
                       búsqueda sea compartible y el botón atrás funcione. */}

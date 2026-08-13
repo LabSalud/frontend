@@ -4,6 +4,7 @@ import type React from "react"
 import { useEffect, useRef, useState } from "react"
 
 import CajaDelDia from "@/components/caja-del-dia"
+import PendienteDelSistema from "@/components/pendiente-del-sistema"
 import {
   AlertTriangle,
   Building2,
@@ -470,6 +471,16 @@ export default function Home() {
           </div>
         </section>
       </div>
+
+      {/* Arriba de la caja del día a propósito: la caja cuenta lo que pasó hoy
+          y esto cuenta lo que quedó sin cerrar de TODAS las fechas, que es lo
+          que uno quiere ver antes de mirar el día. Mismo permiso que
+          facturación: son los mismos números mirados de otra forma. */}
+      {canAccessBilling ? (
+        <div className="mt-5">
+          <PendienteDelSistema />
+        </div>
+      ) : null}
 
       <section className="mt-5 rounded-lg border border-slate-200 bg-white/70 p-4 shadow-sm backdrop-blur-sm sm:p-5">
         <div className="mb-4 flex items-center justify-between gap-2">

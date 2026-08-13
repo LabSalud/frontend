@@ -11,7 +11,7 @@
 // aparece en los dos.
 
 import type { LucideIcon } from "lucide-react"
-import { CloudUpload, Receipt, Settings, Shield, ShieldAlert, UserCircle } from "lucide-react"
+import { BookOpen, CloudUpload, Receipt, Settings, Shield, ShieldAlert, UserCircle } from "lucide-react"
 import { PERMISSIONS } from "@/config/permissions"
 import type { User } from "@/types"
 
@@ -51,6 +51,13 @@ export const USER_MENU_ITEMS: readonly UserMenuItem[] = [
     to: "/facturacion",
     label: "Facturacion",
     icon: Receipt,
+    isVisible: ({ hasPermission }) => hasPermission(PERMISSIONS.MANAGE_BILLING.codename),
+  },
+  {
+    id: "libro-diario",
+    to: "/libro-diario",
+    label: "Libro diario",
+    icon: BookOpen,
     isVisible: ({ hasPermission }) => hasPermission(PERMISSIONS.MANAGE_BILLING.codename),
   },
   {

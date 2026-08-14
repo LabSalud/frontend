@@ -1,6 +1,8 @@
 import { lazy, Suspense } from "react"
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
+
+import ConfirmarEnvio from "./components/contingencia/confirmar-envio"
 import { AuthProvider } from "./contexts/auth-context"
 import { RouteChangeListener } from "./components/route-change-listener"
 import { Layout } from "./components/layout"
@@ -63,6 +65,9 @@ function RouteFallback() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
+      {/* Una sola vez, arriba de todo: cualquier pantalla que mande un
+          informe lo puede levantar sin montar su propio diálogo. */}
+      <ConfirmarEnvio />
       <AuthProvider>
         <div className="min-h-screen bg-[#adadad] relative">
           <div className="fixed inset-0 flex items-center justify-center pointer-events-none z-0 overflow-hidden">

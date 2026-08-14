@@ -1,6 +1,8 @@
 "use client"
 
 import { useState } from "react"
+import { confirmarEnvioEnCola } from "@/components/contingencia/confirmar-envio"
+import { CONTINGENCY_ENDPOINTS } from "@/config/api"
 import { toast } from "sonner"
 import { useApi } from "@/hooks/use-api"
 import { useAuth } from "@/contexts/auth-context"
@@ -87,6 +89,33 @@ export function useProtocolQuickActions(
         throw new Error(formatApiError(err, "No se pudo enviar el informe"))
       }
       const data = await res.json().catch(() => ({}))
+
+      // 202 + `en_cola`: el servidor está caído y el envío NO salió. La copia
+      // local lo dejó anotado y espera que una persona decida.
+      //
+      // Antes esto caía en el toast verde de abajo y se leía como "enviado".
+      // La persona se iba pensando que el paciente ya tenía su resultado.
+      if (res.status === 202 && data.en_cola) {
+        const seManda = await confirmarEnvioEnCola({
+          detail: data.detail || "El servidor no responde.",
+          operacionId: data.operacion_id ?? null,
+        })
+
+        if (!seManda && data.operacion_id) {
+          // Cancelar no deja nada esperando: se descarta la anotación. Una cola
+          // llena de cosas que nadie quiso mandar es una cola que nadie mira.
+          await apiRequest(CONTINGENCY_ENDPOINTS.OPERACION(data.operacion_id, "descartar"), {
+            method: "POST",
+          }).catch(() => {})
+          toast.info("El envío se canceló.", { duration: TOAST_DURATION })
+          return
+        }
+
+        toast.success("Queda esperando: se manda solo cuando vuelva la conexión.",
+                      { duration: TOAST_DURATION })
+        return
+      }
+
       toast.success(data.detail || "Informe enviado", { duration: TOAST_DURATION })
       onChanged(data.protocol_status !== undefined ? { id: p.id, status: data.protocol_status } : undefined)
     } catch (e) {

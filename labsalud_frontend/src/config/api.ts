@@ -173,6 +173,15 @@ export const CONTINGENCY_ENDPOINTS = {
     buildApiUrl(`/sync/contingencia/${estado ? `?estado=${encodeURIComponent(estado)}` : ""}`),
   OPERACION: (id: number, accion: "reintentar" | "descartar" | "confirmar") =>
     buildApiUrl(`/sync/contingencia/${id}/${accion}/`),
+  // Lo que quedó de una caída y necesita una decisión, EN EL SERVIDOR.
+  //
+  // El diario de arriba vive en la base de la PC, y la app de escritorio solo
+  // da acceso mientras el servidor está caído: esa pantalla quedaba accesible
+  // justo cuando todavía no se puede resolver nada. Esto se ve desde la página.
+  PENDIENTES: (estado?: string) =>
+    buildApiUrl(`/sync/pendientes/lista/${estado ? `?estado=${encodeURIComponent(estado)}` : ""}`),
+  RESOLVER: (id: number, accion: "confirmar" | "descartar") =>
+    buildApiUrl(`/sync/pendientes/${id}/${accion}/`),
 } as const
 
 // Búsqueda global (pacientes + protocolos + resultados + validaciones)

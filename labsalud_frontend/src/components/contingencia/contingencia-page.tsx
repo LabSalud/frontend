@@ -18,6 +18,7 @@
 // tomar, o la dan por perdida a propósito.
 
 import { useCallback, useEffect, useMemo, useState } from "react"
+import PendientesDelServidor from "@/components/contingencia/pendientes-del-servidor"
 import type React from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
@@ -210,6 +211,13 @@ export default function ContingenciaPage() {
             <RefreshCw className={`mr-2 h-4 w-4 ${query.isFetching ? "animate-spin" : ""}`} />
             Actualizar
           </Button>
+        </div>
+
+        {/* Lo que la PC reportó al servidor. Se ve y se resuelve desde la
+            página, que es donde está la persona cuando el servidor volvió — y
+            donde hay internet para que un envío salga de verdad. */}
+        <div className="mb-5">
+          <PendientesDelServidor />
         </div>
 
         {query.isLoading && (

@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { pedirInforme } from "@/components/contingencia/enviar-informe"
 import { useQueryClient } from "@tanstack/react-query"
 import {
   Search,
@@ -428,17 +429,26 @@ export default function ProtocolosPage() {
     setIsBatchProcessing(true)
     try {
       const endpointAction: ReportAction = action === "print" ? "download" : action
-      const response = await apiRequest(PROTOCOL_ENDPOINTS.MERGE_REPORT, {
-        method: "POST",
-        body: {
+      const { res: response, cancelado, quedoEnCola } = await pedirInforme(
+        apiRequest, PROTOCOL_ENDPOINTS.MERGE_REPORT, {
           protocol_ids: ids,
           action: endpointAction,
           type: batchReportType,
           signed: batchSigned,
           ...(batchDate ? { protocol_date: batchDate } : {}),
           ...getBatchSignaturePayload(),
-        },
-      })
+        })
+
+      // Un lote también puede quedar en cola: son los mismos envíos, muchos de
+      // una vez. Cancelar acá no deja nada esperando.
+      if (cancelado) {
+        toast.info("El envío se canceló.")
+        return
+      }
+      if (quedoEnCola) {
+        toast.success("Queda esperando: se manda solo cuando vuelva la conexión.")
+        return
+      }
 
       if (response.ok) {
         if (action === "print" || action === "download") {
@@ -499,17 +509,26 @@ export default function ProtocolosPage() {
     setIsBatchProcessing(true)
     try {
       const endpointAction: ReportAction = action === "print" ? "download" : action
-      const response = await apiRequest(PROTOCOL_ENDPOINTS.REPORT_BATCH, {
-        method: "POST",
-        body: {
+      const { res: response, cancelado, quedoEnCola } = await pedirInforme(
+        apiRequest, PROTOCOL_ENDPOINTS.REPORT_BATCH, {
           protocol_ids: Array.from(selectedProtocols),
           action: endpointAction,
           type: batchReportType,
           signed: batchSigned,
           ...(batchDate ? { protocol_date: batchDate } : {}),
           ...getBatchSignaturePayload(),
-        },
-      })
+        })
+
+      // Un lote también puede quedar en cola: son los mismos envíos, muchos de
+      // una vez. Cancelar acá no deja nada esperando.
+      if (cancelado) {
+        toast.info("El envío se canceló.")
+        return
+      }
+      if (quedoEnCola) {
+        toast.success("Queda esperando: se manda solo cuando vuelva la conexión.")
+        return
+      }
 
       if (response.ok) {
         if (action === "print" || action === "download") {

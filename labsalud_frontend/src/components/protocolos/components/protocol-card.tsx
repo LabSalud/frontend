@@ -1,6 +1,7 @@
 "use client"
 
 import type React from "react"
+import { pedirInforme } from "@/components/contingencia/enviar-informe"
 import { useState, useCallback, useEffect, useRef } from "react"
 import { Card, CardContent } from "../../ui/card"
 import { Skeleton } from "../../ui/skeleton"
@@ -327,16 +328,25 @@ export function ProtocolCard({
   }
 
   const executeSingleReportRequest = async (action: ReportAction) => {
+    const { res } = await pedirEnvio(action)
+    return res
+  }
+
+  /**
+   * Igual que arriba, pero contando si la persona canceló.
+   *
+   * Un envío que no puede salir porque el servidor está caído se le pregunta a
+   * quien apretó el botón, que es quien sabe si lo quiere mandar. Cancelar no
+   * deja nada esperando.
+   */
+  const pedirEnvio = async (action: ReportAction) => {
     const reportRequest = getReportRequestOptions()
     const reportPayload = (reportRequest.body ?? {}) as Record<string, unknown>
 
-    return apiRequest(PROTOCOL_ENDPOINTS.REPORT(protocol.id), {
-      method: "POST",
-      body: {
-        action,
-        type: reportType,
-        ...reportPayload,
-      },
+    return pedirInforme(apiRequest, PROTOCOL_ENDPOINTS.REPORT(protocol.id), {
+      action,
+      type: reportType,
+      ...reportPayload,
     })
   }
 
@@ -747,7 +757,20 @@ export function ProtocolCard({
     if (!ensureCanPrintReports()) return
     setIsSendingEmail(true)
     try {
-      const response = await executeSingleReportRequest("email")
+      const { res: response, cancelado, quedoEnCola } = await pedirEnvio("email")
+
+      // Canceló: no pasó nada y eso no es una falla. Se cierra y listo.
+      if (cancelado) {
+        setReportDialogOpen(false)
+        return
+      }
+
+      if (quedoEnCola) {
+        toast.success("Queda esperando: se manda solo cuando vuelva la conexión.",
+                      { duration: TOAST_DURATION })
+        setReportDialogOpen(false)
+        return
+      }
 
       if (response.ok) {
         const data = await response.json()
@@ -773,7 +796,20 @@ export function ProtocolCard({
     if (!ensureCanPrintReports()) return
     setIsSendingWhatsApp(true)
     try {
-      const response = await executeSingleReportRequest("whatsapp")
+      const { res: response, cancelado, quedoEnCola } = await pedirEnvio("whatsapp")
+
+      // Canceló: no pasó nada y eso no es una falla. Se cierra y listo.
+      if (cancelado) {
+        setReportDialogOpen(false)
+        return
+      }
+
+      if (quedoEnCola) {
+        toast.success("Queda esperando: se manda solo cuando vuelva la conexión.",
+                      { duration: TOAST_DURATION })
+        setReportDialogOpen(false)
+        return
+      }
 
       if (response.ok) {
         const data = await response.json()

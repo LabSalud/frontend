@@ -58,6 +58,7 @@ export function ObraSocialDetailDialog({
     { label: "Material descartable", active: data.charges_material_descartable },
     { label: "Derivación", active: data.charges_derivacion },
     { label: "Preautorización", active: data.requires_preauthorization },
+    { label: "Historia clínica (internados)", active: data.requires_historia_clinica },
   ]
 
   return (

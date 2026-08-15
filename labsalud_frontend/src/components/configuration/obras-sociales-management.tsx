@@ -11,13 +11,14 @@ import { Badge } from "@/components/ui/badge"
 import { Switch } from "@/components/ui/switch"
 import { DataTable, type Column } from "@/components/common/data-table"
 import { AuditAvatars } from "@/components/common/audit-avatars"
-import { Loader2, Search, Plus, DollarSign } from "lucide-react"
+import { Loader2, Search, Plus, DollarSign, Upload } from "lucide-react"
 import { getNbuDisplayName } from "@/hooks/use-nbu-options"
 import type { ObraSocial } from "@/types"
 import { CreateObraSocialDialog } from "./components/create-obra-social-dialog"
 import { EditObraSocialDialog } from "./components/edit-obra-social-dialog"
 import { ObraSocialDetailDialog } from "./components/obra-social-detail-dialog"
 import { ObraSocialHistoryDialog } from "./components/obra-social-history-dialog"
+import { ImportarObrasSocialesDialog } from "./components/importar-obras-sociales-dialog"
 import { useToast } from "@/hooks/use-toast"
 import { useInfiniteScroll } from "@/hooks/use-infinite-scroll"
 import { useDebounce } from "@/hooks/use-debounce"
@@ -41,6 +42,7 @@ export function ObrasSocialesManagement() {
   const [sheetObraSocial, setSheetObraSocial] = useState<ObraSocial | null>(null)
   const [historyOpen, setHistoryOpen] = useState(false)
   const [historyObraSocial, setHistoryObraSocial] = useState<ObraSocial | null>(null)
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false)
   const { nbus } = useNbuOptions()
 
   const buildUrl = useCallback(
@@ -212,10 +214,16 @@ export function ObrasSocialesManagement() {
           <h3 className="text-base font-semibold text-gray-800">Obras Sociales</h3>
           <p className="text-sm text-gray-500">Gestiona las obras sociales del sistema</p>
         </div>
-        <Button className="bg-[#204983] hover:bg-[#1a3d6f] w-full sm:w-auto" onClick={() => setIsCreateModalOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          Nueva Obra Social
-        </Button>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <Button variant="outline" className="w-full sm:w-auto" onClick={() => setIsImportModalOpen(true)}>
+            <Upload className="mr-2 h-4 w-4" />
+            Importar planilla
+          </Button>
+          <Button className="bg-[#204983] hover:bg-[#1a3d6f] w-full sm:w-auto" onClick={() => setIsCreateModalOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            Nueva Obra Social
+          </Button>
+        </div>
       </div>
 
       <div className="flex items-center justify-between">
@@ -274,6 +282,13 @@ export function ObrasSocialesManagement() {
         />
       )}
 
+      {isImportModalOpen && (
+        <ImportarObrasSocialesDialog
+          open={isImportModalOpen}
+          onOpenChange={setIsImportModalOpen}
+          onSuccess={invalidateInsurances}
+        />
+      )}
       {isCreateModalOpen && (
         <CreateObraSocialDialog
           open={isCreateModalOpen}

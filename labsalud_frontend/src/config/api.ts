@@ -98,6 +98,7 @@ export const MEDICAL_ENDPOINTS = {
   INSURANCES: buildApiUrl("/medicale/insurances/"),
   INSURANCE_DETAIL: (id: number) => buildApiUrl(`/medicale/insurances/${id}/`),
   INSURANCE_AUDIT_TIMELINE: (id: number) => buildApiUrl(`/medicale/insurances/${id}/audit-timeline/`),
+  INSURANCES_IMPORT: buildApiUrl("/medicale/insurances/importar-planilla/"),
 } as const
 
 export const CATALOG_ENDPOINTS = {

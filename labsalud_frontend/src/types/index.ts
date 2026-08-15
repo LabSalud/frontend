@@ -341,6 +341,7 @@ export interface Insurance {
   charges_material_descartable?: boolean
   charges_derivacion?: boolean
   requires_preauthorization?: boolean
+  requires_historia_clinica?: boolean
   nbu?: Nbu | number | null
   /** Entidad de facturación a la que se presenta esta OOSS actualmente (null = sin asignar). */
   billing_entity?: { id: number; name: string } | null

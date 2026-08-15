@@ -15,6 +15,7 @@ import { formatApiError, getErrorMessage } from "@/lib/api-error"
 import { ReminderSettingsPanel } from "@/components/facturacion/components/reminder-settings-panel"
 import { BillingEntityCard } from "./components/billing-entity-card"
 import type { BillingEntity, ReminderPhone } from "@/components/facturacion/types"
+import { CuentasDeCobro } from "./components/cuentas-de-cobro"
 
 interface PaginatedResponse<T> {
   results: T[]
@@ -215,6 +216,11 @@ export function BillingManagement() {
           />
         )}
       </div>
+
+      {/* Las cuentas viven acá y no en una pantalla aparte: se administran
+          junto con el resto de facturación, y quien las da de alta es la misma
+          persona que concilia la caja. */}
+      <CuentasDeCobro />
     </div>
   )
 }

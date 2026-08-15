@@ -748,6 +748,10 @@ export interface CreateProtocolInput {
   insurance?: number
   /** Solo cuando la OOSS factura según la preautorización del paciente. */
   billing_entity?: number
+  /** "efectivo" | "transferencia". Vacío = no se registró. */
+  payment_method?: string
+  /** Obligatoria cuando el pago fue por transferencia. */
+  payment_account?: number
   affiliate_number?: string
   send_method: number
   value_paid: string

@@ -85,6 +85,8 @@ export const PATIENT_ENDPOINTS = {
   PATIENTS: buildApiUrl("/patients/patients/"),
   PATIENT_DETAIL: (id: number) => buildApiUrl(`/patients/patients/${id}/`),
   PATIENT_AUDIT_TIMELINE: (id: number) => buildApiUrl(`/patients/patients/${id}/audit-timeline/`),
+  /** Números de afiliado ya conocidos del paciente, para sugerirlos al cargar. */
+  PATIENT_AFILIACIONES: (id: number) => buildApiUrl(`/patients/patients/${id}/afiliaciones/`),
   MERGE_PREVIEW: (sourceId: number, targetId: number) =>
     buildApiUrl(`/patients/patients/${sourceId}/merge-preview/${targetId}/`),
   MERGE: (sourceId: number, targetId: number) =>
@@ -143,6 +145,11 @@ export const PROTOCOL_ENDPOINTS = {
   REGULARIZE_BALANCE: (id: number) => buildApiUrl(`/protocols/protocols/${id}/regularize-balance/`),
   UNCANCEL: (id: number) => buildApiUrl(`/protocols/protocols/${id}/uncancel/`),
   ROLLBACK: (id: number) => buildApiUrl(`/protocols/protocols/${id}/rollback/`),
+  DETAILS_ADD: (id: number) => buildApiUrl(`/protocols/protocols/${id}/details/add/`),
+  DETAIL_REMOVE: (id: number, detailId: number) =>
+    buildApiUrl(`/protocols/protocols/${id}/details/${detailId}/remove/`),
+  DETAILS_REORDER: (id: number) =>
+    buildApiUrl(`/protocols/protocols/${id}/details/reordenar/`),
   SET_COSEGURO: (id: number) => buildApiUrl(`/protocols/protocols/${id}/set-coseguro/`),
   UNPLANNED_LIST: (protocolId: number) => buildApiUrl(`/protocols/protocols/${protocolId}/unplanned/`),
   UNPLANNED_ITEM: (protocolId: number, txId: number) =>
@@ -262,6 +269,8 @@ export const BILLING_ENDPOINTS = {
   ANALYTICS_DAILY: buildApiUrl("/billing/analytics/daily/"),
   ANALYTICS_PRESENTATIONS_SUMMARY: buildApiUrl("/billing/analytics/presentations-summary/"),
   ENTITIES: buildApiUrl("/billing/entities/"),
+  CUENTAS_DE_COBRO: buildApiUrl("/billing/cuentas-de-cobro/"),
+  CUENTA_DE_COBRO: (id: number) => buildApiUrl(`/billing/cuentas-de-cobro/${id}/`),
   ENTITY_DETAIL: (id: number) => buildApiUrl(`/billing/entities/${id}/`),
   REMINDER_PHONES: buildApiUrl("/billing/reminders/phones/"),
   REMINDER_PHONE_DETAIL: (id: number) => buildApiUrl(`/billing/reminders/phones/${id}/`),

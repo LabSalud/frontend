@@ -28,6 +28,7 @@ import { BillingEntitySelect } from "@/components/configuration/components/billi
 import { AnalysisSearch } from "./analysis-search"
 import { AnalysisTable } from "./analysis-table"
 import { TRAJO_ORDEN_OPTIONS, type TrajoOrdenStatus } from "@/lib/protocol-order"
+import { FormaDePago } from "@/components/common/forma-de-pago"
 import type {
   Patient,
   Doctor,
@@ -186,6 +187,8 @@ interface ProtocolFormProps {
   selectedInsurance: Insurance | null
   selectedSendMethod: SendMethod | null
   patientPaid: string
+  formaDePago: string
+  cuentaDeCobroId: string
   affiliateNumber: string
   billingEntityId: string
   trajoOrden: TrajoOrdenStatus | ""
@@ -215,6 +218,8 @@ interface ProtocolFormProps {
   onShowCreateMedico: () => void
   onShowCreateObraSocial: () => void
   onPatientPaidChange: (value: string) => void
+  onFormaDePagoChange: (value: string) => void
+  onCuentaDeCobroChange: (value: string) => void
   onAffiliateNumberChange: (number: string) => void
   onBillingEntityChange: (id: string) => void
   onTrajoOrdenChange: (trajoOrden: TrajoOrdenStatus | "") => void
@@ -234,6 +239,8 @@ export function ProtocolForm({
   selectedInsurance,
   selectedSendMethod,
   patientPaid,
+  formaDePago,
+  cuentaDeCobroId,
   affiliateNumber,
   billingEntityId,
   trajoOrden,
@@ -260,6 +267,8 @@ export function ProtocolForm({
   onShowCreateMedico,
   onShowCreateObraSocial,
   onPatientPaidChange,
+  onFormaDePagoChange,
+  onCuentaDeCobroChange,
   onAffiliateNumberChange,
   onBillingEntityChange,
   onTrajoOrdenChange,
@@ -711,6 +720,17 @@ export function ProtocolForm({
                       ${remaining.toFixed(2)}
                     </span>
                   </div>
+                </div>
+
+                {/* Al final del bloque de pago: primero cuánto, después cómo.
+                    Es el orden en que pasa en el mostrador. */}
+                <div className="mt-3">
+                  <FormaDePago
+                    formaDePago={formaDePago}
+                    cuentaId={cuentaDeCobroId}
+                    onFormaChange={onFormaDePagoChange}
+                    onCuentaChange={onCuentaDeCobroChange}
+                  />
                 </div>
               </div>
             </div>

@@ -8,6 +8,7 @@ import { Switch } from "../../ui/switch"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../ui/table"
 import { toast } from "sonner"
 import type { SelectedAnalysis, Insurance, QuoteDetail } from "../../../types"
+import { ListaOrdenable } from "@/components/common/lista-ordenable"
 
 interface AnalysisTableProps {
   selectedAnalyses: SelectedAnalysis[]
@@ -113,12 +114,17 @@ export function AnalysisTable({
             <div>
               {/* Mobile: Card layout */}
               <div className="md:hidden space-y-3">
-                {selectedAnalyses.map((analysis) => (
+                <ListaOrdenable
+                  items={selectedAnalyses}
+                  getId={(a) => a.id}
+                  onReorder={onAnalysisChange}
+                >
+                  {(analysis, manija) => (
                   <div
-                    key={analysis.id}
-                    className="border rounded-lg p-3 bg-gray-50/50 relative"
+                    className="border rounded-lg p-3 bg-gray-50/50 relative mb-3"
                   >
                     <div className="flex items-start justify-between gap-2 mb-2">
+                      <div className="shrink-0 pt-0.5">{manija}</div>
                       <div className="flex-1 min-w-0">
                         <p
                           className={`text-sm font-medium leading-tight break-words ${
@@ -188,7 +194,8 @@ export function AnalysisTable({
                       )}
                     </div>
                   </div>
-                ))}
+                  )}
+                </ListaOrdenable>
               </div>
 
               {/* Desktop: Table layout */}
@@ -196,6 +203,7 @@ export function AnalysisTable({
                 <Table className="w-full">
                   <TableHeader>
                     <TableRow>
+                      <TableHead className="w-8"></TableHead>
                       <TableHead className="text-xs lg:text-sm">Análisis</TableHead>
                       <TableHead className="text-xs lg:text-sm text-center whitespace-nowrap w-20 lg:w-24">Código</TableHead>
                       <TableHead className="text-xs lg:text-sm text-center w-12 lg:w-16">UB</TableHead>
@@ -210,8 +218,15 @@ export function AnalysisTable({
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {selectedAnalyses.map((analysis) => (
-                      <TableRow key={analysis.id}>
+                    <ListaOrdenable
+                      items={selectedAnalyses}
+                      getId={(a) => a.id}
+                      onReorder={onAnalysisChange}
+                      as="tr"
+                    >
+                      {(analysis, manija) => (
+                        <>
+                        <TableCell className="w-8 p-2 align-top">{manija}</TableCell>
                         <TableCell className="font-medium text-xs lg:text-sm p-2 align-top">
                           <div
                             className={`leading-tight break-words whitespace-normal ${
@@ -283,8 +298,9 @@ export function AnalysisTable({
                             <X className="h-3.5 w-3.5" />
                           </Button>
                         </TableCell>
-                      </TableRow>
-                    ))}
+                        </>
+                      )}
+                    </ListaOrdenable>
                   </TableBody>
                 </Table>
               </div>

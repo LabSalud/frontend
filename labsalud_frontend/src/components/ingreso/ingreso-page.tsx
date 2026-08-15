@@ -17,7 +17,7 @@ import { EditMedicoDialog } from "../configuration/components/edit-medico-dialog
 import { EditObraSocialDialog } from "../configuration/components/edit-obra-social-dialog"
 import { ProtocolSuccess } from "./components/protocol-success"
 import { useApi } from "../../hooks/use-api"
-import { CATALOG_ENDPOINTS, MEDICAL_ENDPOINTS, PROTOCOL_ENDPOINTS } from "@/config/api"
+import { CATALOG_ENDPOINTS, MEDICAL_ENDPOINTS, PROTOCOL_ENDPOINTS, PATIENT_ENDPOINTS } from "@/config/api"
 import { formatApiError, getErrorMessage } from "@/lib/api-error"
 import type { TrajoOrdenStatus } from "@/lib/protocol-order"
 import { useEndpointProgress } from "@/hooks/use-endpoint-progress"
@@ -50,6 +50,8 @@ type FormSnapshot = {
   selectedSendMethod: SendMethod | null
   affiliateNumber: string
   billingEntityId: string
+  formaDePago: string
+  cuentaDeCobroId: string
   trajoOrden: TrajoOrdenStatus | ""
   preauthStatus: PreauthStatus | ""
   extraAmounts: { material_descartable_amount: string; derivacion_amount: string }
@@ -78,6 +80,14 @@ export default function IngresoPage() {
   // Solo se usa para las OOSS que facturan segun la preautorizacion
   // del paciente (`chooses_billing_entity`).
   const [billingEntityId, setBillingEntityId] = useState("")
+  // Números de afiliado que ya se le conocen al paciente, por obra social.
+  // Se piden al elegirlo y se ofrecen cuando elige la OOSS: la segunda vez que
+  // viene la misma persona, el número ya está.
+  const [afiliacionesConocidas, setAfiliacionesConocidas] = useState<
+    Record<number, string>
+  >({})
+  const [formaDePago, setFormaDePago] = useState("")
+  const [cuentaDeCobroId, setCuentaDeCobroId] = useState("")
   const [trajoOrden, setTrajoOrden] = useState<TrajoOrdenStatus | "">("")
   const [preauthStatus, setPreauthStatus] = useState<PreauthStatus | "">("")
   const [pricingConfig, setPricingConfig] = useState<PricingConfig | null>(null)
@@ -281,10 +291,44 @@ export default function IngresoPage() {
     toast.success("Obra social creada exitosamente")
   }
 
+  useEffect(() => {
+    const id = currentPatient?.id
+    if (!id) {
+      setAfiliacionesConocidas({})
+      return
+    }
+    let vigente = true
+    apiRequest(PATIENT_ENDPOINTS.PATIENT_AFILIACIONES(id))
+      .then((r) => (r.ok ? r.json() : null))
+      .then((datos) => {
+        if (!vigente || !datos) return
+        const porOoss: Record<number, string> = {}
+        for (const fila of datos.afiliaciones || []) {
+          porOoss[fila.insurance_id] = fila.affiliate_number
+        }
+        setAfiliacionesConocidas(porOoss)
+      })
+      .catch(() => {
+        // Que no se sepa el número de antes no puede frenar una carga: se
+        // escribe a mano, como siempre.
+      })
+    return () => {
+      vigente = false
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPatient?.id])
+
   const handleInsuranceSelect = (insurance: Insurance | null) => {
     setSelectedInsurance(insurance)
-    setAffiliateNumber("")
+    // Se propone el que ya usó en esta obra social, si hay. Es una sugerencia:
+    // el campo queda editable, porque el que vale es el del carnet que la
+    // persona trae hoy.
+    setAffiliateNumber(
+      (insurance && afiliacionesConocidas[insurance.id]) || "",
+    )
     setBillingEntityId("")
+    setFormaDePago("")
+    setCuentaDeCobroId("")
     setTrajoOrden("")
     setPreauthStatus("")
     setExtraAmounts({
@@ -350,6 +394,8 @@ export default function IngresoPage() {
       setSelectedSendMethod(s.selectedSendMethod)
       setAffiliateNumber(s.affiliateNumber)
       setBillingEntityId(s.billingEntityId)
+      setFormaDePago(s.formaDePago)
+      setCuentaDeCobroId(s.cuentaDeCobroId)
       setTrajoOrden(s.trajoOrden)
       setPreauthStatus(s.preauthStatus)
       setExtraAmounts(s.extraAmounts)
@@ -461,6 +507,9 @@ export default function IngresoPage() {
     if (selectedInsurance?.chooses_billing_entity && !billingEntityId) {
       missing.push("por dónde factura (Centro o Clínica)")
     }
+    if (formaDePago === "transferencia" && !cuentaDeCobroId) {
+      missing.push("a qué cuenta fue la transferencia")
+    }
     if (shouldShowOrder && !trajoOrden) missing.push("estado de la orden médica")
     if (shouldShowPreauth && !preauthStatus) missing.push("estado de la preautorización")
 
@@ -539,6 +588,13 @@ export default function IngresoPage() {
         protocolData.billing_entity = Number(billingEntityId)
       }
 
+      if (formaDePago) {
+        protocolData.payment_method = formaDePago
+        if (formaDePago === "transferencia" && cuentaDeCobroId) {
+          protocolData.payment_account = Number(cuentaDeCobroId)
+        }
+      }
+
       const cleanedUnplanned = unplannedTransactions
         .map((t) => ({
           kind: t.kind,
@@ -604,6 +660,8 @@ export default function IngresoPage() {
           selectedSendMethod,
           affiliateNumber,
           billingEntityId,
+          formaDePago,
+          cuentaDeCobroId,
           trajoOrden,
           preauthStatus,
           extraAmounts,
@@ -696,6 +754,8 @@ export default function IngresoPage() {
               patientPaid={patientPaid}
               affiliateNumber={affiliateNumber}
               billingEntityId={billingEntityId}
+              formaDePago={formaDePago}
+              cuentaDeCobroId={cuentaDeCobroId}
               trajoOrden={trajoOrden}
               preauthStatus={preauthStatus}
               isPrivateInsurance={treatAsPrivate}
@@ -722,6 +782,8 @@ export default function IngresoPage() {
               onPatientPaidChange={setPatientPaid}
               onAffiliateNumberChange={setAffiliateNumber}
               onBillingEntityChange={setBillingEntityId}
+              onFormaDePagoChange={setFormaDePago}
+              onCuentaDeCobroChange={setCuentaDeCobroId}
               onTrajoOrdenChange={setTrajoOrden}
               onPreauthStatusChange={setPreauthStatus}
               onExtraAmountsChange={setExtraAmounts}

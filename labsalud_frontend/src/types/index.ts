@@ -342,6 +342,8 @@ export interface Insurance {
   charges_derivacion?: boolean
   requires_preauthorization?: boolean
   requires_historia_clinica?: boolean
+  /** La OOSS factura por Centro o Clínica según la preautorización: se elige en el ingreso. */
+  chooses_billing_entity?: boolean
   nbu?: Nbu | number | null
   /** Entidad de facturación a la que se presenta esta OOSS actualmente (null = sin asignar). */
   billing_entity?: { id: number; name: string } | null
@@ -742,6 +744,8 @@ export interface CreateProtocolInput {
   patient: number
   doctor: number
   insurance?: number
+  /** Solo cuando la OOSS factura según la preautorización del paciente. */
+  billing_entity?: number
   affiliate_number?: string
   send_method: number
   value_paid: string

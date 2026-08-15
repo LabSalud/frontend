@@ -59,6 +59,7 @@ export function ObraSocialDetailDialog({
     { label: "Derivación", active: data.charges_derivacion },
     { label: "Preautorización", active: data.requires_preauthorization },
     { label: "Historia clínica (internados)", active: data.requires_historia_clinica },
+    { label: "Entidad se elige al ingresar", active: data.chooses_billing_entity },
   ]
 
   return (

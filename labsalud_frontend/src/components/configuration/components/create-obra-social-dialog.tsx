@@ -29,6 +29,7 @@ interface FormData {
   ub_value: string
   nbu_id: string
   billing_entity_id: string
+  chooses_billing_entity: boolean
   charges_coseguro: boolean
   charges_material_descartable: boolean
   charges_derivacion: boolean
@@ -48,6 +49,7 @@ const initialFormData: FormData = {
   ub_value: "",
   nbu_id: "",
   billing_entity_id: "",
+  chooses_billing_entity: false,
   charges_coseguro: false,
   charges_material_descartable: false,
   charges_derivacion: false,
@@ -126,6 +128,7 @@ export function CreateObraSocialDialog({ open, onOpenChange, onSuccess }: Create
         charges_derivacion: formData.charges_derivacion,
         requires_preauthorization: formData.requires_preauthorization,
         requires_historia_clinica: formData.requires_historia_clinica,
+        chooses_billing_entity: formData.chooses_billing_entity,
       }
       if (formData.description.trim()) body.description = formData.description
       if (formData.ub_value.trim()) body.ub_value = Number.parseFloat(formData.ub_value)
@@ -263,10 +266,37 @@ export function CreateObraSocialDialog({ open, onOpenChange, onSuccess }: Create
                 id="billing_entity_id"
                 value={formData.billing_entity_id}
                 onValueChange={(value) => setFormData((prev) => ({ ...prev, billing_entity_id: value }))}
+                disabled={formData.chooses_billing_entity}
               />
               <p className="text-xs text-gray-500">
                 A través de qué entidad (Centro/Clínica) se presenta esta OOSS. Podés dejarla sin asignar.
               </p>
+
+              <div className="mt-3 flex items-start justify-between gap-3 border-t border-gray-200 pt-3">
+                <div>
+                  <Label htmlFor="chooses_billing_entity" className="cursor-pointer">
+                    Se elige en cada ingreso
+                  </Label>
+                  <p className="text-xs text-gray-500">
+                    Factura por Centro o por Clínica según cómo se preautorizó al
+                    paciente. Al cargar el protocolo hay que elegir por cuál va.
+                  </p>
+                </div>
+                <Switch
+                  id="chooses_billing_entity"
+                  checked={formData.chooses_billing_entity}
+                  onCheckedChange={(checked) => {
+                    // No pueden convivir: si se elige por paciente, no hay una
+                    // entidad fija. Dejar las dos cargadas haría que la vieja se
+                    // use por lo bajo cada vez que alguien no eligiera.
+                    setFormData((prev) => ({
+                      ...prev,
+                      chooses_billing_entity: checked,
+                      billing_entity_id: checked ? "" : prev.billing_entity_id,
+                    }))
+                  }}
+                />
+              </div>
             </div>
 
             <div className="space-y-3 rounded-lg border border-gray-200 p-4">

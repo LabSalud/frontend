@@ -24,6 +24,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { PatientSearch } from "./patient-search"
 import { MedicoCombobox } from "./medico-combobox"
 import { ObraSocialCombobox } from "./obra-social-combobox"
+import { BillingEntitySelect } from "@/components/configuration/components/billing-entity-select"
 import { AnalysisSearch } from "./analysis-search"
 import { AnalysisTable } from "./analysis-table"
 import { TRAJO_ORDEN_OPTIONS, type TrajoOrdenStatus } from "@/lib/protocol-order"
@@ -186,6 +187,7 @@ interface ProtocolFormProps {
   selectedSendMethod: SendMethod | null
   patientPaid: string
   affiliateNumber: string
+  billingEntityId: string
   trajoOrden: TrajoOrdenStatus | ""
   preauthStatus: PreauthStatus | ""
   isPrivateInsurance: boolean
@@ -214,6 +216,7 @@ interface ProtocolFormProps {
   onShowCreateObraSocial: () => void
   onPatientPaidChange: (value: string) => void
   onAffiliateNumberChange: (number: string) => void
+  onBillingEntityChange: (id: string) => void
   onTrajoOrdenChange: (trajoOrden: TrajoOrdenStatus | "") => void
   onPreauthStatusChange: (status: PreauthStatus | "") => void
   onExtraAmountsChange: (amounts: { material_descartable_amount: string; derivacion_amount: string }) => void
@@ -232,6 +235,7 @@ export function ProtocolForm({
   selectedSendMethod,
   patientPaid,
   affiliateNumber,
+  billingEntityId,
   trajoOrden,
   preauthStatus,
   isPrivateInsurance,
@@ -257,6 +261,7 @@ export function ProtocolForm({
   onShowCreateObraSocial,
   onPatientPaidChange,
   onAffiliateNumberChange,
+  onBillingEntityChange,
   onTrajoOrdenChange,
   onPreauthStatusChange,
   onExtraAmountsChange,
@@ -343,6 +348,28 @@ export function ProtocolForm({
               </div>
             )}
           </div>
+          {selectedInsurance?.chooses_billing_entity && (
+            <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 p-3">
+              <label
+                htmlFor="protocolo_billing_entity"
+                className="block text-sm font-medium text-amber-900"
+              >
+                ¿Por dónde factura este paciente? *
+              </label>
+              <p className="mb-2 text-xs text-amber-800">
+                {selectedInsurance.name} va por Centro o por Clínica según cómo se
+                preautorizó. Se decide por paciente, no por obra social.
+              </p>
+              <BillingEntitySelect
+                id="protocolo_billing_entity"
+                value={billingEntityId}
+                onValueChange={onBillingEntityChange}
+                allowNone={false}
+                placeholder="Elegir Centro o Clínica"
+              />
+            </div>
+          )}
+
           {selectedInsurance && (
             <div className="flex flex-wrap gap-4 text-sm text-gray-600 mt-2">
               <span>

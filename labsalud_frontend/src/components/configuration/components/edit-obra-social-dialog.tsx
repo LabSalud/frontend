@@ -31,6 +31,7 @@ interface FormData {
   ub_value: string
   nbu_id: string
   billing_entity_id: string
+  chooses_billing_entity: boolean
   charges_coseguro: boolean
   charges_material_descartable: boolean
   charges_derivacion: boolean
@@ -62,6 +63,7 @@ export function EditObraSocialDialog({ open, onOpenChange, obraSocial, onSuccess
     ub_value: "",
     nbu_id: "",
     billing_entity_id: "",
+  chooses_billing_entity: false,
     charges_coseguro: false,
     charges_material_descartable: false,
     charges_derivacion: false,
@@ -90,6 +92,7 @@ export function EditObraSocialDialog({ open, onOpenChange, obraSocial, onSuccess
         charges_derivacion: obraSocial.charges_derivacion ?? false,
         requires_preauthorization: obraSocial.requires_preauthorization ?? false,
         requires_historia_clinica: obraSocial.requires_historia_clinica ?? false,
+        chooses_billing_entity: obraSocial.chooses_billing_entity ?? false,
       })
       setValidation({
         name: { isValid: true, message: "Nombre válido" },
@@ -164,6 +167,9 @@ export function EditObraSocialDialog({ open, onOpenChange, obraSocial, onSuccess
     }
     if (formData.requires_historia_clinica !== (obraSocial.requires_historia_clinica ?? false)) {
       changes.requires_historia_clinica = formData.requires_historia_clinica
+    }
+    if (formData.chooses_billing_entity !== (obraSocial.chooses_billing_entity ?? false)) {
+      changes.chooses_billing_entity = formData.chooses_billing_entity
     }
     if (formData.nbu_id !== extractNbuId(obraSocial.nbu)) {
       changes.nbu = formData.nbu_id ? Number.parseInt(formData.nbu_id, 10) : null
@@ -310,11 +316,38 @@ export function EditObraSocialDialog({ open, onOpenChange, obraSocial, onSuccess
                 id="billing_entity_id"
                 value={formData.billing_entity_id}
                 onValueChange={(value) => setFormData((prev) => ({ ...prev, billing_entity_id: value }))}
+                disabled={formData.chooses_billing_entity}
               />
               <p className="text-xs text-gray-500">
                 A qué entidad se presenta habitualmente esta obra social. El cambio rige solo hacia adelante. Para
                 un protocolo puntual se puede facturar a la otra entidad desde Facturación, sin tocar esto.
               </p>
+
+              <div className="mt-3 flex items-start justify-between gap-3 border-t border-gray-200 pt-3">
+                <div>
+                  <Label htmlFor="chooses_billing_entity" className="cursor-pointer">
+                    Se elige en cada ingreso
+                  </Label>
+                  <p className="text-xs text-gray-500">
+                    Factura por Centro o por Clínica según cómo se preautorizó al
+                    paciente. Al cargar el protocolo hay que elegir por cuál va.
+                  </p>
+                </div>
+                <Switch
+                  id="chooses_billing_entity"
+                  checked={formData.chooses_billing_entity}
+                  onCheckedChange={(checked) => {
+                    // No pueden convivir: si se elige por paciente, no hay una
+                    // entidad fija. Dejar las dos cargadas haría que la vieja se
+                    // use por lo bajo cada vez que alguien no eligiera.
+                    setFormData((prev) => ({
+                      ...prev,
+                      chooses_billing_entity: checked,
+                      billing_entity_id: checked ? "" : prev.billing_entity_id,
+                    }))
+                  }}
+                />
+              </div>
             </div>
 
             <div className="space-y-3 rounded-lg border border-gray-200 p-4">

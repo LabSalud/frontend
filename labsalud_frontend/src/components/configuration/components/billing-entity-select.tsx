@@ -13,10 +13,25 @@ interface BillingEntitySelectProps {
   value: string
   onValueChange: (value: string) => void
   disabled?: boolean
+  /**
+   * Si se puede dejar sin elegir. En el ingreso NO: hay obras sociales que
+   * facturan por Centro o por Clínica según la preautorización del paciente, y
+   * un protocolo sin entidad no aparece en los pendientes de ninguna de las
+   * dos — no se factura nunca y nadie se entera.
+   */
+  allowNone?: boolean
+  placeholder?: string
 }
 
 /** Selector de entidad de facturación (a qué entidad se le presenta esta OOSS). */
-export function BillingEntitySelect({ id = "billing_entity", value, onValueChange, disabled }: BillingEntitySelectProps) {
+export function BillingEntitySelect({
+  id = "billing_entity",
+  value,
+  onValueChange,
+  disabled,
+  allowNone = true,
+  placeholder,
+}: BillingEntitySelectProps) {
   const { apiRequest } = useApi()
   const [entities, setEntities] = useState<BillingEntity[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -41,15 +56,19 @@ export function BillingEntitySelect({ id = "billing_entity", value, onValueChang
 
   return (
     <Select
-      value={value || NONE_VALUE}
+      value={allowNone ? value || NONE_VALUE : value}
       onValueChange={(next) => onValueChange(next === NONE_VALUE ? "" : next)}
       disabled={disabled || isLoading}
     >
       <SelectTrigger id={id}>
-        <SelectValue placeholder={isLoading ? "Cargando entidades..." : "Seleccionar entidad"} />
+        <SelectValue
+          placeholder={
+            isLoading ? "Cargando entidades..." : placeholder || "Seleccionar entidad"
+          }
+        />
       </SelectTrigger>
       <SelectContent>
-        <SelectItem value={NONE_VALUE}>Sin asignar</SelectItem>
+        {allowNone && <SelectItem value={NONE_VALUE}>Sin asignar</SelectItem>}
         {entities.map((entity) => (
           <SelectItem key={entity.id} value={String(entity.id)}>
             {entity.name}

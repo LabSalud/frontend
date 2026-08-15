@@ -74,6 +74,9 @@ export default function IngresoPage() {
   const [patientPaid, setPatientPaid] = useState("")
   const [selectedSendMethod, setSelectedSendMethod] = useState<SendMethod | null>(null)
   const [affiliateNumber, setAffiliateNumber] = useState("")
+  // Solo se usa para las OOSS que facturan segun la preautorizacion
+  // del paciente (`chooses_billing_entity`).
+  const [billingEntityId, setBillingEntityId] = useState("")
   const [trajoOrden, setTrajoOrden] = useState<TrajoOrdenStatus | "">("")
   const [preauthStatus, setPreauthStatus] = useState<PreauthStatus | "">("")
   const [pricingConfig, setPricingConfig] = useState<PricingConfig | null>(null)
@@ -280,6 +283,7 @@ export default function IngresoPage() {
   const handleInsuranceSelect = (insurance: Insurance | null) => {
     setSelectedInsurance(insurance)
     setAffiliateNumber("")
+    setBillingEntityId("")
     setTrajoOrden("")
     setPreauthStatus("")
     setExtraAmounts({
@@ -303,6 +307,7 @@ export default function IngresoPage() {
     setPatientPaid("")
     setSelectedSendMethod(null)
     setAffiliateNumber("")
+    setBillingEntityId("")
     setTrajoOrden("")
     setPreauthStatus("")
     setExtraAmounts({
@@ -451,6 +456,9 @@ export default function IngresoPage() {
     if (selectedAnalyses.length === 0) missing.push("al menos un análisis")
     if (!selectedSendMethod) missing.push("método de envío")
     if (selectedInsurance && !isPrivateInsurance && !affiliateNumber.trim()) missing.push("número de afiliado")
+    if (selectedInsurance?.chooses_billing_entity && !billingEntityId) {
+      missing.push("por dónde factura (Centro o Clínica)")
+    }
     if (shouldShowOrder && !trajoOrden) missing.push("estado de la orden médica")
     if (shouldShowPreauth && !preauthStatus) missing.push("estado de la preautorización")
 
@@ -523,6 +531,10 @@ export default function IngresoPage() {
 
       if (selectedInsurance && !isPrivateInsurance && affiliateNumber.trim()) {
         protocolData.affiliate_number = affiliateNumber.trim()
+      }
+
+      if (selectedInsurance?.chooses_billing_entity && billingEntityId) {
+        protocolData.billing_entity = Number(billingEntityId)
       }
 
       const cleanedUnplanned = unplannedTransactions
@@ -650,6 +662,7 @@ export default function IngresoPage() {
     selectedAnalyses.length > 0 &&
     selectedSendMethod &&
     (treatAsPrivate || !selectedInsurance || affiliateNumber.trim()) &&
+    (!selectedInsurance?.chooses_billing_entity || billingEntityId) &&
     (!shouldShowOrder || trajoOrden) &&
     (!shouldShowPreauth || preauthStatus)
 
@@ -679,6 +692,7 @@ export default function IngresoPage() {
               selectedSendMethod={selectedSendMethod}
               patientPaid={patientPaid}
               affiliateNumber={affiliateNumber}
+              billingEntityId={billingEntityId}
               trajoOrden={trajoOrden}
               preauthStatus={preauthStatus}
               isPrivateInsurance={treatAsPrivate}
@@ -704,6 +718,7 @@ export default function IngresoPage() {
               onShowCreateObraSocial={() => setShowCreateObraSocial(true)}
               onPatientPaidChange={setPatientPaid}
               onAffiliateNumberChange={setAffiliateNumber}
+              onBillingEntityChange={setBillingEntityId}
               onTrajoOrdenChange={setTrajoOrden}
               onPreauthStatusChange={setPreauthStatus}
               onExtraAmountsChange={setExtraAmounts}

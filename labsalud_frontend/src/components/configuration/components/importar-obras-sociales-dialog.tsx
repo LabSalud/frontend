@@ -62,6 +62,7 @@ const ETIQUETAS: Record<string, string> = {
   ub_value: "valor UB",
   nbu: "nomenclador",
   billing_entity: "facturación",
+  chooses_billing_entity: "elige entidad al ingresar",
   charges_coseguro: "coseguro",
   charges_material_descartable: "material descartable",
   charges_derivacion: "derivación",
@@ -234,10 +235,13 @@ export function ImportarObrasSocialesDialog({ open, onOpenChange, onSuccess }: P
               <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
                 <p className="mb-1.5 flex items-center gap-2 text-sm font-medium text-amber-900">
                   <AlertTriangle className="h-4 w-4" />
-                  Falta completar en {pendientes.length}
+                  Para revisar: {pendientes.length}
                 </p>
                 <p className="mb-2 text-xs text-amber-800">
-                  Se importan igual; después se completa desde acá.
+                  Se importan igual. Las que dicen «se elige en cada ingreso» no
+                  son un dato que falte: esas obras sociales facturan por Centro o
+                  por Clínica según cómo se preautorizó al paciente, y se decide
+                  al cargar el protocolo.
                 </p>
                 <ul className="max-h-28 space-y-1 overflow-y-auto text-xs text-amber-900">
                   {pendientes.map((d) => (

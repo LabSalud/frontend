@@ -24,6 +24,7 @@ import { useToast } from "@/hooks/use-toast"
 import { ANALYTICS_ENDPOINTS } from "@/config/api"
 import { PERMISSIONS } from "@/config/permissions"
 import { Skeleton } from "@/components/ui/skeleton"
+import PendienteDelSistema from "@/components/pendiente-del-sistema"
 
 interface DashboardResponse {
   analysis_today?: number
@@ -471,6 +472,14 @@ export default function Home() {
         </section>
       </div>
 
+      {/* Lo que quedó sin cerrar de TODAS las fechas: nos deben y tenemos que
+          devolver. Va arriba de la caja del día, que cuenta solo lo de hoy. */}
+      {canAccessBilling ? (
+        <div className="mt-5">
+          <PendienteDelSistema />
+        </div>
+      ) : null}
+
       <section className="mt-5 rounded-lg border border-slate-200 bg-white/70 p-4 shadow-sm backdrop-blur-sm sm:p-5">
         <div className="mb-4 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
@@ -565,7 +574,11 @@ export default function Home() {
                 <ChevronRight className="h-5 w-5" />
               </button>
             </div>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            {/* Dos tarjetas y no tres: acá se cuenta lo de HOY.
+                El total pendiente de todas las fechas estaba metido en el medio
+                de la caja del día, mezclando dos cosas distintas en la misma
+                fila. Ese número vive arriba, en su propia sección. */}
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3">
                 <p className="text-xs font-medium text-emerald-700">Cobrado hoy</p>
                 <p className="mt-1 text-2xl font-bold text-emerald-800 sm:text-lg md:text-xl lg:text-2xl">{formatMoney(cash?.total_paid)}</p>
@@ -574,12 +587,8 @@ export default function Home() {
                 <p className="text-xs font-medium text-slate-600">A cobrar hoy</p>
                 <p className="mt-1 text-2xl font-bold text-slate-800 sm:text-lg md:text-xl lg:text-2xl">{formatMoney(cash?.total_due)}</p>
               </div>
-              <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3">
-                <p className="text-xs font-medium text-amber-700">Pendiente (total sistema)</p>
-                <p className="mt-1 text-2xl font-bold text-amber-800 sm:text-lg md:text-xl lg:text-2xl">{formatMoney(dashboard?.cash_pending_total)}</p>
-              </div>
               {cashBreakdown && (
-                <div className="sm:col-span-3 grid grid-cols-1 gap-1.5 rounded-md bg-slate-50 px-3 py-2 text-xs sm:grid-cols-3 lg:grid-cols-6">
+                <div className="sm:col-span-2 grid grid-cols-1 gap-1.5 rounded-md bg-slate-50 px-3 py-2 text-xs sm:grid-cols-3 lg:grid-cols-6">
                   <CashBreakdownItem label="Particulares" amount={formatMoney(cashBreakdown.analyses_amount_due)} />
                   <CashBreakdownItem label="Coseguro" amount={formatMoney(cashBreakdown.coseguro)} />
                   <CashBreakdownItem label="Material" amount={formatMoney(cashBreakdown.material_descartable)} />

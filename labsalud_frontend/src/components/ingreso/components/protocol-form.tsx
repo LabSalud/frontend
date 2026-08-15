@@ -433,7 +433,7 @@ export function ProtocolForm({
           </div>
         )}
 
-        {(shouldShowPreauth || shouldChargeMaterial || shouldChargeDerivacion || shouldChargeCoseguro) && (
+        {(shouldShowPreauth || shouldChargeMaterial || shouldChargeDerivacion) && (
           <div className="space-y-2 sm:space-y-3">
             <div className="flex items-center gap-2">
               <ShieldCheck className="h-4 w-4 sm:h-5 sm:w-5 text-[#204983]" />
@@ -501,24 +501,6 @@ export function ProtocolForm({
                     />
                   </div>
                 )}
-                {shouldChargeCoseguro && (
-                  <div className="space-y-1.5 sm:col-span-2">
-                    <Label htmlFor="coseguro-protocol">
-                      Coseguro <span className="text-xs font-normal text-gray-500">(monto informado por la OOSS al autorizar)</span>
-                    </Label>
-                    <Input
-                      id="coseguro-protocol"
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={coseguroAmount}
-                      onChange={(event) => onCoseguroChange(event.target.value)}
-                      placeholder="0.00"
-                      className="bg-white"
-                    />
-                    <p className="text-xs text-blue-800">Se suma a lo que paga el paciente. Si no lo sabés ahora, dejalo vacío y se carga después.</p>
-                  </div>
-                )}
               </div>
             </div>
           </div>
@@ -542,6 +524,39 @@ export function ProtocolForm({
           forcePrivateAnalyses={shouldShowPreauth && preauthStatus === "no_trajo"}
           quoteById={quoteById}
         />
+
+        {/* EL COSEGURO VA DESPUÉS DE LOS ANÁLISIS, NO ANTES.
+            El monto lo informa la obra social al autorizar, así que recién se
+            sabe cuando ya está claro qué análisis autorizó y cuáles no.
+            Pedirlo arriba, antes de cargar un solo análisis, era pedir un
+            número que en ese momento nadie tiene. */}
+        {shouldChargeCoseguro && (
+          <div className="space-y-2 sm:space-y-3">
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="h-4 w-4 text-[#204983] sm:h-5 sm:w-5" />
+              <h3 className="text-base font-semibold text-[#204983] sm:text-lg">Coseguro</h3>
+            </div>
+            <div className="space-y-1.5 rounded-lg border border-blue-100 bg-blue-50 p-3">
+              <Label htmlFor="coseguro-protocol">
+                Monto informado por la obra social al autorizar
+              </Label>
+              <Input
+                id="coseguro-protocol"
+                type="number"
+                min="0"
+                step="0.01"
+                value={coseguroAmount}
+                onChange={(event) => onCoseguroChange(event.target.value)}
+                placeholder="0.00"
+                className="max-w-xs bg-white"
+              />
+              <p className="text-xs text-blue-800">
+                Se suma a lo que paga el paciente. Si todavía no lo sabés, dejalo
+                vacío y se carga después.
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Cobros / pagos no contemplados */}
         <div className="space-y-2 sm:space-y-3">

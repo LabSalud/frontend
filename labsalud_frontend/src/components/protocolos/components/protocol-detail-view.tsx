@@ -18,7 +18,9 @@ import {
   ClipboardCheck,
   FileText,
   Loader2,
+  Minus,
 } from "lucide-react"
+import { ListaOrdenable } from "@/components/common/lista-ordenable"
 import { Button } from "../../ui/button"
 import { Badge } from "../../ui/badge"
 import { Switch } from "../../ui/switch"
@@ -83,6 +85,11 @@ export interface ProtocolDetailViewProps {
   onUnplanned: () => void
   onToggleAuthorization: (detail: ProtocolDetailType) => void
   updatingDetailId: number | null
+  /** Alta, baja y orden de los análisis. Sin ellas la sección es de solo lectura. */
+  onQuitarAnalisis?: (detail: ProtocolDetailType) => void
+  onAgregarAnalisis?: () => void
+  onReordenarAnalisis?: (ordenados: ProtocolDetailType[]) => void
+  quitandoDetalle?: number | null
   auditEvents: ProtocolAuditEvent[]
   onGoResults: () => void
   onGoValidation: () => void
@@ -174,6 +181,10 @@ export function ProtocolDetailView(props: ProtocolDetailViewProps) {
     onUnplanned,
     onToggleAuthorization,
     updatingDetailId,
+    onQuitarAnalisis,
+    onAgregarAnalisis,
+    onReordenarAnalisis,
+    quitandoDetalle,
     auditEvents,
     onGoResults,
     onGoValidation,
@@ -277,11 +288,42 @@ export function ProtocolDetailView(props: ProtocolDetailViewProps) {
             <p className="py-6 text-center text-sm text-gray-400">Sin análisis cargados</p>
           ) : (
             <ul className="divide-y divide-gray-100">
-              {details.map((d) => {
+              <ListaOrdenable
+                items={details}
+                getId={(d) => d.id}
+                onReorder={(ordenados) => onReordenarAnalisis?.(ordenados)}
+                disabled={!isEditable || !onReordenarAnalisis}
+              >
+                {(d, manija) => {
                 const isBillingAct = isActoBioquimico(d.code)
                 return (
-                <li key={d.id} className="flex items-center justify-between gap-3 py-2.5">
+                <li className="flex items-center justify-between gap-3 py-2.5">
                   <div className="flex min-w-0 items-center gap-2.5">
+                    {/* El menos va primero de todo, como pediste: la acción de
+                        sacar tiene que estar en el mismo lugar en cada fila y
+                        no perdida entre los datos. */}
+                    {isEditable && onQuitarAnalisis && (
+                      <button
+                        type="button"
+                        onClick={() => onQuitarAnalisis(d)}
+                        disabled={quitandoDetalle === d.id || details.length <= 1}
+                        title={
+                          details.length <= 1
+                            ? "Es el único análisis: cancelá el protocolo en su lugar"
+                            : "Quitar del protocolo"
+                        }
+                        className="shrink-0 rounded-full border border-rose-200 p-0.5 text-rose-600
+                                   transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-40"
+                        aria-label={`Quitar ${d.name}`}
+                      >
+                        {quitandoDetalle === d.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Minus className="h-4 w-4" />
+                        )}
+                      </button>
+                    )}
+                    {manija}
                     <span
                       title={
                         isBillingAct
@@ -334,8 +376,24 @@ export function ProtocolDetailView(props: ProtocolDetailViewProps) {
                   )}
                 </li>
                 )
-              })}
+              }}
+              </ListaOrdenable>
             </ul>
+          )}
+
+          {/* El botón de agregar, al final de la lista. */}
+          {isEditable && onAgregarAnalisis && (
+            <div className="pt-3">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={onAgregarAnalisis}
+                className="w-full border-dashed text-[#204983] hover:bg-blue-50 sm:w-auto"
+              >
+                <Plus className="mr-1.5 h-4 w-4" />
+                Agregar análisis
+              </Button>
+            </div>
           )}
         </Section>
 

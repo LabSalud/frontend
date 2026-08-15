@@ -58,6 +58,7 @@ import { formatApiError, getErrorMessage } from "@/lib/api-error"
 import { useAuth } from "@/contexts/auth-context"
 import { getProtocolStatusStyleByName } from "@/lib/status-styles"
 import { TRAJO_ORDEN, normalizeTrajoOrden, type TrajoOrdenStatus } from "@/lib/protocol-order"
+import { AgregarAnalisisDialog } from "./dialogs/agregar-analisis-dialog"
 
 interface ProtocolDetailResponse {
   id: number
@@ -129,6 +130,11 @@ interface ProtocolDetailResponse {
   details: ProtocolDetailType[]
   history?: HistoryEntry[]
   total_changes?: number
+  /** "efectivo" | "transferencia" | "" (no registrada). */
+  payment_method?: string
+  /** Nombre y alias juntos: el alias se dicta al paciente, el nombre se busca
+   *  al conciliar la caja contra el extracto. */
+  payment_account?: { id: number; nombre: string; alias: string } | null
 }
 
 type ReportProtocolDetail = ProtocolDetailType
@@ -890,6 +896,112 @@ export function ProtocolCard({
     }
   }
 
+  // ---------------------------------------------------------------------
+  // Alta, baja y orden de los análisis de un protocolo ya creado
+  // ---------------------------------------------------------------------
+  //
+  // Los tres refrescan el protocolo entero después de tocar: cambiar los
+  // análisis cambia lo que paga el paciente, el estado y la facturación. Poner
+  // al día solo la lista dejaría los totales de la pantalla mintiendo hasta
+  // que alguien recargue.
+  const [agregarAnalisisAbierto, setAgregarAnalisisAbierto] = useState(false)
+  const [quitandoDetalle, setQuitandoDetalle] = useState<number | null>(null)
+
+  const handleGuardarFormaDePago = async (forma: string, cuentaId: string) => {
+    try {
+      const body: Record<string, unknown> = { payment_method: forma }
+      // Efectivo y sin forma van sin cuenta: el backend rechaza un efectivo
+      // con cuenta, y mandar la vieja guardaría algo que contradice la
+      // pantalla.
+      body.payment_account = forma === "transferencia" && cuentaId ? Number(cuentaId) : null
+
+      const response = await apiRequest(PROTOCOL_ENDPOINTS.PROTOCOL_DETAIL(protocol.id), {
+        method: "PATCH",
+        body,
+      })
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(extractErrorMessage(errorData, "No se pudo guardar la forma de pago"))
+      }
+      await refreshProtocolDetail()
+      onUpdate?.()
+      toast.success("Forma de pago guardada", { duration: TOAST_DURATION })
+      return true
+    } catch (error) {
+      toast.error(getErrorMessage(error, "No se pudo guardar la forma de pago"),
+        { duration: TOAST_DURATION })
+      return false
+    }
+  }
+
+  const handleQuitarAnalisis = async (detail: ProtocolDetailType) => {
+    if (needsCompletedConfirm(() => handleQuitarAnalisis(detail))) return
+    setQuitandoDetalle(detail.id)
+    try {
+      const response = await apiRequest(
+        PROTOCOL_ENDPOINTS.DETAIL_REMOVE(protocol.id, detail.id),
+        { method: "DELETE" },
+      )
+      if (!response.ok && response.status !== 204) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(extractErrorMessage(errorData, "No se pudo quitar el análisis"))
+      }
+      await refreshProtocolDetail()
+      onUpdate?.()
+      toast.success("Análisis quitado", { duration: TOAST_DURATION })
+    } catch (error) {
+      toast.error(getErrorMessage(error, "No se pudo quitar el análisis"),
+        { duration: TOAST_DURATION })
+    } finally {
+      setQuitandoDetalle(null)
+    }
+  }
+
+  const handleAgregarAnalisis = async (analysisIds: number[]) => {
+    if (analysisIds.length === 0) return
+    try {
+      const response = await apiRequest(PROTOCOL_ENDPOINTS.DETAILS_ADD(protocol.id), {
+        method: "POST",
+        body: { items: analysisIds.map((id) => ({ analysis: id })) },
+      })
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(extractErrorMessage(errorData, "No se pudo agregar el análisis"))
+      }
+      await refreshProtocolDetail()
+      onUpdate?.()
+      toast.success(
+        analysisIds.length === 1 ? "Análisis agregado" : `${analysisIds.length} análisis agregados`,
+        { duration: TOAST_DURATION },
+      )
+    } catch (error) {
+      toast.error(getErrorMessage(error, "No se pudo agregar el análisis"),
+        { duration: TOAST_DURATION })
+    }
+  }
+
+  const handleReordenarAnalisis = async (ordenados: ProtocolDetailType[]) => {
+    // Se pinta el orden nuevo enseguida y se manda después: arrastrar y ver
+    // que la fila vuelve a su lugar mientras espera la red se siente roto.
+    // Si el servidor lo rechaza, se recarga y queda lo que el servidor diga.
+    setProtocolDetail((previo) =>
+      previo ? { ...previo, details: ordenados } : previo)
+    try {
+      const response = await apiRequest(PROTOCOL_ENDPOINTS.DETAILS_REORDER(protocol.id), {
+        method: "POST",
+        body: { detalles: ordenados.map((d) => d.id) },
+      })
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(extractErrorMessage(errorData, "No se pudo guardar el orden"))
+      }
+    } catch (error) {
+      toast.error(getErrorMessage(error, "No se pudo guardar el orden"),
+        { duration: TOAST_DURATION })
+      await refreshProtocolDetail()
+    }
+  }
+
   const handleToggleAuthorization = async (detail: ProtocolDetailType) => {
     if (needsCompletedConfirm(() => handleToggleAuthorization(detail))) return
     setUpdatingDetailId(detail.id)
@@ -1230,6 +1342,10 @@ export function ProtocolCard({
           onUnplanned={handleOpenUnplanned}
           onToggleAuthorization={handleToggleAuthorization}
           updatingDetailId={updatingDetailId}
+          onQuitarAnalisis={handleQuitarAnalisis}
+          onAgregarAnalisis={() => setAgregarAnalisisAbierto(true)}
+          onReordenarAnalisis={handleReordenarAnalisis}
+          quitandoDetalle={quitandoDetalle}
           auditEvents={auditEvents}
           onGoResults={() => navigate(`/resultados/${protocol.id}`)}
           onGoValidation={() => navigate(`/validacion/${protocol.id}`)}
@@ -1416,6 +1532,11 @@ export function ProtocolCard({
         paymentStatusName={protocolDetail?.payment_status?.name || protocol.payment_status?.name || ""}
         onRegularize={handleRegularizeBalance}
         isProcessing={isProcessingPayment}
+        formaDePago={protocolDetail?.payment_method || ""}
+        cuentaDeCobroId={
+          protocolDetail?.payment_account ? String(protocolDetail.payment_account.id) : ""
+        }
+        onGuardarFormaDePago={handleGuardarFormaDePago}
       />
 
       <AnalysisDialog
@@ -1430,6 +1551,13 @@ export function ProtocolCard({
         isEditable={isEditable}
         readOnlyReason={editDisabledReason}
         isPrivateProtocol={isPrivateProtocol}
+      />
+
+      <AgregarAnalisisDialog
+        open={agregarAnalisisAbierto}
+        onOpenChange={setAgregarAnalisisAbierto}
+        yaEstan={(protocolDetail?.details ?? []).map((d) => d.id)}
+        onAgregar={handleAgregarAnalisis}
       />
 
       <AuditDialog

@@ -1,8 +1,10 @@
 import { useState } from "react"
 
+import { BookOpen } from "lucide-react"
+
+import { DataTable, type Column } from "@/components/common/data-table"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Skeleton } from "@/components/ui/skeleton"
 import { ANALYTICS_ENDPOINTS } from "@/config/api"
 import { useApiQuery } from "@/hooks/use-api-query"
 
@@ -98,149 +100,179 @@ export default function LibroDiarioPage() {
     .filter((n) => n < 0)
     .reduce((a, b) => a + b, 0)
 
-  return (
-    <div className="mx-auto w-full max-w-4xl space-y-5 p-4 sm:p-6">
-      <header>
-        <h1 className="text-xl font-semibold text-slate-900 sm:text-2xl">Libro diario</h1>
-        <p className="mt-1 text-sm text-slate-600">
-          Cada movimiento de plata del sistema, en orden. Se actualiza solo.
-        </p>
-      </header>
-
-      <div className="flex flex-wrap items-end gap-3 rounded-lg border border-slate-200 bg-white p-4">
-        <label className="flex flex-col gap-1">
-          <span className="text-xs font-medium text-slate-600">Desde</span>
-          <Input
-            type="date"
-            value={desde}
-            max={hasta}
-            onChange={(e) => setDesde(e.target.value)}
-            className="w-40"
-          />
-        </label>
-        <label className="flex flex-col gap-1">
-          <span className="text-xs font-medium text-slate-600">Hasta</span>
-          <Input
-            type="date"
-            value={hasta}
-            min={desde}
-            max={hoyISO()}
-            onChange={(e) => setHasta(e.target.value)}
-            className="w-40"
-          />
-        </label>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              setDesde(hoyISO())
-              setHasta(hoyISO())
-            }}
-          >
-            Hoy
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              setDesde(haceDias(30))
-              setHasta(hoyISO())
-            }}
-          >
-            Último mes
-          </Button>
-        </div>
-      </div>
-
-      {!consulta.isLoading && movimientos.length > 0 ? (
-        <div className="grid gap-3 sm:grid-cols-3">
-          <Resumen titulo="Entró" valor={plata(String(entradas))} tono="entra" />
-          <Resumen titulo="Salió" valor={plata(String(salidas))} tono="sale" />
-          <Resumen titulo="Neto" valor={plata(String(entradas + salidas))} tono="neto" />
-        </div>
-      ) : null}
-
-      <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
-        {consulta.isLoading ? (
-          <div className="space-y-3 p-4">
-            {[0, 1, 2, 3, 4].map((i) => (
-              <Skeleton key={i} className="h-14 w-full" />
-            ))}
+  const columnas: Column<Movimiento>[] = [
+    {
+      id: "momento",
+      header: "Fecha",
+      className: "w-28 align-top",
+      cell: (mov) => {
+        const momento = cuando(mov.momento)
+        return (
+          <div className="text-xs tabular-nums text-gray-500">
+            <div className="font-medium text-gray-700">{momento.dia}</div>
+            <div>{momento.hora}</div>
           </div>
-        ) : consulta.error ? (
-          <div className="p-8 text-center text-sm text-rose-700">
+        )
+      },
+    },
+    {
+      id: "origen",
+      header: "Protocolo",
+      className: "align-top",
+      cell: (mov) => (
+        <div className="text-sm">
+          {mov.protocolo ? (
+            <a
+              href={`/protocolos/${mov.protocolo}`}
+              className="font-medium text-[#204983] underline-offset-2 hover:underline"
+            >
+              Protocolo {mov.protocolo}
+            </a>
+          ) : (
+            <span className="font-medium text-gray-700">Sin protocolo</span>
+          )}
+          {mov.usuario ? (
+            <div className="text-xs text-gray-500">{mov.usuario}</div>
+          ) : null}
+        </div>
+      ),
+    },
+    {
+      id: "detalle",
+      header: "Qué cambió",
+      responsive: "hidden md:table-cell",
+      className: "align-top",
+      cell: (mov) => (
+        <ul className="space-y-0.5">
+          {mov.cambios.map((cambio, i) => (
+            <li key={i} className="text-xs text-gray-600">
+              {NOMBRE_DEL_CONCEPTO[cambio.concepto] || cambio.concepto}:{" "}
+              <span className="tabular-nums">{plata(cambio.de)}</span>
+              {" → "}
+              <span className="font-medium tabular-nums text-gray-900">{plata(cambio.a)}</span>
+            </li>
+          ))}
+        </ul>
+      ),
+    },
+    {
+      id: "total",
+      header: "Total",
+      align: "right",
+      className: "align-top",
+      cell: (mov) => {
+        const total = Number.parseFloat(mov.total)
+        return (
+          <span
+            className={`text-sm font-semibold tabular-nums ${
+              total >= 0 ? "text-emerald-700" : "text-rose-700"
+            }`}
+          >
+            {total >= 0 ? "+" : ""}
+            {plata(mov.total)}
+          </span>
+        )
+      },
+    },
+  ]
+
+  return (
+    <div className="mx-auto w-full max-w-full px-4 py-4">
+      <div className="rounded-2xl bg-white/95 p-4 shadow-md backdrop-blur-sm md:p-6">
+        {/* Fila superior: título · rango de fechas · atajos.
+            Misma caja blanca y mismo esqueleto que Pacientes, Protocolos y
+            Facturación. Antes esta pantalla ponía sus cosas sueltas sobre el
+            fondo y por eso se leía distinta del resto del sistema. */}
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-4">
+          <div className="lg:w-64 lg:shrink-0">
+            <h1 className="flex items-center gap-2 text-xl font-bold text-gray-800 md:text-2xl">
+              <BookOpen className="h-5 w-5 text-[#204983]" />
+              Libro diario
+            </h1>
+            <p className="text-sm text-gray-500">
+              {movimientos.length > 0
+                ? `${movimientos.length} movimientos`
+                : "Cada movimiento de plata, en orden"}
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-end gap-3">
+            <label className="flex flex-col gap-1">
+              <span className="text-xs font-medium text-gray-600">Desde</span>
+              <Input
+                type="date"
+                value={desde}
+                max={hasta}
+                onChange={(e) => setDesde(e.target.value)}
+                className="h-9 w-40"
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-xs font-medium text-gray-600">Hasta</span>
+              <Input
+                type="date"
+                value={hasta}
+                min={desde}
+                max={hoyISO()}
+                onChange={(e) => setHasta(e.target.value)}
+                className="h-9 w-40"
+              />
+            </label>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setDesde(hoyISO())
+                  setHasta(hoyISO())
+                }}
+              >
+                Hoy
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setDesde(haceDias(30))
+                  setHasta(hoyISO())
+                }}
+              >
+                Último mes
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        {!consulta.isLoading && movimientos.length > 0 ? (
+          <div className="mt-4 grid gap-3 sm:grid-cols-3">
+            <Resumen titulo="Entró" valor={plata(String(entradas))} tono="entra" />
+            <Resumen titulo="Salió" valor={plata(String(salidas))} tono="sale" />
+            <Resumen titulo="Neto" valor={plata(String(entradas + salidas))} tono="neto" />
+          </div>
+        ) : null}
+
+        {consulta.error ? (
+          <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
             No se pudo traer el libro diario. Probá de nuevo.
           </div>
-        ) : movimientos.length === 0 ? (
-          <div className="p-10 text-center">
-            <p className="text-sm font-medium text-slate-700">
-              No hubo movimientos de plata en estas fechas.
-            </p>
-            <p className="mt-1 text-sm text-slate-500">
-              Probá con un rango más amplio.
-            </p>
-          </div>
         ) : (
-          <ul className="divide-y divide-slate-200">
-            {movimientos.map((mov) => {
-              const momento = cuando(mov.momento)
-              const total = Number.parseFloat(mov.total)
-              return (
-                <li key={mov.id} className="flex flex-wrap items-start gap-x-4 gap-y-2 p-4">
-                  <div className="w-20 shrink-0 text-xs tabular-nums text-slate-500">
-                    <div>{momento.dia}</div>
-                    <div>{momento.hora}</div>
-                  </div>
-
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-x-2 text-sm">
-                      {mov.protocolo ? (
-                        <a
-                          href={`/protocolos/${mov.protocolo}`}
-                          className="font-medium text-sky-700 underline-offset-2 hover:underline"
-                        >
-                          Protocolo {mov.protocolo}
-                        </a>
-                      ) : (
-                        <span className="font-medium text-slate-700">Sin protocolo</span>
-                      )}
-                      {mov.usuario ? (
-                        <span className="text-slate-500">· {mov.usuario}</span>
-                      ) : null}
-                    </div>
-
-                    <ul className="mt-1 space-y-0.5">
-                      {mov.cambios.map((cambio, i) => (
-                        <li key={i} className="text-xs text-slate-600">
-                          {NOMBRE_DEL_CONCEPTO[cambio.concepto] || cambio.concepto}:{" "}
-                          <span className="tabular-nums">{plata(cambio.de)}</span> →{" "}
-                          <span className="tabular-nums font-medium">{plata(cambio.a)}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-
-                  <div
-                    className={`shrink-0 text-base font-semibold tabular-nums ${
-                      total >= 0 ? "text-emerald-700" : "text-rose-700"
-                    }`}
-                  >
-                    {total >= 0 ? "+" : ""}
-                    {plata(mov.total)}
-                  </div>
-                </li>
-              )
-            })}
-          </ul>
+          <div className="mt-4">
+            <DataTable
+              columns={columnas}
+              rows={movimientos}
+              getRowId={(mov) => mov.id}
+              isLoading={consulta.isLoading}
+              emptyMessage="No hubo movimientos de plata en estas fechas. Probá con un rango más amplio."
+            />
+          </div>
         )}
-      </div>
 
-      {consulta.data?.hay_mas ? (
-        <p className="text-center text-xs text-slate-500">
-          Hay más movimientos de los que entran en esta pantalla. Acotá las fechas para verlos todos.
-        </p>
-      ) : null}
+        {consulta.data?.hay_mas ? (
+          <p className="mt-4 text-center text-xs text-gray-500">
+            Hay más movimientos de los que entran en esta pantalla. Acotá las fechas para verlos todos.
+          </p>
+        ) : null}
+      </div>
     </div>
   )
 }
@@ -257,12 +289,12 @@ function Resumen({
   const color = {
     entra: "text-emerald-700",
     sale: "text-rose-700",
-    neto: "text-slate-900",
+    neto: "text-gray-900",
   }[tono]
 
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-4">
-      <div className="text-xs font-medium uppercase tracking-wide text-slate-500">{titulo}</div>
+    <div className="rounded-lg border border-gray-200 bg-gray-50/60 p-4">
+      <div className="text-xs font-medium uppercase tracking-wide text-gray-500">{titulo}</div>
       <div className={`mt-1 text-xl font-semibold tabular-nums ${color}`}>{valor}</div>
     </div>
   )

@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import type { useProtocolResults } from "@/hooks/use-protocol-results"
 import { ValidationResultRow } from "./validation-result-row"
+import { ResumenDeResultados } from "@/components/common/resumen-de-resultados"
 
 interface ProtocolValidationLoaderProps {
   controller: ReturnType<typeof useProtocolResults>
@@ -22,15 +23,18 @@ export function ProtocolValidationLoader({ controller }: ProtocolValidationLoade
   const isCancelled = (protocol?.status?.name || "").trim().toLowerCase() === "cancelado"
   const [search, setSearch] = useState("")
   const [validatingAll, setValidatingAll] = useState(false)
-  // Análisis colapsables: colapsados por defecto si ya tienen resultado cargado.
+  // Análisis colapsables. Acá se colapsa lo que ya está VALIDADO, no lo que
+  // tiene valor cargado: en esta pantalla el trabajo es validar, y un análisis
+  // con resultado sin validar es justamente el que hay que mirar. Colapsarlo
+  // escondía la fila que se vino a atender.
   const [collapsedIds, setCollapsedIds] = useState<Set<number>>(new Set())
   const [collapseInit, setCollapseInit] = useState(false)
   useEffect(() => {
     if (collapseInit || groups.length === 0) return
     const collapsed = new Set<number>()
     groups.forEach((g) => {
-      const allLoaded = g.determinations.length > 0 && g.determinations.every((d) => !!d.value)
-      if (allLoaded) collapsed.add(g.analysis.id)
+      const todoValidado = g.determinations.length > 0 && g.determinations.every((d) => d.is_valid)
+      if (todoValidado) collapsed.add(g.analysis.id)
     })
     setCollapsedIds(collapsed)
     setCollapseInit(true)
@@ -134,9 +138,14 @@ export function ProtocolValidationLoader({ controller }: ProtocolValidationLoade
                   <FlaskConical className="h-4 w-4 text-[#204983]" />
                   {group.analysis.name}
                 </h3>
-                <Badge variant="outline" className="text-xs text-gray-500">
-                  {validated}/{group.determinations.length} validados
-                </Badge>
+                <span className="flex min-w-0 items-center gap-3">
+                  {collapsedIds.has(group.analysis.id) ? (
+                    <ResumenDeResultados determinaciones={group.determinations} />
+                  ) : null}
+                  <Badge variant="outline" className="shrink-0 text-xs text-gray-500">
+                    {validated}/{group.determinations.length} validados
+                  </Badge>
+                </span>
               </button>
               {!collapsedIds.has(group.analysis.id) && (
               <div className="space-y-2">

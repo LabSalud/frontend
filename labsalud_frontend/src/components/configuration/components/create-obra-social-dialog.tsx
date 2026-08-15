@@ -35,6 +35,7 @@ interface FormData {
   charges_derivacion: boolean
   requires_preauthorization: boolean
   requires_historia_clinica: boolean
+  a_reintegro: boolean
 }
 
 interface ValidationState {
@@ -55,6 +56,7 @@ const initialFormData: FormData = {
   charges_derivacion: false,
   requires_preauthorization: false,
   requires_historia_clinica: false,
+  a_reintegro: false,
 }
 
 export function CreateObraSocialDialog({ open, onOpenChange, onSuccess }: CreateObraSocialDialogProps) {
@@ -129,6 +131,7 @@ export function CreateObraSocialDialog({ open, onOpenChange, onSuccess }: Create
         requires_preauthorization: formData.requires_preauthorization,
         requires_historia_clinica: formData.requires_historia_clinica,
         chooses_billing_entity: formData.chooses_billing_entity,
+        a_reintegro: formData.a_reintegro,
       }
       if (formData.description.trim()) body.description = formData.description
       if (formData.ub_value.trim()) body.ub_value = Number.parseFloat(formData.ub_value)
@@ -358,6 +361,21 @@ export function CreateObraSocialDialog({ open, onOpenChange, onSuccess }: Create
                   id="requires_historia_clinica"
                   checked={formData.requires_historia_clinica}
                   onCheckedChange={(checked) => handleSwitchChange("requires_historia_clinica", checked)}
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label htmlFor="a_reintegro" className="cursor-pointer">Es a reintegro</Label>
+                  <p className="text-xs text-gray-500">
+                    El paciente paga como particular y la obra social le reintegra
+                    después. Se le cobra la cantidad de UB del nomenclador de esta
+                    obra social, al precio por UB de Particular.
+                  </p>
+                </div>
+                <Switch
+                  id="a_reintegro"
+                  checked={formData.a_reintegro}
+                  onCheckedChange={(checked) => handleSwitchChange("a_reintegro", checked)}
                 />
               </div>
             </div>

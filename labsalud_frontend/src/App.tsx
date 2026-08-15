@@ -217,12 +217,12 @@ function App() {
                   >
                     <Route index element={<FacturacionPage />} />
                   </Route>
-                  {/* El libro diario. Mismo permiso que facturación: son los
-                      mismos números mirados de otra forma. */}
+                  {/* El libro diario, con permiso propio: mirar los
+                      movimientos no es lo mismo que poder facturar. */}
                   <Route
                     path="/libro-diario"
                     element={
-                      <ProtectedRoute requiredPermission={PERMISSIONS.MANAGE_BILLING.codename}>
+                      <ProtectedRoute requiredPermission={PERMISSIONS.VIEW_LEDGER.codename}>
                         <Layout />
                       </ProtectedRoute>
                     }

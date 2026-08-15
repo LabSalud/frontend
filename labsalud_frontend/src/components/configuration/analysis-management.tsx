@@ -63,6 +63,7 @@ export function AnalysisManagement() {
   const [pricingForm, setPricingForm] = useState({
     material_descartable_amount: "",
     derivacion_amount: "",
+    particular_minimum_amount: "",
   })
   const [loadingPricing, setLoadingPricing] = useState(false)
   const [savingPricing, setSavingPricing] = useState(false)
@@ -81,6 +82,7 @@ export function AnalysisManagement() {
       setPricingForm({
         material_descartable_amount: data.material_descartable_amount || "0.00",
         derivacion_amount: data.derivacion_amount || "0.00",
+        particular_minimum_amount: data.particular_minimum_amount || "0.00",
       })
     } catch (err) {
       toastActions.error("Error", { description: getErrorMessage(err, "No se pudieron cargar los montos extra.") })
@@ -246,6 +248,7 @@ export function AnalysisManagement() {
         body: {
           material_descartable_amount: pricingForm.material_descartable_amount || "0.00",
           derivacion_amount: pricingForm.derivacion_amount || "0.00",
+          particular_minimum_amount: pricingForm.particular_minimum_amount || "0.00",
         },
       })
       if (!response.ok) {
@@ -257,6 +260,7 @@ export function AnalysisManagement() {
       setPricingForm({
         material_descartable_amount: data.material_descartable_amount || "0.00",
         derivacion_amount: data.derivacion_amount || "0.00",
+        particular_minimum_amount: data.particular_minimum_amount || "0.00",
       })
       toastActions.success("Éxito", { description: "Montos extra actualizados correctamente." })
     } catch (err) {
@@ -369,7 +373,7 @@ export function AnalysisManagement() {
             <Skeleton className="h-10 rounded" />
           </div>
         ) : (
-          <form onSubmit={handleSavePricing} className="grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
+          <form onSubmit={handleSavePricing} className="grid gap-3 sm:grid-cols-[1fr_1fr_1fr_auto]">
             <div className="space-y-1.5">
               <label htmlFor="analysis-material-descartable" className="text-sm font-medium text-gray-700">
                 Material descartable
@@ -397,6 +401,24 @@ export function AnalysisManagement() {
                 value={pricingForm.derivacion_amount}
                 onChange={(event) => setPricingForm((prev) => ({ ...prev, derivacion_amount: event.target.value }))}
               />
+            </div>
+            <div className="space-y-1.5">
+              <label htmlFor="analysis-minimo-particular" className="text-sm font-medium text-gray-700">
+                Mínimo particular
+              </label>
+              <Input
+                id="analysis-minimo-particular"
+                type="number"
+                min="0"
+                step="0.01"
+                value={pricingForm.particular_minimum_amount}
+                onChange={(event) =>
+                  setPricingForm((prev) => ({ ...prev, particular_minimum_amount: event.target.value }))
+                }
+              />
+              <p className="text-xs text-gray-500">
+                Piso del total que paga un paciente particular. En 0 no se aplica.
+              </p>
             </div>
             <div className="flex items-end">
               <Button type="submit" className="w-full bg-[#204983] hover:bg-[#1a3d6f]" disabled={savingPricing}>

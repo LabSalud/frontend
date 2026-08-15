@@ -5,7 +5,7 @@ import { createPortal } from "react-dom"
 import { CheckIcon, X, User, FileText, Stethoscope, Building, Send, DollarSign, TestTube, ClipboardCheck, Undo2, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "../../ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "../../ui/card"
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "../../ui/card"
 import { Badge } from "../../ui/badge"
 import { Separator } from "../../ui/separator"
 import type { Patient, Doctor, Insurance, SendMethod, Protocol } from "../../../types"
@@ -142,7 +142,14 @@ export function ProtocolSuccess({ protocol, patient, doctor, insurance, sendMeth
                 Protocolo Creado Exitosamente
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4 overflow-y-auto">
+            {/* `min-h-0` NO es decorativo: sin él esto no scrollea.
+                En una columna flex, un hijo arranca con `min-height: auto` y no
+                se encoge por debajo de su contenido. El `overflow-y-auto` queda
+                de adorno, la Card recorta con su `overflow-hidden`, y todo lo
+                que caiga abajo del corte deja de existir para el usuario. Fue
+                exactamente lo que le pasó al botón de deshacer con protocolos
+                de varios análisis. */}
+            <CardContent className="min-h-0 space-y-4 overflow-y-auto">
               {/* Protocol ID */}
               <div className="text-center pb-2">
                 <Badge
@@ -275,8 +282,15 @@ export function ProtocolSuccess({ protocol, patient, doctor, insurance, sendMeth
                 </div>
               )}
 
+            </CardContent>
+
+            {/* FUERA del área que scrollea, y `shrink-0`.
+                Deshacer es una decisión con tiempo contado —el protocolo ya
+                existe— así que el botón no puede depender de que alguien
+                descubra que hay que scrollear una lista de análisis. */}
+            <CardFooter className="shrink-0 flex-col items-stretch gap-2 border-t bg-white pt-4">
               {onRollback ? (
-                <div className="space-y-2 pt-4">
+                <>
                   <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-between">
                     <Button
                       type="button"
@@ -305,13 +319,13 @@ export function ProtocolSuccess({ protocol, patient, doctor, insurance, sendMeth
                   <p className="text-center text-xs text-gray-500">
                     "Deshacer" borra este protocolo y te devuelve los datos para corregirlos.
                   </p>
-                </div>
+                </>
               ) : (
-                <div className="pt-4 text-center text-sm text-gray-500">
+                <p className="text-center text-sm text-gray-500">
                   Presione <kbd className="px-2 py-1 bg-gray-100 rounded text-xs font-mono">ESC</kbd> o la X para cerrar
-                </div>
+                </p>
               )}
-            </CardContent>
+            </CardFooter>
           </Card>
           </div>
       </div>

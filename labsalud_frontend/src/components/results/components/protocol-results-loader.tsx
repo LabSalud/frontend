@@ -11,6 +11,7 @@ import { PERMISSIONS, PERMISSION_MESSAGES } from "@/config/permissions"
 import type { useProtocolResults } from "@/hooks/use-protocol-results"
 import { calculateFormulaValue } from "@/lib/result-formulas"
 import { ResultDeterminationRow } from "./result-determination-row"
+import { ResumenDeResultados } from "@/components/common/resumen-de-resultados"
 
 interface ProtocolResultsLoaderProps {
   controller: ReturnType<typeof useProtocolResults>
@@ -34,8 +35,10 @@ export function ProtocolResultsLoader({ controller }: ProtocolResultsLoaderProps
   const isCancelled = (protocol?.status?.name || "").trim().toLowerCase() === "cancelado"
 
   const [search, setSearch] = useState("")
-  // Análisis colapsables: por defecto colapsados si ya tienen todos los
-  // resultados cargados; expandidos si les falta cargar (para reducir ruido).
+  // Análisis colapsables: colapsados si ya tienen todos los resultados
+  // cargados, expandidos si falta cargar alguno. Acá el criterio SÍ es tener
+  // valor, porque el trabajo de esta pantalla es cargarlo. En validación el
+  // criterio es otro (estar validado), que es el trabajo de aquella.
   const [collapsedIds, setCollapsedIds] = useState<Set<number>>(new Set())
   const [collapseInit, setCollapseInit] = useState(false)
   useEffect(() => {
@@ -193,9 +196,14 @@ export function ProtocolResultsLoader({ controller }: ProtocolResultsLoaderProps
                   <FlaskConical className="h-4 w-4 text-[#204983]" />
                   {group.analysis.name}
                 </h3>
-                <Badge variant="outline" className="text-xs text-gray-500">
-                  {loaded}/{group.determinations.length} cargados
-                </Badge>
+                <span className="flex min-w-0 items-center gap-3">
+                  {collapsedIds.has(group.analysis.id) ? (
+                    <ResumenDeResultados determinaciones={group.determinations} />
+                  ) : null}
+                  <Badge variant="outline" className="shrink-0 text-xs text-gray-500">
+                    {loaded}/{group.determinations.length} cargados
+                  </Badge>
+                </span>
               </button>
               {!collapsedIds.has(group.analysis.id) && (
               <div className="space-y-2">

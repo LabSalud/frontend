@@ -344,6 +344,8 @@ export interface Insurance {
   requires_historia_clinica?: boolean
   /** La OOSS factura por Centro o Clínica según la preautorización: se elige en el ingreso. */
   chooses_billing_entity?: boolean
+  /** El paciente paga como particular y la OOSS le reintegra después. */
+  a_reintegro?: boolean
   nbu?: Nbu | number | null
   /** Entidad de facturación a la que se presenta esta OOSS actualmente (null = sin asignar). */
   billing_entity?: { id: number; name: string } | null
@@ -787,6 +789,8 @@ export interface PricingConfig {
   id: number
   material_descartable_amount: string
   derivacion_amount: string
+  /** Piso del total que paga un paciente particular. "0.00" = sin mínimo. */
+  particular_minimum_amount: string
 }
 
 // Respuesta de POST /protocols/protocols/quote/ — preview de precios que reusa

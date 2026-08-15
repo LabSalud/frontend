@@ -37,6 +37,7 @@ interface FormData {
   charges_derivacion: boolean
   requires_preauthorization: boolean
   requires_historia_clinica: boolean
+  a_reintegro: boolean
 }
 
 const extractNbuId = (nbu: unknown): string => {
@@ -69,6 +70,7 @@ export function EditObraSocialDialog({ open, onOpenChange, obraSocial, onSuccess
     charges_derivacion: false,
     requires_preauthorization: false,
   requires_historia_clinica: false,
+  a_reintegro: false,
   })
   const [validation, setValidation] = useState<ValidationState>({
     name: { isValid: true, message: "Nombre válido" },
@@ -93,6 +95,7 @@ export function EditObraSocialDialog({ open, onOpenChange, obraSocial, onSuccess
         requires_preauthorization: obraSocial.requires_preauthorization ?? false,
         requires_historia_clinica: obraSocial.requires_historia_clinica ?? false,
         chooses_billing_entity: obraSocial.chooses_billing_entity ?? false,
+        a_reintegro: obraSocial.a_reintegro ?? false,
       })
       setValidation({
         name: { isValid: true, message: "Nombre válido" },
@@ -170,6 +173,9 @@ export function EditObraSocialDialog({ open, onOpenChange, obraSocial, onSuccess
     }
     if (formData.chooses_billing_entity !== (obraSocial.chooses_billing_entity ?? false)) {
       changes.chooses_billing_entity = formData.chooses_billing_entity
+    }
+    if (formData.a_reintegro !== (obraSocial.a_reintegro ?? false)) {
+      changes.a_reintegro = formData.a_reintegro
     }
     if (formData.nbu_id !== extractNbuId(obraSocial.nbu)) {
       changes.nbu = formData.nbu_id ? Number.parseInt(formData.nbu_id, 10) : null
@@ -409,6 +415,21 @@ export function EditObraSocialDialog({ open, onOpenChange, obraSocial, onSuccess
                   id="requires_historia_clinica"
                   checked={formData.requires_historia_clinica}
                   onCheckedChange={(checked) => handleSwitchChange("requires_historia_clinica", checked)}
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label htmlFor="a_reintegro" className="cursor-pointer">Es a reintegro</Label>
+                  <p className="text-xs text-gray-500">
+                    El paciente paga como particular y la obra social le reintegra
+                    después. Se le cobra la cantidad de UB del nomenclador de esta
+                    obra social, al precio por UB de Particular.
+                  </p>
+                </div>
+                <Switch
+                  id="a_reintegro"
+                  checked={formData.a_reintegro}
+                  onCheckedChange={(checked) => handleSwitchChange("a_reintegro", checked)}
                 />
               </div>
             </div>

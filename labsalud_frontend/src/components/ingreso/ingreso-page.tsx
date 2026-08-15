@@ -49,6 +49,7 @@ type FormSnapshot = {
   patientPaid: string
   selectedSendMethod: SendMethod | null
   affiliateNumber: string
+  billingEntityId: string
   trajoOrden: TrajoOrdenStatus | ""
   preauthStatus: PreauthStatus | ""
   extraAmounts: { material_descartable_amount: string; derivacion_amount: string }
@@ -348,6 +349,7 @@ export default function IngresoPage() {
       setPatientPaid(s.patientPaid)
       setSelectedSendMethod(s.selectedSendMethod)
       setAffiliateNumber(s.affiliateNumber)
+      setBillingEntityId(s.billingEntityId)
       setTrajoOrden(s.trajoOrden)
       setPreauthStatus(s.preauthStatus)
       setExtraAmounts(s.extraAmounts)
@@ -601,6 +603,7 @@ export default function IngresoPage() {
           patientPaid,
           selectedSendMethod,
           affiliateNumber,
+          billingEntityId,
           trajoOrden,
           preauthStatus,
           extraAmounts,

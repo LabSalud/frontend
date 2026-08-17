@@ -6,7 +6,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Button } from "../../../ui/button"
 import { Input } from "../../../ui/input"
 import { Label } from "../../../ui/label"
-import { FormaDePago } from "@/components/common/forma-de-pago"
 
 type OperationType = "patient_paid" | "refunded_to_patient"
 
@@ -21,10 +20,6 @@ interface PaymentDialogProps {
   paymentStatusName: string
   onRegularize: (amount: number, operation: OperationType) => Promise<boolean>
   isProcessing: boolean
-  /** Cómo pagó: se corrige acá porque es donde uno viene a mirar el pago. */
-  formaDePago?: string
-  cuentaDeCobroId?: string
-  onGuardarFormaDePago?: (forma: string, cuentaId: string) => Promise<boolean>
 }
 
 export function PaymentDialog({
@@ -38,15 +33,9 @@ export function PaymentDialog({
   paymentStatusName,
   onRegularize,
   isProcessing,
-  formaDePago = "",
-  cuentaDeCobroId = "",
-  onGuardarFormaDePago,
 }: PaymentDialogProps) {
   const [operation, setOperation] = useState<OperationType>("patient_paid")
   const [amount, setAmount] = useState("")
-  const [forma, setForma] = useState(formaDePago)
-  const [cuenta, setCuenta] = useState(cuentaDeCobroId)
-  const [guardandoForma, setGuardandoForma] = useState(false)
 
   const pending = Number.parseFloat(amountPending || "0")
   const toReturn = Number.parseFloat(amountToReturn || "0")
@@ -59,10 +48,6 @@ export function PaymentDialog({
   useEffect(() => {
     if (open) {
       setAmount("")
-      // Se relee del protocolo cada vez que se abre: si alguien la corrigió
-      // desde otro lado, el diálogo no puede mostrar lo de antes.
-      setForma(formaDePago)
-      setCuenta(cuentaDeCobroId)
       if (toReturn > 0 && pending <= 0) {
         setOperation("refunded_to_patient")
       } else {
@@ -222,36 +207,6 @@ export function PaymentDialog({
             )}
           </div>
         </div>
-
-        {onGuardarFormaDePago && (
-          <div className="space-y-2 border-t pt-4">
-            <FormaDePago
-              formaDePago={forma}
-              cuentaId={cuenta}
-              onFormaChange={setForma}
-              onCuentaChange={setCuenta}
-              disabled={guardandoForma}
-            />
-            {(forma !== formaDePago || cuenta !== cuentaDeCobroId) && (
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={guardandoForma || (forma === "transferencia" && !cuenta)}
-                onClick={async () => {
-                  setGuardandoForma(true)
-                  try {
-                    await onGuardarFormaDePago(forma, cuenta)
-                  } finally {
-                    setGuardandoForma(false)
-                  }
-                }}
-              >
-                {guardandoForma && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}
-                Guardar forma de pago
-              </Button>
-            )}
-          </div>
-        )}
 
         <DialogFooter className="flex-col sm:flex-row gap-2">
           <Button variant="outline" onClick={() => handleClose(false)} className="w-full sm:w-auto">

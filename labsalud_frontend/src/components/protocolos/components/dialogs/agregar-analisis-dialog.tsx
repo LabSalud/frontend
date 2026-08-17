@@ -4,6 +4,7 @@ import { useState } from "react"
 import { Loader2, Plus } from "lucide-react"
 
 import { AnalysisSearch } from "@/components/ingreso/components/analysis-search"
+import { isActoBioquimico } from "@/lib/acto-bioquimico"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -30,13 +31,26 @@ import type { SelectedAnalysis } from "@/types"
  * Solo los ids. Las UB, los precios y la autorización los resuelve el backend
  * con el nomenclador de la obra social del protocolo — que es el mismo cálculo
  * de siempre, y no algo que la pantalla pueda adivinar.
+ *
+ * EL ACTO BIOQUÍMICO NO SE AGREGA A MANO
+ * ======================================
+ * Es un ítem de facturación, no una práctica: no lleva resultado y va uno solo
+ * por protocolo, puesto al cargarlo. Agregarlo desde acá sería cobrarlo dos
+ * veces, y ni siquiera aparece en el informe del paciente.
  */
 
 type Props = {
   open: boolean
   onOpenChange: (open: boolean) => void
-  /** Los que ya están, para no volver a ofrecerlos. */
-  yaEstan: number[]
+  /**
+   * Los que el protocolo ya tiene: id del ANÁLISIS y su código.
+   *
+   * El id del análisis y no el del detalle — son cosas distintas y el buscador
+   * deduplica por análisis. Y el código hace falta para que el buscador sepa
+   * que el acto bioquímico ya está: sin él lo da por faltante, lo agrega solo
+   * y muestra un cartel de que lo agregó, sobre algo que no se va a mandar.
+   */
+  yaEstan: { id: number; code: number }[]
   onAgregar: (analysisIds: number[]) => Promise<void>
 }
 
@@ -63,11 +77,12 @@ export function AgregarAnalisisDialog({ open, onOpenChange, yaEstan, onAgregar }
 
   // El buscador recibe los ya elegidos MÁS los que el protocolo ya tiene, así
   // no ofrece un análisis que va a rebotar del backend por duplicado.
+  const idsQueYaEstan = yaEstan.map((a) => a.id)
   const paraElBuscador: SelectedAnalysis[] = [
     ...elegidos,
     ...yaEstan
-      .filter((id) => !elegidos.some((e) => e.id === id))
-      .map((id) => ({ id }) as SelectedAnalysis),
+      .filter((a) => !elegidos.some((e) => e.id === a.id))
+      .map((a) => ({ id: a.id, code: a.code }) as SelectedAnalysis),
   ]
 
   return (
@@ -86,7 +101,11 @@ export function AgregarAnalisisDialog({ open, onOpenChange, yaEstan, onAgregar }
           onAnalysisChange={(todos) =>
             // El buscador devuelve la lista entera; acá interesan solo los que
             // no estaban en el protocolo.
-            setElegidos(todos.filter((a) => !yaEstan.includes(a.id)))
+            setElegidos(
+              todos.filter(
+                (a) => !idsQueYaEstan.includes(a.id) && !isActoBioquimico(a.code),
+              ),
+            )
           }
         />
 

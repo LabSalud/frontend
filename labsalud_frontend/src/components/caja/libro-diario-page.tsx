@@ -1,6 +1,6 @@
 import { useState } from "react"
 
-import { BookOpen } from "lucide-react"
+import { Banknote, BookOpen, Landmark } from "lucide-react"
 
 import { DataTable, type Column } from "@/components/common/data-table"
 import { Button } from "@/components/ui/button"
@@ -27,6 +27,10 @@ type Movimiento = {
   detalle: string
   cambios: Cambio[]
   total: string
+  /** "efectivo" | "transferencia" | "" si no se registró. */
+  forma_de_pago: string
+  cuenta_de_cobro: string
+  cuenta_alias: string
 }
 
 type Respuesta = {
@@ -136,6 +140,38 @@ export default function LibroDiarioPage() {
           ) : null}
         </div>
       ),
+    },
+    {
+      id: "pago",
+      header: "Cómo pagó",
+      className: "align-top",
+      cell: (mov) => {
+        if (mov.forma_de_pago === "transferencia") {
+          return (
+            <div className="text-xs">
+              <span className="inline-flex items-center gap-1 rounded border border-sky-200 bg-sky-50 px-1.5 py-0.5 text-sky-800">
+                <Landmark className="h-3 w-3" />
+                Transferencia
+              </span>
+              {mov.cuenta_de_cobro ? (
+                <div className="mt-0.5 text-gray-600">{mov.cuenta_de_cobro}</div>
+              ) : null}
+              {mov.cuenta_alias ? (
+                <div className="font-mono text-[11px] text-gray-400">{mov.cuenta_alias}</div>
+              ) : null}
+            </div>
+          )
+        }
+        if (mov.forma_de_pago === "efectivo") {
+          return (
+            <span className="inline-flex items-center gap-1 rounded border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-xs text-emerald-800">
+              <Banknote className="h-3 w-3" />
+              Efectivo
+            </span>
+          )
+        }
+        return <span className="text-xs text-gray-400">—</span>
+      },
     },
     {
       id: "detalle",

@@ -59,6 +59,7 @@ import { useAuth } from "@/contexts/auth-context"
 import { getProtocolStatusStyleByName } from "@/lib/status-styles"
 import { TRAJO_ORDEN, normalizeTrajoOrden, type TrajoOrdenStatus } from "@/lib/protocol-order"
 import { AgregarAnalisisDialog } from "./dialogs/agregar-analisis-dialog"
+import { FormaDePagoDialog } from "./dialogs/forma-de-pago-dialog"
 
 interface ProtocolDetailResponse {
   id: number
@@ -905,6 +906,7 @@ export function ProtocolCard({
   // al día solo la lista dejaría los totales de la pantalla mintiendo hasta
   // que alguien recargue.
   const [agregarAnalisisAbierto, setAgregarAnalisisAbierto] = useState(false)
+  const [formaDePagoAbierta, setFormaDePagoAbierta] = useState(false)
   const [quitandoDetalle, setQuitandoDetalle] = useState<number | null>(null)
 
   const handleGuardarFormaDePago = async (forma: string, cuentaId: string) => {
@@ -1486,6 +1488,11 @@ export function ProtocolCard({
                   onSetOrder={handleOpenOrderStatusDialog}
                   onApplyPreauthorization={handleOpenPreauthDialog}
                   onSetCoseguro={handleOpenCoseguroDialog}
+                  formaDePago={protocolDetail?.payment_method || ""}
+                  cuentaDeCobro={protocolDetail?.payment_account ?? null}
+                  onCambiarFormaDePago={
+                    isEditable ? () => setFormaDePagoAbierta(true) : undefined
+                  }
                 />
                 <ProtocolActions
                   protocolId={protocol.id}
@@ -1532,11 +1539,6 @@ export function ProtocolCard({
         paymentStatusName={protocolDetail?.payment_status?.name || protocol.payment_status?.name || ""}
         onRegularize={handleRegularizeBalance}
         isProcessing={isProcessingPayment}
-        formaDePago={protocolDetail?.payment_method || ""}
-        cuentaDeCobroId={
-          protocolDetail?.payment_account ? String(protocolDetail.payment_account.id) : ""
-        }
-        onGuardarFormaDePago={handleGuardarFormaDePago}
       />
 
       <AnalysisDialog
@@ -1553,10 +1555,23 @@ export function ProtocolCard({
         isPrivateProtocol={isPrivateProtocol}
       />
 
+      <FormaDePagoDialog
+        open={formaDePagoAbierta}
+        onOpenChange={setFormaDePagoAbierta}
+        formaDePago={protocolDetail?.payment_method || ""}
+        cuentaDeCobroId={
+          protocolDetail?.payment_account ? String(protocolDetail.payment_account.id) : ""
+        }
+        onGuardar={handleGuardarFormaDePago}
+      />
+
       <AgregarAnalisisDialog
         open={agregarAnalisisAbierto}
         onOpenChange={setAgregarAnalisisAbierto}
-        yaEstan={(protocolDetail?.details ?? []).map((d) => d.id)}
+        yaEstan={(protocolDetail?.details ?? []).map((d) => ({
+          id: d.analysis,
+          code: d.code,
+        }))}
         onAgregar={handleAgregarAnalisis}
       />
 

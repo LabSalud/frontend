@@ -39,6 +39,10 @@ interface ProtocolDetailsSectionProps {
   preauthDisabledReason?: string
   showCoseguroButton?: boolean
   coseguroDisabledReason?: string
+  /** Cómo pagó el paciente. Vacío en los protocolos viejos: no se inventa. */
+  formaDePago?: string
+  cuentaDeCobro?: { id: number; nombre: string; alias: string } | null
+  onCambiarFormaDePago?: () => void
   unplannedTransactions?: import("@/types").UnplannedTransaction[]
   unplannedChargesTotal?: string
   unplannedPaymentsTotal?: string
@@ -73,6 +77,9 @@ export function ProtocolDetailsSection({
   showPreauthButton = false,
   preauthDisabledReason,
   showCoseguroButton = false,
+  formaDePago = "",
+  cuentaDeCobro = null,
+  onCambiarFormaDePago,
   coseguroDisabledReason,
   unplannedTransactions = [],
   unplannedChargesTotal,
@@ -237,6 +244,44 @@ export function ProtocolDetailsSection({
                 <Wallet className="h-3 w-3 mr-1" />
                 {coseguro > 0 ? "Modificar" : "Cargar"}
               </Button>,
+            )}
+          </div>
+        )}
+
+        {/* Cómo pagó. Se muestra siempre que haya algo que mostrar o algo que
+            cargar: es el dato que se necesita al conciliar la caja, y buscarlo
+            adentro del diálogo de cobros no se le ocurre a nadie. */}
+        {(formaDePago || onCambiarFormaDePago) && (
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm">
+            <Wallet className="h-4 w-4 flex-shrink-0 text-sky-600" />
+            <span className="w-28 flex-shrink-0 whitespace-nowrap text-gray-600">Forma de pago:</span>
+            {formaDePago === "transferencia" ? (
+              <Badge variant="outline" className="border-sky-200 bg-sky-50 text-sky-800">
+                Transferencia
+                {cuentaDeCobro ? ` · ${cuentaDeCobro.nombre}` : ""}
+                {cuentaDeCobro?.alias ? ` (${cuentaDeCobro.alias})` : ""}
+              </Badge>
+            ) : formaDePago === "efectivo" ? (
+              <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-800">
+                Efectivo
+              </Badge>
+            ) : (
+              <span className="text-gray-400">Sin registrar</span>
+            )}
+            {onCambiarFormaDePago && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onCambiarFormaDePago()
+                }}
+                className="h-7 border-sky-600 bg-white px-2 text-xs text-sky-700 hover:bg-sky-600 hover:text-white"
+                data-no-expand
+              >
+                <Wallet className="mr-1 h-3 w-3" />
+                {formaDePago ? "Modificar" : "Cargar"}
+              </Button>
             )}
           </div>
         )}

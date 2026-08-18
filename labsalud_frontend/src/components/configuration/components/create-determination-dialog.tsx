@@ -14,6 +14,14 @@ import { Loader2, FlaskConical } from "lucide-react"
 import type { Determination } from "@/types"
 import { CATALOG_ENDPOINTS } from "@/config/api"
 import { formatApiError, getErrorMessage } from "@/lib/api-error"
+import { esExponenteValido } from "@/lib/notacion"
+import { CampoNotacionCientifica } from "./campo-notacion-cientifica"
+import {
+  rangosParaEnviar,
+  rangosVacios,
+  ValoresDeReferencia,
+  type RangeMap,
+} from "./valores-de-referencia"
 
 interface CreateDeterminationDialogProps {
   open?: boolean
@@ -22,7 +30,7 @@ interface CreateDeterminationDialogProps {
   onClose?: () => void
   onSuccess: (newDetermination: Determination) => void
   analysisId: number
-  analysis?: { id: number; name: string | null; code: number | null }
+  analysis?: { id: number; name: string | null; code: string | null }
 }
 
 export const CreateDeterminationDialog: React.FC<CreateDeterminationDialogProps> = ({
@@ -38,8 +46,9 @@ export const CreateDeterminationDialog: React.FC<CreateDeterminationDialogProps>
   const toastActions = useToast()
   const [name, setName] = useState("")
   const [measureUnit, setMeasureUnit] = useState("")
+  const [exponente, setExponente] = useState("")
   const [formula, setFormula] = useState("")
-  const [referenceValues, setReferenceValues] = useState("")
+  const [ranges, setRanges] = useState<RangeMap>(rangosVacios)
   const [isLoading, setIsLoading] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
 
@@ -58,31 +67,21 @@ export const CreateDeterminationDialog: React.FC<CreateDeterminationDialogProps>
     if (isDialogOpen) {
       setName("")
       setMeasureUnit("")
+      setExponente("")
       setFormula("")
-      setReferenceValues("")
+      setRanges(rangosVacios())
       setErrors({})
       setIsLoading(false)
     }
   }, [isDialogOpen])
 
-  const parseReferenceValues = () => {
-    if (!referenceValues.trim()) return undefined
-
-    try {
-      return JSON.parse(referenceValues)
-    } catch {
-      return null
-    }
-  }
-
   const validateForm = () => {
     const newErrors: Record<string, string> = {}
     if (!name.trim()) newErrors.name = "El nombre es requerido."
     if (!measureUnit.trim()) newErrors.measureUnit = "La unidad de medida es requerida."
-    if (referenceValues.trim() && parseReferenceValues() === null) {
-      newErrors.referenceValues = "Los valores de referencia deben ser un JSON válido."
+    if (exponente.trim() !== "" && !esExponenteValido(Number(exponente))) {
+      newErrors.exponente = "La notación científica tiene que ser un número entero entre 1 y 30."
     }
-
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
@@ -92,13 +91,13 @@ export const CreateDeterminationDialog: React.FC<CreateDeterminationDialogProps>
 
     setIsLoading(true)
     try {
-      const parsedReferenceValues = parseReferenceValues()
       const determinationData = {
         analysis: finalAnalysisId,
         name,
         measure_unit: measureUnit,
+        scientific_exponent: exponente.trim() === "" ? null : Number(exponente),
         formula: formula || "",
-        ...(parsedReferenceValues ? { reference_values: parsedReferenceValues } : {}),
+        reference_ranges: rangosParaEnviar(ranges),
       }
       const response = await apiRequest(CATALOG_ENDPOINTS.DETERMINATIONS, {
         method: "POST",
@@ -190,6 +189,14 @@ export const CreateDeterminationDialog: React.FC<CreateDeterminationDialogProps>
             {errors.measureUnit && <p className="text-xs md:text-sm text-red-500">{errors.measureUnit}</p>}
           </div>
 
+          <CampoNotacionCientifica
+            id="determination-exponente"
+            unidad={measureUnit}
+            exponente={exponente}
+            onChange={setExponente}
+            error={errors.exponente}
+          />
+
           <div className="space-y-2">
             <Label htmlFor="determination-formula" className="text-sm">
               Fórmula (Opcional)
@@ -205,22 +212,7 @@ export const CreateDeterminationDialog: React.FC<CreateDeterminationDialogProps>
             {errors.formula && <p className="text-xs md:text-sm text-red-500">{errors.formula}</p>}
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="determination-reference-values" className="text-sm">
-              Valores de Referencia (JSON opcional)
-            </Label>
-            <Textarea
-              id="determination-reference-values"
-              value={referenceValues}
-              onChange={(e) => setReferenceValues(e.target.value)}
-              placeholder='{"hombre_mayor":{"min":"70","max":"110"}}'
-              rows={4}
-              className="font-mono text-xs"
-            />
-            {errors.referenceValues && (
-              <p className="text-xs md:text-sm text-red-500">{errors.referenceValues}</p>
-            )}
-          </div>
+          <ValoresDeReferencia ranges={ranges} onChange={setRanges} />
         </div>
 
         <DialogFooter className="flex-col gap-2 sm:flex-row">

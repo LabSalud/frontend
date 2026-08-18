@@ -21,6 +21,7 @@ import {
 import { useApi } from "@/hooks/use-api"
 import { useToast } from "@/hooks/use-toast"
 import { useDebounce } from "@/hooks/use-debounce"
+import { unidadCompleta } from "@/lib/notacion"
 import { useInfiniteScroll } from "@/hooks/use-infinite-scroll"
 import { CreateDeterminationDialog } from "./create-determination-dialog"
 import { EditDeterminationDialog } from "./edit-determination-dialog"
@@ -35,7 +36,7 @@ import { formatApiError, getErrorMessage } from "@/lib/api-error"
 interface AnalysisCatalog {
   id: number
   name: string | null
-  code: number | null
+  code: string | null
 }
 
 interface AnalysisListProps {
@@ -251,7 +252,7 @@ export const AnalysisList: React.FC<AnalysisListProps> = ({ analysis, showInacti
                     <div className="min-w-0 flex-1">
                       <p className="text-xs md:text-sm font-medium text-gray-800 truncate">{analysisItem.name}</p>
                       <p className="text-[10px] md:text-xs text-gray-500">Código: {analysisItem.code || "N/A"}</p>
-                      <p className="text-[10px] md:text-xs text-gray-500">Unidad: {analysisItem.measure_unit}</p>
+                      <p className="text-[10px] md:text-xs text-gray-500">Unidad: {unidadCompleta(analysisItem.measure_unit, analysisItem.scientific_exponent)}</p>
                       <p className="text-[10px] md:text-xs text-gray-500">
                         Fórmula:{" "}
                         {analysisItem.formula ? (

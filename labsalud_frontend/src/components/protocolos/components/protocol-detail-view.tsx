@@ -28,7 +28,7 @@ import { InitialsAvatar } from "@/components/common/initials-avatar"
 import { StatusPill } from "@/components/common/status-pill"
 import { AuditTimelineMini } from "@/components/common/audit-timeline-mini"
 import { getPreauthStatusInfo } from "@/lib/status-styles"
-import { isActoBioquimico } from "@/lib/acto-bioquimico"
+import { isActoBioquimico } from "@/lib/codigos-analisis"
 import { cn } from "@/lib/utils"
 import type {
   ProtocolAuditEvent,

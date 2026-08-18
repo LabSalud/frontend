@@ -200,6 +200,12 @@ export interface User {
   last_name: string
   photo?: string
   inactivity_logout_minutes?: number | null
+  /**
+   * La contraseña la puso otra persona (alta, reset por mail, o el botón de
+   * gestión de usuarios). Hasta que la cambie, el servidor contesta 403 a todo
+   * salvo su propio perfil.
+   */
+  must_change_password?: boolean
   roles?: Role[] | undefined
   groups?: Group[]
   permissions: Permission[]
@@ -371,7 +377,7 @@ export type AnalysisRelationType = "includes" | "not_includes" | "included_in"
 export interface AnalysisComponent {
   id: number
   child: number
-  child_code: number
+  child_code: string
   child_name: string
   relation_type: AnalysisRelationType
   relation_type_display: string
@@ -390,7 +396,8 @@ export interface Analysis {
   created_at: string
   created_by: null
   id: number
-  code: number
+  /** Alfanumérico: los 6 dígitos del NBU, o el que le puso el laboratorio. */
+  code: string
   name: string
   bio_unit: string
   bio_unit_values?: BioUnitValue[]
@@ -437,7 +444,7 @@ export interface NBU {
 }
 
 export interface NBUEffectiveUB {
-  analysis_code: number
+  analysis_code: string
   analysis_name: string
   effective_value: string
   found_in: {
@@ -450,7 +457,7 @@ export interface NBUEffectiveUB {
 
 export interface NBUUbValue {
   analysis_id: number
-  analysis_code: number
+  analysis_code: string
   analysis_name: string
   value: string
 }
@@ -517,6 +524,8 @@ export interface Determination {
   analysis: number
   name: string
   measure_unit: string
+  /** Exponente de 10 de la unidad: `/µL` + 6 se imprime `4.500.000 /µL`. */
+  scientific_exponent?: number | null
   formula: string
   reference_values?: ReferenceValues
   reference_ranges?: ReferenceRange[]
@@ -565,7 +574,7 @@ export interface ProtocolDetail {
   /** true si el análisis ya tiene resultados cargados (aunque no estén validados).
    * Lo provee el backend en el detalle (ProtocolDetailSerializer). */
   is_loaded?: boolean
-  code: number
+  code: string
   name: string
   ub: string
   is_urgent: boolean
@@ -801,7 +810,7 @@ export interface PricingConfig {
 // la lógica de creación (resuelve el nomenclador correcto por OOSS/particular).
 export interface QuoteDetail {
   analysis_id: number
-  code: number
+  code: string
   name: string
   is_authorized: boolean
   private_ub: string
@@ -892,6 +901,8 @@ export interface ResultDetermination {
   code?: string
   name: string
   measure_unit: string
+  /** Exponente de 10 de la unidad: se carga `4,5` y el informe dice `4.500.000`. */
+  scientific_exponent?: number | null
   formula: string
   reference_values?: ReferenceValues
   reference_ranges?: ReferenceRange[]
@@ -900,7 +911,7 @@ export interface ResultDetermination {
 export interface ResultAnalysis {
   id: number
   name: string
-  code: number
+  code: string
   is_urgent: boolean
   ub: string
   bio_unit_values?: BioUnitValue[]
@@ -951,7 +962,7 @@ export interface ResultsByAnalysisItem {
 // Response from GET /results/results/available-analyses/
 export interface AvailableAnalysis {
   id: number
-  code: number
+  code: string
   name: string
   bio_unit: string
   bio_unit_values?: BioUnitValue[]

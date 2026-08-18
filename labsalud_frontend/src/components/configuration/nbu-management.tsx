@@ -170,7 +170,7 @@ export function NbuManagement() {
     }
   }
 
-  const handleRemoveUb = async (code: number) => {
+  const handleRemoveUb = async (code: string) => {
     if (!selectedNbu) return
     try {
       const response = await apiRequest(CATALOG_ENDPOINTS.NBU_DELETE_UB_VALUE(selectedNbu.id, code), {

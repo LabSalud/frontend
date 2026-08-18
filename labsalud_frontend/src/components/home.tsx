@@ -84,7 +84,7 @@ interface DashboardResponse {
   patients_daily_last_35?: Array<{ date: string; patients_served: number }>
   cash_daily_last_35?: Array<{ date: string; collected: string }>
   cash_pending_total?: string
-  top_urgent_analyses?: Array<{ code: number; name: string; protocols: number }>
+  top_urgent_analyses?: Array<{ code: string; name: string; protocols: number }>
   urgent_pending?: number
   avg_resolution_time_human?: string
   ready_to_bill?: number

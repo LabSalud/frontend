@@ -15,6 +15,7 @@ import {
 } from "@/lib/catalog-format"
 import { LAB_TIME_ZONE } from "@/lib/format-utils"
 import { cn } from "@/lib/utils"
+import { expandirNumero, unidadCompleta } from "@/lib/notacion"
 import type { PreviousResult, Result } from "@/types"
 import type { ResultValue } from "@/hooks/use-protocol-results"
 
@@ -71,7 +72,10 @@ export function ResultDeterminationRow({
 }: ResultDeterminationRowProps) {
   const [focused, setFocused] = useState(false)
   const det = result.determination
-  const unit = det.measure_unit || ""
+  // La unidad CON la notación: el input recibe el número corto (`4,5`), así
+  // que si acá dijera solo `/µL` la bioquímica no sabría en qué escala
+  // está escribiendo. El informe es el que muestra el número completo.
+  const unit = unidadCompleta(det.measure_unit, det.scientific_exponent)
   const hasValue = !!result.value
   const isValidated = result.is_valid
   const isWrong = result.is_wrong
@@ -80,6 +84,12 @@ export function ResultDeterminationRow({
   // enfocar y seguir consultando los valores anteriores del paciente.
   const noWritePermission = Boolean(lockedReason)
   const cannotSave = locked || noWritePermission
+
+  // Lo que va a decir el informe. El valor se guarda como se escribe: quien
+  // multiplica es el backend, al armar el informe. Esto está acá porque el
+  // número que se carga y el que lee el paciente son distintos, y eso conviene
+  // verlo antes de guardar y no en el papel.
+  const enElInforme = expandirNumero(value.value, det.scientific_exponent)
 
   const referenceItems = det.reference_ranges?.length
     ? det.reference_ranges.map(formatReferenceRange)
@@ -156,6 +166,12 @@ export function ResultDeterminationRow({
             disabled={locked}
             className={cn("h-11 text-base font-semibold", hasValue && !isValidated && "border-blue-300", isValidated && "border-emerald-300 bg-emerald-100")}
           />
+          {enElInforme && (
+            <p className="mt-1 text-[11px] tabular-nums text-gray-500">
+              En el informe: <span className="font-medium text-gray-700">{enElInforme}</span>{" "}
+              {det.measure_unit}
+            </p>
+          )}
           {/* Al enfocar el input se despliega el historial del paciente */}
           {focused && (
             <div className="mt-1.5 rounded-md border border-gray-100 bg-gray-50/70 p-1.5">

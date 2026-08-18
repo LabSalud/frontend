@@ -9,7 +9,7 @@ import { useApi } from "../../../hooks/use-api"
 import { toast } from "sonner"
 import { PROTOCOL_ENDPOINTS, TOAST_DURATION } from "@/config/api"
 import { PERMISSIONS, PERMISSION_MESSAGES } from "@/config/permissions"
-import { ACTO_BIOQUIMICO_CODES } from "@/lib/acto-bioquimico"
+import { ACTO_BIOQUIMICO_CODES } from "@/lib/codigos-analisis"
 import { Mail, MessageCircle } from "lucide-react"
 import {
   AlertDialog,

@@ -4,7 +4,7 @@ import { useState } from "react"
 import { Loader2, Plus } from "lucide-react"
 
 import { AnalysisSearch } from "@/components/ingreso/components/analysis-search"
-import { isActoBioquimico } from "@/lib/acto-bioquimico"
+import { isActoBioquimico } from "@/lib/codigos-analisis"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -50,7 +50,7 @@ type Props = {
    * que el acto bioquímico ya está: sin él lo da por faltante, lo agrega solo
    * y muestra un cartel de que lo agregó, sobre algo que no se va a mandar.
    */
-  yaEstan: { id: number; code: number }[]
+  yaEstan: { id: number; code: string }[]
   onAgregar: (analysisIds: number[]) => Promise<void>
 }
 

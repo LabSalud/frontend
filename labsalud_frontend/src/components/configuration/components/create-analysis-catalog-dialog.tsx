@@ -15,6 +15,13 @@ import { useToast } from "@/hooks/use-toast"
 import { Loader2, TestTube } from "lucide-react"
 import { CATALOG_ENDPOINTS } from "@/config/api"
 import { formatApiError, getErrorMessage } from "@/lib/api-error"
+import {
+  determinacionVacia,
+  DeterminacionesDelAlta,
+  paraEnviar,
+  validar,
+  type DeterminacionEnEdicion,
+} from "./determinaciones-del-alta"
 
 interface CreateAnalysisCatalogDialogProps {
   open: boolean
@@ -37,6 +44,10 @@ export const CreateAnalysisCatalogDialog: React.FC<CreateAnalysisCatalogDialogPr
   const [category, setCategory] = useState<string>("")
   const [isObsolete, setIsObsolete] = useState(false)
   const [isRefNormalized, setIsRefNormalized] = useState(false)
+  const [esModulo, setEsModulo] = useState(false)
+  const [determinaciones, setDeterminaciones] = useState<DeterminacionEnEdicion[]>([
+    determinacionVacia(),
+  ])
   const [isLoading, setIsLoading] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
 
@@ -50,6 +61,8 @@ export const CreateAnalysisCatalogDialog: React.FC<CreateAnalysisCatalogDialogPr
       setCategory("")
       setIsObsolete(false)
       setIsRefNormalized(false)
+      setEsModulo(false)
+      setDeterminaciones([determinacionVacia()])
       setErrors({})
       setIsLoading(false)
     }
@@ -58,9 +71,15 @@ export const CreateAnalysisCatalogDialog: React.FC<CreateAnalysisCatalogDialogPr
   const validateForm = () => {
     const newErrors: Record<string, string> = {}
     if (!name.trim()) newErrors.name = "El nombre es requerido."
+    // Alfanumérico: la mayoría son los 6 dígitos del NBU, pero el laboratorio
+    // también numera sus propias prácticas (`A15`, `INT-3`).
     if (!code.trim()) newErrors.code = "El código es requerido."
-    else if (isNaN(Number(code))) newErrors.code = "El código debe ser numérico."
+    else if (!/^[\w.-]+$/.test(code.trim()))
+      newErrors.code = "El código no puede tener espacios ni símbolos raros."
     if (!bioUnit.trim()) newErrors.bioUnit = "La unidad bioquímica es requerida."
+
+    const problema = validar(determinaciones, esModulo)
+    if (problema) newErrors.determinaciones = problema
 
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
@@ -72,7 +91,7 @@ export const CreateAnalysisCatalogDialog: React.FC<CreateAnalysisCatalogDialogPr
     setIsLoading(true)
     try {
       const analysisData = {
-        code: Number.parseInt(code, 10),
+        code: code.trim(),
         name,
         bio_unit: bioUnit,
         is_urgent: isUrgent,
@@ -80,6 +99,9 @@ export const CreateAnalysisCatalogDialog: React.FC<CreateAnalysisCatalogDialogPr
         ...(category ? { category } : {}),
         is_obsolete: isObsolete,
         is_ref_normalized: isRefNormalized,
+        // Se crean en la misma transacción que el análisis: si algo falla, no
+        // queda un análisis a medio armar.
+        determinations: paraEnviar(determinaciones, name, esModulo),
       }
       const response = await apiRequest(CATALOG_ENDPOINTS.ANALYSIS, {
         method: "POST",
@@ -122,7 +144,7 @@ export const CreateAnalysisCatalogDialog: React.FC<CreateAnalysisCatalogDialogPr
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="w-[95vw] sm:max-w-[560px] max-h-[90vh] overflow-y-auto">
         <DialogHeading icon={TestTube} title="Nuevo análisis" description="Completá los datos para el nuevo análisis." />
         <div className="space-y-6 py-4">
           {errors.form && (
@@ -135,7 +157,7 @@ export const CreateAnalysisCatalogDialog: React.FC<CreateAnalysisCatalogDialogPr
               id="code"
               value={code}
               onChange={(e) => setCode(e.target.value)}
-              placeholder="Ingrese el código numérico"
+              placeholder="ej: 660412, o A15 para una práctica propia"
             />
             {errors.code && <p className="text-sm text-red-500">{errors.code}</p>}
           </div>
@@ -221,6 +243,44 @@ export const CreateAnalysisCatalogDialog: React.FC<CreateAnalysisCatalogDialogPr
               <p className="text-sm text-gray-500">Marca "N" del NBU (referencia normalizada).</p>
             </div>
             <Switch id="isRefNormalized" checked={isRefNormalized} onCheckedChange={setIsRefNormalized} />
+          </div>
+
+          <div className="space-y-4 rounded-lg border border-[#204983]/20 bg-[#204983]/5 p-3">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <Label htmlFor="esModulo" className="font-medium">
+                  ¿Es un módulo?
+                </Label>
+                <p className="text-sm text-gray-500">
+                  Un módulo agrupa varias determinaciones (ej: Hemograma). Si no lo es, se
+                  crea una sola con el mismo nombre del análisis.
+                </p>
+              </div>
+              <Switch
+                id="esModulo"
+                checked={esModulo}
+                onCheckedChange={(valor) => {
+                  setEsModulo(valor)
+                  // Al pasar a módulo se arranca con la que ya se estaba
+                  // cargando; al volver, se deja solo la primera: las demás
+                  // no tendrían dónde ir.
+                  setDeterminaciones((previas) =>
+                    valor ? previas : previas.slice(0, 1),
+                  )
+                }}
+              />
+            </div>
+
+            <DeterminacionesDelAlta
+              esModulo={esModulo}
+              nombreDelAnalisis={name}
+              determinaciones={determinaciones}
+              onChange={setDeterminaciones}
+              disabled={isLoading}
+            />
+            {errors.determinaciones && (
+              <p className="text-sm text-red-500">{errors.determinaciones}</p>
+            )}
           </div>
         </div>
 

@@ -23,7 +23,7 @@ import { formatApiError, getErrorMessage } from "@/lib/api-error"
 interface Analysis {
   id: number
   name: string
-  code: number
+  code: string
   bio_unit: string
   is_urgent: boolean
 }

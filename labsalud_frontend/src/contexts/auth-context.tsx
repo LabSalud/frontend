@@ -91,6 +91,13 @@ interface AuthContextType {
   isInGroup: (groupName: string) => boolean
   refreshUser: () => Promise<void>
   refreshToken: () => Promise<boolean>
+  /**
+   * Saca la marca de "tenés que cambiar la contraseña" después de que la
+   * persona la cambió. No se vuelve a pedir el usuario al servidor: el único
+   * dato que cambió es este, y hasta que se actualice el estado local el
+   * diálogo de bienvenida sigue abierto arriba de todo.
+   */
+  contrasenaCambiada: () => void
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -534,6 +541,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
     [completeSession],
   )
 
+  const contrasenaCambiada = useCallback(() => {
+    setUser((previo) => {
+      if (!previo || !previo.must_change_password) return previo
+      const actualizado = { ...previo, must_change_password: false }
+      setStoredUser(actualizado)
+      return actualizado
+    })
+  }, [])
+
   const refreshUser = useCallback(async () => {
     const tokenValue = getAccessToken()
     const savedUser = getStoredUser<User>()
@@ -583,6 +599,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       isInGroup,
       refreshUser,
       refreshToken,
+      contrasenaCambiada,
     }),
     [
       user,
@@ -599,6 +616,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       isInGroup,
       refreshUser,
       refreshToken,
+      contrasenaCambiada,
     ],
   )
 

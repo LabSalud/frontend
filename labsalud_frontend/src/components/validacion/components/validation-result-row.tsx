@@ -12,6 +12,7 @@ import {
 } from "@/lib/catalog-format"
 import { LAB_TIME_ZONE } from "@/lib/format-utils"
 import { cn } from "@/lib/utils"
+import { unidadCompleta } from "@/lib/notacion"
 import type { PreviousResult, Result } from "@/types"
 
 interface ValidationResultRowProps {
@@ -78,7 +79,8 @@ function HistoryHover({
 
 export function ValidationResultRow({ result, saving, disabled = false, onValidate, onLoadPrevious, previous, loadingPrevious }: ValidationResultRowProps) {
   const det = result.determination
-  const unit = det.measure_unit || ""
+  // Con la notación: acá se valida el valor tal como se cargó.
+  const unit = unidadCompleta(det.measure_unit, det.scientific_exponent)
   const isValidated = result.is_valid
   const isWrong = result.is_wrong
   const hasValue = !!result.value

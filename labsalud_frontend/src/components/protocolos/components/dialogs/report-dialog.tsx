@@ -195,10 +195,10 @@ function ReportCustomizationDrawer({
   const selectableCount = visibleAnalyses.filter(isSelectableAnalysis).length
 
   return (
-    <div className="pointer-events-none absolute inset-y-0 left-0 h-full w-[1208px] overflow-visible">
+    <div className="pointer-events-none absolute inset-y-0 left-0 h-full w-[calc(var(--ancho-tarjeta)+var(--ancho-panel)+80px)] overflow-visible">
       <div
-        className={`pointer-events-auto absolute inset-y-0 left-[80px] z-10 flex h-full w-[540px] flex-col overflow-hidden rounded-r-xl border border-l-0 border-slate-200 bg-white shadow-[18px_0_35px_rgba(15,23,42,0.16)] transition-transform duration-300 ease-out ${
-          open ? "translate-x-[528px]" : "translate-x-0"
+        className={`pointer-events-auto absolute inset-y-0 left-[80px] z-10 flex h-full w-[var(--ancho-panel)] flex-col overflow-hidden rounded-r-xl border border-l-0 border-slate-200 bg-white shadow-[18px_0_35px_rgba(15,23,42,0.16)] transition-transform duration-300 ease-out ${
+          open ? "translate-x-[calc(var(--corrimiento-panel)-80px)]" : "translate-x-0"
         }`}
       >
         <div className="flex h-full flex-col pl-6 pr-12">
@@ -313,8 +313,12 @@ function ReportCustomizationDrawer({
       <button
         type="button"
         onClick={() => onToggleOpen(!open)}
-        className={`pointer-events-auto absolute left-[608px] top-0 z-10 h-full w-16 rounded-r-xl border border-l-0 border-slate-200 bg-white shadow-[12px_0_24px_rgba(15,23,42,0.14)] transition-transform duration-300 ease-out transition-colors hover:bg-slate-50 ${
-          open ? "translate-x-[528px]" : "translate-x-0"
+        // La pestaña arranca pegada al borde derecho de la tarjeta y, al
+        // abrirse, viaja hasta el borde derecho del panel. Las dos posiciones
+        // salen de las mismas variables que el panel, así que achicar la
+        // ventana la mueve con él en vez de dejarla flotando en el medio.
+        className={`pointer-events-auto absolute left-[var(--corrimiento-panel)] top-0 z-10 h-full w-16 rounded-r-xl border border-l-0 border-slate-200 bg-white shadow-[12px_0_24px_rgba(15,23,42,0.14)] transition-transform duration-300 ease-out transition-colors hover:bg-slate-50 ${
+          open ? "translate-x-[calc(var(--ancho-panel)-12px)]" : "translate-x-0"
         }`}
       >
         <div className="ml-3 flex h-full flex-col items-center justify-center gap-2 px-1 py-3">
@@ -492,15 +496,38 @@ export function ReportDialog({
   const signatureDescription = signed
     ? "Se incluirá firma digital del bioquímico"
     : "Se incluirá línea para firma física"
+  // La geometría del escritorio en un solo lugar. Antes eran cuatro números
+  // sueltos —620 de tarjeta, 540 de panel, 528 de corrimiento del panel y 264
+  // de corrimiento del diálogo— que solo cerraban en una pantalla grande. En
+  // un notebook de 1280 el panel se salía de la pantalla y, con 768 de alto,
+  // la tarjeta medía más que la ventana y no había forma de llegar a los
+  // botones.
+  //
+  // Ahora los cuatro salen de `--ancho-tarjeta`, así que achicar la ventana
+  // los mueve juntos y la proporción se mantiene. Los `min()` son topes: en
+  // una pantalla grande dan exactamente los valores de antes.
+  const geometria = {
+    "--ancho-tarjeta": "min(620px, 94vw)",
+    "--ancho-panel": "min(540px, 46vw)",
+    // El panel arranca 12px antes del borde derecho de la tarjeta, para que se
+    // vea pegado y no flotando al lado.
+    "--corrimiento-panel": "calc(var(--ancho-tarjeta) - 12px)",
+    // El diálogo se corre la mitad de lo que ocupa el panel, así el conjunto
+    // queda centrado en vez de irse para un costado.
+    "--corrimiento-dialogo": "calc(var(--ancho-panel) / 2)",
+  } as React.CSSProperties
+
   const dialogContentClass = isMobileViewport
     ? "w-[95vw] max-w-[380px] sm:max-w-[380px] gap-0 overflow-visible border-0 bg-transparent p-0 shadow-none rounded-none translate-x-[-50%]"
-    : `w-[620px] max-w-[620px] sm:max-w-[620px] gap-0 overflow-visible rounded-none border-0 bg-transparent p-0 shadow-none transition-transform duration-300 ease-out ${
-        customizationOpen ? "translate-x-[calc(-50%-264px)]" : "translate-x-[-50%]"
+    : `w-[var(--ancho-tarjeta)] max-w-[var(--ancho-tarjeta)] sm:max-w-[var(--ancho-tarjeta)] gap-0 overflow-visible rounded-none border-0 bg-transparent p-0 shadow-none transition-transform duration-300 ease-out ${
+        customizationOpen
+          ? "translate-x-[calc(-50%-var(--corrimiento-dialogo))]"
+          : "translate-x-[-50%]"
       }`
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent showCloseButton={false} className={dialogContentClass}>
+      <DialogContent showCloseButton={false} className={dialogContentClass} style={geometria}>
         <button
           type="button"
           onClick={() => onOpenChange(false)}
@@ -510,7 +537,11 @@ export function ReportDialog({
           <X className="h-4 w-4" />
         </button>
 
-        <div className="relative hidden min-h-[640px] w-[620px] flex-col overflow-visible lg:flex">
+        {/* `max-h` con `min-h` chico: en una pantalla alta se ve igual que antes y
+            en una baja la tarjeta se achica en vez de pasarse de la ventana. El
+            que scrollea es el cuerpo, no el diálogo, así que los botones de
+            abajo quedan siempre a la vista. */}
+        <div className="relative hidden max-h-[88vh] min-h-[min(640px,86vh)] w-full flex-col overflow-visible lg:flex">
           <div
             className={`relative z-20 flex flex-1 flex-col overflow-hidden rounded-xl border bg-white shadow-2xl transition-colors duration-300 ease-out ${
               customizationOpen ? "border-slate-200 border-r-0" : "border-slate-200"
@@ -530,7 +561,11 @@ export function ReportDialog({
 
             <Separator />
 
-            <div className="relative px-6 py-4 flex flex-col gap-3">
+            {/* El que scrollea es este bloque, no la tarjeta: los botones de
+                abajo tienen que estar siempre a la vista. `min-h-0` porque un
+                hijo de flex no achica por debajo de su contenido sin eso, y
+                sin achicar no hay scroll. */}
+            <div className="relative flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-6 py-4">
               <div className="flex flex-col gap-2">
                 <Label className="text-sm font-medium">Tipo de reporte</Label>
                 <Select value={reportType} onValueChange={onReportTypeChange}>
@@ -611,7 +646,7 @@ export function ReportDialog({
 
             <Separator />
 
-            <div className="px-6 py-4 flex flex-col gap-2">
+            <div className="flex shrink-0 flex-col gap-2 px-6 py-4">
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Acciones</p>
 
               <div className="grid grid-cols-2 gap-2">

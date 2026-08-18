@@ -113,6 +113,10 @@ export const CATALOG_ENDPOINTS = {
   ANALYSIS_IMPORT: buildApiUrl("/catalog/analysis/import-catalog/"),
   CLEAR_CATALOG: buildApiUrl("/catalog/analysis/clear-catalog/"),
   DETERMINATIONS: buildApiUrl("/catalog/determination/"),
+  /** Grupos de determinaciones cuya suma tiene que cerrar. */
+  SUBMODULOS_CORROBORACION: buildApiUrl("/catalog/submodulo-corroboracion/"),
+  SUBMODULO_CORROBORACION: (id: number) =>
+    buildApiUrl(`/catalog/submodulo-corroboracion/${id}/`),
   /** Orden de las determinaciones DENTRO de un análisis del catálogo.
    *  No confundir con `PROTOCOL_DETALLES_REORDENAR`, que mueve los
    *  análisis dentro de un protocolo. */

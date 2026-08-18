@@ -2,7 +2,7 @@
 
 import type React from "react"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { FlaskConical, AlertCircle, ChevronDown, Search, X, Lock } from "lucide-react"
+import { FlaskConical, AlertCircle, ChevronDown, Search, Sigma, X, Lock } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -23,7 +23,7 @@ interface ProtocolResultsLoaderProps {
  * Los datos llegan por `controller` (hook useProtocolResults en la página).
  */
 export function ProtocolResultsLoader({ controller }: ProtocolResultsLoaderProps) {
-  const { loading, error, protocol, results, groups, orderedIds, values, saving, onChange, onSave, previousResults, loadingPrevious, loadPrevious } =
+  const { loading, error, protocol, results, groups, submodulos, orderedIds, values, saving, onChange, onSave, previousResults, loadingPrevious, loadPrevious } =
     controller
   const { hasPermission } = useAuth()
   // Sin `gestionar_resultados` la pantalla no desaparece: se sigue viendo todo
@@ -237,6 +237,49 @@ export function ProtocolResultsLoader({ controller }: ProtocolResultsLoaderProps
                     />
                   )
                 })}
+
+                {/* LA SUMA QUE TIENE QUE CERRAR.
+                    Acá es un aviso, no un freno: a mitad de carga nunca da. El
+                    que frena es el botón de validar, que es cuando alguien
+                    firma que el resultado está bien. */}
+                {submodulos
+                  .filter((s) => s.analysis === group.analysis.id)
+                  .map((s) => (
+                    <div
+                      key={s.id}
+                      className={`flex flex-wrap items-center gap-x-2 gap-y-1 rounded-md border px-3 py-2 text-sm ${
+                        !s.completo
+                          ? "border-gray-200 bg-gray-50 text-gray-500"
+                          : s.cierra
+                            ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                            : "border-rose-300 bg-rose-50 text-rose-800"
+                      }`}
+                    >
+                      <Sigma className="h-4 w-4 shrink-0" />
+                      <span className="font-medium">{s.nombre}:</span>
+                      <span className="tabular-nums">
+                        {s.suma.toLocaleString("es-AR", { maximumFractionDigits: 4 })}
+                      </span>
+                      <span className="text-xs">
+                        de {s.esperado.toLocaleString("es-AR", { maximumFractionDigits: 4 })}
+                        {s.tolerancia > 0 ? ` ± ${s.tolerancia}` : ""}
+                      </span>
+                      {!s.completo ? (
+                        <span className="text-xs">
+                          — falta cargar {s.faltantes.filter(Boolean).join(", ")}
+                        </span>
+                      ) : s.cierra ? (
+                        <span className="text-xs font-medium">— cierra</span>
+                      ) : (
+                        <span className="text-xs font-medium">
+                          — {s.suma > s.esperado
+                            ? `se pasa por ${(s.suma - s.esperado).toLocaleString("es-AR", { maximumFractionDigits: 4 })}`
+                            : `faltan ${(s.esperado - s.suma).toLocaleString("es-AR", { maximumFractionDigits: 4 })}`}
+                          . No se va a poder validar así.
+                        </span>
+                      )}
+                    </div>
+                  ))}
               </div>
               )}
             </section>

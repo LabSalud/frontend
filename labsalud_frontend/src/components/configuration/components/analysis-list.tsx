@@ -17,6 +17,7 @@ import {
   TestTube2,
   Plus,
   History,
+  Sigma,
 } from "lucide-react"
 import { useApi } from "@/hooks/use-api"
 import { useToast } from "@/hooks/use-toast"
@@ -24,6 +25,7 @@ import { useDebounce } from "@/hooks/use-debounce"
 import { unidadCompleta } from "@/lib/notacion"
 import { useInfiniteScroll } from "@/hooks/use-infinite-scroll"
 import { ListaOrdenable } from "@/components/common/lista-ordenable"
+import { SubmoduloCorroboracionDialog } from "./submodulo-corroboracion-dialog"
 import { CreateDeterminationDialog } from "./create-determination-dialog"
 import { EditDeterminationDialog } from "./edit-determination-dialog"
 import { DeleteDeterminationDialog } from "./delete-determination-dialog"
@@ -65,6 +67,7 @@ export const AnalysisList: React.FC<AnalysisListProps> = ({ analysis, showInacti
   const debouncedSearchTerm = useDebounce(searchTerm, 500)
 
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
+  const [submodulosAbierto, setSubmodulosAbierto] = useState(false)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
   const [selectedAnalysis, setSelectedAnalysis] = useState<Determination | null>(null)
@@ -229,18 +232,34 @@ export const AnalysisList: React.FC<AnalysisListProps> = ({ analysis, showInacti
             onClick={(e) => e.stopPropagation()}
           />
         </div>
-        <Button
-          variant="outline"
-          className="border-green-600 text-green-600 hover:bg-green-600 hover:text-white bg-transparent w-full sm:w-auto"
-          size="sm"
-          onClick={(e) => {
-            e.stopPropagation()
-            e.preventDefault()
-            setIsCreateModalOpen(true)
-          }}
-        >
-          <Plus className="mr-1 h-4 w-4" /> Nueva Determinación
-        </Button>
+        <div className="flex w-full gap-2 sm:w-auto">
+          {/* Junta determinaciones de la misma unidad y le pone un total que
+              tiene que dar. El caso: la fórmula leucocitaria suma 100. */}
+          <Button
+            variant="outline"
+            className="border-violet-600 text-violet-600 hover:bg-violet-600 hover:text-white bg-transparent flex-1 sm:flex-none"
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation()
+              e.preventDefault()
+              setSubmodulosAbierto(true)
+            }}
+          >
+            <Sigma className="mr-1 h-4 w-4" /> Submódulos
+          </Button>
+          <Button
+            variant="outline"
+            className="border-green-600 text-green-600 hover:bg-green-600 hover:text-white bg-transparent flex-1 sm:flex-none"
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation()
+              e.preventDefault()
+              setIsCreateModalOpen(true)
+            }}
+          >
+            <Plus className="mr-1 h-4 w-4" /> Nueva Determinación
+          </Button>
+        </div>
       </div>
 
       {isLoadingInitial && (
@@ -429,6 +448,13 @@ export const AnalysisList: React.FC<AnalysisListProps> = ({ analysis, showInacti
       {!hasMoreAnalyses && analyses.length > 0 && !isLoadingInitial && (
         <p className="text-center text-xs text-gray-400 mt-3">Fin de las determinaciones.</p>
       )}
+
+      <SubmoduloCorroboracionDialog
+        open={submodulosAbierto}
+        onOpenChange={setSubmodulosAbierto}
+        analysisId={analysis.id}
+        analysisName={analysis.name}
+      />
 
       <CreateDeterminationDialog
         analysisId={analysis.id}

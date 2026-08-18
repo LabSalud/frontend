@@ -8,7 +8,7 @@ import { RESULTS_ENDPOINTS } from "@/config/api"
 import { PERMISSIONS, PERMISSION_MESSAGES } from "@/config/permissions"
 import { applyFormulaCalculations } from "@/lib/result-formulas"
 import { formatApiError } from "@/lib/api-error"
-import type { PreviousResult, Result } from "@/types"
+import type { PreviousResult, Result, SubmoduloEvaluado } from "@/types"
 
 export interface ResultValue {
   value: string
@@ -55,6 +55,7 @@ export function useProtocolResults(protocolId: number) {
   // teclado Enter llega a `onSave` sin pasar por ningún botón.
   const canEditResults = hasPermission(PERMISSIONS.MANAGE_RESULTS.codename)
   const [results, setResults] = useState<Result[]>([])
+  const [submodulos, setSubmodulos] = useState<SubmoduloEvaluado[]>([])
   const [protocol, setProtocol] = useState<ResultsProtocolHeader | null>(null)
   const [values, setValues] = useState<Record<number, ResultValue>>({})
   const [saving, setSaving] = useState<Record<number, boolean>>({})
@@ -77,6 +78,7 @@ export function useProtocolResults(protocolId: number) {
       const body = await res.json()
       const data: Result[] = Array.isArray(body) ? body : body.results || []
       if (!Array.isArray(body) && body.protocol) setProtocol(body.protocol as ResultsProtocolHeader)
+      setSubmodulos(!Array.isArray(body) ? (body.submodulos as SubmoduloEvaluado[]) || [] : [])
       setResults(data)
       const initial: Record<number, ResultValue> = {}
       data.forEach((r) => {
@@ -199,11 +201,51 @@ export function useProtocolResults(protocolId: number) {
     [apiRequest, previousResults, loadingPrevious],
   )
 
+  /**
+   * El estado de cada submódulo con lo que hay tipeado AHORA.
+   *
+   * La suma se calcula acá y no en el backend a propósito: el backend solo
+   * conoce lo guardado, y el aviso tiene que aparecer mientras se escribe, no
+   * después de guardar. La definición —qué determinaciones y a cuánto tienen
+   * que sumar— sí viene de allá, que es donde se configura.
+   */
+  const estadoSubmodulos = useMemo(() => {
+    const resultadoPorDeterminacion = new Map<number, Result>()
+    results.forEach((r) => resultadoPorDeterminacion.set(r.determination.id, r))
+
+    return submodulos.map((s) => {
+      let suma = 0
+      const faltantes: string[] = []
+
+      for (const determinacionId of s.determinaciones) {
+        const resultado = resultadoPorDeterminacion.get(determinacionId)
+        const crudo = resultado ? (values[resultado.id]?.value ?? resultado.value) : ""
+        const numero = Number.parseFloat(String(crudo).replace(",", "."))
+        if (!crudo || Number.isNaN(numero)) {
+          faltantes.push(resultado?.determination.name || "")
+          continue
+        }
+        suma += numero
+      }
+
+      const esperado = Number.parseFloat(s.total_esperado) || 0
+      const tolerancia = Number.parseFloat(s.tolerancia) || 0
+      const completo = faltantes.length === 0
+      // Sin todo cargado no se opina: la suma no puede dar y marcar error sobre
+      // algo que se está tipeando enseña a ignorar el error.
+      const cierra =
+        completo && suma >= esperado - tolerancia && suma <= esperado + tolerancia
+
+      return { ...s, suma, esperado, tolerancia, completo, cierra, faltantes }
+    })
+  }, [submodulos, results, values])
+
   return {
     loading,
     error,
     protocol,
     results,
+    submodulos: estadoSubmodulos,
     groups,
     orderedIds,
     values,

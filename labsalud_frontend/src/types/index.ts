@@ -518,6 +518,47 @@ export interface ReferenceRangeEvaluation {
   reference?: ReferenceRange | null
 }
 
+/**
+ * Un grupo de determinaciones cuya suma tiene que dar un número conocido.
+ *
+ * La fórmula leucocitaria suma 100: si suma 95 alguien contó mal, y eso no lo
+ * ve ningún rango de referencia porque cada valor por separado puede ser
+ * normal.
+ */
+export interface SubmoduloDeCorroboracion {
+  id: number
+  analysis: number
+  nombre: string
+  determinaciones: number[]
+  determinaciones_detalle?: {
+    id: number
+    name: string
+    measure_unit: string
+    scientific_exponent?: number | null
+  }[]
+  total_esperado: string
+  tolerancia: string
+  is_active?: boolean
+}
+
+/** Cómo va la suma de un submódulo en un protocolo concreto. */
+export interface SubmoduloEvaluado {
+  id: number
+  protocol_detail: number
+  /** La pantalla agrupa por análisis, no por detalle del protocolo. */
+  analysis: number
+  nombre: string
+  total_esperado: string
+  tolerancia: string
+  suma: string
+  diferencia: string
+  /** Con campos vacíos la suma no puede dar: hasta entonces no se opina. */
+  completo: boolean
+  cierra: boolean
+  faltantes: string[]
+  determinaciones: number[]
+}
+
 export interface Determination {
   id: number
   code: string

@@ -1,4 +1,4 @@
-import { lazy, Suspense } from "react"
+import { Suspense, useEffect } from "react"
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 
@@ -9,6 +9,8 @@ import { Layout } from "./components/layout"
 import { ProtectedRoute } from "./components/protected-route"
 import { Toaster } from "sonner"
 import { PERMISSIONS } from "./config/permissions"
+import { LimiteDeError } from "./components/common/limite-de-error"
+import { olvidarLasRecargas, paginaLazy } from "./lib/carga-de-pagina"
 
 // Login no se lazy-loadea: es la primera pantalla y bloquea el resto.
 import Login from "./components/login"
@@ -18,23 +20,23 @@ import NotFound from "./components/not-found"
 
 // El resto va lazy-loadeado: cada ruta es un chunk separado.
 // El primer render del usuario sólo descarga login + layout + home; el resto baja on-demand.
-const ManagementPage = lazy(() => import("./components/admin/management-page"))
-const PatientsPage = lazy(() => import("./components/patients/patients-page"))
-const PatientDetailPage = lazy(() => import("./components/patients/patient-detail-page"))
-const ProfilePage = lazy(() => import("./components/profile/profile-page"))
-const ConfigurationPage = lazy(() => import("./components/configuration/configuration-page"))
-const IngresoPage = lazy(() => import("./components/ingreso/ingreso-page"))
-const ProtocolosPage = lazy(() => import("./components/protocolos/protocolos-page"))
-const ProtocolDetailPage = lazy(() => import("./components/protocolos/protocol-detail-page"))
-const ResultadosPage = lazy(() => import("./components/results/results-page"))
-const ProtocolResultsPage = lazy(() => import("./components/results/protocol-results-page"))
-const ValidacionPage = lazy(() => import("./components/validacion/validacion-page"))
-const ProtocolValidationPage = lazy(() => import("./components/validacion/protocol-validation-page"))
-const FacturacionPage = lazy(() => import("./components/facturacion/facturacion-page"))
-const SearchResultsPage = lazy(() => import("./components/search/search-results-page"))
-const SuperadminPage = lazy(() => import("./components/superadmin/superadmin-page"))
-const ContingenciaPage = lazy(() => import("./components/contingencia/contingencia-page"))
-const LibroDiarioPage = lazy(() => import("./components/caja/libro-diario-page"))
+const ManagementPage = paginaLazy("ManagementPage", () => import("./components/admin/management-page"))
+const PatientsPage = paginaLazy("PatientsPage", () => import("./components/patients/patients-page"))
+const PatientDetailPage = paginaLazy("PatientDetailPage", () => import("./components/patients/patient-detail-page"))
+const ProfilePage = paginaLazy("ProfilePage", () => import("./components/profile/profile-page"))
+const ConfigurationPage = paginaLazy("ConfigurationPage", () => import("./components/configuration/configuration-page"))
+const IngresoPage = paginaLazy("IngresoPage", () => import("./components/ingreso/ingreso-page"))
+const ProtocolosPage = paginaLazy("ProtocolosPage", () => import("./components/protocolos/protocolos-page"))
+const ProtocolDetailPage = paginaLazy("ProtocolDetailPage", () => import("./components/protocolos/protocol-detail-page"))
+const ResultadosPage = paginaLazy("ResultadosPage", () => import("./components/results/results-page"))
+const ProtocolResultsPage = paginaLazy("ProtocolResultsPage", () => import("./components/results/protocol-results-page"))
+const ValidacionPage = paginaLazy("ValidacionPage", () => import("./components/validacion/validacion-page"))
+const ProtocolValidationPage = paginaLazy("ProtocolValidationPage", () => import("./components/validacion/protocol-validation-page"))
+const FacturacionPage = paginaLazy("FacturacionPage", () => import("./components/facturacion/facturacion-page"))
+const SearchResultsPage = paginaLazy("SearchResultsPage", () => import("./components/search/search-results-page"))
+const SuperadminPage = paginaLazy("SuperadminPage", () => import("./components/superadmin/superadmin-page"))
+const ContingenciaPage = paginaLazy("ContingenciaPage", () => import("./components/contingencia/contingencia-page"))
+const LibroDiarioPage = paginaLazy("LibroDiarioPage", () => import("./components/caja/libro-diario-page"))
 
 // React Query client compartido. Cache de 1 min para listados pesados (protocolos, pacientes).
 // Reintentos en mutaciones desactivados (errores 4xx no son
@@ -63,6 +65,14 @@ function RouteFallback() {
 }
 
 function App() {
+  // Si el arranque llegó hasta acá, la versión que está corriendo es la buena:
+  // se limpian las marcas de "ya recargué por esta pantalla" para que un
+  // despliegue futuro vuelva a poder recargar sola. Sin esto, la marca de una
+  // recarga vieja dejaría la próxima pantalla en blanco en vez de recargarla.
+  useEffect(() => {
+    olvidarLasRecargas()
+  }, [])
+
   return (
     <QueryClientProvider client={queryClient}>
       {/* Una sola vez, arriba de todo: cualquier pantalla que mande un
@@ -86,6 +96,7 @@ function App() {
           <div className="relative z-10">
             <Router>
               <RouteChangeListener />
+              <LimiteDeError>
               <Suspense fallback={<RouteFallback />}>
                 <Routes>
                   <Route path="/login" element={<Login />} />
@@ -244,6 +255,7 @@ function App() {
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </Suspense>
+              </LimiteDeError>
             </Router>
             <Toaster position="bottom-right" richColors />
           </div>

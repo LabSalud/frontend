@@ -5,7 +5,7 @@ import { useState } from "react"
 import { toast } from "sonner"
 import useAuth from "@/contexts/auth-context"
 import { useApi } from "@/hooks/use-api"
-import { AC_ENDPOINTS } from "@/config/api"
+import { AC_ENDPOINTS, USER_ENDPOINTS } from "@/config/api"
 import { formatApiError } from "@/lib/api-error"
 import type { User, Role, Permission, Group } from "@/types"
 import { UserCard, type UserCardAction } from "./components/user-card"
@@ -60,7 +60,42 @@ export function UserManagement({ users, roles, permissions, setUsers, refreshDat
     setIsHistory(false)
   }
 
+  /**
+   * Obliga (o deja de obligar) a cambiar la contraseña en el próximo login.
+   *
+   * No abre diálogo: es un interruptor, y el efecto se ve al toque en la
+   * etiqueta de la tarjeta. Confirmarlo sería un clic de más para algo que se
+   * deshace con otro clic.
+   */
+  const exigirCambioDeContrasena = async (user: User, exigir: boolean) => {
+    try {
+      const respuesta = await apiRequest(USER_ENDPOINTS.USER_EXIGIR_CAMBIO_DE_CONTRASENA(user.id), {
+        method: "POST",
+        body: { exigir },
+      })
+      if (!respuesta.ok) {
+        const datos = await respuesta.json().catch(() => ({}))
+        toast.error("No se pudo cambiar", { description: formatApiError(datos, "Intentá de nuevo.") })
+        return
+      }
+      setUsers((prev) =>
+        prev.map((u) => (u.id === user.id ? { ...u, must_change_password: exigir } : u)),
+      )
+      toast.success(
+        exigir
+          ? `${user.username} va a tener que cambiar su contraseña al entrar.`
+          : `${user.username} ya no tiene que cambiar su contraseña.`,
+      )
+    } catch {
+      toast.error("Error de red al cambiar la exigencia de contraseña")
+    }
+  }
+
   const handleCardAction = (user: User, action: UserCardAction) => {
+    if (action === "requirePasswordChange" || action === "cancelPasswordChange") {
+      if (canEditUser) exigirCambioDeContrasena(user, action === "requirePasswordChange")
+      return
+    }
     setSelectedUser(user)
     if (action === "edit" && canEditUser) setIsEditing(true)
     else if (action === "tempPermission" && canAssignTempPermission) setIsTempPermission(true)

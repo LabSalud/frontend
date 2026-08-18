@@ -200,6 +200,12 @@ export interface User {
   last_name: string
   photo?: string
   inactivity_logout_minutes?: number | null
+  /**
+   * La contraseña la puso otra persona (alta, reset por mail, o el botón de
+   * gestión de usuarios). Hasta que la cambie, el servidor contesta 403 a todo
+   * salvo su propio perfil.
+   */
+  must_change_password?: boolean
   roles?: Role[] | undefined
   groups?: Group[]
   permissions: Permission[]

@@ -13,10 +13,17 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Clock, Mail, MoreHorizontal, Pencil, Shield, ShieldX, Trash, X, Plus, Check, Loader2, History } from "lucide-react"
+import { Clock, KeyRound, Mail, MoreHorizontal, Pencil, Shield, ShieldX, Trash, X, Plus, Check, Loader2, History } from "lucide-react"
 import { UserTwoFactorPanel } from "./user-two-factor-panel"
 
-export type UserCardAction = "edit" | "tempPermission" | "revokeTempPermission" | "delete" | "history"
+export type UserCardAction =
+  | "edit"
+  | "tempPermission"
+  | "revokeTempPermission"
+  | "delete"
+  | "history"
+  | "requirePasswordChange"
+  | "cancelPasswordChange"
 
 interface UserCardProps {
   user: User
@@ -61,6 +68,7 @@ export function UserCard({
   const activeRoles: Group[] = user.groups || user.roles || []
   const activeRoleIds = new Set(activeRoles.map((r) => r.id))
   const hasTemp = user.permissions?.some((p) => p.temporary) || false
+  const debeCambiarContrasena = Boolean(user.must_change_password)
   const fullName = `${user.first_name} ${user.last_name}`.trim() || user.username
 
   const toggle = async (roleId: number) => {
@@ -113,6 +121,16 @@ export function UserCard({
                   Revocar temporal
                 </DropdownMenuItem>
               )}
+              {canEdit && (
+                <DropdownMenuItem
+                  onClick={() =>
+                    onAction(user, debeCambiarContrasena ? "cancelPasswordChange" : "requirePasswordChange")
+                  }
+                >
+                  <KeyRound className="h-4 w-4" />
+                  {debeCambiarContrasena ? "No exigir cambio de contraseña" : "Exigir cambio de contraseña"}
+                </DropdownMenuItem>
+              )}
               {canDelete && (
                 <>
                   <DropdownMenuSeparator />
@@ -131,13 +149,19 @@ export function UserCard({
         <span className="truncate">{user.email || "Sin email"}</span>
       </div>
 
-      {(user.is_superuser || hasTemp || user.is_active === false) && (
+      {(user.is_superuser || hasTemp || debeCambiarContrasena || user.is_active === false) && (
         <div className="flex flex-wrap gap-1">
           {user.is_superuser && <Badge variant="destructive" className="text-[10px]">Superusuario</Badge>}
           {hasTemp && (
             <Badge variant="secondary" className="text-[10px]">
               <Clock className="mr-1 h-3 w-3" />
               Permiso temporal
+            </Badge>
+          )}
+          {debeCambiarContrasena && (
+            <Badge variant="outline" className="border-amber-200 bg-amber-50 text-[10px] text-amber-700">
+              <KeyRound className="mr-1 h-3 w-3" />
+              Debe cambiar la contraseña
             </Badge>
           )}
           {user.is_active === false && (

@@ -68,6 +68,9 @@ export const USER_ENDPOINTS = {
   USER_TWO_FACTOR_REQUIRE: (id: number) => buildApiUrl(`/users/users/${id}/2fa/require/`),
   /** POST sin cuerpo: borra enrolamiento, códigos y dispositivos de confianza. */
   USER_TWO_FACTOR_RESET: (id: number) => buildApiUrl(`/users/users/${id}/2fa/reset/`),
+  /** POST con `{ exigir: boolean }`: obliga a cambiar la contraseña al entrar. */
+  USER_EXIGIR_CAMBIO_DE_CONTRASENA: (id: number) =>
+    buildApiUrl(`/users/users/${id}/exigir-cambio-de-contrasena/`),
 } as const
 
 // Access control endpoints

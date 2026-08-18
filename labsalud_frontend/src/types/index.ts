@@ -529,6 +529,8 @@ export interface Determination {
   formula: string
   reference_values?: ReferenceValues
   reference_ranges?: ReferenceRange[]
+  /** Posición dentro del análisis. Se ordena arrastrando en el catálogo. */
+  orden?: number
   is_active: boolean
   creation?: CreationAudit
   last_change?: LastChangeAudit

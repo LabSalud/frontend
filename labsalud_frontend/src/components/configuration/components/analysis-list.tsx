@@ -23,6 +23,7 @@ import { useToast } from "@/hooks/use-toast"
 import { useDebounce } from "@/hooks/use-debounce"
 import { unidadCompleta } from "@/lib/notacion"
 import { useInfiniteScroll } from "@/hooks/use-infinite-scroll"
+import { ListaOrdenable } from "@/components/common/lista-ordenable"
 import { CreateDeterminationDialog } from "./create-determination-dialog"
 import { EditDeterminationDialog } from "./edit-determination-dialog"
 import { DeleteDeterminationDialog } from "./delete-determination-dialog"
@@ -134,6 +135,47 @@ export const AnalysisList: React.FC<AnalysisListProps> = ({ analysis, showInacti
     [apiRequest, toastActions, buildAnalysesUrl, analysesNextUrl, debouncedSearchTerm, analysis.id],
   )
 
+  /**
+   * Ordenar las determinaciones arrastrándolas.
+   *
+   * SOLO CON TODAS A LA VISTA
+   * =========================
+   * El backend exige la lista COMPLETA de las activas: con una parcial tendría
+   * que inventar dónde va lo que no vino, y ese invento termina impreso en un
+   * informe. Así que arrastrar se apaga mientras haya una búsqueda filtrando o
+   * queden páginas sin cargar.
+   *
+   * SE PINTA PRIMERO Y SE GUARDA DESPUÉS
+   * ====================================
+   * Soltar una fila y verla volver a su lugar mientras espera la red se siente
+   * roto. Si el servidor rechaza, se restaura el orden anterior y se avisa.
+   */
+  const puedeOrdenar =
+    !debouncedSearchTerm && !analysesNextUrl && analyses.length > 1
+
+  const reordenarDeterminaciones = async (nuevas: Determination[]) => {
+    const previas = analyses
+    setAnalyses(nuevas)
+    try {
+      const respuesta = await apiRequest(
+        CATALOG_ENDPOINTS.DETERMINATIONS_REORDENAR(analysis.id),
+        { method: "POST", body: { determinaciones: nuevas.map((d) => d.id) } },
+      )
+      if (!respuesta.ok) {
+        const datos = await respuesta.json().catch(() => ({}))
+        throw new Error(formatApiError(datos, "No se pudo guardar el orden."))
+      }
+      toastActions.success("Orden guardado", {
+        description: "Vale para la carga de resultados y para el informe.",
+      })
+    } catch (err) {
+      setAnalyses(previas)
+      toastActions.error("No se pudo guardar el orden", {
+        description: getErrorMessage(err, "Probá de nuevo."),
+      })
+    }
+  }
+
   const toggleDetermination = (determinationId: number) => {
     setExpandedDeterminations((prev) => {
       const newSet = new Set(prev)
@@ -218,9 +260,25 @@ export const AnalysisList: React.FC<AnalysisListProps> = ({ analysis, showInacti
         </div>
       )}
 
+      {/* Por qué no se puede arrastrar, cuando no se puede. Un arrastre que no
+          hace nada se lee como que la pantalla está rota. */}
+      {analyses.length > 1 && !puedeOrdenar && (
+        <p className="px-2 md:px-4 pb-2 text-[11px] text-gray-400">
+          {debouncedSearchTerm
+            ? "Limpiá la búsqueda para poder reordenar arrastrando."
+            : "Cargá todas las determinaciones para poder reordenarlas."}
+        </p>
+      )}
+
       {analyses.length > 0 && (
         <div className="space-y-2 px-2 md:px-4">
-          {analyses.map((analysisItem) => {
+          <ListaOrdenable
+            items={analyses}
+            getId={(d) => d.id}
+            onReorder={reordenarDeterminaciones}
+            disabled={!puedeOrdenar}
+          >
+            {(analysisItem, manija) => {
             const isExpanded = expandedDeterminations.has(analysisItem.id)
             const referenceItems = analysisItem.reference_ranges?.length
               ? analysisItem.reference_ranges.map(formatReferenceRange)
@@ -234,6 +292,13 @@ export const AnalysisList: React.FC<AnalysisListProps> = ({ analysis, showInacti
                 }`}
               >
                 <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center p-2 gap-2">
+                  {/* Fuera del área que expande: arrastrar y desplegar son dos
+                      gestos distintos y no pueden compartir el mismo lugar. */}
+                  {manija ? (
+                    <div className="flex-shrink-0 self-start pt-1" onClick={(e) => e.stopPropagation()}>
+                      {manija}
+                    </div>
+                  ) : null}
                   <div
                     className="flex items-center gap-2 flex-1 cursor-pointer hover:bg-gray-50 transition-colors rounded-md p-1 -m-1 min-w-0"
                     onClick={(e) => {
@@ -351,7 +416,8 @@ export const AnalysisList: React.FC<AnalysisListProps> = ({ analysis, showInacti
                 )}
               </div>
             )
-          })}
+            }}
+          </ListaOrdenable>
         </div>
       )}
 

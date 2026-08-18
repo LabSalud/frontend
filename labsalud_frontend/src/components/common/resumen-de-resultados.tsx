@@ -1,4 +1,5 @@
 import type { Result } from "@/types"
+import { unidadCompleta } from "@/lib/notacion"
 
 /**
  * Los valores de un análisis, en una línea, para cuando está colapsado.
@@ -38,8 +39,11 @@ export function ResumenDeResultados({ determinaciones, tope = 4 }: Props) {
           {/* El valor en negrita y con `tabular-nums`: son números que se
               comparan de un vistazo entre líneas. */}
           <span className="font-semibold tabular-nums text-gray-900">{d.value}</span>
-          {d.determination.measure_unit ? (
-            <span className="text-gray-400"> {d.determination.measure_unit}</span>
+          {unidadCompleta(d.determination.measure_unit, d.determination.scientific_exponent) ? (
+            <span className="text-gray-400">
+              {" "}
+              {unidadCompleta(d.determination.measure_unit, d.determination.scientific_exponent)}
+            </span>
           ) : null}
         </span>
       ))}

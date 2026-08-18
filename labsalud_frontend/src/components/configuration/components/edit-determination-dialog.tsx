@@ -14,6 +14,8 @@ import { Loader2, FlaskConical } from "lucide-react"
 import type { Determination } from "@/types"
 import { CATALOG_ENDPOINTS } from "@/config/api"
 import { formatApiError, getErrorMessage } from "@/lib/api-error"
+import { CampoNotacionCientifica } from "./campo-notacion-cientifica"
+import { esExponenteValido } from "@/lib/notacion"
 
 interface EditDeterminationDialogProps {
   open?: boolean
@@ -55,6 +57,7 @@ export const EditDeterminationDialog: React.FC<EditDeterminationDialogProps> = (
   const toastActions = useToast()
   const [name, setName] = useState("")
   const [measureUnit, setMeasureUnit] = useState("")
+  const [exponente, setExponente] = useState("")
   const [formula, setFormula] = useState("")
   const [ranges, setRanges] = useState<RangeMap>(emptyRanges)
   const [isLoading, setIsLoading] = useState(false)
@@ -73,6 +76,9 @@ export const EditDeterminationDialog: React.FC<EditDeterminationDialogProps> = (
     if (determination && isDialogOpen) {
       setName(determination.name)
       setMeasureUnit(determination.measure_unit)
+      setExponente(
+        determination.scientific_exponent ? String(determination.scientific_exponent) : "",
+      )
       setFormula(determination.formula || "")
       // Cargar los valores de referencia estructurados (reference_ranges) en los
       // 4 grupos. Antes se leía el JSON `reference_values`, por eso no aparecían.
@@ -95,6 +101,9 @@ export const EditDeterminationDialog: React.FC<EditDeterminationDialogProps> = (
     const newErrors: Record<string, string> = {}
     if (!name.trim()) newErrors.name = "El nombre es requerido."
     if (!measureUnit.trim()) newErrors.measureUnit = "La unidad de medida es requerida."
+    if (exponente.trim() !== "" && !esExponenteValido(Number(exponente))) {
+      newErrors.exponente = "La notación científica tiene que ser un número entero entre 1 y 30."
+    }
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
@@ -107,6 +116,10 @@ export const EditDeterminationDialog: React.FC<EditDeterminationDialogProps> = (
       const body: Record<string, unknown> = {}
       if (name !== determination.name) body.name = name
       if (measureUnit !== determination.measure_unit) body.measure_unit = measureUnit
+      // Vacío = sin notación, y hay que mandarlo para poder sacarla.
+      const exponenteActual = determination.scientific_exponent ?? null
+      const exponenteNuevo = exponente.trim() === "" ? null : Number(exponente)
+      if (exponenteNuevo !== exponenteActual) body.scientific_exponent = exponenteNuevo
       if (formula !== (determination.formula || "")) body.formula = formula.trim() || ""
 
       // Siempre mandamos los valores de referencia (por si se limpió un grupo).
@@ -195,6 +208,14 @@ export const EditDeterminationDialog: React.FC<EditDeterminationDialogProps> = (
             />
             {errors.measureUnit && <p className="text-xs md:text-sm text-red-500">{errors.measureUnit}</p>}
           </div>
+
+          <CampoNotacionCientifica
+            id="edit-determination-exponente"
+            unidad={measureUnit}
+            exponente={exponente}
+            onChange={setExponente}
+            error={errors.exponente}
+          />
 
           <div className="space-y-2">
             <Label htmlFor="edit-determination-formula" className="text-sm">

@@ -14,6 +14,8 @@ import { Loader2, FlaskConical } from "lucide-react"
 import type { Determination } from "@/types"
 import { CATALOG_ENDPOINTS } from "@/config/api"
 import { formatApiError, getErrorMessage } from "@/lib/api-error"
+import { esExponenteValido } from "@/lib/notacion"
+import { CampoNotacionCientifica } from "./campo-notacion-cientifica"
 
 interface CreateDeterminationDialogProps {
   open?: boolean
@@ -38,6 +40,7 @@ export const CreateDeterminationDialog: React.FC<CreateDeterminationDialogProps>
   const toastActions = useToast()
   const [name, setName] = useState("")
   const [measureUnit, setMeasureUnit] = useState("")
+  const [exponente, setExponente] = useState("")
   const [formula, setFormula] = useState("")
   const [referenceValues, setReferenceValues] = useState("")
   const [isLoading, setIsLoading] = useState(false)
@@ -58,6 +61,7 @@ export const CreateDeterminationDialog: React.FC<CreateDeterminationDialogProps>
     if (isDialogOpen) {
       setName("")
       setMeasureUnit("")
+      setExponente("")
       setFormula("")
       setReferenceValues("")
       setErrors({})
@@ -79,6 +83,9 @@ export const CreateDeterminationDialog: React.FC<CreateDeterminationDialogProps>
     const newErrors: Record<string, string> = {}
     if (!name.trim()) newErrors.name = "El nombre es requerido."
     if (!measureUnit.trim()) newErrors.measureUnit = "La unidad de medida es requerida."
+    if (exponente.trim() !== "" && !esExponenteValido(Number(exponente))) {
+      newErrors.exponente = "La notación científica tiene que ser un número entero entre 1 y 30."
+    }
     if (referenceValues.trim() && parseReferenceValues() === null) {
       newErrors.referenceValues = "Los valores de referencia deben ser un JSON válido."
     }
@@ -97,6 +104,7 @@ export const CreateDeterminationDialog: React.FC<CreateDeterminationDialogProps>
         analysis: finalAnalysisId,
         name,
         measure_unit: measureUnit,
+        scientific_exponent: exponente.trim() === "" ? null : Number(exponente),
         formula: formula || "",
         ...(parsedReferenceValues ? { reference_values: parsedReferenceValues } : {}),
       }
@@ -189,6 +197,14 @@ export const CreateDeterminationDialog: React.FC<CreateDeterminationDialogProps>
             />
             {errors.measureUnit && <p className="text-xs md:text-sm text-red-500">{errors.measureUnit}</p>}
           </div>
+
+          <CampoNotacionCientifica
+            id="determination-exponente"
+            unidad={measureUnit}
+            exponente={exponente}
+            onChange={setExponente}
+            error={errors.exponente}
+          />
 
           <div className="space-y-2">
             <Label htmlFor="determination-formula" className="text-sm">

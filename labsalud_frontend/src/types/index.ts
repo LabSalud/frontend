@@ -517,6 +517,8 @@ export interface Determination {
   analysis: number
   name: string
   measure_unit: string
+  /** Exponente de 10 de la unidad: `/µL` + 6 se imprime `4.500.000 /µL`. */
+  scientific_exponent?: number | null
   formula: string
   reference_values?: ReferenceValues
   reference_ranges?: ReferenceRange[]
@@ -892,6 +894,8 @@ export interface ResultDetermination {
   code?: string
   name: string
   measure_unit: string
+  /** Exponente de 10 de la unidad: se carga `4,5` y el informe dice `4.500.000`. */
+  scientific_exponent?: number | null
   formula: string
   reference_values?: ReferenceValues
   reference_ranges?: ReferenceRange[]

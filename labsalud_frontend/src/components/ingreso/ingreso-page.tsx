@@ -35,6 +35,7 @@ import type {
   Protocol,
   PricingConfig,
   PreauthStatus,
+  PagoInput,
   UnplannedTransactionInput,
   QuoteDetail,
 } from "../../types"
@@ -48,11 +49,11 @@ type FormSnapshot = {
   selectedAnalyses: SelectedAnalysis[]
   selectedDoctor: Doctor | null
   selectedInsurance: Insurance | null
-  patientPaid: string
+  pagoEfectivo: string
+  pagoTransferencia: string
   selectedSendMethod: SendMethod | null
   affiliateNumber: string
   billingEntityId: string
-  formaDePago: string
   cuentaDeCobroId: string
   trajoOrden: TrajoOrdenStatus | ""
   preauthStatus: PreauthStatus | ""
@@ -76,7 +77,10 @@ export default function IngresoPage() {
   const [showEditPatient, setShowEditPatient] = useState(false)
   const [showEditDoctor, setShowEditDoctor] = useState(false)
   const [showEditInsurance, setShowEditInsurance] = useState(false)
-  const [patientPaid, setPatientPaid] = useState("")
+  // Lo que el paciente deja en mano y lo que transfiere, por separado: son
+  // dos movimientos distintos y cada uno se concilia por su lado.
+  const [pagoEfectivo, setPagoEfectivo] = useState("")
+  const [pagoTransferencia, setPagoTransferencia] = useState("")
   const [selectedSendMethod, setSelectedSendMethod] = useState<SendMethod | null>(null)
   const [affiliateNumber, setAffiliateNumber] = useState("")
   // Solo se usa para las OOSS que facturan segun la preautorizacion
@@ -88,7 +92,6 @@ export default function IngresoPage() {
   const [afiliacionesConocidas, setAfiliacionesConocidas] = useState<
     Record<number, string>
   >({})
-  const [formaDePago, setFormaDePago] = useState("")
   const [cuentaDeCobroId, setCuentaDeCobroId] = useState("")
   const [trajoOrden, setTrajoOrden] = useState<TrajoOrdenStatus | "">("")
   const [preauthStatus, setPreauthStatus] = useState<PreauthStatus | "">("")
@@ -379,7 +382,6 @@ export default function IngresoPage() {
       (insurance && afiliacionesConocidas[insurance.id]) || "",
     )
     setBillingEntityId("")
-    setFormaDePago("")
     setCuentaDeCobroId("")
     setTrajoOrden("")
     setPreauthStatus("")
@@ -401,7 +403,8 @@ export default function IngresoPage() {
     setSelectedInsurance(null)
     setShowCreateMedico(false)
     setShowCreateObraSocial(false)
-    setPatientPaid("")
+    setPagoEfectivo("")
+    setPagoTransferencia("")
     setSelectedSendMethod(null)
     setAffiliateNumber("")
     setBillingEntityId("")
@@ -445,11 +448,11 @@ export default function IngresoPage() {
       setSelectedAnalyses(s.selectedAnalyses)
       setSelectedDoctor(s.selectedDoctor)
       setSelectedInsurance(s.selectedInsurance)
-      setPatientPaid(s.patientPaid)
+      setPagoEfectivo(s.pagoEfectivo)
+      setPagoTransferencia(s.pagoTransferencia)
       setSelectedSendMethod(s.selectedSendMethod)
       setAffiliateNumber(s.affiliateNumber)
       setBillingEntityId(s.billingEntityId)
-      setFormaDePago(s.formaDePago)
       setCuentaDeCobroId(s.cuentaDeCobroId)
       setTrajoOrden(s.trajoOrden)
       setPreauthStatus(s.preauthStatus)
@@ -562,7 +565,8 @@ export default function IngresoPage() {
     if (selectedInsurance?.chooses_billing_entity && !billingEntityId) {
       missing.push("por dónde factura (Centro o Clínica)")
     }
-    if (formaDePago === "transferencia" && !cuentaDeCobroId) {
+    // Una transferencia sin cuenta no se puede cruzar contra ningún extracto.
+    if ((Number.parseFloat(pagoTransferencia) || 0) > 0 && !cuentaDeCobroId) {
       missing.push("a qué cuenta fue la transferencia")
     }
     if (shouldShowOrder && !trajoOrden) missing.push("estado de la orden médica")
@@ -600,8 +604,26 @@ export default function IngresoPage() {
 
     try {
       createProgress.start()
-      const currentPatientPaid = Number.parseFloat(patientPaid) || 0
-      const totalValuePaid = currentPatientPaid
+      const enEfectivo = Number.parseFloat(pagoEfectivo) || 0
+      const porTransferencia = Number.parseFloat(pagoTransferencia) || 0
+      const totalValuePaid = enEfectivo + porTransferencia
+
+      // UN PAGO POR FORMA.
+      //
+      // El backend saca `value_paid` de la suma de estos, así que el total que
+      // se manda es informativo. Van solo los que tienen monto: un pago de cero
+      // no es un pago, y guardarlo llenaría el libro de filas vacías.
+      const pagosInput: PagoInput[] = []
+      if (enEfectivo > 0) {
+        pagosInput.push({ amount: enEfectivo.toFixed(2), payment_method: "efectivo" })
+      }
+      if (porTransferencia > 0) {
+        pagosInput.push({
+          amount: porTransferencia.toFixed(2),
+          payment_method: "transferencia",
+          payment_account: Number(cuentaDeCobroId),
+        })
+      }
 
       const protocolData: CreateProtocolInput = {
         patient: currentPatient.id,
@@ -643,11 +665,8 @@ export default function IngresoPage() {
         protocolData.billing_entity = Number(billingEntityId)
       }
 
-      if (formaDePago) {
-        protocolData.payment_method = formaDePago
-        if (formaDePago === "transferencia" && cuentaDeCobroId) {
-          protocolData.payment_account = Number(cuentaDeCobroId)
-        }
+      if (pagosInput.length > 0) {
+        protocolData.pagos_input = pagosInput
       }
 
       const cleanedUnplanned = unplannedTransactions
@@ -711,11 +730,11 @@ export default function IngresoPage() {
           selectedAnalyses,
           selectedDoctor,
           selectedInsurance,
-          patientPaid,
+          pagoEfectivo,
+          pagoTransferencia,
           selectedSendMethod,
           affiliateNumber,
           billingEntityId,
-          formaDePago,
           cuentaDeCobroId,
           trajoOrden,
           preauthStatus,
@@ -806,10 +825,10 @@ export default function IngresoPage() {
               selectedDoctor={selectedDoctor}
               selectedInsurance={selectedInsurance}
               selectedSendMethod={selectedSendMethod}
-              patientPaid={patientPaid}
+              pagoEfectivo={pagoEfectivo}
+              pagoTransferencia={pagoTransferencia}
               affiliateNumber={affiliateNumber}
               billingEntityId={billingEntityId}
-              formaDePago={formaDePago}
               cuentaDeCobroId={cuentaDeCobroId}
               trajoOrden={trajoOrden}
               preauthStatus={preauthStatus}
@@ -834,10 +853,10 @@ export default function IngresoPage() {
               onReset={handleReset}
               onShowCreateMedico={() => setShowCreateMedico(true)}
               onShowCreateObraSocial={() => setShowCreateObraSocial(true)}
-              onPatientPaidChange={setPatientPaid}
+              onPagoEfectivoChange={setPagoEfectivo}
+              onPagoTransferenciaChange={setPagoTransferencia}
               onAffiliateNumberChange={setAffiliateNumber}
               onBillingEntityChange={setBillingEntityId}
-              onFormaDePagoChange={setFormaDePago}
               onCuentaDeCobroChange={setCuentaDeCobroId}
               onTrajoOrdenChange={setTrajoOrden}
               onPreauthStatusChange={setPreauthStatus}

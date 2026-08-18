@@ -758,19 +758,49 @@ export interface ProtocolListItem {
   last_change?: LastChangeAudit
 }
 
+/** Cómo entró la plata. "" = no se registró; no se le inventa una forma. */
+export type FormaDePago = "" | "efectivo" | "transferencia"
+
+/**
+ * Un pago (o una devolución) del paciente sobre un protocolo.
+ *
+ * Cada uno con su forma: el paciente puede dejar una parte en efectivo y
+ * transferir el resto, y la transferencia tiene que poder cruzarse sola contra
+ * el extracto de su cuenta. Corregir uno no toca al otro.
+ */
+export interface PagoDelProtocolo {
+  id: number
+  tipo: "pago" | "devolucion"
+  amount: string
+  payment_method?: FormaDePago
+  payment_account?: number | null
+  payment_account_detail?: { id: number; nombre: string; alias: string } | null
+  created_at?: string
+  is_active?: boolean
+}
+
+/** Lo que manda el ingreso por cada forma en la que el paciente pagó. */
+export interface PagoInput {
+  amount: string
+  payment_method?: FormaDePago
+  payment_account?: number | null
+}
+
 export interface CreateProtocolInput {
   patient: number
   doctor: number
   insurance?: number
   /** Solo cuando la OOSS factura según la preautorización del paciente. */
   billing_entity?: number
-  /** "efectivo" | "transferencia". Vacío = no se registró. */
-  payment_method?: string
-  /** Obligatoria cuando el pago fue por transferencia. */
-  payment_account?: number
   affiliate_number?: string
   send_method: number
+  /**
+   * Sigue yendo por compatibilidad, pero el total sale de `pagos_input`: el
+   * backend lo recalcula como la suma de los pagos.
+   */
   value_paid: string
+  /** Un item por forma de pago usada. Sin esto no hay cómo conciliar. */
+  pagos_input?: PagoInput[]
   trajo_orden?: TrajoOrdenStatus
   preauth_status?: PreauthStatus
   preauth_reference?: string

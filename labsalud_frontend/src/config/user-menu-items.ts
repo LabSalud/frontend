@@ -58,7 +58,7 @@ export const USER_MENU_ITEMS: readonly UserMenuItem[] = [
     to: "/libro-diario",
     label: "Libro diario",
     icon: BookOpen,
-    isVisible: ({ hasPermission }) => hasPermission(PERMISSIONS.VIEW_LEDGER.codename),
+    isVisible: ({ hasPermission }) => hasPermission(PERMISSIONS.MANAGE_LEDGER.codename),
   },
   {
     id: "configuracion",

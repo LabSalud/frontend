@@ -26,6 +26,17 @@ import { MovimientoDeCajaDialog } from "./movimiento-de-caja-dialog"
 
 type Cambio = { concepto: string; de: string; a: string; delta: string }
 
+/** Un pago del protocolo, tal como lo manda el libro. */
+type PagoEnLibro = {
+  id: number
+  tipo: "pago" | "devolucion"
+  monto: string
+  forma_de_pago: string
+  cuenta_de_cobro_id: number | null
+  cuenta_de_cobro: string
+  cuenta_alias: string
+}
+
 type Movimiento = {
   /** Del ledger es un número; de un asiento cargado a mano, `caja-<id>`. */
   id: number | string
@@ -35,12 +46,19 @@ type Movimiento = {
   detalle: string
   cambios: Cambio[]
   total: string
-  /** "efectivo" | "transferencia" | "" si no se registró. */
+  /**
+   * "efectivo" | "transferencia" | "varias" | "" si no se registró.
+   *
+   * "varias" cuando el protocolo se cobró de más de una forma: ahí no hay una
+   * respuesta que quepa en la celda, y están todas en `pagos`.
+   */
   forma_de_pago: string
   cuenta_de_cobro: string
   /** Para preseleccionar la cuenta al corregir; `null` si pagó en efectivo. */
   cuenta_de_cobro_id?: number | null
   cuenta_alias: string
+  /** Cada cobro con su forma. Es lo que se corrige: uno, no el protocolo. */
+  pagos?: PagoEnLibro[]
   /** Solo en los asientos cargados a mano: "gasto" | "ingreso". */
   tipo_de_movimiento?: string
   movimiento_de_caja_id?: number
@@ -102,12 +120,20 @@ export default function LibroDiarioPage() {
   const [desde, setDesde] = useState(haceDias(7))
   const [hasta, setHasta] = useState(hoyISO())
   const [agregando, setAgregando] = useState(false)
-  const [corrigiendo, setCorrigiendo] = useState<Movimiento | null>(null)
+  // Qué pago se está corrigiendo, y de qué protocolo. `null` = cerrado.
+  const [corrigiendo, setCorrigiendo] = useState<
+    { protocolo: number; pago: PagoEnLibro } | null
+  >(null)
 
-  // Cargar un gasto y corregir una forma de pago es OPERAR con plata; mirar el
-  // libro es otra cosa. El backend contesta 403 sin este permiso, así que los
-  // botones tampoco aparecen.
-  const puedeOperar = hasPermission(PERMISSIONS.MANAGE_BILLING.codename)
+  // Corregir la forma de pago es arreglar un dato de algo que ya pasó, y va
+  // con el permiso del libro: quien tiene la pantalla abierta ya vio ese
+  // movimiento y es quien nota que está mal.
+  //
+  // Cargar un gasto es otra cosa —mete plata nueva en la caja— y sigue
+  // pidiendo el permiso de facturación, que es lo que exige el backend. Sin
+  // él, el botón tampoco aparece.
+  const puedeCorregir = hasPermission(PERMISSIONS.MANAGE_LEDGER.codename)
+  const puedeCargarMovimientos = hasPermission(PERMISSIONS.MANAGE_BILLING.codename)
 
   const consulta = useApiQuery<Respuesta>({
     queryKey: ["analytics", "libro-diario", desde, hasta],
@@ -130,31 +156,35 @@ export default function LibroDiarioPage() {
   }
 
   /**
-   * Corregir cómo se cobró un protocolo, sin salir del libro.
+   * Corregir cómo entró UN cobro, sin salir del libro.
    *
-   * La forma de pago no es del asiento: es del protocolo. El libro la muestra
-   * al lado de cada movimiento porque es lo que se necesita para conciliar,
-   * pero el dato vive en un solo lugar. Por eso corregirla acá la corrige en
-   * todas las líneas de ese protocolo y en su ficha, que es justamente lo que
-   * se quiere cuando se cargó mal: no hay una versión del pago por asiento.
+   * Se corrige acá porque el error aparece acá: quien concilia ve una
+   * transferencia que el extracto no tiene, y antes tenía que anotarse el
+   * protocolo, buscarlo en otra pantalla y volver.
    *
-   * Se corrige desde acá porque el error aparece acá. Quien concilia la caja
-   * ve una transferencia que el extracto no tiene, y hasta ahora tenía que
-   * anotarse el protocolo, buscarlo en otra pantalla y volver.
+   * Y se corrige el PAGO, no el protocolo: el paciente pudo dejar una parte en
+   * efectivo y transferir el resto, y arreglar la transferencia no puede tocar
+   * el efectivo que estaba bien.
+   *
+   * Ojo con lo que sigue siendo cierto: el libro muestra la forma de HOY, no
+   * la del momento del movimiento. Corregirla cambia también lo que se ve en
+   * las líneas viejas de ese mismo protocolo.
    */
   const corregirFormaDePago = async (forma: string, cuentaId: string) => {
-    const protocolo = corrigiendo?.protocolo
-    if (!protocolo) return false
+    if (!corrigiendo) return false
 
-    const respuesta = await apiRequest(PROTOCOL_ENDPOINTS.PROTOCOL_DETAIL(protocolo), {
-      method: "PATCH",
-      body: {
-        payment_method: forma,
-        // Un efectivo con cuenta lo rechaza el backend, y mandar la vieja
-        // guardaría algo que contradice lo que se ve en pantalla.
-        payment_account: forma === "transferencia" && cuentaId ? Number(cuentaId) : null,
+    const respuesta = await apiRequest(
+      PROTOCOL_ENDPOINTS.PROTOCOL_PAGO(corrigiendo.protocolo, corrigiendo.pago.id),
+      {
+        method: "PATCH",
+        body: {
+          payment_method: forma,
+          // Un efectivo con cuenta lo rechaza el backend, y mandar la vieja
+          // guardaría algo que contradice lo que se ve en pantalla.
+          payment_account: forma === "transferencia" && cuentaId ? Number(cuentaId) : null,
+        },
       },
-    })
+    )
     if (!respuesta.ok) {
       toastActions.error("No se pudo cambiar la forma de pago")
       return false
@@ -229,46 +259,69 @@ export default function LibroDiarioPage() {
       id: "pago",
       header: "Cómo pagó",
       className: "align-top",
-      cell: (mov) => (
-        <div className="flex items-start gap-1.5">
-          {mov.forma_de_pago === "transferencia" ? (
-            <div className="text-xs">
-              <span className="inline-flex items-center gap-1 rounded border border-sky-200 bg-sky-50 px-1.5 py-0.5 text-sky-800">
-                <Landmark className="h-3 w-3" />
-                Transferencia
-              </span>
-              {mov.cuenta_de_cobro ? (
-                <div className="mt-0.5 text-gray-600">{mov.cuenta_de_cobro}</div>
-              ) : null}
-              {mov.cuenta_alias ? (
-                <div className="font-mono text-[11px] text-gray-400">{mov.cuenta_alias}</div>
-              ) : null}
-            </div>
-          ) : mov.forma_de_pago === "efectivo" ? (
-            <span className="inline-flex items-center gap-1 rounded border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-xs text-emerald-800">
-              <Banknote className="h-3 w-3" />
-              Efectivo
-            </span>
-          ) : (
-            <span className="text-xs text-gray-400">—</span>
-          )}
+      cell: (mov) => {
+        const pagos = mov.pagos ?? []
 
-          {/* Solo los movimientos de un protocolo: un gasto del laboratorio no
-              tiene forma de pago del paciente que corregir. */}
-          {puedeOperar && mov.protocolo ? (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-6 w-6 shrink-0 text-gray-400 hover:text-[#204983]"
-              aria-label={`Corregir la forma de pago del protocolo ${mov.protocolo}`}
-              title="Corregir la forma de pago"
-              onClick={() => setCorrigiendo(mov)}
-            >
-              <Pencil className="h-3 w-3" />
-            </Button>
-          ) : null}
-        </div>
-      ),
+        // Un renglón por cobro, cada uno con su lápiz. Antes era una sola
+        // línea porque el protocolo tenía UNA forma; con un pago por forma hay
+        // que poder arreglar el que está mal sin tocar el otro.
+        if (pagos.length === 0) {
+          return <span className="text-xs text-gray-400">—</span>
+        }
+
+        return (
+          <div className="flex flex-col gap-1">
+            {pagos.map((pago) => (
+              <div key={pago.id} className="flex items-start gap-1.5">
+                {pago.forma_de_pago === "transferencia" ? (
+                  <div className="text-xs">
+                    <span className="inline-flex items-center gap-1 rounded border border-sky-200 bg-sky-50 px-1.5 py-0.5 text-sky-800">
+                      <Landmark className="h-3 w-3" />
+                      Transferencia
+                    </span>
+                    {pago.cuenta_de_cobro ? (
+                      <div className="mt-0.5 text-gray-600">{pago.cuenta_de_cobro}</div>
+                    ) : null}
+                    {pago.cuenta_alias ? (
+                      <div className="font-mono text-[11px] text-gray-400">{pago.cuenta_alias}</div>
+                    ) : null}
+                  </div>
+                ) : pago.forma_de_pago === "efectivo" ? (
+                  <span className="inline-flex items-center gap-1 rounded border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-xs text-emerald-800">
+                    <Banknote className="h-3 w-3" />
+                    Efectivo
+                  </span>
+                ) : (
+                  <span className="text-xs text-gray-400">Sin registrar</span>
+                )}
+
+                {/* El monto solo cuando hay más de uno: con un pago único es el
+                    mismo número que ya está en la columna Total. */}
+                {pagos.length > 1 ? (
+                  <span className="text-[11px] tabular-nums text-gray-500">
+                    {pago.tipo === "devolucion" ? "−" : ""}${pago.monto}
+                  </span>
+                ) : null}
+
+                {puedeCorregir && mov.protocolo ? (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6 shrink-0 text-gray-400 hover:text-[#204983]"
+                    aria-label={`Corregir la forma de pago de $${pago.monto} del protocolo ${mov.protocolo}`}
+                    title="Corregir la forma de pago"
+                    onClick={() =>
+                      setCorrigiendo({ protocolo: mov.protocolo as number, pago })
+                    }
+                  >
+                    <Pencil className="h-3 w-3" />
+                  </Button>
+                ) : null}
+              </div>
+            ))}
+          </div>
+        )
+      },
     },
     {
       id: "detalle",
@@ -309,7 +362,7 @@ export default function LibroDiarioPage() {
     },
   ]
 
-  if (puedeOperar) {
+  if (puedeCargarMovimientos) {
     // Solo los asientos cargados a mano se pueden anular: los del ledger son
     // el registro de lo que pasó y no se tocan desde acá.
     columnas.push({
@@ -397,7 +450,7 @@ export default function LibroDiarioPage() {
               </Button>
             </div>
 
-            {puedeOperar ? (
+            {puedeCargarMovimientos ? (
               <Button
                 size="sm"
                 onClick={() => setAgregando(true)}
@@ -452,9 +505,11 @@ export default function LibroDiarioPage() {
         onOpenChange={(abierto) => {
           if (!abierto) setCorrigiendo(null)
         }}
-        formaDePago={corrigiendo?.forma_de_pago || ""}
+        formaDePago={corrigiendo?.pago.forma_de_pago || ""}
         cuentaDeCobroId={
-          corrigiendo?.cuenta_de_cobro_id ? String(corrigiendo.cuenta_de_cobro_id) : ""
+          corrigiendo?.pago.cuenta_de_cobro_id
+            ? String(corrigiendo.pago.cuenta_de_cobro_id)
+            : ""
         }
         onGuardar={corregirFormaDePago}
       />

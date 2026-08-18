@@ -5,7 +5,9 @@ import { User, Building, CreditCard, Send, DollarSign, Printer, History, Clipboa
 import { Badge } from "../../ui/badge"
 import { Button } from "../../ui/button"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import type { PaymentStatus, Nbu, TrajoOrdenStatus, PreauthStatus } from "@/types"
+import type {
+  PagoDelProtocolo, PaymentStatus, Nbu, TrajoOrdenStatus, PreauthStatus,
+} from "@/types"
 import { getTrajoOrdenInfo } from "@/lib/protocol-order"
 import { getPaymentStatusInfo, getPreauthStatusInfo } from "@/lib/status-styles"
 
@@ -40,9 +42,9 @@ interface ProtocolDetailsSectionProps {
   showCoseguroButton?: boolean
   coseguroDisabledReason?: string
   /** Cómo pagó el paciente. Vacío en los protocolos viejos: no se inventa. */
-  formaDePago?: string
-  cuentaDeCobro?: { id: number; nombre: string; alias: string } | null
-  onCambiarFormaDePago?: () => void
+  pagos?: PagoDelProtocolo[]
+  /** Abre la corrección de UN pago. Sin esto, la lista es solo de lectura. */
+  onCorregirPago?: (pago: PagoDelProtocolo) => void
   unplannedTransactions?: import("@/types").UnplannedTransaction[]
   unplannedChargesTotal?: string
   unplannedPaymentsTotal?: string
@@ -77,9 +79,8 @@ export function ProtocolDetailsSection({
   showPreauthButton = false,
   preauthDisabledReason,
   showCoseguroButton = false,
-  formaDePago = "",
-  cuentaDeCobro = null,
-  onCambiarFormaDePago,
+  pagos = [],
+  onCorregirPago,
   coseguroDisabledReason,
   unplannedTransactions = [],
   unplannedChargesTotal,
@@ -251,38 +252,55 @@ export function ProtocolDetailsSection({
         {/* Cómo pagó. Se muestra siempre que haya algo que mostrar o algo que
             cargar: es el dato que se necesita al conciliar la caja, y buscarlo
             adentro del diálogo de cobros no se le ocurre a nadie. */}
-        {(formaDePago || onCambiarFormaDePago) && (
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm">
-            <Wallet className="h-4 w-4 flex-shrink-0 text-sky-600" />
-            <span className="w-28 flex-shrink-0 whitespace-nowrap text-gray-600">Forma de pago:</span>
-            {formaDePago === "transferencia" ? (
-              <Badge variant="outline" className="border-sky-200 bg-sky-50 text-sky-800">
-                Transferencia
-                {cuentaDeCobro ? ` · ${cuentaDeCobro.nombre}` : ""}
-                {cuentaDeCobro?.alias ? ` (${cuentaDeCobro.alias})` : ""}
-              </Badge>
-            ) : formaDePago === "efectivo" ? (
-              <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-800">
-                Efectivo
-              </Badge>
-            ) : (
-              <span className="text-gray-400">Sin registrar</span>
-            )}
-            {onCambiarFormaDePago && (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onCambiarFormaDePago()
-                }}
-                className="h-7 border-sky-600 bg-white px-2 text-xs text-sky-700 hover:bg-sky-600 hover:text-white"
-                data-no-expand
-              >
-                <Wallet className="mr-1 h-3 w-3" />
-                {formaDePago ? "Modificar" : "Cargar"}
-              </Button>
-            )}
+        {/* CADA COBRO CON SU FORMA, EN SU RENGLÓN.
+            Antes era una sola línea porque el protocolo tenía UNA forma. Con un
+            pago por forma hay que poder ver los dos y corregir el que está mal
+            sin tocar el otro. */}
+        {pagos.length > 0 && (
+          <div className="flex flex-wrap items-start gap-x-3 gap-y-2 text-sm">
+            <Wallet className="mt-0.5 h-4 w-4 flex-shrink-0 text-sky-600" />
+            <span className="w-28 flex-shrink-0 whitespace-nowrap text-gray-600">
+              {pagos.length === 1 ? "Forma de pago:" : "Formas de pago:"}
+            </span>
+            <div className="flex min-w-0 flex-col gap-1.5">
+              {pagos.map((pago) => (
+                <div key={pago.id} className="flex flex-wrap items-center gap-2">
+                  <span className="font-medium tabular-nums text-gray-800">
+                    {pago.tipo === "devolucion" ? "−" : ""}${pago.amount}
+                  </span>
+                  {pago.payment_method === "transferencia" ? (
+                    <Badge variant="outline" className="border-sky-200 bg-sky-50 text-sky-800">
+                      Transferencia
+                      {pago.payment_account_detail ? ` · ${pago.payment_account_detail.nombre}` : ""}
+                      {pago.payment_account_detail?.alias
+                        ? ` (${pago.payment_account_detail.alias})`
+                        : ""}
+                    </Badge>
+                  ) : pago.payment_method === "efectivo" ? (
+                    <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-800">
+                      Efectivo
+                    </Badge>
+                  ) : (
+                    <span className="text-gray-400">Sin registrar</span>
+                  )}
+                  {onCorregirPago && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onCorregirPago(pago)
+                      }}
+                      className="h-6 border-sky-600 bg-white px-2 text-xs text-sky-700 hover:bg-sky-600 hover:text-white"
+                      data-no-expand
+                    >
+                      <Wallet className="mr-1 h-3 w-3" />
+                      {pago.payment_method ? "Modificar" : "Cargar"}
+                    </Button>
+                  )}
+                </div>
+              ))}
+            </div>
           </div>
         )}
 

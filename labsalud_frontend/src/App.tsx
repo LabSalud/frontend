@@ -233,7 +233,7 @@ function App() {
                   <Route
                     path="/libro-diario"
                     element={
-                      <ProtectedRoute requiredPermission={PERMISSIONS.VIEW_LEDGER.codename}>
+                      <ProtectedRoute requiredPermission={PERMISSIONS.MANAGE_LEDGER.codename}>
                         <Layout />
                       </ProtectedRoute>
                     }

@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { FormaDePago } from "@/components/common/forma-de-pago"
 import {
   Select,
   SelectContent,
@@ -63,6 +64,11 @@ export function MovimientoDeCajaDialog({ open, onOpenChange, onGuardado }: Props
   const [descripcion, setDescripcion] = useState("")
   const [monto, setMonto] = useState("")
   const [usuarioId, setUsuarioId] = useState("")
+  // De dónde sale el gasto o a dónde entra el ingreso. Obligatorio: sin esto,
+  // el arqueo del efectivo y el saldo del banco no se pueden cuadrar contra el
+  // libro — el movimiento podía haber sido cualquiera de los dos.
+  const [formaDePago, setFormaDePago] = useState("")
+  const [cuentaId, setCuentaId] = useState("")
   const [personas, setPersonas] = useState<Persona[]>([])
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState("")
@@ -75,6 +81,8 @@ export function MovimientoDeCajaDialog({ open, onOpenChange, onGuardado }: Props
     setTipo("gasto")
     setDescripcion("")
     setMonto("")
+    setFormaDePago("")
+    setCuentaId("")
     setUsuarioId(user?.id ? String(user.id) : "")
     setError("")
   }, [open, user?.id])
@@ -97,7 +105,10 @@ export function MovimientoDeCajaDialog({ open, onOpenChange, onGuardado }: Props
   }, [open, apiRequest])
 
   const montoValido = Number.parseFloat(monto.replace(",", ".")) > 0
-  const puedeGuardar = descripcion.trim().length > 0 && montoValido && !guardando
+  const pagoCompleto =
+    formaDePago === "efectivo" || (formaDePago === "transferencia" && !!cuentaId)
+  const puedeGuardar =
+    descripcion.trim().length > 0 && montoValido && pagoCompleto && !guardando
 
   const guardar = async () => {
     if (!puedeGuardar) return
@@ -110,6 +121,8 @@ export function MovimientoDeCajaDialog({ open, onOpenChange, onGuardado }: Props
           tipo,
           descripcion: descripcion.trim(),
           monto: monto.replace(",", "."),
+          payment_method: formaDePago,
+          payment_account: formaDePago === "transferencia" && cuentaId ? Number(cuentaId) : null,
           ...(usuarioId ? { usuario: Number(usuarioId) } : {}),
         },
       })
@@ -212,6 +225,17 @@ export function MovimientoDeCajaDialog({ open, onOpenChange, onGuardado }: Props
               Siempre positivo: el signo lo pone el tipo.
             </p>
           </div>
+
+          {/* Un gasto sale del cajón o de una cuenta, y un ingreso entra a uno
+              de los dos. Sin decir cuál, el arqueo del efectivo y el saldo del
+              banco no se pueden cuadrar contra el libro. */}
+          <FormaDePago
+            formaDePago={formaDePago}
+            cuentaId={cuentaId}
+            onFormaChange={setFormaDePago}
+            onCuentaChange={setCuentaId}
+            disabled={guardando}
+          />
 
           <div className="space-y-2">
             <Label htmlFor="movimiento-usuario" className="text-sm">

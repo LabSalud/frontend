@@ -159,10 +159,25 @@ export function UserCard({
             </Badge>
           )}
           {debeCambiarContrasena && (
-            <Badge variant="outline" className="border-amber-200 bg-amber-50 text-[10px] text-amber-700">
-              <KeyRound className="mr-1 h-3 w-3" />
-              Debe cambiar la contraseña
-            </Badge>
+            // Con la marca puesta esta persona no puede hacer NADA hasta
+            // cambiar la contraseña. Si se la pusieron por error, la salida no
+            // puede estar escondida en el menú de tres puntos: va acá, al lado
+            // del cartel que explica por qué está trabada.
+            <span className="inline-flex items-center gap-1">
+              <Badge variant="outline" className="border-amber-200 bg-amber-50 text-[10px] text-amber-700">
+                <KeyRound className="mr-1 h-3 w-3" />
+                Debe cambiar la contraseña
+              </Badge>
+              {canEdit && (
+                <button
+                  type="button"
+                  onClick={() => onAction(user, "cancelPasswordChange")}
+                  className="text-[10px] font-medium text-gray-500 underline underline-offset-2 hover:text-[#204983]"
+                >
+                  Sacar
+                </button>
+              )}
+            </span>
           )}
           {user.is_active === false && (
             <Badge variant="outline" className="border-red-200 text-[10px] text-red-600">

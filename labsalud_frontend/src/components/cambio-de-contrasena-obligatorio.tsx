@@ -26,7 +26,11 @@ import { formatApiError, getErrorMessage } from "@/lib/api-error"
  * cuando a alguien lo marcan con la sesión ya abierta.
  */
 
-const LARGO_MINIMO = 8
+// Solo para atajar el error de tipeo —el Enter de más, las dos letras—, no
+// para exigir una contraseña fuerte. En un laboratorio de cinco personas,
+// rebotar la que la bioquímica se acuerda la empuja a anotarla en un papel al
+// lado del monitor. El backend pide lo mismo.
+const LARGO_MINIMO = 4
 
 export function CambioDeContrasenaObligatorio() {
   const { user, contrasenaCambiada, logout } = useAuth()

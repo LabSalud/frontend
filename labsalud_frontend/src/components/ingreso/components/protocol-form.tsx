@@ -698,7 +698,7 @@ export function ProtocolForm({
                     resto es un caso de todos los días, y con un campo había que
                     elegir UNA forma para el total — la parte transferida
                     después no se podía cruzar contra el extracto de nadie. */}
-                <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-3">
                   <div>
                     <Label htmlFor="pagoEfectivo" className="text-sm text-gray-600 mb-1 flex items-center gap-1.5">
                       <Banknote className="h-3.5 w-3.5 text-emerald-600" />
@@ -747,7 +747,7 @@ export function ProtocolForm({
                     {/* La cuenta aparece recién cuando hay algo transferido:
                         antes es una pregunta sobre plata que no entró. */}
                     {porTransferencia > 0 && (
-                      <div className="mt-2 space-y-1">
+                      <div className="mt-2 space-y-1 sm:max-w-sm">
                         <Label htmlFor="cuentaDelPago" className="text-xs text-gray-600">
                           ¿A qué cuenta? *
                         </Label>

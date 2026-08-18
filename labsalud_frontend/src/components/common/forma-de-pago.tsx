@@ -144,6 +144,9 @@ export function FormaDePago({
   onCuentaChange,
   disabled = false,
 }: Props) {
+  // Volver a tocar el que ya está elegido NO lo suelta. La forma es obligatoria
+  // en todos lados donde se mueve plata, así que dejar volver a "ninguna" es
+  // ofrecer un estado que el backend rechaza.
   const elegir = (forma: string) => {
     onFormaChange(forma)
     // Cambiar a efectivo tiene que soltar la cuenta: el backend rechaza un
@@ -160,7 +163,7 @@ export function FormaDePago({
         <button
           type="button"
           disabled={disabled}
-          onClick={() => elegir(formaDePago === EFECTIVO ? "" : EFECTIVO)}
+          onClick={() => elegir(EFECTIVO)}
           className={`flex items-center gap-2 rounded-md border px-3 py-2 text-sm transition
             ${formaDePago === EFECTIVO
               ? "border-emerald-300 bg-emerald-50 font-medium text-emerald-800"
@@ -172,7 +175,7 @@ export function FormaDePago({
         <button
           type="button"
           disabled={disabled}
-          onClick={() => elegir(formaDePago === TRANSFERENCIA ? "" : TRANSFERENCIA)}
+          onClick={() => elegir(TRANSFERENCIA)}
           className={`flex items-center gap-2 rounded-md border px-3 py-2 text-sm transition
             ${formaDePago === TRANSFERENCIA
               ? "border-sky-300 bg-sky-50 font-medium text-sky-800"

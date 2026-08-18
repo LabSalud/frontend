@@ -42,12 +42,12 @@ export function PaymentDialog({
 }: PaymentDialogProps) {
   const [operation, setOperation] = useState<OperationType>("patient_paid")
   const [amount, setAmount] = useState("")
-  // Por dónde entró (o salió) esta plata. Es opcional —no se le inventa una
-  // forma a quien no la registró— pero una transferencia sin cuenta no se
-  // puede cruzar contra ningún extracto, y eso sí se exige.
+  // Por dónde entró (o salió) esta plata. Obligatorio en las dos direcciones:
+  // una devolución sale del cajón o de una cuenta igual que un cobro entra, y
+  // el arqueo tiene que poder cuadrar contra el libro.
   const [forma, setForma] = useState("")
   const [cuenta, setCuenta] = useState("")
-  const faltaCuenta = forma === "transferencia" && !cuenta
+  const pagoCompleto = forma === "efectivo" || (forma === "transferencia" && !!cuenta)
 
   const pending = Number.parseFloat(amountPending || "0")
   const toReturn = Number.parseFloat(amountToReturn || "0")
@@ -73,7 +73,7 @@ export function PaymentDialog({
   const handleConfirm = async () => {
     const value = Number.parseFloat(amount)
     if (isNaN(value) || value <= 0) return
-    if (faltaCuenta) return
+    if (!pagoCompleto) return
 
     const success = await onRegularize(value, operation, forma, cuenta)
     if (success) {
@@ -247,7 +247,7 @@ export function PaymentDialog({
               !amount ||
               Number.parseFloat(amount) <= 0 ||
               Number.parseFloat(amount) > maxAmount ||
-              faltaCuenta
+              !pagoCompleto
             }
             className={`w-full sm:w-auto ${
               operation === "patient_paid"

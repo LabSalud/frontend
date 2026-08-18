@@ -71,8 +71,14 @@ export function UnplannedTransactionsDialog({
 
   // Solo un pago tiene forma de pago: un cobro es plata que el paciente pasa a
   // deber, no plata que entró. El backend rechaza un cargo con forma de pago.
+  //
+  // Y en el pago es obligatoria: entró plata y hay que saber si al cajón o a
+  // una cuenta.
   const esPago = form.kind === "payment"
-  const faltaCuenta = esPago && form.formaDePago === "transferencia" && !form.cuentaId
+  const pagoCompleto =
+    !esPago ||
+    form.formaDePago === "efectivo" ||
+    (form.formaDePago === "transferencia" && !!form.cuentaId)
 
   const fetchItems = useCallback(async () => {
     setLoading(true)
@@ -112,8 +118,13 @@ export function UnplannedTransactionsDialog({
     }
     // El backend también lo rechaza; se pide antes para no perder la carga
     // entera por un campo.
-    if (faltaCuenta) {
-      toast.error("Elegí a qué cuenta entró la transferencia", { duration: TOAST_DURATION })
+    if (!pagoCompleto) {
+      toast.error(
+        form.formaDePago === "transferencia"
+          ? "Elegí a qué cuenta entró la transferencia"
+          : "Elegí cómo entró el pago",
+        { duration: TOAST_DURATION },
+      )
       return
     }
     try {
@@ -255,7 +266,7 @@ export function UnplannedTransactionsDialog({
 
               <Button
                 type="submit"
-                disabled={submitting || faltaCuenta}
+                disabled={submitting || !pagoCompleto}
                 className="w-full bg-violet-600 hover:bg-violet-700"
               >
                 {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}

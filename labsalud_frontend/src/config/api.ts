@@ -113,6 +113,11 @@ export const CATALOG_ENDPOINTS = {
   ANALYSIS_IMPORT: buildApiUrl("/catalog/analysis/import-catalog/"),
   CLEAR_CATALOG: buildApiUrl("/catalog/analysis/clear-catalog/"),
   DETERMINATIONS: buildApiUrl("/catalog/determination/"),
+  /** Orden de las determinaciones DENTRO de un análisis del catálogo.
+   *  No confundir con `PROTOCOL_DETALLES_REORDENAR`, que mueve los
+   *  análisis dentro de un protocolo. */
+  DETERMINATIONS_REORDENAR: (analysisId: number) =>
+    buildApiUrl(`/catalog/analysis/${analysisId}/determinations/reordenar/`),
   DETERMINATION_DETAIL: (id: number) => buildApiUrl(`/catalog/determination/${id}/`),
   DETERMINATION_AUDIT_TIMELINE: (id: number) => buildApiUrl(`/catalog/determination/${id}/audit-timeline/`),
   // NBU (Nomenclador Bioquímico Único)

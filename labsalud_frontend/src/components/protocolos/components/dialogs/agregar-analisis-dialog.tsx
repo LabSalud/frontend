@@ -33,10 +33,13 @@ import type { SelectedAnalysis } from "@/types"
  *
  * EL ACTO BIOQUÍMICO TAMBIÉN SE PUEDE AGREGAR
  * ===========================================
- * Ya no se pone solo al cargar el protocolo, así que el que se olvidó en el
- * ingreso hay que poder sumarlo desde acá. Cobrarlo dos veces no es un riesgo:
- * el buscador no ofrece los análisis que el protocolo ya tiene, y el backend
- * rebota el duplicado igual.
+ * En el ingreso se pone solo con la primera práctica, pero se puede quitar —y
+ * el protocolo que se quedó sin acto hay que poder arreglarlo desde acá.
+ * Cobrarlo dos veces no es un riesgo: el buscador no ofrece los análisis que el
+ * protocolo ya tiene, y el backend rebota el duplicado igual.
+ *
+ * Acá el acto NO se agrega solo: eso pasa cuando el protocolo arranca vacío, y
+ * uno que ya existe nunca lo está.
  */
 
 type Props = {

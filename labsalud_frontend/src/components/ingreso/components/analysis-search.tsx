@@ -14,6 +14,7 @@ import { toast } from "sonner"
 import type { Analysis, SelectedAnalysis } from "../../../types"
 import { CATALOG_ENDPOINTS } from "../../../config/api"
 import {
+  ACTO_BIOQUIMICO,
   compararCodigos,
   esActoDeIngreso,
   mismoCodigo,
@@ -56,6 +57,28 @@ export function AnalysisSearch({ selectedAnalyses, onAnalysisChange }: AnalysisS
     hasMore,
     onLoadMore: loadMoreAnalyses,
   })
+
+  /**
+   * Trae el acto bioquímico común del catálogo.
+   *
+   * Se pide recién cuando hace falta —al agregar la primera práctica— y no al
+   * montar: la mayoría de las veces la pantalla se abre y se cierra sin cargar
+   * nada, y sería un viaje al servidor por cada protocolo que no se llegó a
+   * empezar.
+   */
+  const traerActoBioquimico = async (): Promise<Analysis | null> => {
+    try {
+      const url = `${CATALOG_ENDPOINTS.ANALYSIS}?code=${ACTO_BIOQUIMICO}&is_active=true`
+      const response = await apiRequest(url)
+      if (response.ok) {
+        const data: PaginatedResponse<Analysis> = await response.json()
+        return data.results.find((a) => mismoCodigo(a.code, ACTO_BIOQUIMICO)) ?? null
+      }
+    } catch (error) {
+      console.error("Error trayendo el acto bioquímico:", error)
+    }
+    return null
+  }
 
   // Trae el análisis cuyo código es EXACTAMENTE `code`. Se usa al presionar Enter
   // con un código: garantiza que se agregue ese código y no un match parcial o un
@@ -138,19 +161,27 @@ export function AnalysisSearch({ selectedAnalyses, onAnalysisChange }: AnalysisS
   /**
    * Agrega el análisis elegido, actos bioquímicos incluidos.
    *
-   * NINGÚN ACTO SE AGREGA SOLO
-   * ==========================
-   * Antes, agregar cualquier práctica común sumaba el acto bioquímico (660001)
-   * por su cuenta, y el buscador rebotaba a quien intentara elegir un acto a
-   * mano. Cuál acto corresponde —el común, el de internación, ninguno— lo sabe
-   * quien atiende, no el código del análisis: ahora se eligen como cualquier
-   * otra práctica.
+   * EL ACTO COMÚN VIENE CON LA PRIMERA PRÁCTICA
+   * ===========================================
+   * Todo protocolo lleva un acto, así que hacerlo tipear siempre es hacer
+   * tipear siempre lo mismo. Se agrega junto con la primera práctica y UNA
+   * SOLA VEZ: si quien atiende lo saca —porque este caso no lo lleva— no
+   * vuelve al agregar la siguiente.
    *
-   * La única excepción vive en la pantalla de ingreso: al paciente anónimo se
-   * le carga el ABI (661001) al elegirlo, porque casi siempre es un internado.
-   * También se puede sacar.
+   * Es la diferencia con cómo funcionaba antes, que lo reponía en cada
+   * agregado: sacarlo era imposible, volvía solo y había que borrarlo al final
+   * de todo, cuando ya nadie se acordaba.
+   *
+   * SI YA HAY UN ACTO, NO SE TOCA
+   * =============================
+   * Al paciente anónimo se le carga el ABI (661001) al elegirlo, porque casi
+   * siempre es un internado. Ese protocolo YA tiene su acto: sumarle el común
+   * sería cobrar dos veces por lo mismo. Lo mismo si alguien eligió uno a mano.
+   *
+   * Los actos se siguen pudiendo elegir del buscador como cualquier práctica:
+   * cuál corresponde lo sabe quien atiende, no el código del análisis.
    */
-  const handleAddAnalysis = (analysis: Analysis) => {
+  const handleAddAnalysis = async (analysis: Analysis) => {
     if (selectedAnalyses.find((a) => a.id === analysis.id)) {
       toast.info(`El análisis "${analysis.name}" ya está seleccionado`)
       setSearchTerm("")
@@ -163,15 +194,35 @@ export function AnalysisSearch({ selectedAnalyses, onAnalysisChange }: AnalysisS
       is_authorized: false,
     }
 
+    // La primera práctica del protocolo, sin ningún acto todavía: se suma el
+    // común. Se mira que no haya NINGÚN acto y no solo el común, para no
+    // pisarle el ABI al internado.
+    const yaHayActo = selectedAnalyses.some((a) => esActoDeIngreso(a.code))
+    const yaHayPractica = selectedAnalyses.some((a) => !esActoDeIngreso(a.code))
+    const esLaPrimeraPractica =
+      !esActoDeIngreso(analysis.code) && !yaHayActo && !yaHayPractica
+
+    const actoAutomatico = esLaPrimeraPractica ? await traerActoBioquimico() : null
+
     // Los actos van arriba de todo y ordenados por código: son el ítem de
     // facturación del protocolo, no una práctica más en el medio de la lista.
     const conElNuevo = [...selectedAnalyses, selectedAnalysis]
+    if (actoAutomatico) {
+      conElNuevo.push({ ...actoAutomatico, is_authorized: false })
+    }
     const actos = conElNuevo
       .filter((a) => esActoDeIngreso(a.code))
       .sort((a, b) => compararCodigos(a.code, b.code))
     const practicas = conElNuevo.filter((a) => !esActoDeIngreso(a.code))
 
     onAnalysisChange([...actos, ...practicas])
+
+    if (actoAutomatico) {
+      toast.success(`Acto bioquímico (${ACTO_BIOQUIMICO}) agregado`, {
+        description: "Si este protocolo no lo lleva, se puede quitar.",
+      })
+    }
+
     if (analysis.is_obsolete) {
       toast.warning(`"${analysis.name}" está marcado como en desuso (sin UB vigente). Verificá antes de continuar.`)
     } else {

@@ -20,7 +20,9 @@ import { useApi } from "../../hooks/use-api"
 import { CATALOG_ENDPOINTS, MEDICAL_ENDPOINTS, PROTOCOL_ENDPOINTS, PATIENT_ENDPOINTS } from "@/config/api"
 import { formatApiError, getErrorMessage } from "@/lib/api-error"
 import type { TrajoOrdenStatus } from "@/lib/protocol-order"
-import { ACTO_BIOQUIMICO_INTERNACION, mismoCodigo } from "@/lib/codigos-analisis"
+import {
+  ACTO_BIOQUIMICO_INTERNACION, esActoDeIngreso, mismoCodigo,
+} from "@/lib/codigos-analisis"
 import { useEndpointProgress } from "@/hooks/use-endpoint-progress"
 import { useProtocolQuote } from "@/hooks/use-protocol-quote"
 import type {
@@ -359,8 +361,12 @@ export default function IngresoPage() {
           mismoCodigo(a.code, ACTO_BIOQUIMICO_INTERNACION),
         )
         if (!acto) return
+        // Se mira si hay CUALQUIER acto y no solo el ABI. La primera práctica
+        // suma el acto común por su cuenta, y si llegó antes que esto —el
+        // pedido al catálogo tarda lo que tarda— el protocolo terminaría con
+        // los dos. Uno solo, y quien atiende cambia el que no corresponda.
         setSelectedAnalyses((previos) =>
-          previos.some((a) => mismoCodigo(a.code, ACTO_BIOQUIMICO_INTERNACION))
+          previos.some((a) => esActoDeIngreso(a.code))
             ? previos
             : [{ ...acto, is_authorized: false }, ...previos],
         )

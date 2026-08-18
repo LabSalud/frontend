@@ -14,11 +14,9 @@ import { toast } from "sonner"
 import type { Analysis, SelectedAnalysis } from "../../../types"
 import { CATALOG_ENDPOINTS } from "../../../config/api"
 import {
-  ACTO_BIOQUIMICO,
   compararCodigos,
   esActoDeIngreso,
   mismoCodigo,
-  necesitaActoBioquimico,
   normalizarCodigo,
 } from "../../../lib/codigos-analisis"
 
@@ -43,7 +41,6 @@ export function AnalysisSearch({ selectedAnalyses, onAnalysisChange }: AnalysisS
   const [hasMore, setHasMore] = useState(false)
   const [showResults, setShowResults] = useState(false)
   const [nextUrl, setNextUrl] = useState<string | null>(null)
-  const [biochemicalActCache, setBiochemicalActCache] = useState<Record<string, Analysis | null>>({})
 
   const debouncedSearchTerm = useDebounce(searchTerm, 300)
   const resultsRef = useRef<HTMLDivElement>(null)
@@ -59,29 +56,6 @@ export function AnalysisSearch({ selectedAnalyses, onAnalysisChange }: AnalysisS
     hasMore,
     onLoadMore: loadMoreAnalyses,
   })
-
-  const fetchBiochemicalAct = async (code: string): Promise<Analysis | null> => {
-    if (biochemicalActCache[code] !== undefined) {
-      return biochemicalActCache[code]
-    }
-
-    try {
-      const url = `${CATALOG_ENDPOINTS.ANALYSIS}?code=${code}&is_active=true`
-      const response = await apiRequest(url)
-
-      if (response.ok) {
-        const data: PaginatedResponse<Analysis> = await response.json()
-        const analysis = data.results.length > 0 ? data.results[0] : null
-        setBiochemicalActCache((prev) => ({ ...prev, [code]: analysis }))
-        return analysis
-      }
-    } catch (error) {
-      console.error(`Error fetching biochemical act ${code}:`, error)
-    }
-
-    setBiochemicalActCache((prev) => ({ ...prev, [code]: null }))
-    return null
-  }
 
   // Trae el análisis cuyo código es EXACTAMENTE `code`. Se usa al presionar Enter
   // con un código: garantiza que se agregue ese código y no un match parcial o un
@@ -161,7 +135,22 @@ export function AnalysisSearch({ selectedAnalyses, onAnalysisChange }: AnalysisS
     }
   }, [debouncedSearchTerm])
 
-  const handleAddAnalysis = async (analysis: Analysis) => {
+  /**
+   * Agrega el análisis elegido, actos bioquímicos incluidos.
+   *
+   * NINGÚN ACTO SE AGREGA SOLO
+   * ==========================
+   * Antes, agregar cualquier práctica común sumaba el acto bioquímico (660001)
+   * por su cuenta, y el buscador rebotaba a quien intentara elegir un acto a
+   * mano. Cuál acto corresponde —el común, el de internación, ninguno— lo sabe
+   * quien atiende, no el código del análisis: ahora se eligen como cualquier
+   * otra práctica.
+   *
+   * La única excepción vive en la pantalla de ingreso: al paciente anónimo se
+   * le carga el ABI (661001) al elegirlo, porque casi siempre es un internado.
+   * También se puede sacar.
+   */
+  const handleAddAnalysis = (analysis: Analysis) => {
     if (selectedAnalyses.find((a) => a.id === analysis.id)) {
       toast.info(`El análisis "${analysis.name}" ya está seleccionado`)
       setSearchTerm("")
@@ -169,55 +158,20 @@ export function AnalysisSearch({ selectedAnalyses, onAnalysisChange }: AnalysisS
       return
     }
 
-    if (esActoDeIngreso(analysis.code)) {
-      toast.info("El acto bioquímico se agrega automáticamente según los análisis seleccionados")
-      setSearchTerm("")
-      setShowResults(false)
-      return
-    }
-
-    const needsNormalAct = necesitaActoBioquimico(analysis.code)
-    const hasNormalAct = selectedAnalyses.some((a) => mismoCodigo(a.code, ACTO_BIOQUIMICO))
-
-    let newAnalyses = [...selectedAnalyses]
-    const actsToAdd: SelectedAnalysis[] = []
-
-    if (needsNormalAct && !hasNormalAct) {
-      const normalAct = await fetchBiochemicalAct(ACTO_BIOQUIMICO)
-      if (normalAct) {
-        actsToAdd.push({
-          ...normalAct,
-          is_authorized: false,
-        })
-        toast.success(`Acto bioquímico (${ACTO_BIOQUIMICO}) agregado automáticamente`)
-      }
-    }
-
-    // El acto bioquímico de INTERNACIÓN (661001) ya NO se auto-agrega: se
-    // carga manualmente cuando corresponde. Solo el acto normal (660001) sigue
-    // siendo automático.
-
-    const existingWithoutBioActs = newAnalyses.filter((a) => !esActoDeIngreso(a.code))
-    const existingBioActs = newAnalyses.filter((a) => esActoDeIngreso(a.code))
-
-    const allBioActs = [...existingBioActs, ...actsToAdd]
-    const uniqueBioActs = allBioActs.reduce((acc, act) => {
-      if (!acc.some((a) => mismoCodigo(a.code, act.code))) {
-        acc.push(act)
-      }
-      return acc
-    }, [] as SelectedAnalysis[])
-
-    uniqueBioActs.sort((a, b) => compararCodigos(a.code, b.code))
-
     const selectedAnalysis: SelectedAnalysis = {
       ...analysis,
       is_authorized: false,
     }
 
-    newAnalyses = [...uniqueBioActs, ...existingWithoutBioActs, selectedAnalysis]
+    // Los actos van arriba de todo y ordenados por código: son el ítem de
+    // facturación del protocolo, no una práctica más en el medio de la lista.
+    const conElNuevo = [...selectedAnalyses, selectedAnalysis]
+    const actos = conElNuevo
+      .filter((a) => esActoDeIngreso(a.code))
+      .sort((a, b) => compararCodigos(a.code, b.code))
+    const practicas = conElNuevo.filter((a) => !esActoDeIngreso(a.code))
 
-    onAnalysisChange(newAnalyses)
+    onAnalysisChange([...actos, ...practicas])
     if (analysis.is_obsolete) {
       toast.warning(`"${analysis.name}" está marcado como en desuso (sin UB vigente). Verificá antes de continuar.`)
     } else {

@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
-import { Loader2, Plus, Receipt, Trash2 } from "lucide-react"
+import { Banknote, Landmark, Loader2, Plus, Receipt, Trash2 } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from "../../../ui/select"
 import { Skeleton } from "../../../ui/skeleton"
+import { FormaDePago } from "@/components/common/forma-de-pago"
 import { toast } from "sonner"
 import { useApi } from "../../../../hooks/use-api"
 import { PROTOCOL_ENDPOINTS, TOAST_DURATION } from "@/config/api"
@@ -37,6 +38,14 @@ interface UnplannedTransactionsDialogProps {
   /** La transacción puede cambiar el estado del protocolo (recalcula pagos);
    * si la respuesta lo trae, se aplica directo sin esperar el refresh de fondo. */
   onStatusChange?: (status: ProtocolStatus | null) => void
+}
+
+const FORMULARIO_VACIO = {
+  kind: "charge" as "charge" | "payment",
+  description: "",
+  amount: "",
+  formaDePago: "",
+  cuentaId: "",
 }
 
 const formatMoney = (value: string | number) => {
@@ -58,11 +67,12 @@ export function UnplannedTransactionsDialog({
   const [loading, setLoading] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [deletingId, setDeletingId] = useState<number | null>(null)
-  const [form, setForm] = useState({
-    kind: "charge" as "charge" | "payment",
-    description: "",
-    amount: "",
-  })
+  const [form, setForm] = useState(FORMULARIO_VACIO)
+
+  // Solo un pago tiene forma de pago: un cobro es plata que el paciente pasa a
+  // deber, no plata que entró. El backend rechaza un cargo con forma de pago.
+  const esPago = form.kind === "payment"
+  const faltaCuenta = esPago && form.formaDePago === "transferencia" && !form.cuentaId
 
   const fetchItems = useCallback(async () => {
     setLoading(true)
@@ -84,7 +94,7 @@ export function UnplannedTransactionsDialog({
   useEffect(() => {
     if (open) {
       void fetchItems()
-      setForm({ kind: "charge", description: "", amount: "" })
+      setForm(FORMULARIO_VACIO)
     }
   }, [open, fetchItems])
 
@@ -100,11 +110,29 @@ export function UnplannedTransactionsDialog({
       toast.error("Monto inválido", { duration: TOAST_DURATION })
       return
     }
+    // El backend también lo rechaza; se pide antes para no perder la carga
+    // entera por un campo.
+    if (faltaCuenta) {
+      toast.error("Elegí a qué cuenta entró la transferencia", { duration: TOAST_DURATION })
+      return
+    }
     try {
       setSubmitting(true)
       const response = await apiRequest(PROTOCOL_ENDPOINTS.UNPLANNED_LIST(protocolId), {
         method: "POST",
-        body: { kind: form.kind, description, amount: amount.toFixed(2) },
+        body: {
+          kind: form.kind,
+          description,
+          amount: amount.toFixed(2),
+          // Un cobro va sin nada de esto, y una transferencia es la única que
+          // lleva cuenta: mandar la vieja guardaría algo que contradice la
+          // pantalla.
+          payment_method: esPago ? form.formaDePago : "",
+          payment_account:
+            esPago && form.formaDePago === "transferencia" && form.cuentaId
+              ? Number(form.cuentaId)
+              : null,
+        },
       })
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}))
@@ -113,7 +141,7 @@ export function UnplannedTransactionsDialog({
       const data = await response.json().catch(() => ({}))
       toast.success("Transacción agregada", { duration: TOAST_DURATION })
       if (data.protocol_status !== undefined) onStatusChange?.(data.protocol_status)
-      setForm({ kind: "charge", description: "", amount: "" })
+      setForm(FORMULARIO_VACIO)
       await fetchItems()
       onChanged()
     } catch (err) {
@@ -171,7 +199,13 @@ export function UnplannedTransactionsDialog({
                   <Label htmlFor="unplanned-kind" className="text-xs">Tipo</Label>
                   <Select
                     value={form.kind}
-                    onValueChange={(v: "charge" | "payment") => setForm((p) => ({ ...p, kind: v }))}
+                    onValueChange={(v: "charge" | "payment") =>
+                      setForm((p) =>
+                        v === "payment"
+                          ? { ...p, kind: v }
+                          : { ...p, kind: v, formaDePago: "", cuentaId: "" },
+                      )
+                    }
                   >
                     <SelectTrigger id="unplanned-kind" className="bg-white">
                       <SelectValue />
@@ -206,7 +240,24 @@ export function UnplannedTransactionsDialog({
                   />
                 </div>
               </div>
-              <Button type="submit" disabled={submitting} className="w-full bg-violet-600 hover:bg-violet-700">
+              {/* Cómo entró la plata. La del protocolo es la del cobro del
+                  mostrador: un pago que llega después puede entrar por otro
+                  lado, y al conciliar hay que poder encontrarlo. */}
+              {esPago && (
+                <FormaDePago
+                  formaDePago={form.formaDePago}
+                  cuentaId={form.cuentaId}
+                  onFormaChange={(forma) => setForm((p) => ({ ...p, formaDePago: forma }))}
+                  onCuentaChange={(id) => setForm((p) => ({ ...p, cuentaId: id }))}
+                  disabled={submitting}
+                />
+              )}
+
+              <Button
+                type="submit"
+                disabled={submitting || faltaCuenta}
+                className="w-full bg-violet-600 hover:bg-violet-700"
+              >
                 {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
                 Agregar transacción
               </Button>
@@ -252,6 +303,23 @@ export function UnplannedTransactionsDialog({
                           <span className="text-gray-900">{formatMoney(tx.amount)}</span>
                         </div>
                         <p className="text-sm text-gray-800 break-words">{tx.description}</p>
+                        {tx.payment_method === "transferencia" ? (
+                          <p className="mt-1 inline-flex items-center gap-1 text-[11px] text-sky-800">
+                            <Landmark className="h-3 w-3" />
+                            Transferencia
+                            {tx.payment_account_detail
+                              ? ` · ${tx.payment_account_detail.nombre}`
+                              : ""}
+                            {tx.payment_account_detail?.alias
+                              ? ` (${tx.payment_account_detail.alias})`
+                              : ""}
+                          </p>
+                        ) : tx.payment_method === "efectivo" ? (
+                          <p className="mt-1 inline-flex items-center gap-1 text-[11px] text-emerald-800">
+                            <Banknote className="h-3 w-3" />
+                            Efectivo
+                          </p>
+                        ) : null}
                         {tx.created_by && (
                           <p className="mt-1 text-[10px] text-gray-500">
                             {tx.created_by.first_name || tx.created_by.username}

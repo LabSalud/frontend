@@ -681,6 +681,13 @@ export interface UnplannedTransaction {
   kind: "charge" | "payment"
   description: string
   amount: string
+  /**
+   * Cómo entró la plata. Solo en los pagos: un cobro es lo que el paciente
+   * pasa a deber, no plata que se movió. "" en los cargados desde antes.
+   */
+  payment_method?: "" | "efectivo" | "transferencia"
+  payment_account?: number | null
+  payment_account_detail?: { id: number; nombre: string; alias: string } | null
   created_by?: {
     id: number
     username: string

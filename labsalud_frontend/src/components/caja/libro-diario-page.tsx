@@ -1,17 +1,18 @@
 import { useState } from "react"
 
-import { Banknote, BookOpen, Landmark, Plus, Trash2 } from "lucide-react"
+import { Banknote, BookOpen, Landmark, Pencil, Plus, Trash2 } from "lucide-react"
 
 import { DataTable, type Column } from "@/components/common/data-table"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { ANALYTICS_ENDPOINTS } from "@/config/api"
+import { ANALYTICS_ENDPOINTS, PROTOCOL_ENDPOINTS } from "@/config/api"
 import { useApiQuery } from "@/hooks/use-api-query"
 import { BILLING_ENDPOINTS } from "@/config/api"
 import useAuth from "@/contexts/auth-context"
 import { useApi } from "@/hooks/use-api"
 import { useToast } from "@/hooks/use-toast"
 import { PERMISSIONS } from "@/config/permissions"
+import { FormaDePagoDialog } from "@/components/protocolos/components/dialogs/forma-de-pago-dialog"
 import { MovimientoDeCajaDialog } from "./movimiento-de-caja-dialog"
 
 /**
@@ -37,6 +38,8 @@ type Movimiento = {
   /** "efectivo" | "transferencia" | "" si no se registró. */
   forma_de_pago: string
   cuenta_de_cobro: string
+  /** Para preseleccionar la cuenta al corregir; `null` si pagó en efectivo. */
+  cuenta_de_cobro_id?: number | null
   cuenta_alias: string
   /** Solo en los asientos cargados a mano: "gasto" | "ingreso". */
   tipo_de_movimiento?: string
@@ -99,10 +102,12 @@ export default function LibroDiarioPage() {
   const [desde, setDesde] = useState(haceDias(7))
   const [hasta, setHasta] = useState(hoyISO())
   const [agregando, setAgregando] = useState(false)
+  const [corrigiendo, setCorrigiendo] = useState<Movimiento | null>(null)
 
-  // Cargar un gasto es OPERAR con plata; mirar el libro es otra cosa. El
-  // backend contesta 403 sin este permiso, así que el botón tampoco aparece.
-  const puedeCargar = hasPermission(PERMISSIONS.MANAGE_BILLING.codename)
+  // Cargar un gasto y corregir una forma de pago es OPERAR con plata; mirar el
+  // libro es otra cosa. El backend contesta 403 sin este permiso, así que los
+  // botones tampoco aparecen.
+  const puedeOperar = hasPermission(PERMISSIONS.MANAGE_BILLING.codename)
 
   const consulta = useApiQuery<Respuesta>({
     queryKey: ["analytics", "libro-diario", desde, hasta],
@@ -122,6 +127,43 @@ export default function LibroDiarioPage() {
       return
     }
     toastActions.error("No se pudo anular el movimiento")
+  }
+
+  /**
+   * Corregir cómo se cobró un protocolo, sin salir del libro.
+   *
+   * La forma de pago no es del asiento: es del protocolo. El libro la muestra
+   * al lado de cada movimiento porque es lo que se necesita para conciliar,
+   * pero el dato vive en un solo lugar. Por eso corregirla acá la corrige en
+   * todas las líneas de ese protocolo y en su ficha, que es justamente lo que
+   * se quiere cuando se cargó mal: no hay una versión del pago por asiento.
+   *
+   * Se corrige desde acá porque el error aparece acá. Quien concilia la caja
+   * ve una transferencia que el extracto no tiene, y hasta ahora tenía que
+   * anotarse el protocolo, buscarlo en otra pantalla y volver.
+   */
+  const corregirFormaDePago = async (forma: string, cuentaId: string) => {
+    const protocolo = corrigiendo?.protocolo
+    if (!protocolo) return false
+
+    const respuesta = await apiRequest(PROTOCOL_ENDPOINTS.PROTOCOL_DETAIL(protocolo), {
+      method: "PATCH",
+      body: {
+        payment_method: forma,
+        // Un efectivo con cuenta lo rechaza el backend, y mandar la vieja
+        // guardaría algo que contradice lo que se ve en pantalla.
+        payment_account: forma === "transferencia" && cuentaId ? Number(cuentaId) : null,
+      },
+    })
+    if (!respuesta.ok) {
+      toastActions.error("No se pudo cambiar la forma de pago")
+      return false
+    }
+
+    toastActions.success("Forma de pago corregida")
+    setCorrigiendo(null)
+    consulta.refetch()
+    return true
   }
 
   // El neto del período, para no tener que sumar a mano lo que ya está en
@@ -187,9 +229,9 @@ export default function LibroDiarioPage() {
       id: "pago",
       header: "Cómo pagó",
       className: "align-top",
-      cell: (mov) => {
-        if (mov.forma_de_pago === "transferencia") {
-          return (
+      cell: (mov) => (
+        <div className="flex items-start gap-1.5">
+          {mov.forma_de_pago === "transferencia" ? (
             <div className="text-xs">
               <span className="inline-flex items-center gap-1 rounded border border-sky-200 bg-sky-50 px-1.5 py-0.5 text-sky-800">
                 <Landmark className="h-3 w-3" />
@@ -202,18 +244,31 @@ export default function LibroDiarioPage() {
                 <div className="font-mono text-[11px] text-gray-400">{mov.cuenta_alias}</div>
               ) : null}
             </div>
-          )
-        }
-        if (mov.forma_de_pago === "efectivo") {
-          return (
+          ) : mov.forma_de_pago === "efectivo" ? (
             <span className="inline-flex items-center gap-1 rounded border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-xs text-emerald-800">
               <Banknote className="h-3 w-3" />
               Efectivo
             </span>
-          )
-        }
-        return <span className="text-xs text-gray-400">—</span>
-      },
+          ) : (
+            <span className="text-xs text-gray-400">—</span>
+          )}
+
+          {/* Solo los movimientos de un protocolo: un gasto del laboratorio no
+              tiene forma de pago del paciente que corregir. */}
+          {puedeOperar && mov.protocolo ? (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6 shrink-0 text-gray-400 hover:text-[#204983]"
+              aria-label={`Corregir la forma de pago del protocolo ${mov.protocolo}`}
+              title="Corregir la forma de pago"
+              onClick={() => setCorrigiendo(mov)}
+            >
+              <Pencil className="h-3 w-3" />
+            </Button>
+          ) : null}
+        </div>
+      ),
     },
     {
       id: "detalle",
@@ -254,7 +309,7 @@ export default function LibroDiarioPage() {
     },
   ]
 
-  if (puedeCargar) {
+  if (puedeOperar) {
     // Solo los asientos cargados a mano se pueden anular: los del ledger son
     // el registro de lo que pasó y no se tocan desde acá.
     columnas.push({
@@ -342,7 +397,7 @@ export default function LibroDiarioPage() {
               </Button>
             </div>
 
-            {puedeCargar ? (
+            {puedeOperar ? (
               <Button
                 size="sm"
                 onClick={() => setAgregando(true)}
@@ -390,6 +445,18 @@ export default function LibroDiarioPage() {
         open={agregando}
         onOpenChange={setAgregando}
         onGuardado={() => consulta.refetch()}
+      />
+
+      <FormaDePagoDialog
+        open={corrigiendo !== null}
+        onOpenChange={(abierto) => {
+          if (!abierto) setCorrigiendo(null)
+        }}
+        formaDePago={corrigiendo?.forma_de_pago || ""}
+        cuentaDeCobroId={
+          corrigiendo?.cuenta_de_cobro_id ? String(corrigiendo.cuenta_de_cobro_id) : ""
+        }
+        onGuardar={corregirFormaDePago}
       />
     </div>
   )

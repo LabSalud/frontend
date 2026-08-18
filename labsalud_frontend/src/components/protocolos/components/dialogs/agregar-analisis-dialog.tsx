@@ -4,7 +4,6 @@ import { useState } from "react"
 import { Loader2, Plus } from "lucide-react"
 
 import { AnalysisSearch } from "@/components/ingreso/components/analysis-search"
-import { isActoBioquimico } from "@/lib/codigos-analisis"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -32,11 +31,12 @@ import type { SelectedAnalysis } from "@/types"
  * con el nomenclador de la obra social del protocolo — que es el mismo cálculo
  * de siempre, y no algo que la pantalla pueda adivinar.
  *
- * EL ACTO BIOQUÍMICO NO SE AGREGA A MANO
- * ======================================
- * Es un ítem de facturación, no una práctica: no lleva resultado y va uno solo
- * por protocolo, puesto al cargarlo. Agregarlo desde acá sería cobrarlo dos
- * veces, y ni siquiera aparece en el informe del paciente.
+ * EL ACTO BIOQUÍMICO TAMBIÉN SE PUEDE AGREGAR
+ * ===========================================
+ * Ya no se pone solo al cargar el protocolo, así que el que se olvidó en el
+ * ingreso hay que poder sumarlo desde acá. Cobrarlo dos veces no es un riesgo:
+ * el buscador no ofrece los análisis que el protocolo ya tiene, y el backend
+ * rebota el duplicado igual.
  */
 
 type Props = {
@@ -46,9 +46,8 @@ type Props = {
    * Los que el protocolo ya tiene: id del ANÁLISIS y su código.
    *
    * El id del análisis y no el del detalle — son cosas distintas y el buscador
-   * deduplica por análisis. Y el código hace falta para que el buscador sepa
-   * que el acto bioquímico ya está: sin él lo da por faltante, lo agrega solo
-   * y muestra un cartel de que lo agregó, sobre algo que no se va a mandar.
+   * deduplica por análisis. El código lo usa el buscador para dejar los actos
+   * bioquímicos arriba de la lista.
    */
   yaEstan: { id: number; code: string }[]
   onAgregar: (analysisIds: number[]) => Promise<void>
@@ -101,11 +100,7 @@ export function AgregarAnalisisDialog({ open, onOpenChange, yaEstan, onAgregar }
           onAnalysisChange={(todos) =>
             // El buscador devuelve la lista entera; acá interesan solo los que
             // no estaban en el protocolo.
-            setElegidos(
-              todos.filter(
-                (a) => !idsQueYaEstan.includes(a.id) && !isActoBioquimico(a.code),
-              ),
-            )
+            setElegidos(todos.filter((a) => !idsQueYaEstan.includes(a.id)))
           }
         />
 

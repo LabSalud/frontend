@@ -8,7 +8,8 @@
  * Todo lo que antes hacía `Number(a.code) === 660001` está acá, porque esas
  * comparaciones no fallan cuando el código es alfanumérico: `Number("A15")` da
  * `NaN` y toda comparación con `NaN` es falsa. El acto bioquímico dejaría de
- * agregarse solo, sin ningún error a la vista.
+ * reconocerse como tal —se informaría al paciente, contaría como pendiente de
+ * cargar— sin ningún error a la vista.
  *
  * Reemplaza a `acto-bioquimico.ts`: eran los mismos códigos escritos dos
  * veces, una como número y otra como texto.
@@ -32,11 +33,15 @@ export const ACTO_BIOQUIMICO_CODES = new Set([
   ACTO_BIOQUIMICO_COMPLEMENTARIO,
 ])
 
-/** Los dos que maneja la pantalla de ingreso. El ABC se carga aparte. */
+/**
+ * Los dos que se cargan en el ingreso: van primero en la lista de análisis. El
+ * ABC se carga aparte.
+ *
+ * Cuál corresponde lo elige quien atiende. Hubo una regla que lo deducía del
+ * código de la práctica y sumaba el acto común por su cuenta; se sacó porque
+ * el acto es una decisión de facturación, no algo que el nomenclador conteste.
+ */
 export const ACTOS_DE_INGRESO = [ACTO_BIOQUIMICO, ACTO_BIOQUIMICO_INTERNACION]
-
-/** Desde este código arrancan las prácticas de internación, que llevan ABI. */
-const PRIMER_CODIGO_DE_INTERNACION = 661001
 
 export function normalizarCodigo(code: unknown): string {
   if (code === null || code === undefined) return ""
@@ -56,23 +61,6 @@ export function comoNumero(code: unknown): number | null {
   const texto = normalizarCodigo(code)
   if (!/^\d+$/.test(texto)) return null
   return Number(texto)
-}
-
-/**
- * Si al agregar esta práctica hay que sumar el acto bioquímico común.
- *
- * Los actos no se piden a sí mismos, y las prácticas de internación
- * (código ≥ 661001) llevan el ABI, que se carga a mano.
- *
- * Una práctica propia del laboratorio —código alfanumérico, fuera del
- * nomenclador— es una práctica común: lleva acto. Es el lado seguro del error:
- * se factura de más y alguien lo saca, en vez de no facturarse y que no se
- * entere nadie.
- */
-export function necesitaActoBioquimico(code: unknown): boolean {
-  if (esActoDeIngreso(code)) return false
-  const numero = comoNumero(code)
-  return numero === null || numero < PRIMER_CODIGO_DE_INTERNACION
 }
 
 /**

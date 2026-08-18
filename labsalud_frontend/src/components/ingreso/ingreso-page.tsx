@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, useRef } from "react"
 import { useLocation, useNavigate } from "react-router-dom"
 import { FileText } from "lucide-react"
 import { Button } from "../ui/button"
@@ -20,9 +20,11 @@ import { useApi } from "../../hooks/use-api"
 import { CATALOG_ENDPOINTS, MEDICAL_ENDPOINTS, PROTOCOL_ENDPOINTS, PATIENT_ENDPOINTS } from "@/config/api"
 import { formatApiError, getErrorMessage } from "@/lib/api-error"
 import type { TrajoOrdenStatus } from "@/lib/protocol-order"
+import { ACTO_BIOQUIMICO_INTERNACION, mismoCodigo } from "@/lib/codigos-analisis"
 import { useEndpointProgress } from "@/hooks/use-endpoint-progress"
 import { useProtocolQuote } from "@/hooks/use-protocol-quote"
 import type {
+  Analysis,
   Patient,
   Doctor,
   Insurance,
@@ -318,6 +320,56 @@ export default function IngresoPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentPatient?.id])
 
+  /**
+   * El ABI del paciente anónimo.
+   *
+   * Ningún acto bioquímico se agrega solo al elegir análisis: lo pone quien
+   * atiende. La excepción es el anónimo, que casi siempre es un internado —el
+   * botón que lo crea dice "ej: internado"—, así que el acto de internación
+   * (661001) se carga al elegirlo y queda primero en la lista.
+   *
+   * `abiCargadoPara` dice para qué paciente ya se hizo, y hace dos cosas:
+   * sacarlo de la tabla es definitivo —si este caso no lleva ABI, no vuelve a
+   * aparecer— y una respuesta que llega tarde no se mete en la lista de otro
+   * paciente. No se cancela con una bandera por corrida porque en `StrictMode`
+   * el efecto corre dos veces: la primera pediría el acto y la segunda, ya
+   * marcada, no volvería a pedirlo, y el ABI no aparecería nunca en desarrollo.
+   */
+  const abiCargadoPara = useRef<number | null>(null)
+
+  useEffect(() => {
+    const paciente = currentPatient
+    if (!paciente?.is_anonymous) {
+      // Sin un anónimo a la vista no hay nada cargado, y lo que venga en
+      // camino ya no corresponde a este formulario.
+      abiCargadoPara.current = null
+      return
+    }
+    if (abiCargadoPara.current === paciente.id) return
+    abiCargadoPara.current = paciente.id
+
+    apiRequest(`${CATALOG_ENDPOINTS.ANALYSIS}?code=${ACTO_BIOQUIMICO_INTERNACION}&is_active=true`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((datos: PaginatedResponse<Analysis> | null) => {
+        if (!datos || abiCargadoPara.current !== paciente.id) return
+        const acto = (datos.results || []).find((a) =>
+          mismoCodigo(a.code, ACTO_BIOQUIMICO_INTERNACION),
+        )
+        if (!acto) return
+        setSelectedAnalyses((previos) =>
+          previos.some((a) => mismoCodigo(a.code, ACTO_BIOQUIMICO_INTERNACION))
+            ? previos
+            : [{ ...acto, is_authorized: false }, ...previos],
+        )
+      })
+      .catch(() => {
+        // Si el catálogo no contesta, el acto se busca a mano como cualquier
+        // otro análisis. No puede frenar la carga del protocolo.
+        abiCargadoPara.current = null
+      })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPatient?.id, currentPatient?.is_anonymous])
+
   const handleInsuranceSelect = (insurance: Insurance | null) => {
     setSelectedInsurance(insurance)
     // Se propone el que ya usó en esta obra social, si hay. Es una sugerencia:
@@ -382,6 +434,9 @@ export default function IngresoPage() {
       }
 
       const s = successData.formSnapshot
+      // La lista vuelve tal como estaba, con o sin ABI: si el usuario lo había
+      // sacado, que el efecto del anónimo no se lo devuelva.
+      abiCargadoPara.current = s.currentPatient?.id ?? null
       setCurrentPatient(s.currentPatient)
       setPatientNotFound(false)
       setSearchedDni(s.searchedDni)

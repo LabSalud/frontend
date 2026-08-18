@@ -274,6 +274,9 @@ export const BILLING_ENDPOINTS = {
   ENTITIES: buildApiUrl("/billing/entities/"),
   CUENTAS_DE_COBRO: buildApiUrl("/billing/cuentas-de-cobro/"),
   CUENTA_DE_COBRO: (id: number) => buildApiUrl(`/billing/cuentas-de-cobro/${id}/`),
+  /** Gastos e ingresos del laboratorio que no pasan por ningún protocolo. */
+  MOVIMIENTOS_DE_CAJA: buildApiUrl("/billing/movimientos-de-caja/"),
+  MOVIMIENTO_DE_CAJA: (id: number) => buildApiUrl(`/billing/movimientos-de-caja/${id}/`),
   ENTITY_DETAIL: (id: number) => buildApiUrl(`/billing/entities/${id}/`),
   REMINDER_PHONES: buildApiUrl("/billing/reminders/phones/"),
   REMINDER_PHONE_DETAIL: (id: number) => buildApiUrl(`/billing/reminders/phones/${id}/`),

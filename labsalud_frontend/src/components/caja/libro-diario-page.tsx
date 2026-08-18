@@ -1,12 +1,18 @@
 import { useState } from "react"
 
-import { Banknote, BookOpen, Landmark } from "lucide-react"
+import { Banknote, BookOpen, Landmark, Plus, Trash2 } from "lucide-react"
 
 import { DataTable, type Column } from "@/components/common/data-table"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ANALYTICS_ENDPOINTS } from "@/config/api"
 import { useApiQuery } from "@/hooks/use-api-query"
+import { BILLING_ENDPOINTS } from "@/config/api"
+import useAuth from "@/contexts/auth-context"
+import { useApi } from "@/hooks/use-api"
+import { useToast } from "@/hooks/use-toast"
+import { PERMISSIONS } from "@/config/permissions"
+import { MovimientoDeCajaDialog } from "./movimiento-de-caja-dialog"
 
 /**
  * El libro diario: cada movimiento de plata del sistema, en orden.
@@ -20,7 +26,8 @@ import { useApiQuery } from "@/hooks/use-api-query"
 type Cambio = { concepto: string; de: string; a: string; delta: string }
 
 type Movimiento = {
-  id: number
+  /** Del ledger es un número; de un asiento cargado a mano, `caja-<id>`. */
+  id: number | string
   momento: string
   protocolo: number | null
   usuario: string
@@ -31,6 +38,9 @@ type Movimiento = {
   forma_de_pago: string
   cuenta_de_cobro: string
   cuenta_alias: string
+  /** Solo en los asientos cargados a mano: "gasto" | "ingreso". */
+  tipo_de_movimiento?: string
+  movimiento_de_caja_id?: number
 }
 
 type Respuesta = {
@@ -48,6 +58,8 @@ const NOMBRE_DEL_CONCEPTO: Record<string, string> = {
   material_descartable_amount: "Material descartable",
   derivacion_amount: "Derivación",
   amount_to_return: "A devolver",
+  gasto: "Gasto",
+  ingreso: "Ingreso",
 }
 
 const plata = (valor: string) =>
@@ -81,8 +93,16 @@ const haceDias = (dias: number) => {
 }
 
 export default function LibroDiarioPage() {
+  const { hasPermission } = useAuth()
+  const { apiRequest } = useApi()
+  const toastActions = useToast()
   const [desde, setDesde] = useState(haceDias(7))
   const [hasta, setHasta] = useState(hoyISO())
+  const [agregando, setAgregando] = useState(false)
+
+  // Cargar un gasto es OPERAR con plata; mirar el libro es otra cosa. El
+  // backend contesta 403 sin este permiso, así que el botón tampoco aparece.
+  const puedeCargar = hasPermission(PERMISSIONS.MANAGE_BILLING.codename)
 
   const consulta = useApiQuery<Respuesta>({
     queryKey: ["analytics", "libro-diario", desde, hasta],
@@ -91,6 +111,18 @@ export default function LibroDiarioPage() {
   })
 
   const movimientos = consulta.data?.movimientos || []
+
+  const anular = async (id: number) => {
+    const respuesta = await apiRequest(BILLING_ENDPOINTS.MOVIMIENTO_DE_CAJA(id), {
+      method: "DELETE",
+    })
+    if (respuesta.ok) {
+      toastActions.success("Movimiento anulado")
+      consulta.refetch()
+      return
+    }
+    toastActions.error("No se pudo anular el movimiento")
+  }
 
   // El neto del período, para no tener que sumar a mano lo que ya está en
   // pantalla. Entradas y salidas por separado: un neto de cero puede ser "no
@@ -132,6 +164,16 @@ export default function LibroDiarioPage() {
             >
               Protocolo {mov.protocolo}
             </a>
+          ) : mov.tipo_de_movimiento ? (
+            <span
+              className={`inline-flex items-center rounded border px-1.5 py-0.5 text-xs font-medium ${
+                mov.tipo_de_movimiento === "ingreso"
+                  ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                  : "border-rose-200 bg-rose-50 text-rose-800"
+              }`}
+            >
+              {mov.tipo_de_movimiento === "ingreso" ? "Ingreso" : "Gasto"}
+            </span>
           ) : (
             <span className="font-medium text-gray-700">Sin protocolo</span>
           )}
@@ -212,6 +254,29 @@ export default function LibroDiarioPage() {
     },
   ]
 
+  if (puedeCargar) {
+    // Solo los asientos cargados a mano se pueden anular: los del ledger son
+    // el registro de lo que pasó y no se tocan desde acá.
+    columnas.push({
+      id: "anular",
+      header: "",
+      align: "right",
+      className: "w-10 align-top",
+      cell: (mov) =>
+        mov.movimiento_de_caja_id ? (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 text-gray-400 hover:text-rose-600"
+            aria-label={`Anular ${mov.detalle}`}
+            onClick={() => anular(mov.movimiento_de_caja_id as number)}
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
+        ) : null,
+    })
+  }
+
   return (
     <div className="mx-auto w-full max-w-full px-4 py-4">
       <div className="rounded-2xl bg-white/95 p-4 shadow-md backdrop-blur-sm md:p-6">
@@ -276,6 +341,17 @@ export default function LibroDiarioPage() {
                 Último mes
               </Button>
             </div>
+
+            {puedeCargar ? (
+              <Button
+                size="sm"
+                onClick={() => setAgregando(true)}
+                className="bg-[#204983] hover:bg-[#1a3d6f]"
+              >
+                <Plus className="mr-1 h-4 w-4" />
+                Gasto o ingreso
+              </Button>
+            ) : null}
           </div>
         </div>
 
@@ -309,6 +385,12 @@ export default function LibroDiarioPage() {
           </p>
         ) : null}
       </div>
+
+      <MovimientoDeCajaDialog
+        open={agregando}
+        onOpenChange={setAgregando}
+        onGuardado={() => consulta.refetch()}
+      />
     </div>
   )
 }

@@ -371,7 +371,7 @@ export type AnalysisRelationType = "includes" | "not_includes" | "included_in"
 export interface AnalysisComponent {
   id: number
   child: number
-  child_code: number
+  child_code: string
   child_name: string
   relation_type: AnalysisRelationType
   relation_type_display: string
@@ -390,7 +390,8 @@ export interface Analysis {
   created_at: string
   created_by: null
   id: number
-  code: number
+  /** Alfanumérico: los 6 dígitos del NBU, o el que le puso el laboratorio. */
+  code: string
   name: string
   bio_unit: string
   bio_unit_values?: BioUnitValue[]
@@ -437,7 +438,7 @@ export interface NBU {
 }
 
 export interface NBUEffectiveUB {
-  analysis_code: number
+  analysis_code: string
   analysis_name: string
   effective_value: string
   found_in: {
@@ -450,7 +451,7 @@ export interface NBUEffectiveUB {
 
 export interface NBUUbValue {
   analysis_id: number
-  analysis_code: number
+  analysis_code: string
   analysis_name: string
   value: string
 }
@@ -567,7 +568,7 @@ export interface ProtocolDetail {
   /** true si el análisis ya tiene resultados cargados (aunque no estén validados).
    * Lo provee el backend en el detalle (ProtocolDetailSerializer). */
   is_loaded?: boolean
-  code: number
+  code: string
   name: string
   ub: string
   is_urgent: boolean
@@ -803,7 +804,7 @@ export interface PricingConfig {
 // la lógica de creación (resuelve el nomenclador correcto por OOSS/particular).
 export interface QuoteDetail {
   analysis_id: number
-  code: number
+  code: string
   name: string
   is_authorized: boolean
   private_ub: string
@@ -904,7 +905,7 @@ export interface ResultDetermination {
 export interface ResultAnalysis {
   id: number
   name: string
-  code: number
+  code: string
   is_urgent: boolean
   ub: string
   bio_unit_values?: BioUnitValue[]
@@ -955,7 +956,7 @@ export interface ResultsByAnalysisItem {
 // Response from GET /results/results/available-analyses/
 export interface AvailableAnalysis {
   id: number
-  code: number
+  code: string
   name: string
   bio_unit: string
   bio_unit_values?: BioUnitValue[]

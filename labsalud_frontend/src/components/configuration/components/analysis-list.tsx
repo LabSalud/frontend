@@ -36,7 +36,7 @@ import { formatApiError, getErrorMessage } from "@/lib/api-error"
 interface AnalysisCatalog {
   id: number
   name: string | null
-  code: number | null
+  code: string | null
 }
 
 interface AnalysisListProps {

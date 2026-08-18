@@ -59,8 +59,11 @@ export const EditAnalysisCatalogDialog: React.FC<EditAnalysisCatalogDialogProps>
   const validateForm = () => {
     const newErrors: Record<string, string> = {}
     if (!name.trim()) newErrors.name = "El nombre es requerido."
+    // Alfanumérico: la mayoría son los 6 dígitos del NBU, pero el laboratorio
+    // también numera sus propias prácticas (`A15`, `INT-3`).
     if (!code.trim()) newErrors.code = "El código es requerido."
-    else if (isNaN(Number(code))) newErrors.code = "El código debe ser numérico."
+    else if (!/^[\w.-]+$/.test(code.trim()))
+      newErrors.code = "El código no puede tener espacios ni símbolos raros."
     if (!bioUnit.trim()) newErrors.bioUnit = "La unidad bioquímica es requerida."
 
     setErrors(newErrors)
@@ -73,7 +76,7 @@ export const EditAnalysisCatalogDialog: React.FC<EditAnalysisCatalogDialogProps>
     setIsLoading(true)
     try {
       const analysisUpdateData: Partial<Analysis> = {}
-      if (Number.parseInt(code, 10) !== analysis.code) analysisUpdateData.code = Number.parseInt(code, 10)
+      if (code.trim() !== analysis.code) analysisUpdateData.code = code.trim()
       if (name !== analysis.name) analysisUpdateData.name = name
       if (bioUnit !== analysis.bio_unit) analysisUpdateData.bio_unit = bioUnit
       if (isUrgent !== analysis.is_urgent) analysisUpdateData.is_urgent = isUrgent

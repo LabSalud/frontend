@@ -16,6 +16,14 @@ import { CATALOG_ENDPOINTS } from "@/config/api"
 import { formatApiError, getErrorMessage } from "@/lib/api-error"
 import { CampoNotacionCientifica } from "./campo-notacion-cientifica"
 import { esExponenteValido } from "@/lib/notacion"
+import {
+  rangosDesde,
+  rangosParaEnviar,
+  rangosVacios,
+  ValoresDeReferencia,
+  type RangeMap,
+  type RefRange,
+} from "./valores-de-referencia"
 
 interface EditDeterminationDialogProps {
   open?: boolean
@@ -26,24 +34,6 @@ interface EditDeterminationDialogProps {
   determination: Determination
   analysisId?: number
 }
-
-// Los valores de referencia siempre son estos 4 grupos (y puede no tener).
-const REF_GROUPS = [
-  { key: "hombre", label: "Hombre", sex: "male", age_group: "adult" },
-  { key: "mujer", label: "Mujer", sex: "female", age_group: "adult" },
-  { key: "nino", label: "Niño", sex: "male", age_group: "child" },
-  { key: "nina", label: "Niña", sex: "female", age_group: "child" },
-] as const
-
-type RangeMap = Record<string, { min: string; max: string }>
-type RefRange = { sex?: string; age_group?: string; min_value?: string; max_value?: string }
-
-const emptyRanges = (): RangeMap => ({
-  hombre: { min: "", max: "" },
-  mujer: { min: "", max: "" },
-  nino: { min: "", max: "" },
-  nina: { min: "", max: "" },
-})
 
 export const EditDeterminationDialog: React.FC<EditDeterminationDialogProps> = ({
   open,
@@ -59,7 +49,7 @@ export const EditDeterminationDialog: React.FC<EditDeterminationDialogProps> = (
   const [measureUnit, setMeasureUnit] = useState("")
   const [exponente, setExponente] = useState("")
   const [formula, setFormula] = useState("")
-  const [ranges, setRanges] = useState<RangeMap>(emptyRanges)
+  const [ranges, setRanges] = useState<RangeMap>(rangosVacios)
   const [isLoading, setIsLoading] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
 
@@ -80,22 +70,13 @@ export const EditDeterminationDialog: React.FC<EditDeterminationDialogProps> = (
         determination.scientific_exponent ? String(determination.scientific_exponent) : "",
       )
       setFormula(determination.formula || "")
-      // Cargar los valores de referencia estructurados (reference_ranges) en los
-      // 4 grupos. Antes se leía el JSON `reference_values`, por eso no aparecían.
-      const existing = ((determination as { reference_ranges?: RefRange[] }).reference_ranges || [])
-      const map = emptyRanges()
-      REF_GROUPS.forEach((g) => {
-        const found = existing.find((r) => r.sex === g.sex && r.age_group === g.age_group)
-        if (found) map[g.key] = { min: found.min_value ?? "", max: found.max_value ?? "" }
-      })
-      setRanges(map)
+      // Los valores de referencia estructurados (reference_ranges) en los 4
+      // grupos. Antes se leía el JSON `reference_values`, por eso no aparecían.
+      setRanges(rangosDesde((determination as { reference_ranges?: RefRange[] }).reference_ranges))
       setErrors({})
       setIsLoading(false)
     }
   }, [determination, isDialogOpen])
-
-  const setRange = (key: string, field: "min" | "max", value: string) =>
-    setRanges((prev) => ({ ...prev, [key]: { ...prev[key], [field]: value } }))
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {}
@@ -123,14 +104,7 @@ export const EditDeterminationDialog: React.FC<EditDeterminationDialogProps> = (
       if (formula !== (determination.formula || "")) body.formula = formula.trim() || ""
 
       // Siempre mandamos los valores de referencia (por si se limpió un grupo).
-      body.reference_ranges = REF_GROUPS
-        .filter((g) => ranges[g.key].min.trim() || ranges[g.key].max.trim())
-        .map((g) => ({
-          sex: g.sex,
-          age_group: g.age_group,
-          min_value: ranges[g.key].min.trim(),
-          max_value: ranges[g.key].max.trim(),
-        }))
+      body.reference_ranges = rangosParaEnviar(ranges)
 
       const response = await apiRequest(CATALOG_ENDPOINTS.DETERMINATION_DETAIL(determination.id), {
         method: "PATCH",
@@ -231,34 +205,7 @@ export const EditDeterminationDialog: React.FC<EditDeterminationDialogProps> = (
             />
           </div>
 
-          <div className="space-y-2">
-            <Label className="text-sm">Valores de referencia (opcional)</Label>
-            <p className="text-xs text-gray-500">Dejá vacío el grupo que no aplique. Acepta decimales con «,» o «.».</p>
-            <div className="space-y-2">
-              <div className="grid grid-cols-[80px_1fr_1fr] items-center gap-2 text-xs font-medium text-gray-500">
-                <span />
-                <span>Mínimo</span>
-                <span>Máximo</span>
-              </div>
-              {REF_GROUPS.map((g) => (
-                <div key={g.key} className="grid grid-cols-[80px_1fr_1fr] items-center gap-2">
-                  <span className="text-sm font-medium text-gray-700">{g.label}</span>
-                  <Input
-                    value={ranges[g.key].min}
-                    onChange={(e) => setRange(g.key, "min", e.target.value)}
-                    placeholder="—"
-                    className="h-9 text-sm"
-                  />
-                  <Input
-                    value={ranges[g.key].max}
-                    onChange={(e) => setRange(g.key, "max", e.target.value)}
-                    placeholder="—"
-                    className="h-9 text-sm"
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
+          <ValoresDeReferencia ranges={ranges} onChange={setRanges} />
         </div>
 
         <DialogFooter className="flex-col gap-2 sm:flex-row">

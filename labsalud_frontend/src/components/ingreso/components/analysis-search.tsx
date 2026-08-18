@@ -13,10 +13,15 @@ import { useInfiniteScroll } from "../../../hooks/use-infinite-scroll"
 import { toast } from "sonner"
 import type { Analysis, SelectedAnalysis } from "../../../types"
 import { CATALOG_ENDPOINTS } from "../../../config/api"
+import {
+  ACTO_BIOQUIMICO,
+  compararCodigos,
+  esActoDeIngreso,
+  mismoCodigo,
+  necesitaActoBioquimico,
+  normalizarCodigo,
+} from "../../../lib/codigos-analisis"
 
-const BIOCHEMICAL_ACT_CODE = 660001
-const SPECIAL_BIOCHEMICAL_ACT_CODE = 661001
-const THRESHOLD_CODE = 661001
 
 interface AnalysisSearchProps {
   selectedAnalyses: SelectedAnalysis[]
@@ -38,7 +43,7 @@ export function AnalysisSearch({ selectedAnalyses, onAnalysisChange }: AnalysisS
   const [hasMore, setHasMore] = useState(false)
   const [showResults, setShowResults] = useState(false)
   const [nextUrl, setNextUrl] = useState<string | null>(null)
-  const [biochemicalActCache, setBiochemicalActCache] = useState<Record<number, Analysis | null>>({})
+  const [biochemicalActCache, setBiochemicalActCache] = useState<Record<string, Analysis | null>>({})
 
   const debouncedSearchTerm = useDebounce(searchTerm, 300)
   const resultsRef = useRef<HTMLDivElement>(null)
@@ -55,7 +60,7 @@ export function AnalysisSearch({ selectedAnalyses, onAnalysisChange }: AnalysisS
     onLoadMore: loadMoreAnalyses,
   })
 
-  const fetchBiochemicalAct = async (code: number): Promise<Analysis | null> => {
+  const fetchBiochemicalAct = async (code: string): Promise<Analysis | null> => {
     if (biochemicalActCache[code] !== undefined) {
       return biochemicalActCache[code]
     }
@@ -81,13 +86,13 @@ export function AnalysisSearch({ selectedAnalyses, onAnalysisChange }: AnalysisS
   // Trae el análisis cuyo código es EXACTAMENTE `code`. Se usa al presionar Enter
   // con un código: garantiza que se agregue ese código y no un match parcial o un
   // resultado viejo del debounce (bug: a veces tomaba un código más corto).
-  const fetchByExactCode = async (code: number): Promise<Analysis | null> => {
+  const fetchByExactCode = async (code: string): Promise<Analysis | null> => {
     try {
       const url = `${CATALOG_ENDPOINTS.ANALYSIS}?code=${code}&is_active=true`
       const response = await apiRequest(url)
       if (response.ok) {
         const data: PaginatedResponse<Analysis> = await response.json()
-        return data.results.find((a) => Number(a.code) === code) ?? null
+        return data.results.find((a) => mismoCodigo(a.code, code)) ?? null
       }
     } catch (error) {
       console.error(`Error fetching analysis by code ${code}:`, error)
@@ -164,33 +169,27 @@ export function AnalysisSearch({ selectedAnalyses, onAnalysisChange }: AnalysisS
       return
     }
 
-    const analysisCode = typeof analysis.code === "string" ? Number.parseInt(analysis.code, 10) : Number(analysis.code)
-
-    if (analysisCode === BIOCHEMICAL_ACT_CODE || analysisCode === SPECIAL_BIOCHEMICAL_ACT_CODE) {
+    if (esActoDeIngreso(analysis.code)) {
       toast.info("El acto bioquímico se agrega automáticamente según los análisis seleccionados")
       setSearchTerm("")
       setShowResults(false)
       return
     }
 
-    const needsNormalAct = analysisCode < THRESHOLD_CODE
-
-    const hasNormalAct = selectedAnalyses.some((a) => {
-      const code = typeof a.code === "string" ? Number.parseInt(a.code, 10) : Number(a.code)
-      return code === BIOCHEMICAL_ACT_CODE
-    })
+    const needsNormalAct = necesitaActoBioquimico(analysis.code)
+    const hasNormalAct = selectedAnalyses.some((a) => mismoCodigo(a.code, ACTO_BIOQUIMICO))
 
     let newAnalyses = [...selectedAnalyses]
     const actsToAdd: SelectedAnalysis[] = []
 
     if (needsNormalAct && !hasNormalAct) {
-      const normalAct = await fetchBiochemicalAct(BIOCHEMICAL_ACT_CODE)
+      const normalAct = await fetchBiochemicalAct(ACTO_BIOQUIMICO)
       if (normalAct) {
         actsToAdd.push({
           ...normalAct,
           is_authorized: false,
         })
-        toast.success(`Acto bioquímico (${BIOCHEMICAL_ACT_CODE}) agregado automáticamente`)
+        toast.success(`Acto bioquímico (${ACTO_BIOQUIMICO}) agregado automáticamente`)
       }
     }
 
@@ -198,33 +197,18 @@ export function AnalysisSearch({ selectedAnalyses, onAnalysisChange }: AnalysisS
     // carga manualmente cuando corresponde. Solo el acto normal (660001) sigue
     // siendo automático.
 
-    const existingWithoutBioActs = newAnalyses.filter((a) => {
-      const code = typeof a.code === "string" ? Number.parseInt(a.code, 10) : Number(a.code)
-      return code !== BIOCHEMICAL_ACT_CODE && code !== SPECIAL_BIOCHEMICAL_ACT_CODE
-    })
-    const existingBioActs = newAnalyses.filter((a) => {
-      const code = typeof a.code === "string" ? Number.parseInt(a.code, 10) : Number(a.code)
-      return code === BIOCHEMICAL_ACT_CODE || code === SPECIAL_BIOCHEMICAL_ACT_CODE
-    })
+    const existingWithoutBioActs = newAnalyses.filter((a) => !esActoDeIngreso(a.code))
+    const existingBioActs = newAnalyses.filter((a) => esActoDeIngreso(a.code))
 
     const allBioActs = [...existingBioActs, ...actsToAdd]
     const uniqueBioActs = allBioActs.reduce((acc, act) => {
-      const code = typeof act.code === "string" ? Number.parseInt(act.code, 10) : Number(act.code)
-      const exists = acc.some((a) => {
-        const aCode = typeof a.code === "string" ? Number.parseInt(a.code, 10) : Number(a.code)
-        return aCode === code
-      })
-      if (!exists) {
+      if (!acc.some((a) => mismoCodigo(a.code, act.code))) {
         acc.push(act)
       }
       return acc
     }, [] as SelectedAnalysis[])
 
-    uniqueBioActs.sort((a, b) => {
-      const codeA = typeof a.code === "string" ? Number.parseInt(a.code, 10) : Number(a.code)
-      const codeB = typeof b.code === "string" ? Number.parseInt(b.code, 10) : Number(b.code)
-      return codeA - codeB
-    })
+    uniqueBioActs.sort((a, b) => compararCodigos(a.code, b.code))
 
     const selectedAnalysis: SelectedAnalysis = {
       ...analysis,
@@ -250,13 +234,16 @@ export function AnalysisSearch({ selectedAnalyses, onAnalysisChange }: AnalysisS
 
   // Si el término es un código numérico, el match EXACTO va primero (y queda
   // resaltado por defecto), para que Enter no agarre un código parcial/más corto.
-  const numericTerm = /^\d+$/.test(searchTerm.trim()) ? Number(searchTerm.trim()) : null
-  const orderedResults =
-    numericTerm === null
-      ? filteredResults
-      : [...filteredResults].sort(
-          (a, b) => (Number(a.code) === numericTerm ? 0 : 1) - (Number(b.code) === numericTerm ? 0 : 1),
-        )
+  // Si el término parece un código, el match EXACTO va primero (y queda
+  // resaltado por defecto), para que Enter no agarre un código parcial.
+  const terminoComoCodigo = normalizarCodigo(searchTerm)
+  const orderedResults = !terminoComoCodigo
+    ? filteredResults
+    : [...filteredResults].sort(
+        (a, b) =>
+          (mismoCodigo(a.code, terminoComoCodigo) ? 0 : 1) -
+          (mismoCodigo(b.code, terminoComoCodigo) ? 0 : 1),
+      )
 
   const handleKeyDown = async (e: React.KeyboardEvent) => {
     if (e.key === "ArrowDown") {
@@ -273,24 +260,25 @@ export function AnalysisSearch({ selectedAnalyses, onAnalysisChange }: AnalysisS
       e.preventDefault()
       const term = searchTerm.trim()
 
-      // Código numérico: priorizar SIEMPRE la coincidencia exacta de código.
-      if (/^\d+$/.test(term)) {
-        const code = Number(term)
-        const exact = orderedResults.find((a) => Number(a.code) === code)
-        if (exact) {
-          handleAddAnalysis(exact)
-          return
-        }
-        // No está entre los resultados visibles (debounce o paginación): lo traemos.
-        const fetched = await fetchByExactCode(code)
+      // Si hay un análisis con EXACTAMENTE ese código, gana siempre: el
+      // término puede ser también parte del nombre de otro.
+      const exact = orderedResults.find((a) => mismoCodigo(a.code, term))
+      if (exact) {
+        handleAddAnalysis(exact)
+        return
+      }
+      // No está entre los resultados visibles (debounce o paginación): se
+      // pregunta por el código exacto antes de resignarse al resaltado.
+      //
+      // Solo si el término puede ser un código. Un código no tiene espacios y
+      // tiene al menos un dígito (`660001`, `A15`), así que buscar por nombre
+      // no paga un viaje al servidor antes de agregar el resaltado.
+      if (/^[\w.-]+$/.test(term) && /\d/.test(term)) {
+        const fetched = await fetchByExactCode(term)
         if (fetched) {
           handleAddAnalysis(fetched)
-        } else if (orderedResults.length > 0) {
-          handleAddAnalysis(orderedResults[highlightedIndex] ?? orderedResults[0])
-        } else {
-          toast.error(`No se encontró un análisis con el código ${code}`)
+          return
         }
-        return
       }
 
       // Texto: agregar el análisis resaltado.

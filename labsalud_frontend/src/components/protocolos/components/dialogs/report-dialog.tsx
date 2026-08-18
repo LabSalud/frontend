@@ -11,7 +11,7 @@ import { Label } from "../../../ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../ui/select"
 import { Separator } from "../../../ui/separator"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import { ACTO_BIOQUIMICO_CODES } from "@/lib/acto-bioquimico"
+import { ACTO_BIOQUIMICO_CODES } from "@/lib/codigos-analisis"
 import type { ProtocolDetail, ReportSignature } from "@/types"
 
 type ReportProtocolAnalysis = ProtocolDetail & {

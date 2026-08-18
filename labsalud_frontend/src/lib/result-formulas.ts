@@ -6,7 +6,7 @@ type FormulaDetermination = {
 }
 
 type FormulaAnalysis = {
-  code: number
+  code: string
 }
 
 export type FormulaResult = {
@@ -51,11 +51,11 @@ const normalizeExpression = (formula: string): string => {
     .replace(/\^/g, "**")
 }
 
-const inferredCodeForIndex = (analysisCode: number, index: number): string =>
+const inferredCodeForIndex = (analysisCode: string, index: number): string =>
   `${analysisCode}_${String(index + 1).padStart(3, "0")}`
 
 const buildResultCodeMap = (results: FormulaResult[]): Map<number, string> => {
-  const byAnalysis = new Map<number, FormulaResult[]>()
+  const byAnalysis = new Map<string, FormulaResult[]>()
 
   results.forEach((result) => {
     const list = byAnalysis.get(result.analysis.code) || []
@@ -73,7 +73,7 @@ const buildResultCodeMap = (results: FormulaResult[]): Map<number, string> => {
   return resultCodes
 }
 
-const resolveRelativeCode = (code: string, currentAnalysisCode: number): string => {
+const resolveRelativeCode = (code: string, currentAnalysisCode: string): string => {
   const relativeMatch = code.match(/^cod_(\d+)$/i)
   if (!relativeMatch) return code
   return `${currentAnalysisCode}_${relativeMatch[1].padStart(3, "0")}`

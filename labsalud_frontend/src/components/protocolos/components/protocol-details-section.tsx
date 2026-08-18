@@ -23,6 +23,8 @@ interface ProtocolDetailsSectionProps {
   amountPending: string
   patientPaid: string
   amountToReturn: string
+  /** Lo que dejó de más y se tomó como redondeo, no como deuda del lab. */
+  redondeo?: string
   insuranceUbValue?: string
   privateUbValue?: string
   isPrinted?: boolean
@@ -94,6 +96,7 @@ export function ProtocolDetailsSection({
   amountPending,
   patientPaid,
   amountToReturn,
+  redondeo = "0",
 }: ProtocolDetailsSectionProps) {
   const paymentStatusInfo = getPaymentStatusInfo(paymentStatus)
 
@@ -101,6 +104,7 @@ export function ProtocolDetailsSection({
   const pending = Number.parseFloat(amountPending || "0")
   const paid = Number.parseFloat(patientPaid || "0")
   const toReturn = Number.parseFloat(amountToReturn || "0")
+  const vuelto = Number.parseFloat(redondeo || "0")
   const analyses = Number.parseFloat(analysesAmountDue || "0")
   const coseguro = Number.parseFloat(coseguroAmount || "0")
   const material = Number.parseFloat(materialDescartableAmount || "0")
@@ -441,6 +445,18 @@ export function ProtocolDetailsSection({
             <DollarSign className="h-4 w-4 text-amber-500 flex-shrink-0" />
             <span className="text-gray-600 w-28 flex-shrink-0">A devolver:</span>
             <span className="font-medium text-amber-600">${toReturn.toFixed(2)}</span>
+          </div>
+        )}
+
+        {/* El vuelto que nadie se llevó. Va con su nombre para que la
+            diferencia entre lo que se debía y lo que se cobró no quede como un
+            número suelto que no cierra. */}
+        {vuelto > 0 && (
+          <div className="flex items-center gap-3 text-sm">
+            <DollarSign className="h-4 w-4 text-emerald-500 flex-shrink-0" />
+            <span className="text-gray-600 w-28 flex-shrink-0">Redondeo:</span>
+            <span className="font-medium text-emerald-600">${vuelto.toFixed(2)}</span>
+            <span className="text-xs text-gray-400">pagó de más; no hay que devolver</span>
           </div>
         )}
 

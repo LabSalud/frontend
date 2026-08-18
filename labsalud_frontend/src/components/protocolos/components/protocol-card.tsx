@@ -101,6 +101,8 @@ interface ProtocolDetailResponse {
   amount_pending: string
   patient_paid: string
   amount_to_return: string
+  /** Lo que el paciente dejó de más y se tomó como redondeo. */
+  redondeo?: string
   // Pricing breakdown (new fields)
   analyses_amount_due?: string
   coseguro_amount?: string
@@ -1489,6 +1491,7 @@ export function ProtocolCard({
                   trajoOrden={protocolDetail?.trajo_orden}
                   preauthStatus={protocolDetail?.preauth_status}
                   isInPatient={protocolDetail?.is_in_patient}
+                  redondeo={protocolDetail?.redondeo}
                   analysesAmountDue={protocolDetail?.analyses_amount_due}
                   coseguroAmount={protocolDetail?.coseguro_amount}
                   materialDescartableAmount={protocolDetail?.material_descartable_amount}

@@ -627,6 +627,9 @@ export interface Protocol {
   amount_pending?: string
   patient_paid?: string
   amount_to_return?: string
+  /** Lo que el paciente pagó de más y se tomó como redondeo: no es deuda
+   *  del laboratorio. Pasado el tope configurado, va a `amount_to_return`. */
+  redondeo?: string
   extra_amounts_overridden?: boolean
   // Pricing breakdown (new fields - May 2026)
   analyses_amount_due?: string
@@ -725,6 +728,9 @@ export interface ProtocolListItem {
   private_amount_due?: string
   patient_paid?: string
   amount_to_return?: string
+  /** Lo que el paciente pagó de más y se tomó como redondeo: no es deuda
+   *  del laboratorio. Pasado el tope configurado, va a `amount_to_return`. */
+  redondeo?: string
   // Pricing breakdown (new fields)
   analyses_amount_due?: string
   coseguro_amount?: string

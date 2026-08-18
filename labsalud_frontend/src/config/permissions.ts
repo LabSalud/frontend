@@ -72,11 +72,15 @@ export const PERMISSIONS = {
   // Sin id/contentTypeId a propósito: los números de arriba no son estables
   // entre instalaciones y `hasPermission` ya resuelve por codename.
   // Aparte de MANAGE_BILLING a propósito: administrar facturación es operar
-  // (emitir, cerrar presentaciones, cobrar); el libro diario es mirar cada
-  // movimiento de plata. Hay quien tiene que auditar sin poder facturar.
-  VIEW_LEDGER: {
-    codename: "ver_libro_diario",
-    name: "Puede ver el libro diario",
+  // (emitir, cerrar presentaciones, cobrar); el libro diario es el registro de
+  // cada movimiento de plata. Hay quien tiene que auditar sin poder facturar.
+  //
+  // Dice "administrar" y no "ver" porque desde el libro también se corrige la
+  // forma de pago de un cobro que se cargó mal. El nombre es lo que se lee al
+  // armar un rol, y ahí es donde se decide quién puede tocar la plata.
+  MANAGE_LEDGER: {
+    codename: "administrar_libro_diario",
+    name: "Puede ver y administrar el libro diario",
   },
 
   MANAGE_RESULTS: {

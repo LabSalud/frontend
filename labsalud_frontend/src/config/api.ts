@@ -141,6 +141,11 @@ export const PROTOCOL_ENDPOINTS = {
   ARCA_DETAIL: (id: number) => buildApiUrl(`/protocols/protocols/${id}/arca-detail/`),
   REPORT: (id: number) => buildApiUrl(`/protocols/protocols/${id}/report/`),
   PROTOCOL_DETAILS: (id: number) => buildApiUrl(`/protocols/protocols/${id}/details/`),
+  /** Los pagos del paciente, uno por forma. Listar y agregar. */
+  PROTOCOL_PAGOS: (id: number) => buildApiUrl(`/protocols/protocols/${id}/pagos/`),
+  /** Corregir o anular UNO: la forma vive en el pago, no en el protocolo. */
+  PROTOCOL_PAGO: (protocolId: number, pagoId: number) =>
+    buildApiUrl(`/protocols/protocols/${protocolId}/pagos/${pagoId}/`),
   PROTOCOL_DETAIL_UPDATE: (protocolId: number, detailId: number) =>
     buildApiUrl(`/protocols/protocols/${protocolId}/details/${detailId}/`),
   SEND_METHODS: buildApiUrl("/protocols/send-methods/"),

@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Button } from "../../../ui/button"
 import { Input } from "../../../ui/input"
 import { Label } from "../../../ui/label"
+import { FormaDePago } from "@/components/common/forma-de-pago"
 
 type OperationType = "patient_paid" | "refunded_to_patient"
 
@@ -18,7 +19,12 @@ interface PaymentDialogProps {
   patientPaid: string
   amountToReturn: string
   paymentStatusName: string
-  onRegularize: (amount: number, operation: OperationType) => Promise<boolean>
+  onRegularize: (
+    amount: number,
+    operation: OperationType,
+    forma: string,
+    cuentaId: string,
+  ) => Promise<boolean>
   isProcessing: boolean
 }
 
@@ -36,6 +42,12 @@ export function PaymentDialog({
 }: PaymentDialogProps) {
   const [operation, setOperation] = useState<OperationType>("patient_paid")
   const [amount, setAmount] = useState("")
+  // Por dónde entró (o salió) esta plata. Es opcional —no se le inventa una
+  // forma a quien no la registró— pero una transferencia sin cuenta no se
+  // puede cruzar contra ningún extracto, y eso sí se exige.
+  const [forma, setForma] = useState("")
+  const [cuenta, setCuenta] = useState("")
+  const faltaCuenta = forma === "transferencia" && !cuenta
 
   const pending = Number.parseFloat(amountPending || "0")
   const toReturn = Number.parseFloat(amountToReturn || "0")
@@ -48,22 +60,26 @@ export function PaymentDialog({
   useEffect(() => {
     if (open) {
       setAmount("")
+      setForma("")
+      setCuenta("")
       if (toReturn > 0 && pending <= 0) {
         setOperation("refunded_to_patient")
       } else {
         setOperation("patient_paid")
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, pending, toReturn])
 
   const handleConfirm = async () => {
     const value = Number.parseFloat(amount)
     if (isNaN(value) || value <= 0) return
+    if (faltaCuenta) return
 
-    const success = await onRegularize(value, operation)
+    const success = await onRegularize(value, operation, forma, cuenta)
     if (success) {
       setAmount("")
+      setForma("")
+      setCuenta("")
       onOpenChange(false)
     }
   }
@@ -71,6 +87,8 @@ export function PaymentDialog({
   const handleClose = (isOpen: boolean) => {
     if (!isOpen) {
       setAmount("")
+      setForma("")
+      setCuenta("")
     }
     onOpenChange(isOpen)
   }
@@ -206,6 +224,16 @@ export function PaymentDialog({
               </p>
             )}
           </div>
+
+          {/* Después del monto: primero cuánto, después cómo. Es el orden en
+              que pasa en el mostrador. */}
+          <FormaDePago
+            formaDePago={forma}
+            cuentaId={cuenta}
+            onFormaChange={setForma}
+            onCuentaChange={setCuenta}
+            disabled={isProcessing}
+          />
         </div>
 
         <DialogFooter className="flex-col sm:flex-row gap-2">
@@ -214,7 +242,13 @@ export function PaymentDialog({
           </Button>
           <Button
             onClick={handleConfirm}
-            disabled={isProcessing || !amount || Number.parseFloat(amount) <= 0 || Number.parseFloat(amount) > maxAmount}
+            disabled={
+              isProcessing ||
+              !amount ||
+              Number.parseFloat(amount) <= 0 ||
+              Number.parseFloat(amount) > maxAmount ||
+              faltaCuenta
+            }
             className={`w-full sm:w-auto ${
               operation === "patient_paid"
                 ? "bg-emerald-600 hover:bg-emerald-700"

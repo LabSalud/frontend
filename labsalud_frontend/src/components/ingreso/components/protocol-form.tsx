@@ -16,6 +16,8 @@ import {
   Receipt,
   Plus,
   Trash2,
+  Banknote,
+  Landmark,
 } from "lucide-react"
 import { Label } from "../../ui/label"
 import { Input } from "../../ui/input"
@@ -28,7 +30,7 @@ import { BillingEntitySelect } from "@/components/configuration/components/billi
 import { AnalysisSearch } from "./analysis-search"
 import { AnalysisTable } from "./analysis-table"
 import { TRAJO_ORDEN_OPTIONS, type TrajoOrdenStatus } from "@/lib/protocol-order"
-import { FormaDePago } from "@/components/common/forma-de-pago"
+import { SelectorDeCuenta } from "@/components/common/forma-de-pago"
 import type {
   Patient,
   Doctor,
@@ -186,8 +188,9 @@ interface ProtocolFormProps {
   selectedDoctor: Doctor | null
   selectedInsurance: Insurance | null
   selectedSendMethod: SendMethod | null
-  patientPaid: string
-  formaDePago: string
+  /** Lo que el paciente deja en efectivo y lo que transfiere, por separado. */
+  pagoEfectivo: string
+  pagoTransferencia: string
   cuentaDeCobroId: string
   affiliateNumber: string
   billingEntityId: string
@@ -217,8 +220,8 @@ interface ProtocolFormProps {
   onReset: () => void
   onShowCreateMedico: () => void
   onShowCreateObraSocial: () => void
-  onPatientPaidChange: (value: string) => void
-  onFormaDePagoChange: (value: string) => void
+  onPagoEfectivoChange: (value: string) => void
+  onPagoTransferenciaChange: (value: string) => void
   onCuentaDeCobroChange: (value: string) => void
   onAffiliateNumberChange: (number: string) => void
   onBillingEntityChange: (id: string) => void
@@ -238,8 +241,8 @@ export function ProtocolForm({
   selectedDoctor,
   selectedInsurance,
   selectedSendMethod,
-  patientPaid,
-  formaDePago,
+  pagoEfectivo,
+  pagoTransferencia,
   cuentaDeCobroId,
   affiliateNumber,
   billingEntityId,
@@ -266,8 +269,8 @@ export function ProtocolForm({
   onReset,
   onShowCreateMedico,
   onShowCreateObraSocial,
-  onPatientPaidChange,
-  onFormaDePagoChange,
+  onPagoEfectivoChange,
+  onPagoTransferenciaChange,
   onCuentaDeCobroChange,
   onAffiliateNumberChange,
   onBillingEntityChange,
@@ -278,8 +281,13 @@ export function ProtocolForm({
   onUnplannedTransactionsChange,
 }: ProtocolFormProps) {
   const isAnonymousPatient = Boolean(patient?.is_anonymous)
-  const paidAmount = Number.parseFloat(patientPaid) || 0
+  const enEfectivo = Number.parseFloat(pagoEfectivo) || 0
+  const porTransferencia = Number.parseFloat(pagoTransferencia) || 0
+  const paidAmount = enEfectivo + porTransferencia
   const remaining = Math.max(0, totals.patientOwes - paidAmount)
+  // Una transferencia sin cuenta no se puede cruzar contra ningún extracto.
+  // El backend la rechaza; acá se avisa antes de perder la carga entera.
+  const faltaCuenta = porTransferencia > 0 && !cuentaDeCobroId
 
   const addUnplanned = () =>
     onUnplannedTransactionsChange([...unplannedTransactions, { kind: "charge", description: "", amount: "" }])
@@ -290,12 +298,11 @@ export function ProtocolForm({
   const removeUnplanned = (index: number) =>
     onUnplannedTransactionsChange(unplannedTransactions.filter((_, i) => i !== index))
 
-  const handlePatientPaidChange = (value: string) => {
-    onPatientPaidChange(value)
-  }
-
+  // "Total" completa el efectivo con lo que falta para cubrir la cuenta. Es lo
+  // que pasa en el mostrador: el resto se paga en mano.
   const handleFillTotal = () => {
-    onPatientPaidChange(totals.patientOwes.toFixed(2))
+    const falta = Math.max(0, totals.patientOwes - porTransferencia)
+    onPagoEfectivoChange(falta.toFixed(2))
   }
 
   return (
@@ -685,21 +692,27 @@ export function ProtocolForm({
                   <span className="text-lg font-bold text-orange-600">${totals.patientOwes.toFixed(2)}</span>
                 </div>
 
-                {/* Payment input */}
-                <div className="flex flex-col sm:flex-row gap-3 items-end">
-                  <div className="flex-grow">
-                    <Label htmlFor="patientPaid" className="text-sm text-gray-600 mb-1 block">
-                      Monto pagado por el paciente
+                {/* CUÁNTO Y POR DÓNDE, JUNTOS.
+                    Un campo por forma y no uno solo con un selector al lado: el
+                    paciente que deja una parte en efectivo y transfiere el
+                    resto es un caso de todos los días, y con un campo había que
+                    elegir UNA forma para el total — la parte transferida
+                    después no se podía cruzar contra el extracto de nadie. */}
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <Label htmlFor="pagoEfectivo" className="text-sm text-gray-600 mb-1 flex items-center gap-1.5">
+                      <Banknote className="h-3.5 w-3.5 text-emerald-600" />
+                      Efectivo
                     </Label>
                     <div className="flex gap-2">
                       <Input
-                        id="patientPaid"
+                        id="pagoEfectivo"
                         type="number"
                         step="0.01"
                         min="0"
                         placeholder="0.00"
-                        value={patientPaid}
-                        onChange={(e) => handlePatientPaidChange(e.target.value)}
+                        value={pagoEfectivo}
+                        onChange={(e) => onPagoEfectivoChange(e.target.value)}
                         className="h-10"
                       />
                       <Button
@@ -708,29 +721,62 @@ export function ProtocolForm({
                         size="sm"
                         onClick={handleFillTotal}
                         className="h-10 px-3 whitespace-nowrap bg-transparent"
-                        title="Completar monto total"
+                        title="Completar en efectivo lo que falta"
                       >
                         Total
                       </Button>
                     </div>
                   </div>
-                  <div className="text-right sm:min-w-[120px]">
+
+                  <div>
+                    <Label htmlFor="pagoTransferencia" className="text-sm text-gray-600 mb-1 flex items-center gap-1.5">
+                      <Landmark className="h-3.5 w-3.5 text-sky-600" />
+                      Transferencia
+                    </Label>
+                    <Input
+                      id="pagoTransferencia"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      placeholder="0.00"
+                      value={pagoTransferencia}
+                      onChange={(e) => onPagoTransferenciaChange(e.target.value)}
+                      className="h-10"
+                    />
+
+                    {/* La cuenta aparece recién cuando hay algo transferido:
+                        antes es una pregunta sobre plata que no entró. */}
+                    {porTransferencia > 0 && (
+                      <div className="mt-2 space-y-1">
+                        <Label htmlFor="cuentaDelPago" className="text-xs text-gray-600">
+                          ¿A qué cuenta? *
+                        </Label>
+                        <SelectorDeCuenta
+                          id="cuentaDelPago"
+                          cuentaId={cuentaDeCobroId}
+                          onCuentaChange={onCuentaDeCobroChange}
+                        />
+                        {faltaCuenta && (
+                          <p className="text-xs text-red-600">
+                            Sin la cuenta, esta transferencia no se puede conciliar.
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t pt-3">
+                  <div>
+                    <span className="text-xs text-gray-500 block">Pagado</span>
+                    <span className="text-lg font-bold text-gray-800">${paidAmount.toFixed(2)}</span>
+                  </div>
+                  <div className="text-right">
                     <span className="text-xs text-gray-500 block">Restante</span>
                     <span className={`text-lg font-bold ${remaining > 0 ? "text-red-600" : "text-green-600"}`}>
                       ${remaining.toFixed(2)}
                     </span>
                   </div>
-                </div>
-
-                {/* Al final del bloque de pago: primero cuánto, después cómo.
-                    Es el orden en que pasa en el mostrador. */}
-                <div className="mt-3">
-                  <FormaDePago
-                    formaDePago={formaDePago}
-                    cuentaId={cuentaDeCobroId}
-                    onFormaChange={onFormaDePagoChange}
-                    onCuentaChange={onCuentaDeCobroChange}
-                  />
                 </div>
               </div>
             </div>

@@ -22,6 +22,7 @@ import {
   AlertDialogTitle,
 } from "../../ui/alert-dialog"
 import type {
+  PagoDelProtocolo,
   ProtocolListItem,
   ProtocolDetail as ProtocolDetailType,
   SendMethod,
@@ -131,11 +132,9 @@ interface ProtocolDetailResponse {
   details: ProtocolDetailType[]
   history?: HistoryEntry[]
   total_changes?: number
-  /** "efectivo" | "transferencia" | "" (no registrada). */
-  payment_method?: string
-  /** Nombre y alias juntos: el alias se dicta al paciente, el nombre se busca
-   *  al conciliar la caja contra el extracto. */
-  payment_account?: { id: number; nombre: string; alias: string } | null
+  /** Cada cobro con su forma. Un protocolo puede tener más de una: el paciente
+   *  deja una parte en efectivo y transfiere el resto. */
+  pagos?: PagoDelProtocolo[]
 }
 
 type ReportProtocolDetail = ProtocolDetailType
@@ -590,12 +589,24 @@ export function ProtocolCard({
     setPaymentDialogOpen(true)
   }
 
-  const handleRegularizeBalance = async (amount: number, operation: "patient_paid" | "refunded_to_patient"): Promise<boolean> => {
+  const handleRegularizeBalance = async (
+    amount: number,
+    operation: "patient_paid" | "refunded_to_patient",
+    forma: string,
+    cuentaId: string,
+  ): Promise<boolean> => {
     setIsProcessingPayment(true)
     try {
       const response = await apiRequest(PROTOCOL_ENDPOINTS.REGULARIZE_BALANCE(protocol.id), {
         method: "POST",
-        body: { operation, amount: amount.toFixed(2) },
+        body: {
+          operation,
+          amount: amount.toFixed(2),
+          // El saldo que se paga después suele entrar por otra vía que el
+          // cobro del mostrador, y esa transferencia hay que poder cruzarla.
+          payment_method: forma,
+          payment_account: forma === "transferencia" && cuentaId ? Number(cuentaId) : null,
+        },
       })
 
       if (response.ok) {
@@ -906,10 +917,19 @@ export function ProtocolCard({
   // al día solo la lista dejaría los totales de la pantalla mintiendo hasta
   // que alguien recargue.
   const [agregarAnalisisAbierto, setAgregarAnalisisAbierto] = useState(false)
-  const [formaDePagoAbierta, setFormaDePagoAbierta] = useState(false)
+  // Cuál pago se está corrigiendo. `null` = el diálogo está cerrado.
+  const [pagoACorregir, setPagoACorregir] = useState<PagoDelProtocolo | null>(null)
   const [quitandoDetalle, setQuitandoDetalle] = useState<number | null>(null)
 
+  /**
+   * Corregir la forma de UN pago.
+   *
+   * Antes era un PATCH al protocolo porque la forma vivía ahí. Ahora vive en
+   * cada pago, y por eso hay que decir cuál: corregir el efectivo no puede
+   * tocar la transferencia que entró el mismo día.
+   */
   const handleGuardarFormaDePago = async (forma: string, cuentaId: string) => {
+    if (!pagoACorregir) return false
     try {
       const body: Record<string, unknown> = { payment_method: forma }
       // Efectivo y sin forma van sin cuenta: el backend rechaza un efectivo
@@ -917,16 +937,17 @@ export function ProtocolCard({
       // pantalla.
       body.payment_account = forma === "transferencia" && cuentaId ? Number(cuentaId) : null
 
-      const response = await apiRequest(PROTOCOL_ENDPOINTS.PROTOCOL_DETAIL(protocol.id), {
-        method: "PATCH",
-        body,
-      })
+      const response = await apiRequest(
+        PROTOCOL_ENDPOINTS.PROTOCOL_PAGO(protocol.id, pagoACorregir.id),
+        { method: "PATCH", body },
+      )
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}))
         throw new Error(extractErrorMessage(errorData, "No se pudo guardar la forma de pago"))
       }
       await refreshProtocolDetail()
       onUpdate?.()
+      setPagoACorregir(null)
       toast.success("Forma de pago guardada", { duration: TOAST_DURATION })
       return true
     } catch (error) {
@@ -1488,11 +1509,8 @@ export function ProtocolCard({
                   onSetOrder={handleOpenOrderStatusDialog}
                   onApplyPreauthorization={handleOpenPreauthDialog}
                   onSetCoseguro={handleOpenCoseguroDialog}
-                  formaDePago={protocolDetail?.payment_method || ""}
-                  cuentaDeCobro={protocolDetail?.payment_account ?? null}
-                  onCambiarFormaDePago={
-                    isEditable ? () => setFormaDePagoAbierta(true) : undefined
-                  }
+                  pagos={protocolDetail?.pagos ?? []}
+                  onCorregirPago={isEditable ? setPagoACorregir : undefined}
                 />
                 <ProtocolActions
                   protocolId={protocol.id}
@@ -1556,11 +1574,13 @@ export function ProtocolCard({
       />
 
       <FormaDePagoDialog
-        open={formaDePagoAbierta}
-        onOpenChange={setFormaDePagoAbierta}
-        formaDePago={protocolDetail?.payment_method || ""}
+        open={pagoACorregir !== null}
+        onOpenChange={(abierto) => {
+          if (!abierto) setPagoACorregir(null)
+        }}
+        formaDePago={pagoACorregir?.payment_method || ""}
         cuentaDeCobroId={
-          protocolDetail?.payment_account ? String(protocolDetail.payment_account.id) : ""
+          pagoACorregir?.payment_account ? String(pagoACorregir.payment_account) : ""
         }
         onGuardar={handleGuardarFormaDePago}
       />

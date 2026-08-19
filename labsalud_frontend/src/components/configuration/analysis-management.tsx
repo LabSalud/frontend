@@ -64,6 +64,7 @@ export function AnalysisManagement() {
     material_descartable_amount: "",
     derivacion_amount: "",
     particular_minimum_amount: "",
+    redondeo_maximo: "",
   })
   const [loadingPricing, setLoadingPricing] = useState(false)
   const [savingPricing, setSavingPricing] = useState(false)
@@ -83,6 +84,7 @@ export function AnalysisManagement() {
         material_descartable_amount: data.material_descartable_amount || "0.00",
         derivacion_amount: data.derivacion_amount || "0.00",
         particular_minimum_amount: data.particular_minimum_amount || "0.00",
+        redondeo_maximo: data.redondeo_maximo || "0.00",
       })
     } catch (err) {
       toastActions.error("Error", { description: getErrorMessage(err, "No se pudieron cargar los montos extra.") })
@@ -249,6 +251,7 @@ export function AnalysisManagement() {
           material_descartable_amount: pricingForm.material_descartable_amount || "0.00",
           derivacion_amount: pricingForm.derivacion_amount || "0.00",
           particular_minimum_amount: pricingForm.particular_minimum_amount || "0.00",
+          redondeo_maximo: pricingForm.redondeo_maximo || "0.00",
         },
       })
       if (!response.ok) {
@@ -261,6 +264,7 @@ export function AnalysisManagement() {
         material_descartable_amount: data.material_descartable_amount || "0.00",
         derivacion_amount: data.derivacion_amount || "0.00",
         particular_minimum_amount: data.particular_minimum_amount || "0.00",
+        redondeo_maximo: data.redondeo_maximo || "0.00",
       })
       toastActions.success("Éxito", { description: "Montos extra actualizados correctamente." })
     } catch (err) {
@@ -418,6 +422,26 @@ export function AnalysisManagement() {
               />
               <p className="text-xs text-gray-500">
                 Piso del total que paga un paciente particular. En 0 no se aplica.
+              </p>
+            </div>
+            <div className="space-y-1.5">
+              <label htmlFor="analysis-redondeo" className="text-sm font-medium text-gray-700">
+                Tope de redondeo
+              </label>
+              <Input
+                id="analysis-redondeo"
+                type="number"
+                min="0"
+                step="0.01"
+                value={pricingForm.redondeo_maximo}
+                onChange={(event) =>
+                  setPricingForm((prev) => ({ ...prev, redondeo_maximo: event.target.value }))
+                }
+              />
+              <p className="text-xs text-gray-500">
+                Si el paciente paga de más hasta este monto, se toma como redondeo
+                y el saldo queda en cero. Pasado el tope se avisa que hay que
+                devolver. En 0 no se redondea nunca.
               </p>
             </div>
             <div className="flex items-end">

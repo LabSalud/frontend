@@ -890,6 +890,11 @@ export interface PricingConfig {
   derivacion_amount: string
   /** Piso del total que paga un paciente particular. "0.00" = sin mínimo. */
   particular_minimum_amount: string
+  /**
+   * Hasta cuánto de más se toma como redondeo en vez de como deuda del
+   * laboratorio. "0.00" = no se redondea nunca.
+   */
+  redondeo_maximo: string
 }
 
 // Respuesta de POST /protocols/protocols/quote/ — preview de precios que reusa

@@ -34,6 +34,7 @@ import type { SortState } from "@/components/common/data-table"
 import { useApi } from "../../hooks/use-api"
 import { useApiQuery } from "@/hooks/use-api-query"
 import { useApiInfiniteQuery, flattenPages } from "@/hooks/use-api-infinite-query"
+import { guardarOrdenDeLaLista } from "@/hooks/use-protocol-list-nav"
 import { useInfiniteScroll } from "../../hooks/use-infinite-scroll"
 import { useDebounce } from "../../hooks/use-debounce"
 import { useNavigate } from "react-router-dom"
@@ -243,6 +244,18 @@ export default function ProtocolosPage() {
   })
 
   const allProtocols = flattenPages<ProtocolListItem>(protocolsQuery.data?.pages)
+
+  // EL ORDEN QUE SE ESTÁ VIENDO, GUARDADO PARA EL DETALLE
+  // La píldora del detalle salta al protocolo de la fila de arriba o la de
+  // abajo, y esa fila la definen la búsqueda y el orden de la tabla, que viven
+  // acá y no sobreviven a la navegación. Por eso se anota desde esta pantalla.
+  const idsALaVista = allProtocols.map((p) => p.id).join(",")
+  const paginaSiguiente =
+    protocolsQuery.data?.pages?.[protocolsQuery.data.pages.length - 1]?.next ?? null
+  useEffect(() => {
+    if (!idsALaVista) return
+    guardarOrdenDeLaLista(idsALaVista.split(",").map(Number), paginaSiguiente)
+  }, [idsALaVista, paginaSiguiente])
   const isInitialLoading = protocolsQuery.isLoading
   // Fetching pero ya con datos previos en pantalla (búsqueda/filtro cambiando
   // o refetch en background): spinner sutil sin vaciar la tabla.

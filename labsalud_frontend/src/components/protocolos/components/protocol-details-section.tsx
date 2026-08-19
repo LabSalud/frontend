@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-import { Link } from "react-router-dom"
 import { User, Building, CreditCard, Send, DollarSign, Printer, History, ClipboardCheck, BedDouble, BookOpen, ShieldCheck, Wallet } from "lucide-react"
 import { Badge } from "../../ui/badge"
 import { Button } from "../../ui/button"
@@ -52,8 +51,6 @@ interface ProtocolDetailsSectionProps {
   unplannedChargesTotal?: string
   unplannedPaymentsTotal?: string
   onOpenUnplanned?: () => void
-  /** Id del protocolo, para el enlace al libro diario. */
-  protocolId?: number
   onOpenHistoryDialog: () => void
   onSetOrder?: () => void
   onApplyPreauthorization?: () => void
@@ -91,7 +88,6 @@ export function ProtocolDetailsSection({
   unplannedChargesTotal,
   unplannedPaymentsTotal,
   onOpenUnplanned,
-  protocolId,
   onOpenHistoryDialog,
   onSetOrder,
   onApplyPreauthorization,
@@ -470,32 +466,6 @@ export function ProtocolDetailsSection({
           <Badge className={`${paymentStatusInfo.bgColor} ${paymentStatusInfo.color}`}>{paymentStatusInfo.label}</Badge>
         </div>
 
-        {/* AL LIBRO, FILTRADO POR ESTE PROTOCOLO.
-            Va acá, pegado a los montos, porque es la parte que uno mira cuando
-            algo del cobro no cierra — y es adonde lleva.
-
-            NO se esconde por permiso: un botón que no está no se puede
-            preguntar por qué no está. Si a quien lo aprieta le falta
-            `administrar_libro_diario`, la ruta se lo dice; el panel de
-            corrección y el backend lo piden igual. */}
-        {protocolId ? (
-          <div className="flex flex-wrap items-center gap-3 text-sm">
-            <BookOpen className="h-4 w-4 flex-shrink-0 text-[#204983]" />
-            <span className="w-28 flex-shrink-0 text-gray-600">Facturación:</span>
-            <Link
-              to={`/libro-diario?protocolo=${protocolId}`}
-              onClick={(e) => e.stopPropagation()}
-              data-no-expand
-              className="inline-flex items-center gap-1 rounded border border-[#204983] px-2 py-1 text-xs font-medium text-[#204983] transition hover:bg-[#204983] hover:text-white"
-            >
-              <BookOpen className="h-3 w-3" />
-              Ver en libro diario
-            </Link>
-            <span className="text-xs text-gray-400">
-              cobros, formas de pago y corrección
-            </span>
-          </div>
-        ) : null}
 
         {insuranceUbValue && (
           <div className="flex items-center gap-3 text-sm">

@@ -1,7 +1,9 @@
 "use client"
 
 import type { ReactNode } from "react"
+import { Link } from "react-router-dom"
 import {
+  BookOpen,
   TestTube,
   CheckCircle,
   DollarSign,
@@ -509,6 +511,27 @@ export function ProtocolDetailView(props: ProtocolDetailViewProps) {
             <Button size="sm" variant="outline" className="h-8 text-xs" onClick={onArca}>
               <Receipt className="mr-1 h-3.5 w-3.5" />
               Facturar a ARCA
+            </Button>
+
+            {/* AL LIBRO, FILTRADO POR ESTE PROTOCOLO.
+                Va con las otras acciones de plata porque es una más: desde ahí
+                se corrigen los cargos, los montos cobrados y la forma de pago
+                de un cobro que se cargó mal.
+
+                No se esconde por permiso. Si a quien lo aprieta le falta
+                `administrar_libro_diario`, se lo dice la ruta; el panel de
+                corrección lo chequea y el backend lo exige. Un botón que no
+                está no se puede preguntar por qué no está. */}
+            <Button
+              asChild
+              size="sm"
+              variant="outline"
+              className="h-8 border-[#204983] text-xs text-[#204983] hover:bg-[#204983] hover:text-white"
+            >
+              <Link to={`/libro-diario?protocolo=${detail.id}`} data-no-expand>
+                <BookOpen className="mr-1 h-3.5 w-3.5" />
+                Ver en libro diario
+              </Link>
             </Button>
           </div>
         </SidebarCard>

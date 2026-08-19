@@ -282,9 +282,7 @@ export function CorreccionDelCobro({ protocolId, onCambio }: Props) {
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="cargo-coseguro" className="text-xs">
-              Coseguro {cobraCoseguro ? "" : "(no aplica)"}
-            </Label>
+            <Label htmlFor="cargo-coseguro" className="text-xs">Coseguro</Label>
             <Input
               id="cargo-coseguro"
               inputMode="decimal"
@@ -293,6 +291,15 @@ export function CorreccionDelCobro({ protocolId, onCambio }: Props) {
               onChange={(e) => setCargos((p) => ({ ...p, coseguro: e.target.value }))}
               className="bg-white tabular-nums"
             />
+            {/* Un campo gris sin explicación se lee como que la pantalla está
+                rota. La regla es del backend: `set-coseguro` rebota si la obra
+                social no lo cobra. */}
+            {!cobraCoseguro && (
+              <p className="text-[11px] text-gray-400">
+                {protocolo.insurance?.name || "Esta obra social"} no cobra
+                coseguro. Se habilita desde Configuración → Obras sociales.
+              </p>
+            )}
           </div>
         </div>
 

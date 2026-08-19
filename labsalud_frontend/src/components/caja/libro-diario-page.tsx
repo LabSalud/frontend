@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useSearchParams } from "react-router-dom"
 
 import { Banknote, BookOpen, ChevronDown, Landmark, Plus, Trash2 } from "lucide-react"
@@ -233,13 +233,33 @@ export default function LibroDiarioPage() {
   // detalle completo abajo, y una tabla con una celda que ocupa todo el ancho
   // y cambia de alto es una tabla peleando contra lo que se le pide.
   const [abierta, setAbierta] = useState<string | null>(null)
+  const [senalada, setSenalada] = useState<string | null>(null)
 
   // La fila señalada se abre sola: el clic de más es justo el que nadie
   // entiende que hay que dar cuando ya vino de un botón que decía a dónde iba.
-  const idSenalado = protocoloSenalado ? `protocolo-${protocoloSenalado}` : null
-  const desplegada = abierta ?? idSenalado
+  useEffect(() => {
+    if (!protocoloSenalado) return
+    const id = `protocolo-${protocoloSenalado}`
+    setAbierta(id)
+    setSenalada(id)
+  }, [protocoloSenalado])
 
-  const alternar = (id: string) => setAbierta((a) => (a === id ? null : id))
+  /**
+   * Abrir o cerrar una fila, y soltar el resaltado.
+   *
+   * El resaltado sirve para encontrar la fila al llegar desde el protocolo.
+   * Una vez que alguien tocó una —la cerró o abrió otra— ya la encontró, y
+   * dejarlo prendido convierte una ayuda momentánea en una marca que no se
+   * apaga y que después confunde con la fila que sí se está mirando.
+   *
+   * Se saca también el `?protocolo=` de la URL para que recargar no lo traiga
+   * de vuelta. `replace` para no llenar el historial con estados intermedios.
+   */
+  const alternar = (id: string) => {
+    setAbierta((a) => (a === id ? null : id))
+    setSenalada(null)
+    if (protocoloSenalado) setSearchParams({}, { replace: true })
+  }
 
   return (
     <div className="mx-auto w-full max-w-full px-4 py-4">
@@ -319,7 +339,7 @@ export default function LibroDiarioPage() {
           </div>
         </div>
 
-        {protocoloSenalado ? (
+        {senalada ? (
           <div className="mt-4 space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[#204983]/30 bg-[#204983]/5 px-3 py-2 text-sm">
               <span className="text-[#204983]">
@@ -367,13 +387,13 @@ export default function LibroDiarioPage() {
                 const debePaciente = Number.parseFloat(fila.debe_el_paciente || "0")
                 const debeLab = Number.parseFloat(fila.debe_el_laboratorio || "0")
                 const esProtocolo = Boolean(fila.protocolo)
-                const estaAbierta = desplegada === fila.id
+                const estaAbierta = abierta === fila.id
 
                 return (
                   <div
                     key={fila.id}
                     className={`rounded-lg border transition ${
-                      fila.id === idSenalado
+                      fila.id === senalada
                         ? "border-[#204983] bg-[#204983]/5 ring-2 ring-[#204983]/30"
                         : estaAbierta
                           ? "border-[#204983] bg-[#204983]/5"

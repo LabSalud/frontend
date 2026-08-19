@@ -513,10 +513,16 @@ export default function LibroDiarioPage() {
               </Button>
             </div>
 
-            <CorreccionDelCobro
-              protocolId={protocoloFiltrado}
-              onCambio={() => consulta.refetch()}
-            />
+            {/* El gate de la ruta ya exige el permiso para abrir el libro,
+                pero se repite acá: un panel que edita cargos no puede depender
+                de que nadie afloje esa ruta más adelante. El backend lo pide
+                también. */}
+            {puedeCorregir ? (
+              <CorreccionDelCobro
+                protocolId={protocoloFiltrado}
+                onCambio={() => consulta.refetch()}
+              />
+            ) : null}
           </div>
         ) : null}
 

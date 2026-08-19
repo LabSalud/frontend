@@ -54,6 +54,8 @@ interface ProtocolDetailsSectionProps {
   onOpenUnplanned?: () => void
   /** Id del protocolo, para el enlace al libro diario. */
   protocolId?: number
+  /** Sin `administrar_libro_diario` el enlace lleva a un rebote: no se muestra. */
+  puedeVerLibroDiario?: boolean
   onOpenHistoryDialog: () => void
   onSetOrder?: () => void
   onApplyPreauthorization?: () => void
@@ -92,6 +94,7 @@ export function ProtocolDetailsSection({
   unplannedPaymentsTotal,
   onOpenUnplanned,
   protocolId,
+  puedeVerLibroDiario = false,
   onOpenHistoryDialog,
   onSetOrder,
   onApplyPreauthorization,
@@ -472,7 +475,7 @@ export function ProtocolDetailsSection({
           {/* Al libro, filtrado por este protocolo. Es donde se corrige lo que
               se cobró mal: acá se ve el estado, allá los movimientos que lo
               explican y los campos para arreglarlos. */}
-          {protocolId ? (
+          {protocolId && puedeVerLibroDiario ? (
             <Link
               to={`/libro-diario?protocolo=${protocolId}`}
               onClick={(e) => e.stopPropagation()}

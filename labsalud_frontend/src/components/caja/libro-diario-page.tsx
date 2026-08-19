@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { useSearchParams } from "react-router-dom"
 
 import { Banknote, BookOpen, Landmark, Pencil, Plus, Trash2 } from "lucide-react"
 
@@ -14,6 +15,7 @@ import { useToast } from "@/hooks/use-toast"
 import { PERMISSIONS } from "@/config/permissions"
 import { formatApiError } from "@/lib/api-error"
 import { FormaDePagoDialog } from "@/components/protocolos/components/dialogs/forma-de-pago-dialog"
+import { CorreccionDelCobro } from "./correccion-del-cobro"
 import { MovimientoDeCajaDialog } from "./movimiento-de-caja-dialog"
 
 /**
@@ -118,6 +120,13 @@ export default function LibroDiarioPage() {
   const { hasPermission } = useAuth()
   const { apiRequest } = useApi()
   const toastActions = useToast()
+  // `?protocolo=` llega desde "Ver en libro diario" del detalle. Con él, el
+  // libro deja de mirar un rango de fechas y muestra ese protocolo entero: el
+  // cobro que se quiere corregir puede ser de hace meses.
+  const [searchParams, setSearchParams] = useSearchParams()
+  const protocoloCrudo = searchParams.get("protocolo")
+  const protocoloFiltrado = protocoloCrudo ? Number(protocoloCrudo) : null
+
   const [desde, setDesde] = useState(haceDias(7))
   const [hasta, setHasta] = useState(hoyISO())
   const [agregando, setAgregando] = useState(false)
@@ -137,8 +146,10 @@ export default function LibroDiarioPage() {
   const puedeCargarMovimientos = hasPermission(PERMISSIONS.MANAGE_BILLING.codename)
 
   const consulta = useApiQuery<Respuesta>({
-    queryKey: ["analytics", "libro-diario", desde, hasta],
-    url: `${ANALYTICS_ENDPOINTS.LIBRO_DIARIO}?desde=${desde}&hasta=${hasta}`,
+    queryKey: ["analytics", "libro-diario", desde, hasta, protocoloFiltrado],
+    url: protocoloFiltrado
+      ? `${ANALYTICS_ENDPOINTS.LIBRO_DIARIO}?protocolo=${protocoloFiltrado}`
+      : `${ANALYTICS_ENDPOINTS.LIBRO_DIARIO}?desde=${desde}&hasta=${hasta}`,
     staleTime: 30 * 1000,
   })
 
@@ -419,9 +430,11 @@ export default function LibroDiarioPage() {
               Libro diario
             </h1>
             <p className="text-sm text-gray-500">
-              {movimientos.length > 0
-                ? `${movimientos.length} movimientos`
-                : "Cada movimiento de plata, en orden"}
+              {protocoloFiltrado
+                ? `Solo el protocolo #${protocoloFiltrado}`
+                : movimientos.length > 0
+                  ? `${movimientos.length} movimientos`
+                  : "Cada movimiento de plata, en orden"}
             </p>
           </div>
 
@@ -482,6 +495,30 @@ export default function LibroDiarioPage() {
             ) : null}
           </div>
         </div>
+
+        {protocoloFiltrado ? (
+          <div className="mt-4 space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[#204983]/30 bg-[#204983]/5 px-3 py-2 text-sm">
+              <span className="text-[#204983]">
+                Mostrando los movimientos del <strong>protocolo #{protocoloFiltrado}</strong>,
+                sin filtrar por fecha.
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                className="border-[#204983] text-[#204983] hover:bg-[#204983] hover:text-white"
+                onClick={() => setSearchParams({})}
+              >
+                Ver todo el libro
+              </Button>
+            </div>
+
+            <CorreccionDelCobro
+              protocolId={protocoloFiltrado}
+              onCambio={() => consulta.refetch()}
+            />
+          </div>
+        ) : null}
 
         {!consulta.isLoading && movimientos.length > 0 ? (
           <div className="mt-4 grid gap-3 sm:grid-cols-3">

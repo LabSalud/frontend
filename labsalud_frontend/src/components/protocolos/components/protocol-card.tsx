@@ -1474,6 +1474,7 @@ export function ProtocolCard({
             ) : (
               <>
                 <ProtocolDetailsSection
+                  protocolId={protocol.id}
                   patientName={getPatientName()}
                   doctorName={getDoctorName()}
                   insuranceName={getInsuranceName()}

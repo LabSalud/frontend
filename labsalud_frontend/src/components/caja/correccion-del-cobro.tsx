@@ -1,0 +1,401 @@
+"use client"
+
+import { useCallback, useEffect, useState } from "react"
+import { Link } from "react-router-dom"
+import { ExternalLink, Loader2, Receipt, Save, Wallet } from "lucide-react"
+
+import { SelectorDeCuenta } from "@/components/common/forma-de-pago"
+import { UnplannedTransactionsDialog } from "@/components/protocolos/components/dialogs/unplanned-transactions-dialog"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { PROTOCOL_ENDPOINTS } from "@/config/api"
+import { useApi } from "@/hooks/use-api"
+import { useToast } from "@/hooks/use-toast"
+import { formatApiError, getErrorMessage } from "@/lib/api-error"
+import type { Protocol } from "@/types"
+
+/**
+ * Corregir todo lo que se cobró de un protocolo, sin salir del libro.
+ *
+ * POR QUÉ ACÁ Y NO EN EL DETALLE
+ * ==============================
+ * El error se descubre en el libro: cuadrando la caja contra el extracto,
+ * alguien ve que un cobro no cierra. Mandarlo al detalle del protocolo a
+ * buscar cuatro diálogos distintos —coseguro por un lado, no contemplados por
+ * otro, los montos extra en ninguno— es hacerle reconstruir a mano lo que ya
+ * tiene delante.
+ *
+ * LOS CARGOS Y LOS COBROS SON DOS COSAS
+ * =====================================
+ * Arriba, lo que el paciente DEBE: análisis, material, derivación, coseguro y
+ * los no contemplados. Abajo, lo que PAGÓ y por dónde entró. Se editan por
+ * separado porque son preguntas distintas —cuánto había que cobrar y cuánto
+ * entró— y mezclarlas es como se llega a "corrijo el total bajando el pago".
+ *
+ * LOS ANÁLISIS NO SE EDITAN A MANO
+ * ================================
+ * Su precio sale del nomenclador (UB × valor). Escribir un importe encima
+ * rompe ese vínculo y después no hay forma de saber por qué ese protocolo
+ * cobró distinto. Se corrigen agregando, quitando o cambiando la autorización,
+ * desde el detalle — que es donde está la lista.
+ */
+
+type Props = {
+  protocolId: number
+  /** Para refrescar el libro cuando la corrección movió plata. */
+  onCambio: () => void
+}
+
+const plata = (valor: string | number | undefined) =>
+  new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS" })
+    .format(Number.parseFloat(String(valor ?? "0")) || 0)
+
+export function CorreccionDelCobro({ protocolId, onCambio }: Props) {
+  const { apiRequest } = useApi()
+  const toastActions = useToast()
+
+  const [protocolo, setProtocolo] = useState<Protocol | null>(null)
+  const [cargando, setCargando] = useState(true)
+  const [guardandoCargos, setGuardandoCargos] = useState(false)
+  const [guardandoCobro, setGuardandoCobro] = useState(false)
+  const [noContempladosAbierto, setNoContempladosAbierto] = useState(false)
+
+  const [cargos, setCargos] = useState({ material: "", derivacion: "", coseguro: "" })
+  const [cobro, setCobro] = useState({ efectivo: "", transferencia: "", cuentaId: "" })
+
+  const traer = useCallback(async () => {
+    setCargando(true)
+    try {
+      const respuesta = await apiRequest(PROTOCOL_ENDPOINTS.PROTOCOL_DETAIL(protocolId))
+      if (!respuesta.ok) throw new Error("No se pudo traer el protocolo.")
+      const datos: Protocol = await respuesta.json()
+      setProtocolo(datos)
+      setCargos({
+        material: datos.material_descartable_amount ?? "0.00",
+        derivacion: datos.derivacion_amount ?? "0.00",
+        coseguro: datos.coseguro_amount ?? "0.00",
+      })
+    } catch (err) {
+      toastActions.error("No se pudo cargar el protocolo", {
+        description: getErrorMessage(err, "Probá de nuevo."),
+      })
+    } finally {
+      setCargando(false)
+    }
+  }, [apiRequest, protocolId, toastActions])
+
+  useEffect(() => {
+    void traer()
+  }, [traer])
+
+  const refrescar = async () => {
+    await traer()
+    onCambio()
+  }
+
+  const guardarCargos = async () => {
+    setGuardandoCargos(true)
+    try {
+      // Dos endpoints porque son dos conceptos con reglas distintas: el
+      // coseguro lo informa la obra social y solo aplica si lo cobra; los
+      // montos extra son snapshots de la configuración global.
+      const extras = await apiRequest(PROTOCOL_ENDPOINTS.SET_EXTRAS(protocolId), {
+        method: "POST",
+        body: {
+          material_descartable_amount: cargos.material.replace(",", ".") || "0",
+          derivacion_amount: cargos.derivacion.replace(",", ".") || "0",
+        },
+      })
+      if (!extras.ok) {
+        const datos = await extras.json().catch(() => ({}))
+        throw new Error(formatApiError(datos, "No se pudieron guardar los montos extra."))
+      }
+
+      if (protocolo?.insurance?.charges_coseguro) {
+        const coseguro = await apiRequest(PROTOCOL_ENDPOINTS.SET_COSEGURO(protocolId), {
+          method: "POST",
+          body: { amount: cargos.coseguro.replace(",", ".") || "0" },
+        })
+        if (!coseguro.ok) {
+          const datos = await coseguro.json().catch(() => ({}))
+          throw new Error(formatApiError(datos, "No se pudo guardar el coseguro."))
+        }
+      }
+
+      toastActions.success("Cargos corregidos", {
+        description: "El total y el saldo del protocolo se recalcularon.",
+      })
+      await refrescar()
+    } catch (err) {
+      toastActions.error("No se pudieron guardar los cargos", {
+        description: getErrorMessage(err, "Revisá los montos."),
+      })
+    } finally {
+      setGuardandoCargos(false)
+    }
+  }
+
+  const enEfectivo = Number.parseFloat(cobro.efectivo.replace(",", ".")) || 0
+  const porTransferencia = Number.parseFloat(cobro.transferencia.replace(",", ".")) || 0
+  const faltaCuenta = porTransferencia > 0 && !cobro.cuentaId
+  const puedeCobrar = (enEfectivo > 0 || porTransferencia > 0) && !faltaCuenta && !guardandoCobro
+
+  const registrarCobro = async () => {
+    if (!puedeCobrar) return
+    setGuardandoCobro(true)
+    try {
+      // Un pago por forma, igual que en el ingreso: son dos movimientos y cada
+      // uno se concilia por su lado.
+      const aCrear = [
+        ...(enEfectivo > 0
+          ? [{ amount: enEfectivo.toFixed(2), payment_method: "efectivo" }]
+          : []),
+        ...(porTransferencia > 0
+          ? [{
+              amount: porTransferencia.toFixed(2),
+              payment_method: "transferencia",
+              payment_account: Number(cobro.cuentaId),
+            }]
+          : []),
+      ]
+
+      for (const pago of aCrear) {
+        const respuesta = await apiRequest(PROTOCOL_ENDPOINTS.PROTOCOL_PAGOS(protocolId), {
+          method: "POST",
+          body: pago,
+        })
+        if (!respuesta.ok) {
+          const datos = await respuesta.json().catch(() => ({}))
+          throw new Error(formatApiError(datos, "No se pudo registrar el cobro."))
+        }
+      }
+
+      toastActions.success("Cobro registrado")
+      setCobro({ efectivo: "", transferencia: "", cuentaId: "" })
+      await refrescar()
+    } catch (err) {
+      toastActions.error("No se pudo registrar el cobro", {
+        description: getErrorMessage(err, "Revisá los montos."),
+      })
+    } finally {
+      setGuardandoCobro(false)
+    }
+  }
+
+  if (cargando && !protocolo) {
+    return (
+      <div className="flex justify-center rounded-lg border border-gray-200 bg-white p-6">
+        <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
+      </div>
+    )
+  }
+  if (!protocolo) return null
+
+  const cobraCoseguro = Boolean(protocolo.insurance?.charges_coseguro)
+
+  return (
+    <div className="space-y-4 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h3 className="flex items-center gap-2 text-sm font-semibold text-gray-800">
+          <Wallet className="h-4 w-4 text-[#204983]" />
+          Corregir el cobro del protocolo #{protocolId}
+        </h3>
+        <Link
+          to={`/protocolos/${protocolId}`}
+          className="inline-flex items-center gap-1 text-xs font-medium text-[#204983] hover:underline"
+        >
+          Abrir el protocolo <ExternalLink className="h-3 w-3" />
+        </Link>
+      </div>
+
+      {/* LO QUE EL PACIENTE DEBE */}
+      <div className="space-y-3 rounded-md border border-gray-200 bg-gray-50 p-3">
+        <p className="text-xs font-semibold text-gray-700">Cargos</p>
+
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-gray-600">Análisis</span>
+          <span className="tabular-nums font-medium">
+            {plata(protocolo.analyses_amount_due)}
+          </span>
+        </div>
+        <p className="-mt-2 text-[11px] text-gray-400">
+          Sale del nomenclador. Se corrige agregando, quitando o cambiando la
+          autorización, desde el protocolo.
+        </p>
+
+        <div className="grid gap-3 sm:grid-cols-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="cargo-material" className="text-xs">Material descartable</Label>
+            <Input
+              id="cargo-material"
+              inputMode="decimal"
+              value={cargos.material}
+              onChange={(e) => setCargos((p) => ({ ...p, material: e.target.value }))}
+              className="bg-white tabular-nums"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="cargo-derivacion" className="text-xs">Derivación</Label>
+            <Input
+              id="cargo-derivacion"
+              inputMode="decimal"
+              value={cargos.derivacion}
+              onChange={(e) => setCargos((p) => ({ ...p, derivacion: e.target.value }))}
+              className="bg-white tabular-nums"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="cargo-coseguro" className="text-xs">
+              Coseguro {cobraCoseguro ? "" : "(no aplica)"}
+            </Label>
+            <Input
+              id="cargo-coseguro"
+              inputMode="decimal"
+              value={cargos.coseguro}
+              disabled={!cobraCoseguro}
+              onChange={(e) => setCargos((p) => ({ ...p, coseguro: e.target.value }))}
+              className="bg-white tabular-nums"
+            />
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setNoContempladosAbierto(true)}
+            className="border-violet-600 text-violet-700 hover:bg-violet-600 hover:text-white"
+          >
+            <Receipt className="mr-1 h-3.5 w-3.5" />
+            Pagos y cobros no contemplados
+          </Button>
+          <Button
+            size="sm"
+            onClick={guardarCargos}
+            disabled={guardandoCargos}
+            className="bg-[#204983] hover:bg-[#1a3d6f]"
+          >
+            {guardandoCargos ? (
+              <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Save className="mr-1 h-3.5 w-3.5" />
+            )}
+            Guardar cargos
+          </Button>
+        </div>
+      </div>
+
+      {/* EL RESUMEN, PARA SABER CUÁNTO FALTA */}
+      <div className="grid gap-2 sm:grid-cols-3">
+        <Resumen titulo="Total a pagar" valor={plata(protocolo.amount_due)} />
+        <Resumen titulo="Pagado" valor={plata(protocolo.patient_paid)} tono="ok" />
+        <Resumen
+          titulo={
+            Number.parseFloat(protocolo.amount_to_return || "0") > 0
+              ? "A devolver"
+              : "Pendiente"
+          }
+          valor={
+            Number.parseFloat(protocolo.amount_to_return || "0") > 0
+              ? plata(protocolo.amount_to_return)
+              : plata(protocolo.amount_pending)
+          }
+          tono="alerta"
+        />
+      </div>
+
+      {/* LO QUE PAGÓ Y POR DÓNDE */}
+      <div className="space-y-3 rounded-md border border-gray-200 bg-gray-50 p-3">
+        <p className="text-xs font-semibold text-gray-700">Registrar un cobro</p>
+        <p className="-mt-2 text-[11px] text-gray-400">
+          Para corregir un cobro que ya está cargado, usá el lápiz de su fila en
+          el libro.
+        </p>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="cobro-efectivo" className="text-xs">Efectivo</Label>
+            <Input
+              id="cobro-efectivo"
+              inputMode="decimal"
+              placeholder="0,00"
+              value={cobro.efectivo}
+              onChange={(e) => setCobro((p) => ({ ...p, efectivo: e.target.value }))}
+              className="bg-white tabular-nums"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="cobro-transferencia" className="text-xs">Transferencia</Label>
+            <Input
+              id="cobro-transferencia"
+              inputMode="decimal"
+              placeholder="0,00"
+              value={cobro.transferencia}
+              onChange={(e) => setCobro((p) => ({ ...p, transferencia: e.target.value }))}
+              className="bg-white tabular-nums"
+            />
+            {porTransferencia > 0 && (
+              <div className="mt-2 space-y-1">
+                <Label htmlFor="cobro-cuenta" className="text-xs">¿A qué cuenta? *</Label>
+                <SelectorDeCuenta
+                  id="cobro-cuenta"
+                  cuentaId={cobro.cuentaId}
+                  onCuentaChange={(id) => setCobro((p) => ({ ...p, cuentaId: id }))}
+                />
+                {faltaCuenta && (
+                  <p className="text-xs text-red-600">
+                    Sin la cuenta, esta transferencia no se puede conciliar.
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="flex justify-end">
+          <Button
+            size="sm"
+            onClick={registrarCobro}
+            disabled={!puedeCobrar}
+            className="bg-emerald-600 hover:bg-emerald-700"
+          >
+            {guardandoCobro ? (
+              <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Wallet className="mr-1 h-3.5 w-3.5" />
+            )}
+            Registrar cobro
+          </Button>
+        </div>
+      </div>
+
+      <UnplannedTransactionsDialog
+        open={noContempladosAbierto}
+        onOpenChange={setNoContempladosAbierto}
+        protocolId={protocolId}
+        isEditable
+        onChanged={refrescar}
+      />
+    </div>
+  )
+}
+
+function Resumen({
+  titulo,
+  valor,
+  tono,
+}: {
+  titulo: string
+  valor: string
+  tono?: "ok" | "alerta"
+}) {
+  const color =
+    tono === "ok" ? "text-emerald-700" : tono === "alerta" ? "text-orange-700" : "text-gray-900"
+  return (
+    <div className="rounded-md border border-gray-200 bg-gray-50/60 p-3">
+      <div className="text-[11px] font-medium uppercase tracking-wide text-gray-500">{titulo}</div>
+      <div className={`mt-0.5 text-lg font-semibold tabular-nums ${color}`}>{valor}</div>
+    </div>
+  )
+}

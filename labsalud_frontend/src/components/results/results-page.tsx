@@ -89,7 +89,7 @@ export default function ResultadosPage() {
 
   return (
     <div className="mx-auto w-full max-w-full px-4 py-4">
-      <div className="rounded-2xl bg-white/95 p-4 shadow-md backdrop-blur-sm md:p-6">
+      <div className="rounded-2xl border-2 border-blue-400 bg-white/95 p-4 shadow-md backdrop-blur-sm md:p-6">
         {/* Fila superior: título (izq) · búsqueda (centro) */}
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-4">
           <div className="lg:w-56 lg:shrink-0">

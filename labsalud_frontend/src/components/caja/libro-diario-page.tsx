@@ -1,9 +1,8 @@
 import { useState } from "react"
 import { useSearchParams } from "react-router-dom"
 
-import { Banknote, BookOpen, Landmark, Pencil, Plus, Trash2 } from "lucide-react"
+import { Banknote, BookOpen, ChevronDown, Landmark, Plus, Trash2 } from "lucide-react"
 
-import { DataTable, type Column } from "@/components/common/data-table"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ANALYTICS_ENDPOINTS, PROTOCOL_ENDPOINTS } from "@/config/api"
@@ -27,66 +26,52 @@ import { MovimientoDeCajaDialog } from "./movimiento-de-caja-dialog"
  * movimiento: si tocó plata, el ledger ya lo tiene.
  */
 
-type Cambio = { concepto: string; de: string; a: string; delta: string }
+/**
+ * Una fila del libro: un PROTOCOLO con todos sus cobros, o un gasto suelto.
+ *
+ * Antes era una fila por movimiento: un protocolo cobrado en tres veces dejaba
+ * tres líneas, cada una con un pedazo y ninguna con la foto entera. Para saber
+ * si el paciente quedó debiendo había que sumarlas a mano.
+ */
+type FilaAgrupada = {
+  id: string
+  protocolo?: number
+  paciente?: string
+  estado?: string
+  /** La del último pago: es cuando se tocó por última vez. */
+  momento: string
+  total: string
+  pagado?: string
+  debe_el_paciente?: string
+  debe_el_laboratorio?: string
+  pagos?: PagoEnLibro[]
+  /** Solo en los gastos e ingresos cargados a mano. */
+  tipo_de_movimiento?: string
+  movimiento_de_caja_id?: number
+  detalle?: string
+  usuario?: string
+}
 
 /** Un pago del protocolo, tal como lo manda el libro. */
 type PagoEnLibro = {
   id: number
   tipo: "pago" | "devolucion"
   monto: string
+  momento?: string
   forma_de_pago: string
   cuenta_de_cobro_id: number | null
   cuenta_de_cobro: string
   cuenta_alias: string
 }
 
-type Movimiento = {
-  /** Del ledger es un número; de un asiento cargado a mano, `caja-<id>`. */
-  id: number | string
-  momento: string
-  protocolo: number | null
-  usuario: string
-  detalle: string
-  cambios: Cambio[]
-  total: string
-  /**
-   * "efectivo" | "transferencia" | "varias" | "" si no se registró.
-   *
-   * "varias" cuando el protocolo se cobró de más de una forma: ahí no hay una
-   * respuesta que quepa en la celda, y están todas en `pagos`.
-   */
-  forma_de_pago: string
-  cuenta_de_cobro: string
-  /** Para preseleccionar la cuenta al corregir; `null` si pagó en efectivo. */
-  cuenta_de_cobro_id?: number | null
-  cuenta_alias: string
-  /** Cada cobro con su forma. Es lo que se corrige: uno, no el protocolo. */
-  pagos?: PagoEnLibro[]
-  /** Solo en los asientos cargados a mano: "gasto" | "ingreso". */
-  tipo_de_movimiento?: string
-  movimiento_de_caja_id?: number
-}
-
 type Respuesta = {
-  movimientos: Movimiento[]
+  movimientos: FilaAgrupada[]
   hay_mas: boolean
   desde: string | null
   hasta: string | null
 }
 
-// Los nombres de campo del modelo no son los del mostrador. Nadie dice
-// "value_paid": dice "cobrado al paciente".
-const NOMBRE_DEL_CONCEPTO: Record<string, string> = {
-  value_paid: "Cobrado al paciente",
-  coseguro_amount: "Coseguro",
-  material_descartable_amount: "Material descartable",
-  derivacion_amount: "Derivación",
-  amount_to_return: "A devolver",
-  gasto: "Gasto",
-  ingreso: "Ingreso",
-}
-
-const plata = (valor: string) =>
+const plata = (valor: string | undefined) =>
   new Intl.NumberFormat("es-AR", {
     style: "currency",
     currency: "ARS",
@@ -147,9 +132,11 @@ export default function LibroDiarioPage() {
 
   const consulta = useApiQuery<Respuesta>({
     queryKey: ["analytics", "libro-diario", desde, hasta, protocoloFiltrado],
+    // Siempre agrupado: una fila por protocolo con la fecha de su último pago.
+    // El detalle de cada cobro se abre en la fila.
     url: protocoloFiltrado
-      ? `${ANALYTICS_ENDPOINTS.LIBRO_DIARIO}?protocolo=${protocoloFiltrado}`
-      : `${ANALYTICS_ENDPOINTS.LIBRO_DIARIO}?desde=${desde}&hasta=${hasta}`,
+      ? `${ANALYTICS_ENDPOINTS.LIBRO_DIARIO}?agrupado=protocolo&protocolo=${protocoloFiltrado}`
+      : `${ANALYTICS_ENDPOINTS.LIBRO_DIARIO}?agrupado=protocolo&desde=${desde}&hasta=${hasta}`,
     staleTime: 30 * 1000,
   })
 
@@ -239,182 +226,19 @@ export default function LibroDiarioPage() {
     .filter((n) => n < 0)
     .reduce((a, b) => a + b, 0)
 
-  const columnas: Column<Movimiento>[] = [
-    {
-      id: "momento",
-      header: "Fecha",
-      className: "w-28 align-top",
-      cell: (mov) => {
-        const momento = cuando(mov.momento)
-        return (
-          <div className="text-xs tabular-nums text-gray-500">
-            <div className="font-medium text-gray-700">{momento.dia}</div>
-            <div>{momento.hora}</div>
-          </div>
-        )
-      },
-    },
-    {
-      id: "origen",
-      header: "Protocolo",
-      className: "align-top",
-      cell: (mov) => (
-        <div className="text-sm">
-          {mov.protocolo ? (
-            <a
-              href={`/protocolos/${mov.protocolo}`}
-              className="font-medium text-[#204983] underline-offset-2 hover:underline"
-            >
-              Protocolo {mov.protocolo}
-            </a>
-          ) : mov.tipo_de_movimiento ? (
-            <span
-              className={`inline-flex items-center rounded border px-1.5 py-0.5 text-xs font-medium ${
-                mov.tipo_de_movimiento === "ingreso"
-                  ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-                  : "border-rose-200 bg-rose-50 text-rose-800"
-              }`}
-            >
-              {mov.tipo_de_movimiento === "ingreso" ? "Ingreso" : "Gasto"}
-            </span>
-          ) : (
-            <span className="font-medium text-gray-700">Sin protocolo</span>
-          )}
-          {mov.usuario ? (
-            <div className="text-xs text-gray-500">{mov.usuario}</div>
-          ) : null}
-        </div>
-      ),
-    },
-    {
-      id: "pago",
-      header: "Cómo pagó",
-      className: "align-top",
-      cell: (mov) => {
-        const pagos = mov.pagos ?? []
+  // UNA FILA POR PROTOCOLO, QUE SE ABRE
+  //
+  // Se dejó la tabla por una lista: la fila tiene que poder desplegar el
+  // detalle completo abajo, y una tabla con una celda que ocupa todo el ancho
+  // y cambia de alto es una tabla peleando contra lo que se le pide.
+  const [abierta, setAbierta] = useState<string | null>(null)
 
-        // Un renglón por cobro, cada uno con su lápiz. Antes era una sola
-        // línea porque el protocolo tenía UNA forma; con un pago por forma hay
-        // que poder arreglar el que está mal sin tocar el otro.
-        if (pagos.length === 0) {
-          return <span className="text-xs text-gray-400">—</span>
-        }
+  // Llegando desde "Ver en libro diario" hay una sola fila: se abre sola,
+  // porque el clic de más es justo el que nadie entiende que hay que dar.
+  const filaUnica = movimientos.length === 1 ? movimientos[0].id : null
+  const desplegada = abierta ?? (protocoloFiltrado ? filaUnica : null)
 
-        return (
-          <div className="flex flex-col gap-1">
-            {pagos.map((pago) => (
-              <div key={pago.id} className="flex items-start gap-1.5">
-                {pago.forma_de_pago === "transferencia" ? (
-                  <div className="text-xs">
-                    <span className="inline-flex items-center gap-1 rounded border border-sky-200 bg-sky-50 px-1.5 py-0.5 text-sky-800">
-                      <Landmark className="h-3 w-3" />
-                      Transferencia
-                    </span>
-                    {pago.cuenta_de_cobro ? (
-                      <div className="mt-0.5 text-gray-600">{pago.cuenta_de_cobro}</div>
-                    ) : null}
-                    {pago.cuenta_alias ? (
-                      <div className="font-mono text-[11px] text-gray-400">{pago.cuenta_alias}</div>
-                    ) : null}
-                  </div>
-                ) : pago.forma_de_pago === "efectivo" ? (
-                  <span className="inline-flex items-center gap-1 rounded border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-xs text-emerald-800">
-                    <Banknote className="h-3 w-3" />
-                    Efectivo
-                  </span>
-                ) : (
-                  <span className="text-xs text-gray-400">Sin registrar</span>
-                )}
-
-                {/* El monto solo cuando hay más de uno: con un pago único es el
-                    mismo número que ya está en la columna Total. */}
-                {pagos.length > 1 ? (
-                  <span className="text-[11px] tabular-nums text-gray-500">
-                    {pago.tipo === "devolucion" ? "−" : ""}${pago.monto}
-                  </span>
-                ) : null}
-
-                {puedeCorregir && mov.protocolo ? (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-6 w-6 shrink-0 text-gray-400 hover:text-[#204983]"
-                    aria-label={`Corregir la forma de pago de $${pago.monto} del protocolo ${mov.protocolo}`}
-                    title="Corregir la forma de pago"
-                    onClick={() =>
-                      setCorrigiendo({ protocolo: mov.protocolo as number, pago })
-                    }
-                  >
-                    <Pencil className="h-3 w-3" />
-                  </Button>
-                ) : null}
-              </div>
-            ))}
-          </div>
-        )
-      },
-    },
-    {
-      id: "detalle",
-      header: "Qué cambió",
-      responsive: "hidden md:table-cell",
-      className: "align-top",
-      cell: (mov) => (
-        <ul className="space-y-0.5">
-          {mov.cambios.map((cambio, i) => (
-            <li key={i} className="text-xs text-gray-600">
-              {NOMBRE_DEL_CONCEPTO[cambio.concepto] || cambio.concepto}:{" "}
-              <span className="tabular-nums">{plata(cambio.de)}</span>
-              {" → "}
-              <span className="font-medium tabular-nums text-gray-900">{plata(cambio.a)}</span>
-            </li>
-          ))}
-        </ul>
-      ),
-    },
-    {
-      id: "total",
-      header: "Total",
-      align: "right",
-      className: "align-top",
-      cell: (mov) => {
-        const total = Number.parseFloat(mov.total)
-        return (
-          <span
-            className={`text-sm font-semibold tabular-nums ${
-              total >= 0 ? "text-emerald-700" : "text-rose-700"
-            }`}
-          >
-            {total >= 0 ? "+" : ""}
-            {plata(mov.total)}
-          </span>
-        )
-      },
-    },
-  ]
-
-  if (puedeCargarMovimientos) {
-    // Solo los asientos cargados a mano se pueden anular: los del ledger son
-    // el registro de lo que pasó y no se tocan desde acá.
-    columnas.push({
-      id: "anular",
-      header: "",
-      align: "right",
-      className: "w-10 align-top",
-      cell: (mov) =>
-        mov.movimiento_de_caja_id ? (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7 text-gray-400 hover:text-rose-600"
-            aria-label={`Anular ${mov.detalle}`}
-            onClick={() => anular(mov.movimiento_de_caja_id as number)}
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-          </Button>
-        ) : null,
-    })
-  }
+  const alternar = (id: string) => setAbierta((a) => (a === id ? null : id))
 
   return (
     <div className="mx-auto w-full max-w-full px-4 py-4">
@@ -513,16 +337,6 @@ export default function LibroDiarioPage() {
               </Button>
             </div>
 
-            {/* El gate de la ruta ya exige el permiso para abrir el libro,
-                pero se repite acá: un panel que edita cargos no puede depender
-                de que nadie afloje esa ruta más adelante. El backend lo pide
-                también. */}
-            {puedeCorregir ? (
-              <CorreccionDelCobro
-                protocolId={protocoloFiltrado}
-                onCambio={() => consulta.refetch()}
-              />
-            ) : null}
           </div>
         ) : null}
 
@@ -539,14 +353,160 @@ export default function LibroDiarioPage() {
             No se pudo traer el libro diario. Probá de nuevo.
           </div>
         ) : (
-          <div className="mt-4">
-            <DataTable
-              columns={columnas}
-              rows={movimientos}
-              getRowId={(mov) => mov.id}
-              isLoading={consulta.isLoading}
-              emptyMessage="No hubo movimientos de plata en estas fechas. Probá con un rango más amplio."
-            />
+          <div className="mt-4 space-y-2">
+            {consulta.isLoading && movimientos.length === 0 ? (
+              <p className="py-6 text-center text-sm text-gray-400">Cargando…</p>
+            ) : movimientos.length === 0 ? (
+              <p className="py-6 text-center text-sm text-gray-400">
+                No hubo movimientos de plata en estas fechas. Probá con un rango
+                más amplio.
+              </p>
+            ) : (
+              movimientos.map((fila) => {
+                const momento = cuando(fila.momento)
+                const total = Number.parseFloat(fila.total)
+                const debePaciente = Number.parseFloat(fila.debe_el_paciente || "0")
+                const debeLab = Number.parseFloat(fila.debe_el_laboratorio || "0")
+                const esProtocolo = Boolean(fila.protocolo)
+                const estaAbierta = desplegada === fila.id
+
+                return (
+                  <div
+                    key={fila.id}
+                    className={`rounded-lg border transition ${
+                      estaAbierta ? "border-[#204983] bg-[#204983]/5" : "border-gray-200 bg-white"
+                    }`}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => (esProtocolo ? alternar(fila.id) : undefined)}
+                      className={`flex w-full flex-wrap items-center gap-x-4 gap-y-2 p-3 text-left ${
+                        esProtocolo ? "cursor-pointer hover:bg-gray-50/60" : "cursor-default"
+                      }`}
+                    >
+                      {esProtocolo ? (
+                        <ChevronDown
+                          className={`h-4 w-4 shrink-0 text-gray-400 transition-transform ${
+                            estaAbierta ? "" : "-rotate-90"
+                          }`}
+                        />
+                      ) : (
+                        <span className="w-4" />
+                      )}
+
+                      <div className="w-24 shrink-0 text-xs tabular-nums text-gray-500">
+                        <div className="font-medium text-gray-700">{momento.dia}</div>
+                        <div>{momento.hora}</div>
+                      </div>
+
+                      <div className="min-w-0 flex-1">
+                        {esProtocolo ? (
+                          <>
+                            <span className="font-medium text-[#204983]">
+                              Protocolo {fila.protocolo}
+                            </span>
+                            {fila.paciente ? (
+                              <div className="truncate text-xs text-gray-600">{fila.paciente}</div>
+                            ) : null}
+                          </>
+                        ) : (
+                          <>
+                            <span
+                              className={`inline-flex items-center rounded border px-1.5 py-0.5 text-xs font-medium ${
+                                fila.tipo_de_movimiento === "ingreso"
+                                  ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                                  : "border-rose-200 bg-rose-50 text-rose-800"
+                              }`}
+                            >
+                              {fila.tipo_de_movimiento === "ingreso" ? "Ingreso" : "Gasto"}
+                            </span>
+                            <div className="truncate text-xs text-gray-600">{fila.detalle}</div>
+                          </>
+                        )}
+                      </div>
+
+                      {/* Cuántos cobros y por qué vía, sin abrir. */}
+                      {esProtocolo && (fila.pagos?.length ?? 0) > 0 ? (
+                        <div className="flex flex-wrap gap-1">
+                          {fila.pagos!.map((pago) => (
+                            <span
+                              key={pago.id}
+                              title={`${pago.tipo === "devolucion" ? "Devolución" : "Cobro"} de ${plata(pago.monto)}`}
+                              className={`inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-[11px] ${
+                                pago.tipo === "devolucion"
+                                  ? "border-amber-200 bg-amber-50 text-amber-800"
+                                  : pago.forma_de_pago === "transferencia"
+                                    ? "border-sky-200 bg-sky-50 text-sky-800"
+                                    : "border-emerald-200 bg-emerald-50 text-emerald-800"
+                              }`}
+                            >
+                              {pago.forma_de_pago === "transferencia" ? (
+                                <Landmark className="h-3 w-3" />
+                              ) : (
+                                <Banknote className="h-3 w-3" />
+                              )}
+                              {pago.tipo === "devolucion" ? "−" : ""}
+                              {plata(pago.monto)}
+                            </span>
+                          ))}
+                        </div>
+                      ) : null}
+
+                      {/* Cómo quedó el saldo: es lo que se viene a mirar. */}
+                      <div className="w-32 shrink-0 text-right">
+                        <div
+                          className={`text-sm font-semibold tabular-nums ${
+                            total >= 0 ? "text-emerald-700" : "text-rose-700"
+                          }`}
+                        >
+                          {total >= 0 ? "+" : ""}
+                          {plata(fila.total)}
+                        </div>
+                        {debePaciente > 0 ? (
+                          <div className="text-[11px] text-orange-700">
+                            debe {plata(fila.debe_el_paciente)}
+                          </div>
+                        ) : debeLab > 0 ? (
+                          <div className="text-[11px] text-amber-700">
+                            a devolver {plata(fila.debe_el_laboratorio)}
+                          </div>
+                        ) : esProtocolo ? (
+                          <div className="text-[11px] text-gray-400">saldado</div>
+                        ) : null}
+                      </div>
+
+                      {puedeCargarMovimientos && fila.movimiento_de_caja_id ? (
+                        <span
+                          role="button"
+                          tabIndex={0}
+                          aria-label={`Anular ${fila.detalle}`}
+                          className="rounded p-1 text-gray-400 hover:text-rose-600"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            anular(fila.movimiento_de_caja_id as number)
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") anular(fila.movimiento_de_caja_id as number)
+                          }}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </span>
+                      ) : null}
+                    </button>
+
+                    {/* El detalle completo, para mirar y para corregir. */}
+                    {estaAbierta && esProtocolo && puedeCorregir ? (
+                      <div className="border-t border-[#204983]/20 p-3">
+                        <CorreccionDelCobro
+                          protocolId={fila.protocolo as number}
+                          onCambio={() => consulta.refetch()}
+                        />
+                      </div>
+                    ) : null}
+                  </div>
+                )
+              })
+            )}
           </div>
         )}
 

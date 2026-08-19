@@ -2,7 +2,10 @@
 
 import { useCallback, useEffect, useState } from "react"
 import { Link } from "react-router-dom"
-import { ExternalLink, Loader2, Receipt, Save, Wallet } from "lucide-react"
+import {
+  ArrowUpRight, Banknote, ExternalLink, Landmark, Loader2, Pencil, Receipt,
+  Save, Wallet,
+} from "lucide-react"
 
 import { SelectorDeCuenta } from "@/components/common/forma-de-pago"
 import { UnplannedTransactionsDialog } from "@/components/protocolos/components/dialogs/unplanned-transactions-dialog"
@@ -13,7 +16,8 @@ import { PROTOCOL_ENDPOINTS } from "@/config/api"
 import { useApi } from "@/hooks/use-api"
 import { useToast } from "@/hooks/use-toast"
 import { formatApiError, getErrorMessage } from "@/lib/api-error"
-import type { Protocol } from "@/types"
+import { FormaDePagoDialog } from "@/components/protocolos/components/dialogs/forma-de-pago-dialog"
+import type { PagoDelProtocolo, Protocol } from "@/types"
 
 /**
  * Corregir todo lo que se cobró de un protocolo, sin salir del libro.
@@ -60,6 +64,7 @@ export function CorreccionDelCobro({ protocolId, onCambio }: Props) {
   const [guardandoCargos, setGuardandoCargos] = useState(false)
   const [guardandoCobro, setGuardandoCobro] = useState(false)
   const [noContempladosAbierto, setNoContempladosAbierto] = useState(false)
+  const [corrigiendo, setCorrigiendo] = useState<PagoDelProtocolo | null>(null)
 
   const [cargos, setCargos] = useState({ material: "", derivacion: "", coseguro: "" })
   const [cobro, setCobro] = useState({ efectivo: "", transferencia: "", cuentaId: "" })
@@ -133,6 +138,37 @@ export function CorreccionDelCobro({ protocolId, onCambio }: Props) {
       })
     } finally {
       setGuardandoCargos(false)
+    }
+  }
+
+  const corregirPago = async (forma: string, cuentaId: string, monto?: string) => {
+    if (!corrigiendo) return false
+    try {
+      const respuesta = await apiRequest(
+        PROTOCOL_ENDPOINTS.PROTOCOL_PAGO(protocolId, corrigiendo.id),
+        {
+          method: "PATCH",
+          body: {
+            payment_method: forma,
+            payment_account:
+              forma === "transferencia" && cuentaId ? Number(cuentaId) : null,
+            ...(monto !== undefined ? { amount: monto } : {}),
+          },
+        },
+      )
+      if (!respuesta.ok) {
+        const datos = await respuesta.json().catch(() => ({}))
+        throw new Error(formatApiError(datos, "No se pudo corregir el cobro."))
+      }
+      toastActions.success("Cobro corregido")
+      setCorrigiendo(null)
+      await refrescar()
+      return true
+    } catch (err) {
+      toastActions.error("No se pudo corregir el cobro", {
+        description: getErrorMessage(err, "Revisá el monto y la forma."),
+      })
+      return false
     }
   }
 
@@ -305,13 +341,60 @@ export function CorreccionDelCobro({ protocolId, onCambio }: Props) {
         />
       </div>
 
+      {/* LO QUE YA ENTRÓ (Y LO QUE SALIÓ) */}
+      {(protocolo.pagos ?? []).length > 0 && (
+        <div className="space-y-2 rounded-md border border-gray-200 bg-gray-50 p-3">
+          <p className="text-xs font-semibold text-gray-700">Cobros y devoluciones</p>
+          {(protocolo.pagos ?? []).map((pago) => (
+            <div
+              key={pago.id}
+              className="flex flex-wrap items-center gap-2 rounded border border-gray-200 bg-white px-2 py-1.5 text-sm"
+            >
+              {pago.tipo === "devolucion" ? (
+                <span className="inline-flex items-center gap-1 rounded border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-xs text-amber-800">
+                  <ArrowUpRight className="h-3 w-3" />
+                  Devolución
+                </span>
+              ) : null}
+
+              <span className="font-medium tabular-nums text-gray-900">
+                {pago.tipo === "devolucion" ? "−" : ""}{plata(pago.amount)}
+              </span>
+
+              {pago.payment_method === "transferencia" ? (
+                <span className="inline-flex items-center gap-1 rounded border border-sky-200 bg-sky-50 px-1.5 py-0.5 text-xs text-sky-800">
+                  <Landmark className="h-3 w-3" />
+                  Transferencia
+                  {pago.payment_account_detail ? ` · ${pago.payment_account_detail.nombre}` : ""}
+                  {pago.payment_account_detail?.alias ? ` (${pago.payment_account_detail.alias})` : ""}
+                </span>
+              ) : pago.payment_method === "efectivo" ? (
+                <span className="inline-flex items-center gap-1 rounded border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-xs text-emerald-800">
+                  <Banknote className="h-3 w-3" />
+                  Efectivo
+                </span>
+              ) : (
+                <span className="text-xs text-gray-400">Sin registrar</span>
+              )}
+
+              <Button
+                variant="ghost"
+                size="icon"
+                className="ml-auto h-6 w-6 text-gray-400 hover:text-[#204983]"
+                aria-label={`Corregir el cobro de ${plata(pago.amount)}`}
+                title="Corregir monto y forma"
+                onClick={() => setCorrigiendo(pago)}
+              >
+                <Pencil className="h-3 w-3" />
+              </Button>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* LO QUE PAGÓ Y POR DÓNDE */}
       <div className="space-y-3 rounded-md border border-gray-200 bg-gray-50 p-3">
-        <p className="text-xs font-semibold text-gray-700">Registrar un cobro</p>
-        <p className="-mt-2 text-[11px] text-gray-400">
-          Para corregir un cobro que ya está cargado, usá el lápiz de su fila en
-          el libro.
-        </p>
+        <p className="text-xs font-semibold text-gray-700">Registrar otro cobro</p>
 
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="space-y-1.5">
@@ -369,6 +452,19 @@ export function CorreccionDelCobro({ protocolId, onCambio }: Props) {
           </Button>
         </div>
       </div>
+
+      <FormaDePagoDialog
+        open={corrigiendo !== null}
+        onOpenChange={(abierto) => {
+          if (!abierto) setCorrigiendo(null)
+        }}
+        formaDePago={corrigiendo?.payment_method || ""}
+        cuentaDeCobroId={
+          corrigiendo?.payment_account ? String(corrigiendo.payment_account) : ""
+        }
+        monto={corrigiendo?.amount ?? ""}
+        onGuardar={corregirPago}
+      />
 
       <UnplannedTransactionsDialog
         open={noContempladosAbierto}

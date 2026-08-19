@@ -52,7 +52,7 @@ export default function ProtocolResultsPage() {
     <div className="mx-auto w-full max-w-6xl px-3 py-4 pb-28 sm:px-4">
       {Breadcrumb}
 
-      <section className="mb-4 rounded-xl border border-gray-200 bg-white p-4 shadow-sm md:p-5">
+      <section className="mb-4 rounded-xl border-2 border-blue-400 bg-white p-4 shadow-sm md:p-5">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           {header ? (
             <div className="flex items-start gap-3">

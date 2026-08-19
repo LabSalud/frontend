@@ -677,6 +677,8 @@ export interface Protocol {
   coseguro_amount?: string
   material_descartable_amount?: string
   derivacion_amount?: string
+  /** Cada cobro y cada devolución, con su forma y su cuenta. */
+  pagos?: PagoDelProtocolo[]
   extras_total?: string
   private_amount_due?: string
   /** Cuántos componentes no se cobraron por estar incluidos en un módulo presente. */

@@ -48,7 +48,14 @@ interface AnalysisListProps {
   refreshKey: number
 }
 
-const PAGE_LIMIT = 10
+// Las determinaciones de UN análisis entran todas de una: son cinco o treinta,
+// no mil. Paginarlas de a 10 tenía un costo escondido — hasta no cargar la
+// última página, `next` no era null y el arrastre para reordenar quedaba
+// apagado. O sea que la función solo aparecía después de scrollear, que es
+// justo cuando nadie la está buscando.
+//
+// El scroll infinito queda igual, de red por si algún análisis se va de escala.
+const PAGE_LIMIT = 200
 
 export const AnalysisList: React.FC<AnalysisListProps> = ({ analysis, showInactive, refreshKey }) => {
   const { apiRequest } = useApi()

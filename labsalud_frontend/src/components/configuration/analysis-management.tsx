@@ -16,7 +16,6 @@ import {
   Search,
   TestTube,
   Plus,
-  Trash,
   Download,
   Settings2,
   Save,
@@ -27,7 +26,6 @@ import { EditAnalysisCatalogDialog } from "./components/edit-analysis-catalog-di
 import { DeleteAnalysisCatalogDialog } from "./components/delete-analysis-catalog-dialog"
 import { ImportDataDialog } from "./components/import-data-dialog"
 import { AnalysisHistoryDialog } from "./components/analysis-history-dialog"
-import { ClearCatalogDialog } from "./components/clear-catalog-dialog"
 import type { Analysis, PricingConfig } from "@/types"
 import { formatApiError, getErrorMessage } from "@/lib/api-error"
 
@@ -55,7 +53,6 @@ export function AnalysisManagement() {
   const [isEditAnalysisModalOpen, setIsEditAnalysisModalOpen] = useState(false)
   const [isDeleteAnalysisModalOpen, setIsDeleteAnalysisModalOpen] = useState(false)
   const [isImportModalOpen, setIsImportModalOpen] = useState(false)
-  const [isClearCatalogDialogOpen, setIsClearCatalogDialogOpen] = useState(false)
   const [isHistoryDialogOpen, setIsHistoryDialogOpen] = useState(false)
   const [selectedAnalysisForHistory, setSelectedAnalysisForHistory] = useState<Analysis | null>(null)
   const [selectedAnalysis, setSelectedAnalysis] = useState<Analysis | null>(null)
@@ -68,7 +65,6 @@ export function AnalysisManagement() {
   })
   const [loadingPricing, setLoadingPricing] = useState(false)
   const [savingPricing, setSavingPricing] = useState(false)
-  const showDevCatalogTools = import.meta.env.DEV || import.meta.env.VITE_ENABLE_DEV_CATALOG_TOOLS === "true"
 
   const fetchPricingConfig = useCallback(async () => {
     try {
@@ -219,12 +215,6 @@ export function AnalysisManagement() {
     fetchAnalyses(searchTerm, true, true)
   }
 
-  const handleClearCatalogSuccess = () => {
-    setIsClearCatalogDialogOpen(false)
-    setRefreshKey((prev) => prev + 1)
-    fetchAnalyses(searchTerm, true, true)
-  }
-
   const handleEditAnalysisSuccess = () => {
     setIsEditAnalysisModalOpen(false)
     setSelectedAnalysis(null)
@@ -337,16 +327,6 @@ export function AnalysisManagement() {
           </div>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
-          {showDevCatalogTools && (
-            <Button
-              variant="outline"
-              className="border-red-600 text-red-600 hover:bg-red-600 hover:text-white bg-transparent w-full sm:w-auto"
-              onClick={() => setIsClearCatalogDialogOpen(true)}
-            >
-              <Trash className="mr-2 h-4 w-4" />
-              Eliminar catálogo completo
-            </Button>
-          )}
           <Button
             variant="outline"
             className="border-purple-600 text-purple-600 hover:bg-purple-600 hover:text-white bg-transparent w-full sm:w-auto"
@@ -520,12 +500,6 @@ export function AnalysisManagement() {
         open={isImportModalOpen}
         onOpenChange={setIsImportModalOpen}
         onSuccess={handleImportDataSuccess}
-      />
-
-      <ClearCatalogDialog
-        open={isClearCatalogDialogOpen}
-        onOpenChange={setIsClearCatalogDialogOpen}
-        onSuccess={handleClearCatalogSuccess}
       />
     </div>
   )

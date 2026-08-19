@@ -54,8 +54,6 @@ interface ProtocolDetailsSectionProps {
   onOpenUnplanned?: () => void
   /** Id del protocolo, para el enlace al libro diario. */
   protocolId?: number
-  /** Sin `administrar_libro_diario` el enlace lleva a un rebote: no se muestra. */
-  puedeVerLibroDiario?: boolean
   onOpenHistoryDialog: () => void
   onSetOrder?: () => void
   onApplyPreauthorization?: () => void
@@ -94,7 +92,6 @@ export function ProtocolDetailsSection({
   unplannedPaymentsTotal,
   onOpenUnplanned,
   protocolId,
-  puedeVerLibroDiario = false,
   onOpenHistoryDialog,
   onSetOrder,
   onApplyPreauthorization,
@@ -471,11 +468,20 @@ export function ProtocolDetailsSection({
           <CreditCard className="h-4 w-4 text-gray-400 flex-shrink-0" />
           <span className="text-gray-600 w-28 flex-shrink-0">Estado Pago:</span>
           <Badge className={`${paymentStatusInfo.bgColor} ${paymentStatusInfo.color}`}>{paymentStatusInfo.label}</Badge>
+        </div>
 
-          {/* Al libro, filtrado por este protocolo. Es donde se corrige lo que
-              se cobró mal: acá se ve el estado, allá los movimientos que lo
-              explican y los campos para arreglarlos. */}
-          {protocolId && puedeVerLibroDiario ? (
+        {/* AL LIBRO, FILTRADO POR ESTE PROTOCOLO.
+            Va acá, pegado a los montos, porque es la parte que uno mira cuando
+            algo del cobro no cierra — y es adonde lleva.
+
+            NO se esconde por permiso: un botón que no está no se puede
+            preguntar por qué no está. Si a quien lo aprieta le falta
+            `administrar_libro_diario`, la ruta se lo dice; el panel de
+            corrección y el backend lo piden igual. */}
+        {protocolId ? (
+          <div className="flex flex-wrap items-center gap-3 text-sm">
+            <BookOpen className="h-4 w-4 flex-shrink-0 text-[#204983]" />
+            <span className="w-28 flex-shrink-0 text-gray-600">Facturación:</span>
             <Link
               to={`/libro-diario?protocolo=${protocolId}`}
               onClick={(e) => e.stopPropagation()}
@@ -485,8 +491,11 @@ export function ProtocolDetailsSection({
               <BookOpen className="h-3 w-3" />
               Ver en libro diario
             </Link>
-          ) : null}
-        </div>
+            <span className="text-xs text-gray-400">
+              cobros, formas de pago y corrección
+            </span>
+          </div>
+        ) : null}
 
         {insuranceUbValue && (
           <div className="flex items-center gap-3 text-sm">

@@ -12,6 +12,7 @@ import useAuth from "@/contexts/auth-context"
 import { useApi } from "@/hooks/use-api"
 import { useToast } from "@/hooks/use-toast"
 import { PERMISSIONS } from "@/config/permissions"
+import { formatApiError } from "@/lib/api-error"
 import { FormaDePagoDialog } from "@/components/protocolos/components/dialogs/forma-de-pago-dialog"
 import { MovimientoDeCajaDialog } from "./movimiento-de-caja-dialog"
 
@@ -166,11 +167,24 @@ export default function LibroDiarioPage() {
    * efectivo y transferir el resto, y arreglar la transferencia no puede tocar
    * el efectivo que estaba bien.
    *
+   * TAMBIÉN SE CORRIGE EL MONTO
+   * ===========================
+   * Si al ingreso se tipeó 5000 en vez de 500, arreglarlo con una devolución
+   * de 4500 deja en el libro una devolución que nunca pasó — y al conciliar
+   * aparece plata saliendo del cajón que nadie sacó. Acá se corrige el número
+   * que se cargó mal, y el backend recalcula solo el total del protocolo, su
+   * saldo y su estado de pago.
+   *
+   * La corrección deja su propia línea en el libro, porque cambia `value_paid`
+   * y eso genera un evento: no se pisa el pasado en silencio.
+   *
    * Ojo con lo que sigue siendo cierto: el libro muestra la forma de HOY, no
    * la del momento del movimiento. Corregirla cambia también lo que se ve en
    * las líneas viejas de ese mismo protocolo.
    */
-  const corregirFormaDePago = async (forma: string, cuentaId: string) => {
+  const corregirFormaDePago = async (
+    forma: string, cuentaId: string, monto?: string,
+  ) => {
     if (!corrigiendo) return false
 
     const respuesta = await apiRequest(
@@ -182,15 +196,21 @@ export default function LibroDiarioPage() {
           // Un efectivo con cuenta lo rechaza el backend, y mandar la vieja
           // guardaría algo que contradice lo que se ve en pantalla.
           payment_account: forma === "transferencia" && cuentaId ? Number(cuentaId) : null,
+          ...(monto !== undefined ? { amount: monto } : {}),
         },
       },
     )
     if (!respuesta.ok) {
-      toastActions.error("No se pudo cambiar la forma de pago")
+      const datos = await respuesta.json().catch(() => ({}))
+      toastActions.error("No se pudo corregir el cobro", {
+        description: formatApiError(datos, "Revisá el monto y la forma de pago."),
+      })
       return false
     }
 
-    toastActions.success("Forma de pago corregida")
+    toastActions.success("Cobro corregido", {
+      description: "El total del protocolo y su saldo se recalcularon.",
+    })
     setCorrigiendo(null)
     consulta.refetch()
     return true
@@ -506,6 +526,7 @@ export default function LibroDiarioPage() {
           if (!abierto) setCorrigiendo(null)
         }}
         formaDePago={corrigiendo?.pago.forma_de_pago || ""}
+        monto={corrigiendo?.pago.monto ?? ""}
         cuentaDeCobroId={
           corrigiendo?.pago.cuenta_de_cobro_id
             ? String(corrigiendo.pago.cuenta_de_cobro_id)

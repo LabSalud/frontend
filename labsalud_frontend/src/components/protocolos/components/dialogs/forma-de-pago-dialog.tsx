@@ -5,6 +5,8 @@ import { Loader2, Wallet } from "lucide-react"
 
 import { FormaDePago } from "@/components/common/forma-de-pago"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import {
   Dialog,
   DialogContent,
@@ -31,7 +33,16 @@ type Props = {
   onOpenChange: (open: boolean) => void
   formaDePago: string
   cuentaDeCobroId: string
-  onGuardar: (forma: string, cuentaId: string) => Promise<boolean>
+  /**
+   * El monto del cobro. Pasarlo habilita corregirlo.
+   *
+   * Solo lo manda el libro diario: es donde se descubre que el cobro está mal,
+   * al cuadrar contra el extracto o contra la caja. Desde el detalle del
+   * protocolo se sigue corrigiendo solo la forma, porque ahí para mover plata
+   * están los cobros y las devoluciones, que dejan su propio rastro.
+   */
+  monto?: string
+  onGuardar: (forma: string, cuentaId: string, monto?: string) => Promise<boolean>
 }
 
 export function FormaDePagoDialog({
@@ -39,27 +50,40 @@ export function FormaDePagoDialog({
   onOpenChange,
   formaDePago,
   cuentaDeCobroId,
+  monto,
   onGuardar,
 }: Props) {
   const [forma, setForma] = useState(formaDePago)
   const [cuenta, setCuenta] = useState(cuentaDeCobroId)
+  const [importe, setImporte] = useState(monto ?? "")
   const [guardando, setGuardando] = useState(false)
 
-  // Se relee al abrir: si alguien la cambió desde otro lado, el diálogo no
+  const editaMonto = monto !== undefined
+
+  // Se relee al abrir: si alguien lo cambió desde otro lado, el diálogo no
   // puede mostrar lo de antes.
   useEffect(() => {
     if (!open) return
     setForma(formaDePago)
     setCuenta(cuentaDeCobroId)
-  }, [open, formaDePago, cuentaDeCobroId])
+    setImporte(monto ?? "")
+  }, [open, formaDePago, cuentaDeCobroId, monto])
 
-  const sinCambios = forma === formaDePago && cuenta === cuentaDeCobroId
+  const importeLimpio = importe.replace(",", ".")
+  const importeValido = !editaMonto || Number.parseFloat(importeLimpio) > 0
+  const sinCambios =
+    forma === formaDePago &&
+    cuenta === cuentaDeCobroId &&
+    (!editaMonto || importeLimpio === (monto ?? ""))
   const faltaCuenta = forma === "transferencia" && !cuenta
 
   const confirmar = async () => {
     setGuardando(true)
     try {
-      if (await onGuardar(forma, cuenta)) onOpenChange(false)
+      const guardado = await onGuardar(
+        forma, cuenta, editaMonto ? importeLimpio : undefined,
+      )
+      if (guardado) onOpenChange(false)
     } finally {
       setGuardando(false)
     }
@@ -69,12 +93,39 @@ export function FormaDePagoDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Forma de pago</DialogTitle>
+          <DialogTitle>{editaMonto ? "Corregir el cobro" : "Forma de pago"}</DialogTitle>
           <DialogDescription>
-            Cómo pagó el paciente. Sirve para conciliar la caja contra el extracto
-            de cada cuenta.
+            {editaMonto
+              ? "Corregí lo que se cargó mal en el ingreso. El total del protocolo se recalcula solo."
+              : "Cómo pagó el paciente. Sirve para conciliar la caja contra el extracto de cada cuenta."}
           </DialogDescription>
         </DialogHeader>
+
+        {/* CORREGIR EL MONTO NO ES COBRAR NI DEVOLVER.
+            Si al ingreso se tipeó 5000 en vez de 500, registrar una devolución
+            de 4500 deja en el libro una devolución que nunca pasó. Acá se
+            arregla lo que se cargó mal, y el total del protocolo se recalcula
+            solo. */}
+        {editaMonto && (
+          <div className="space-y-1.5">
+            <Label htmlFor="monto-del-cobro" className="text-sm font-medium text-gray-700">
+              Monto cobrado
+            </Label>
+            <Input
+              id="monto-del-cobro"
+              inputMode="decimal"
+              value={importe}
+              onChange={(e) => setImporte(e.target.value)}
+              className="tabular-nums"
+            />
+            {!importeValido && (
+              <p className="text-xs text-red-600">
+                Tiene que ser mayor a cero. Para anular el cobro, quitalo desde
+                el detalle del protocolo.
+              </p>
+            )}
+          </div>
+        )}
 
         <FormaDePago
           formaDePago={forma}
@@ -90,7 +141,7 @@ export function FormaDePagoDialog({
           </Button>
           <Button
             onClick={confirmar}
-            disabled={guardando || sinCambios || faltaCuenta}
+            disabled={guardando || sinCambios || faltaCuenta || !importeValido}
             className="bg-[#204983] hover:bg-[#1a3d6f]"
           >
             {guardando ? (

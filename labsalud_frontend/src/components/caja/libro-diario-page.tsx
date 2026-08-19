@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { useSearchParams } from "react-router-dom"
 
 import { Banknote, BookOpen, Landmark, Pencil, Plus, Trash2 } from "lucide-react"
 
@@ -12,7 +13,9 @@ import useAuth from "@/contexts/auth-context"
 import { useApi } from "@/hooks/use-api"
 import { useToast } from "@/hooks/use-toast"
 import { PERMISSIONS } from "@/config/permissions"
+import { formatApiError } from "@/lib/api-error"
 import { FormaDePagoDialog } from "@/components/protocolos/components/dialogs/forma-de-pago-dialog"
+import { CorreccionDelCobro } from "./correccion-del-cobro"
 import { MovimientoDeCajaDialog } from "./movimiento-de-caja-dialog"
 
 /**
@@ -117,6 +120,13 @@ export default function LibroDiarioPage() {
   const { hasPermission } = useAuth()
   const { apiRequest } = useApi()
   const toastActions = useToast()
+  // `?protocolo=` llega desde "Ver en libro diario" del detalle. Con él, el
+  // libro deja de mirar un rango de fechas y muestra ese protocolo entero: el
+  // cobro que se quiere corregir puede ser de hace meses.
+  const [searchParams, setSearchParams] = useSearchParams()
+  const protocoloCrudo = searchParams.get("protocolo")
+  const protocoloFiltrado = protocoloCrudo ? Number(protocoloCrudo) : null
+
   const [desde, setDesde] = useState(haceDias(7))
   const [hasta, setHasta] = useState(hoyISO())
   const [agregando, setAgregando] = useState(false)
@@ -136,8 +146,10 @@ export default function LibroDiarioPage() {
   const puedeCargarMovimientos = hasPermission(PERMISSIONS.MANAGE_BILLING.codename)
 
   const consulta = useApiQuery<Respuesta>({
-    queryKey: ["analytics", "libro-diario", desde, hasta],
-    url: `${ANALYTICS_ENDPOINTS.LIBRO_DIARIO}?desde=${desde}&hasta=${hasta}`,
+    queryKey: ["analytics", "libro-diario", desde, hasta, protocoloFiltrado],
+    url: protocoloFiltrado
+      ? `${ANALYTICS_ENDPOINTS.LIBRO_DIARIO}?protocolo=${protocoloFiltrado}`
+      : `${ANALYTICS_ENDPOINTS.LIBRO_DIARIO}?desde=${desde}&hasta=${hasta}`,
     staleTime: 30 * 1000,
   })
 
@@ -166,11 +178,24 @@ export default function LibroDiarioPage() {
    * efectivo y transferir el resto, y arreglar la transferencia no puede tocar
    * el efectivo que estaba bien.
    *
+   * TAMBIÉN SE CORRIGE EL MONTO
+   * ===========================
+   * Si al ingreso se tipeó 5000 en vez de 500, arreglarlo con una devolución
+   * de 4500 deja en el libro una devolución que nunca pasó — y al conciliar
+   * aparece plata saliendo del cajón que nadie sacó. Acá se corrige el número
+   * que se cargó mal, y el backend recalcula solo el total del protocolo, su
+   * saldo y su estado de pago.
+   *
+   * La corrección deja su propia línea en el libro, porque cambia `value_paid`
+   * y eso genera un evento: no se pisa el pasado en silencio.
+   *
    * Ojo con lo que sigue siendo cierto: el libro muestra la forma de HOY, no
    * la del momento del movimiento. Corregirla cambia también lo que se ve en
    * las líneas viejas de ese mismo protocolo.
    */
-  const corregirFormaDePago = async (forma: string, cuentaId: string) => {
+  const corregirFormaDePago = async (
+    forma: string, cuentaId: string, monto?: string,
+  ) => {
     if (!corrigiendo) return false
 
     const respuesta = await apiRequest(
@@ -182,15 +207,21 @@ export default function LibroDiarioPage() {
           // Un efectivo con cuenta lo rechaza el backend, y mandar la vieja
           // guardaría algo que contradice lo que se ve en pantalla.
           payment_account: forma === "transferencia" && cuentaId ? Number(cuentaId) : null,
+          ...(monto !== undefined ? { amount: monto } : {}),
         },
       },
     )
     if (!respuesta.ok) {
-      toastActions.error("No se pudo cambiar la forma de pago")
+      const datos = await respuesta.json().catch(() => ({}))
+      toastActions.error("No se pudo corregir el cobro", {
+        description: formatApiError(datos, "Revisá el monto y la forma de pago."),
+      })
       return false
     }
 
-    toastActions.success("Forma de pago corregida")
+    toastActions.success("Cobro corregido", {
+      description: "El total del protocolo y su saldo se recalcularon.",
+    })
     setCorrigiendo(null)
     consulta.refetch()
     return true
@@ -399,9 +430,11 @@ export default function LibroDiarioPage() {
               Libro diario
             </h1>
             <p className="text-sm text-gray-500">
-              {movimientos.length > 0
-                ? `${movimientos.length} movimientos`
-                : "Cada movimiento de plata, en orden"}
+              {protocoloFiltrado
+                ? `Solo el protocolo #${protocoloFiltrado}`
+                : movimientos.length > 0
+                  ? `${movimientos.length} movimientos`
+                  : "Cada movimiento de plata, en orden"}
             </p>
           </div>
 
@@ -463,6 +496,36 @@ export default function LibroDiarioPage() {
           </div>
         </div>
 
+        {protocoloFiltrado ? (
+          <div className="mt-4 space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[#204983]/30 bg-[#204983]/5 px-3 py-2 text-sm">
+              <span className="text-[#204983]">
+                Mostrando los movimientos del <strong>protocolo #{protocoloFiltrado}</strong>,
+                sin filtrar por fecha.
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                className="border-[#204983] text-[#204983] hover:bg-[#204983] hover:text-white"
+                onClick={() => setSearchParams({})}
+              >
+                Ver todo el libro
+              </Button>
+            </div>
+
+            {/* El gate de la ruta ya exige el permiso para abrir el libro,
+                pero se repite acá: un panel que edita cargos no puede depender
+                de que nadie afloje esa ruta más adelante. El backend lo pide
+                también. */}
+            {puedeCorregir ? (
+              <CorreccionDelCobro
+                protocolId={protocoloFiltrado}
+                onCambio={() => consulta.refetch()}
+              />
+            ) : null}
+          </div>
+        ) : null}
+
         {!consulta.isLoading && movimientos.length > 0 ? (
           <div className="mt-4 grid gap-3 sm:grid-cols-3">
             <Resumen titulo="Entró" valor={plata(String(entradas))} tono="entra" />
@@ -506,6 +569,7 @@ export default function LibroDiarioPage() {
           if (!abierto) setCorrigiendo(null)
         }}
         formaDePago={corrigiendo?.pago.forma_de_pago || ""}
+        monto={corrigiendo?.pago.monto ?? ""}
         cuentaDeCobroId={
           corrigiendo?.pago.cuenta_de_cobro_id
             ? String(corrigiendo.pago.cuenta_de_cobro_id)

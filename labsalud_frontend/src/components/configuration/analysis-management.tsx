@@ -16,7 +16,6 @@ import {
   Search,
   TestTube,
   Plus,
-  Trash,
   Download,
   Settings2,
   Save,
@@ -27,7 +26,6 @@ import { EditAnalysisCatalogDialog } from "./components/edit-analysis-catalog-di
 import { DeleteAnalysisCatalogDialog } from "./components/delete-analysis-catalog-dialog"
 import { ImportDataDialog } from "./components/import-data-dialog"
 import { AnalysisHistoryDialog } from "./components/analysis-history-dialog"
-import { ClearCatalogDialog } from "./components/clear-catalog-dialog"
 import type { Analysis, PricingConfig } from "@/types"
 import { formatApiError, getErrorMessage } from "@/lib/api-error"
 
@@ -55,7 +53,6 @@ export function AnalysisManagement() {
   const [isEditAnalysisModalOpen, setIsEditAnalysisModalOpen] = useState(false)
   const [isDeleteAnalysisModalOpen, setIsDeleteAnalysisModalOpen] = useState(false)
   const [isImportModalOpen, setIsImportModalOpen] = useState(false)
-  const [isClearCatalogDialogOpen, setIsClearCatalogDialogOpen] = useState(false)
   const [isHistoryDialogOpen, setIsHistoryDialogOpen] = useState(false)
   const [selectedAnalysisForHistory, setSelectedAnalysisForHistory] = useState<Analysis | null>(null)
   const [selectedAnalysis, setSelectedAnalysis] = useState<Analysis | null>(null)
@@ -68,7 +65,6 @@ export function AnalysisManagement() {
   })
   const [loadingPricing, setLoadingPricing] = useState(false)
   const [savingPricing, setSavingPricing] = useState(false)
-  const showDevCatalogTools = import.meta.env.DEV || import.meta.env.VITE_ENABLE_DEV_CATALOG_TOOLS === "true"
 
   const fetchPricingConfig = useCallback(async () => {
     try {
@@ -219,12 +215,6 @@ export function AnalysisManagement() {
     fetchAnalyses(searchTerm, true, true)
   }
 
-  const handleClearCatalogSuccess = () => {
-    setIsClearCatalogDialogOpen(false)
-    setRefreshKey((prev) => prev + 1)
-    fetchAnalyses(searchTerm, true, true)
-  }
-
   const handleEditAnalysisSuccess = () => {
     setIsEditAnalysisModalOpen(false)
     setSelectedAnalysis(null)
@@ -337,16 +327,6 @@ export function AnalysisManagement() {
           </div>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
-          {showDevCatalogTools && (
-            <Button
-              variant="outline"
-              className="border-red-600 text-red-600 hover:bg-red-600 hover:text-white bg-transparent w-full sm:w-auto"
-              onClick={() => setIsClearCatalogDialogOpen(true)}
-            >
-              <Trash className="mr-2 h-4 w-4" />
-              Eliminar catálogo completo
-            </Button>
-          )}
           <Button
             variant="outline"
             className="border-purple-600 text-purple-600 hover:bg-purple-600 hover:text-white bg-transparent w-full sm:w-auto"
@@ -366,86 +346,100 @@ export function AnalysisManagement() {
       </div>
 
       <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-        <div className="mb-3 flex items-center gap-2">
-          <Settings2 className="h-4 w-4 text-[#204983]" />
-          <h4 className="text-sm font-semibold text-gray-800">Montos de material y derivación</h4>
+        <div className="mb-3 flex items-start gap-2">
+          <Settings2 className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#204983]" />
+          <div>
+            <h4 className="text-sm font-semibold text-gray-800">Montos fijos</h4>
+            <p className="text-xs text-gray-500">
+              Valen para todo el sistema y se aplican a cada protocolo que entre
+              de acá en adelante.
+            </p>
+          </div>
         </div>
         {loadingPricing && !pricingConfig ? (
-          <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
-            <Skeleton className="h-10 rounded" />
-            <Skeleton className="h-10 rounded" />
-            <Skeleton className="h-10 rounded" />
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <Skeleton className="h-16 rounded" />
+            <Skeleton className="h-16 rounded" />
+            <Skeleton className="h-16 rounded" />
+            <Skeleton className="h-16 rounded" />
           </div>
         ) : (
-          <form onSubmit={handleSavePricing} className="grid gap-3 sm:grid-cols-[1fr_1fr_1fr_auto]">
-            <div className="space-y-1.5">
-              <label htmlFor="analysis-material-descartable" className="text-sm font-medium text-gray-700">
-                Material descartable
-              </label>
-              <Input
-                id="analysis-material-descartable"
-                type="number"
-                min="0"
-                step="0.01"
-                value={pricingForm.material_descartable_amount}
-                onChange={(event) =>
-                  setPricingForm((prev) => ({ ...prev, material_descartable_amount: event.target.value }))
-                }
-              />
+          <form onSubmit={handleSavePricing} className="space-y-3">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="space-y-1.5">
+                <label htmlFor="analysis-material-descartable" className="text-sm font-medium text-gray-700">
+                  Material descartable
+                </label>
+                <Input
+                  id="analysis-material-descartable"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={pricingForm.material_descartable_amount}
+                  onChange={(event) =>
+                    setPricingForm((prev) => ({ ...prev, material_descartable_amount: event.target.value }))
+                  }
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label htmlFor="analysis-derivacion-amount" className="text-sm font-medium text-gray-700">
+                  Derivación
+                </label>
+                <Input
+                  id="analysis-derivacion-amount"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={pricingForm.derivacion_amount}
+                  onChange={(event) => setPricingForm((prev) => ({ ...prev, derivacion_amount: event.target.value }))}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label htmlFor="analysis-minimo-particular" className="text-sm font-medium text-gray-700">
+                  Mínimo particular
+                </label>
+                <Input
+                  id="analysis-minimo-particular"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={pricingForm.particular_minimum_amount}
+                  onChange={(event) =>
+                    setPricingForm((prev) => ({ ...prev, particular_minimum_amount: event.target.value }))
+                  }
+                />
+                <p className="text-xs text-gray-500">
+                  Piso del total que paga un paciente particular. En 0 no se aplica.
+                </p>
+              </div>
+              <div className="space-y-1.5">
+                <label htmlFor="analysis-redondeo" className="text-sm font-medium text-gray-700">
+                  Tope de redondeo
+                </label>
+                <Input
+                  id="analysis-redondeo"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={pricingForm.redondeo_maximo}
+                  onChange={(event) =>
+                    setPricingForm((prev) => ({ ...prev, redondeo_maximo: event.target.value }))
+                  }
+                />
+                <p className="text-xs text-gray-500">
+                  Si el paciente paga de más hasta este monto, se toma como redondeo
+                  y el saldo queda en cero. Pasado el tope se avisa que hay que
+                  devolver. En 0 no se redondea nunca.
+                </p>
+              </div>
             </div>
-            <div className="space-y-1.5">
-              <label htmlFor="analysis-derivacion-amount" className="text-sm font-medium text-gray-700">
-                Derivación
-              </label>
-              <Input
-                id="analysis-derivacion-amount"
-                type="number"
-                min="0"
-                step="0.01"
-                value={pricingForm.derivacion_amount}
-                onChange={(event) => setPricingForm((prev) => ({ ...prev, derivacion_amount: event.target.value }))}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <label htmlFor="analysis-minimo-particular" className="text-sm font-medium text-gray-700">
-                Mínimo particular
-              </label>
-              <Input
-                id="analysis-minimo-particular"
-                type="number"
-                min="0"
-                step="0.01"
-                value={pricingForm.particular_minimum_amount}
-                onChange={(event) =>
-                  setPricingForm((prev) => ({ ...prev, particular_minimum_amount: event.target.value }))
-                }
-              />
-              <p className="text-xs text-gray-500">
-                Piso del total que paga un paciente particular. En 0 no se aplica.
-              </p>
-            </div>
-            <div className="space-y-1.5">
-              <label htmlFor="analysis-redondeo" className="text-sm font-medium text-gray-700">
-                Tope de redondeo
-              </label>
-              <Input
-                id="analysis-redondeo"
-                type="number"
-                min="0"
-                step="0.01"
-                value={pricingForm.redondeo_maximo}
-                onChange={(event) =>
-                  setPricingForm((prev) => ({ ...prev, redondeo_maximo: event.target.value }))
-                }
-              />
-              <p className="text-xs text-gray-500">
-                Si el paciente paga de más hasta este monto, se toma como redondeo
-                y el saldo queda en cero. Pasado el tope se avisa que hay que
-                devolver. En 0 no se redondea nunca.
-              </p>
-            </div>
-            <div className="flex items-end">
-              <Button type="submit" className="w-full bg-[#204983] hover:bg-[#1a3d6f]" disabled={savingPricing}>
+
+            <div className="flex justify-end">
+              <Button
+                type="submit"
+                className="w-full bg-[#204983] hover:bg-[#1a3d6f] sm:w-auto"
+                disabled={savingPricing}
+              >
                 {savingPricing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                 Guardar
               </Button>
@@ -520,12 +514,6 @@ export function AnalysisManagement() {
         open={isImportModalOpen}
         onOpenChange={setIsImportModalOpen}
         onSuccess={handleImportDataSuccess}
-      />
-
-      <ClearCatalogDialog
-        open={isClearCatalogDialogOpen}
-        onOpenChange={setIsClearCatalogDialogOpen}
-        onSuccess={handleClearCatalogSuccess}
       />
     </div>
   )

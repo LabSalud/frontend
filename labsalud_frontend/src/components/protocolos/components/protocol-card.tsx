@@ -195,6 +195,9 @@ export function ProtocolCard({
   // Imprimir / previsualizar / descargar / enviar informes pide permiso.
   // Consultar el protocolo NO: el resto de la card queda igual que siempre.
   const canPrintReports = hasPermission(PERMISSIONS.MANAGE_PRINTS.codename)
+  // El libro diario tiene su propio permiso: sin él, el enlace llevaría a
+  // un rebote de la ruta protegida.
+  const puedeVerLibroDiario = hasPermission(PERMISSIONS.MANAGE_LEDGER.codename)
   const navigate = useNavigate()
   const [isExpanded, setIsExpanded] = useState(pageMode)
   const [protocolDetail, setProtocolDetail] = useState<ProtocolDetailResponse | null>(initialDetail)
@@ -1474,6 +1477,8 @@ export function ProtocolCard({
             ) : (
               <>
                 <ProtocolDetailsSection
+                  protocolId={protocol.id}
+                  puedeVerLibroDiario={puedeVerLibroDiario}
                   patientName={getPatientName()}
                   doctorName={getDoctorName()}
                   insuranceName={getInsuranceName()}

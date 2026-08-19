@@ -96,7 +96,10 @@ export default function ProtocolValidationPage() {
         </div>
       </section>
 
-      <section className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm md:p-5">
+      {/* Verde, el mismo de la barra de "validados" de la cola
+          (`bg-emerald-500`). Al lado de la carga, que va en azul, se distingue
+          de un vistazo en cuál de las dos se está trabajando. */}
+      <section className="rounded-xl border-2 border-emerald-500 bg-white p-4 shadow-sm md:p-5">
         <ProtocolValidationLoader controller={controller} />
       </section>
 

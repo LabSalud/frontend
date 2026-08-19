@@ -82,7 +82,12 @@ export default function ProtocolResultsPage() {
         </div>
       </section>
 
-      <section className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm md:p-5">
+      {/* EL BORDE DICE EN QUÉ PANTALLA ESTÁS.
+          Carga, validación y el detalle del protocolo se ven casi iguales, y
+          la de al lado hace otra cosa con los mismos datos. El azul es el
+          mismo de la barra de "cargados" de la cola (`bg-blue-400`), así que
+          el color ya significa "resultados" antes de leer nada. */}
+      <section className="rounded-xl border-2 border-blue-400 bg-white p-4 shadow-sm md:p-5">
         <ProtocolResultsLoader controller={controller} />
       </section>
 

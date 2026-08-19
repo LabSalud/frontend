@@ -111,7 +111,6 @@ export const CATALOG_ENDPOINTS = {
   ANALYSIS_DETAIL: (id: number) => buildApiUrl(`/catalog/analysis/${id}/`),
   ANALYSIS_AUDIT_TIMELINE: (id: number) => buildApiUrl(`/catalog/analysis/${id}/audit-timeline/`),
   ANALYSIS_IMPORT: buildApiUrl("/catalog/analysis/import-catalog/"),
-  CLEAR_CATALOG: buildApiUrl("/catalog/analysis/clear-catalog/"),
   DETERMINATIONS: buildApiUrl("/catalog/determination/"),
   /** Grupos de determinaciones cuya suma tiene que cerrar. */
   SUBMODULOS_CORROBORACION: buildApiUrl("/catalog/submodulo-corroboracion/"),
@@ -150,6 +149,8 @@ export const PROTOCOL_ENDPOINTS = {
   ARCA_DETAIL: (id: number) => buildApiUrl(`/protocols/protocols/${id}/arca-detail/`),
   REPORT: (id: number) => buildApiUrl(`/protocols/protocols/${id}/report/`),
   PROTOCOL_DETAILS: (id: number) => buildApiUrl(`/protocols/protocols/${id}/details/`),
+  /** Corrige material descartable y derivación de un protocolo ya creado. */
+  SET_EXTRAS: (id: number) => buildApiUrl(`/protocols/protocols/${id}/set-extras/`),
   /** Los pagos del paciente, uno por forma. Listar y agregar. */
   PROTOCOL_PAGOS: (id: number) => buildApiUrl(`/protocols/protocols/${id}/pagos/`),
   /** Corregir o anular UNO: la forma vive en el pago, no en el protocolo. */

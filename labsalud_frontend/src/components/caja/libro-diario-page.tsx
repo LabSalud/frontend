@@ -105,12 +105,13 @@ export default function LibroDiarioPage() {
   const { hasPermission } = useAuth()
   const { apiRequest } = useApi()
   const toastActions = useToast()
-  // `?protocolo=` llega desde "Ver en libro diario" del detalle. Con él, el
-  // libro deja de mirar un rango de fechas y muestra ese protocolo entero: el
-  // cobro que se quiere corregir puede ser de hace meses.
+  // `?protocolo=` llega desde "Ver en libro diario" del detalle. NO filtra: el
+  // libro sigue siendo el libro, con su rango de fechas y todo lo demás. Lo que
+  // hace es señalar esa fila —resaltada y desplegada— y garantizar que esté
+  // aunque el protocolo sea de hace meses y el rango no lo alcance.
   const [searchParams, setSearchParams] = useSearchParams()
   const protocoloCrudo = searchParams.get("protocolo")
-  const protocoloFiltrado = protocoloCrudo ? Number(protocoloCrudo) : null
+  const protocoloSenalado = protocoloCrudo ? Number(protocoloCrudo) : null
 
   const [desde, setDesde] = useState(haceDias(7))
   const [hasta, setHasta] = useState(hoyISO())
@@ -131,12 +132,12 @@ export default function LibroDiarioPage() {
   const puedeCargarMovimientos = hasPermission(PERMISSIONS.MANAGE_BILLING.codename)
 
   const consulta = useApiQuery<Respuesta>({
-    queryKey: ["analytics", "libro-diario", desde, hasta, protocoloFiltrado],
+    queryKey: ["analytics", "libro-diario", desde, hasta, protocoloSenalado],
     // Siempre agrupado: una fila por protocolo con la fecha de su último pago.
     // El detalle de cada cobro se abre en la fila.
-    url: protocoloFiltrado
-      ? `${ANALYTICS_ENDPOINTS.LIBRO_DIARIO}?agrupado=protocolo&protocolo=${protocoloFiltrado}`
-      : `${ANALYTICS_ENDPOINTS.LIBRO_DIARIO}?agrupado=protocolo&desde=${desde}&hasta=${hasta}`,
+    url:
+      `${ANALYTICS_ENDPOINTS.LIBRO_DIARIO}?agrupado=protocolo&desde=${desde}&hasta=${hasta}` +
+      (protocoloSenalado ? `&protocolo=${protocoloSenalado}` : ""),
     staleTime: 30 * 1000,
   })
 
@@ -233,10 +234,10 @@ export default function LibroDiarioPage() {
   // y cambia de alto es una tabla peleando contra lo que se le pide.
   const [abierta, setAbierta] = useState<string | null>(null)
 
-  // Llegando desde "Ver en libro diario" hay una sola fila: se abre sola,
-  // porque el clic de más es justo el que nadie entiende que hay que dar.
-  const filaUnica = movimientos.length === 1 ? movimientos[0].id : null
-  const desplegada = abierta ?? (protocoloFiltrado ? filaUnica : null)
+  // La fila señalada se abre sola: el clic de más es justo el que nadie
+  // entiende que hay que dar cuando ya vino de un botón que decía a dónde iba.
+  const idSenalado = protocoloSenalado ? `protocolo-${protocoloSenalado}` : null
+  const desplegada = abierta ?? idSenalado
 
   const alternar = (id: string) => setAbierta((a) => (a === id ? null : id))
 
@@ -254,11 +255,9 @@ export default function LibroDiarioPage() {
               Libro diario
             </h1>
             <p className="text-sm text-gray-500">
-              {protocoloFiltrado
-                ? `Solo el protocolo #${protocoloFiltrado}`
-                : movimientos.length > 0
-                  ? `${movimientos.length} movimientos`
-                  : "Cada movimiento de plata, en orden"}
+              {movimientos.length > 0
+                ? `${movimientos.length} movimientos`
+                : "Cada movimiento de plata, en orden"}
             </p>
           </div>
 
@@ -320,12 +319,12 @@ export default function LibroDiarioPage() {
           </div>
         </div>
 
-        {protocoloFiltrado ? (
+        {protocoloSenalado ? (
           <div className="mt-4 space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[#204983]/30 bg-[#204983]/5 px-3 py-2 text-sm">
               <span className="text-[#204983]">
-                Mostrando los movimientos del <strong>protocolo #{protocoloFiltrado}</strong>,
-                sin filtrar por fecha.
+                Señalado el <strong>protocolo #{protocoloSenalado}</strong>. Si quedó
+                fuera del rango de fechas, se muestra igual.
               </span>
               <Button
                 variant="outline"
@@ -333,7 +332,7 @@ export default function LibroDiarioPage() {
                 className="border-[#204983] text-[#204983] hover:bg-[#204983] hover:text-white"
                 onClick={() => setSearchParams({})}
               >
-                Ver todo el libro
+                Quitar el resaltado
               </Button>
             </div>
 
@@ -374,7 +373,11 @@ export default function LibroDiarioPage() {
                   <div
                     key={fila.id}
                     className={`rounded-lg border transition ${
-                      estaAbierta ? "border-[#204983] bg-[#204983]/5" : "border-gray-200 bg-white"
+                      fila.id === idSenalado
+                        ? "border-[#204983] bg-[#204983]/5 ring-2 ring-[#204983]/30"
+                        : estaAbierta
+                          ? "border-[#204983] bg-[#204983]/5"
+                          : "border-gray-200 bg-white"
                     }`}
                   >
                     <button

@@ -674,6 +674,9 @@ export interface Protocol {
   extra_amounts_overridden?: boolean
   // Pricing breakdown (new fields - May 2026)
   analyses_amount_due?: string
+  /** Lo que se le descontó al particular por volumen. Ya está restado de
+   *  `analyses_amount_due`; va aparte para que el total cierre con las partes. */
+  descuento_por_volumen?: string
   coseguro_amount?: string
   material_descartable_amount?: string
   derivacion_amount?: string
@@ -776,6 +779,9 @@ export interface ProtocolListItem {
   redondeo?: string
   // Pricing breakdown (new fields)
   analyses_amount_due?: string
+  /** Lo que se le descontó al particular por volumen. Ya está restado de
+   *  `analyses_amount_due`. */
+  descuento_por_volumen?: string
   coseguro_amount?: string
   material_descartable_amount?: string
   derivacion_amount?: string
@@ -897,6 +903,13 @@ export interface PricingConfig {
    * laboratorio. "0.00" = no se redondea nunca.
    */
   redondeo_maximo: string
+  /**
+   * A partir de cuántas UB el particular deja de pagar el total. "0.00" = sin
+   * descuento por volumen.
+   */
+  particular_desde_ub: string
+  /** Qué porcentaje de los análisis se le cobra pasado ese volumen. "70.00" = el 70%. */
+  particular_porcentaje_a_cobrar: string
 }
 
 // Respuesta de POST /protocols/protocols/quote/ — preview de precios que reusa
@@ -920,6 +933,8 @@ export interface QuoteResult {
   total_ub_authorized: string
   total_ub_private: string
   analyses_amount_due: string
+  /** Lo que se le descontó al particular por volumen. "0.00" si no aplicó. */
+  descuento_por_volumen: string
   material_descartable_amount: string
   derivacion_amount: string
   coseguro_amount: string

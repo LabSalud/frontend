@@ -172,6 +172,8 @@ function StatusButtonGroup<T extends string>({
 interface Totals {
   authorizedTotal: number
   privateTotal: number
+  /** Lo que se le descontó al particular por volumen. Ya está restado. */
+  descuentoPorVolumen: number
   total: number
   patientOwes: number
   authorizedUb: number
@@ -673,6 +675,18 @@ export function ProtocolForm({
                   ${totals.privateTotal.toFixed(2)}
                   <span className="text-xs text-gray-500 ml-1">({totals.privateUb.toFixed(2)} UB)</span>
                 </div>
+
+                {/* SE MUESTRA PORQUE HAY QUE PODER EXPLICARLO EN EL MOSTRADOR.
+                    Sin este renglón, el subtotal no cierra con la suma de los
+                    análisis de arriba y parece un error de la pantalla. */}
+                {totals.descuentoPorVolumen > 0 && (
+                  <>
+                    <div className="text-emerald-700">Descuento por volumen:</div>
+                    <div className="text-right font-medium text-emerald-700">
+                      −${totals.descuentoPorVolumen.toFixed(2)}
+                    </div>
+                  </>
+                )}
 
                 {totals.extrasTotal > 0 && (
                   <>

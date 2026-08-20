@@ -17,6 +17,7 @@ import { useNbuOptions } from "@/hooks/use-nbu-options"
 import type { NBUImportResult, NBUUbValuesList } from "@/types"
 import { formatApiError, getErrorMessage } from "@/lib/api-error"
 import { NbuSelect } from "./components/nbu-select"
+import { BuscadorDeUb } from "./components/buscador-de-ub"
 import { useEndpointProgress } from "@/hooks/use-endpoint-progress"
 
 type CreateMode = "empty" | "import"
@@ -40,9 +41,6 @@ export function NbuManagement() {
   const [isCreating, setIsCreating] = useState(false)
   const [ubValues, setUbValues] = useState<NBUUbValuesList | null>(null)
   const [loadingValues, setLoadingValues] = useState(false)
-  const [analysisCode, setAnalysisCode] = useState("")
-  const [ubValue, setUbValue] = useState("")
-  const [isSavingUb, setIsSavingUb] = useState(false)
   const [importFile, setImportFile] = useState<File | null>(null)
   const [isImporting, setIsImporting] = useState(false)
   const [importResult, setImportResult] = useState<NBUImportResult | null>(null)
@@ -141,32 +139,6 @@ export function NbuManagement() {
     } finally {
       if (createMode === "import") createProgress.finish()
       setIsCreating(false)
-    }
-  }
-
-  const handleSaveUb = async (event: React.FormEvent) => {
-    event.preventDefault()
-    if (!selectedNbu || !analysisCode.trim() || !ubValue.trim()) return
-
-    try {
-      setIsSavingUb(true)
-      const response = await apiRequest(CATALOG_ENDPOINTS.NBU_UPDATE_UB_VALUE(selectedNbu.id), {
-        method: "POST",
-        body: { analysis_code: Number(analysisCode), value: ubValue.trim() },
-      })
-      if (!response.ok) {
-        const data = await response.json().catch(() => ({}))
-        throw new Error(formatApiError(data, "No se pudo guardar el UB."))
-      }
-      success("UB actualizado", { duration: TOAST_DURATION })
-      setAnalysisCode("")
-      setUbValue("")
-      fetchUbValues(selectedNbu.id)
-      invalidateNbus()
-    } catch (err) {
-      error("Error al guardar UB", { description: getErrorMessage(err) })
-    } finally {
-      setIsSavingUb(false)
     }
   }
 
@@ -412,25 +384,20 @@ export function NbuManagement() {
           <CardContent className="min-w-0 space-y-4">
             {selectedNbu ? (
               <>
-                <form onSubmit={handleSaveUb} className="min-w-0 rounded-md border border-gray-200 bg-gray-50 p-3">
-                  <div className="grid grid-cols-1 gap-2 min-w-0 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
-                    <Input
-                      type="number"
-                      value={analysisCode}
-                      onChange={(event) => setAnalysisCode(event.target.value)}
-                      placeholder="Código de análisis"
-                    />
-                    <Input value={ubValue} onChange={(event) => setUbValue(event.target.value)} placeholder="UB" />
-                    <Button type="submit" className="bg-[#204983]" disabled={isSavingUb || selectedNbu.is_default}>
-                      {isSavingUb ? <Loader2 className="h-4 w-4 animate-spin" /> : "Guardar"}
-                    </Button>
-                  </div>
-                  {selectedNbu.is_default && (
-                    <p className="mt-2 text-xs text-amber-700 break-words">
-                      El NBU principal no permite quitar UB; usá una actualización para overrides.
-                    </p>
-                  )}
-                </form>
+                <BuscadorDeUb
+                  nbu={selectedNbu}
+                  nomencladores={nbus}
+                  onCambio={() => {
+                    fetchUbValues(selectedNbu.id)
+                    invalidateNbus()
+                  }}
+                />
+                {selectedNbu.is_default && (
+                  <p className="-mt-2 text-xs text-amber-700 break-words">
+                    Este es el nomenclador principal: se le puede cambiar el UB a un análisis, pero
+                    no quitárselo — es el último eslabón de la cadena y sin él no queda de dónde heredar.
+                  </p>
+                )}
 
                 <form onSubmit={handleImport} className="min-w-0 rounded-md border border-blue-100 bg-blue-50 p-3">
                   <div className="flex min-w-0 flex-col gap-2 sm:flex-row">

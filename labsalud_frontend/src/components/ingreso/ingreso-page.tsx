@@ -197,7 +197,7 @@ export default function IngresoPage() {
 
   const calculateTotals = () => {
     if (!selectedInsurance || selectedAnalyses.length === 0) {
-      return { authorizedTotal: 0, privateTotal: 0, total: 0, patientOwes: 0, authorizedUb: 0, privateUb: 0, extrasTotal: 0 }
+      return { authorizedTotal: 0, privateTotal: 0, total: 0, patientOwes: 0, authorizedUb: 0, privateUb: 0, extrasTotal: 0, descuentoPorVolumen: 0 }
     }
 
     const insuranceUbValue = Number.parseFloat(selectedInsurance.ub_value) || 0
@@ -243,7 +243,14 @@ export default function IngresoPage() {
     const total = authorizedTotal + privateTotal + extrasTotal
     const patientOwes = Math.max(0, privateTotal + extrasTotal - unplannedPayments)
 
-    return { authorizedTotal, privateTotal, total, patientOwes, authorizedUb, privateUb, extrasTotal }
+    // Ya viene restado de `privateTotal`; se muestra aparte para que el
+    // paciente vea por qué paga menos que la suma de los análisis.
+    const descuentoPorVolumen = Number.parseFloat(quote?.descuento_por_volumen || "0") || 0
+
+    return {
+      authorizedTotal, privateTotal, total, patientOwes,
+      authorizedUb, privateUb, extrasTotal, descuentoPorVolumen,
+    }
   }
 
   const handleEditPatient = () => {

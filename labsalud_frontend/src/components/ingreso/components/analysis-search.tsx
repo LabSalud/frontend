@@ -340,11 +340,6 @@ export function AnalysisSearch({ selectedAnalyses, onAnalysisChange }: AnalysisS
                     Urgente
                   </Badge>
                 )}
-                {analysis.is_module && (
-                  <Badge variant="outline" className="bg-blue-50 text-blue-700 text-xs">
-                    Módulo
-                  </Badge>
-                )}
                 {analysis.is_obsolete && (
                   <Badge variant="outline" className="bg-amber-50 text-amber-700 text-xs">
                     En desuso

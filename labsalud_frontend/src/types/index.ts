@@ -371,19 +371,6 @@ export type ObraSocial = Insurance
 /** Categoría NBU del análisis. "" = sin clasificar. */
 export type AnalysisCategory = "pmo" | "pe" | "gestion" | ""
 
-/** Relación de composición: qué prácticas incluye/excluye un módulo. */
-export type AnalysisRelationType = "includes" | "not_includes" | "included_in"
-
-export interface AnalysisComponent {
-  id: number
-  child: number
-  child_code: string
-  child_name: string
-  relation_type: AnalysisRelationType
-  relation_type_display: string
-  is_active: boolean
-}
-
 /** Ficha NBU del análisis (reglas de alcance/facturación y notas del laboratorio). */
 export interface NbuInfo {
   work_minimum?: string
@@ -408,8 +395,6 @@ export interface Analysis {
   category?: AnalysisCategory
   is_ref_normalized?: boolean
   is_obsolete?: boolean
-  is_module?: boolean
-  components?: AnalysisComponent[]
   nbu_info?: NbuInfo | null
   creation?: CreationAudit
   last_change?: LastChangeAudit
@@ -497,6 +482,21 @@ export interface ReferenceRange {
   max_value: string
 }
 
+/**
+ * Un rango de referencia con nombre, cargado a mano por el laboratorio.
+ *
+ * No tiene sexo ni grupo etario y NO entra en la detección automática: se
+ * imprime en el informe, debajo del rango del paciente, para que el médico lea
+ * el resultado en contexto (las franjas del colesterol, por ejemplo).
+ */
+export interface NamedReferenceRange {
+  id?: number
+  label: string
+  min_value: string
+  max_value: string
+  orden?: number
+}
+
 export type ReferenceRangeEvaluationStatus =
   | "not_evaluated"
   | "no_applicable_reference"
@@ -570,6 +570,7 @@ export interface Determination {
   formula: string
   reference_values?: ReferenceValues
   reference_ranges?: ReferenceRange[]
+  named_ranges?: NamedReferenceRange[]
   /** Posición dentro del análisis. Se ordena arrastrando en el catálogo. */
   orden?: number
   is_active: boolean
@@ -619,7 +620,12 @@ export interface ProtocolDetail {
   is_loaded?: boolean
   code: string
   name: string
+  /** La UB que le corresponde: la de la OOSS si va cubierto, la de Particular si no. */
   ub: string
+  /** La UB del nomenclador de Particular. */
+  ub_particular?: string | null
+  /** La UB del nomenclador de la OOSS. `null` = esa OOSS no nombra la práctica. */
+  ub_obra_social?: string | null
   is_urgent: boolean
   is_active: boolean
 }
@@ -685,7 +691,6 @@ export interface Protocol {
   extras_total?: string
   private_amount_due?: string
   /** Cuántos componentes no se cobraron por estar incluidos en un módulo presente. */
-  included_components_skipped?: number
   nbu?: Nbu | null
   // Returned by protocol create response
   value_paid?: string
@@ -787,7 +792,6 @@ export interface ProtocolListItem {
   derivacion_amount?: string
   extras_total?: string
   /** Cuántos componentes no se cobraron por estar incluidos en un módulo presente. */
-  included_components_skipped?: number
   payment_status: PaymentStatus
   billing_status?: BillingStatus
   is_printed: boolean
@@ -1014,6 +1018,7 @@ export interface ResultDetermination {
   formula: string
   reference_values?: ReferenceValues
   reference_ranges?: ReferenceRange[]
+  named_ranges?: NamedReferenceRange[]
 }
 
 export interface ResultAnalysis {

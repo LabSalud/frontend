@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import {
   formatEvaluatedReference,
+  formatNamedReferenceRanges,
   formatReferenceRange,
   formatReferenceValues,
   getReferenceEvaluationLabel,
@@ -91,9 +92,14 @@ export function ResultDeterminationRow({
   // verlo antes de guardar y no en el papel.
   const enElInforme = expandirNumero(value.value, det.scientific_exponent)
 
-  const referenceItems = det.reference_ranges?.length
-    ? det.reference_ranges.map(formatReferenceRange)
-    : formatReferenceValues(det.reference_values)
+  // Primero los rangos del paciente —los que se evalúan— y después los
+  // rangos con nombre, que sólo informan. Ver `NamedReferenceRange`.
+  const referenceItems = [
+    ...(det.reference_ranges?.length
+      ? det.reference_ranges.map(formatReferenceRange)
+      : formatReferenceValues(det.reference_values)),
+    ...formatNamedReferenceRanges(det.named_ranges),
+  ]
   const evaluation = result.reference_range_evaluation
   const isOutOfRange = result.is_out_of_reference_range || evaluation?.is_out_of_reference_range
   const evaluatedReference = formatEvaluatedReference(evaluation)

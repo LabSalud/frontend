@@ -108,6 +108,8 @@ export const MEDICAL_ENDPOINTS = {
 
 export const CATALOG_ENDPOINTS = {
   ANALYSIS: buildApiUrl("/catalog/analysis/"),
+  ANALYSIS_COPIAR_DETERMINACIONES: (id: number) =>
+    buildApiUrl(`/catalog/analysis/${id}/copiar-determinaciones/`),
   ANALYSIS_DETAIL: (id: number) => buildApiUrl(`/catalog/analysis/${id}/`),
   ANALYSIS_AUDIT_TIMELINE: (id: number) => buildApiUrl(`/catalog/analysis/${id}/audit-timeline/`),
   ANALYSIS_IMPORT: buildApiUrl("/catalog/analysis/import-catalog/"),
@@ -134,8 +136,6 @@ export const CATALOG_ENDPOINTS = {
   NBU_CREATE_WITH_IMPORT: buildApiUrl("/catalog/nbu/create-with-import/"),
   PRICING_CONFIG: buildApiUrl("/catalog/pricing-config/"),
   // Composición de análisis (módulos): qué prácticas incluye/excluye un análisis.
-  ANALYSIS_COMPOSITION: buildApiUrl("/catalog/analysis-composition/"),
-  ANALYSIS_COMPOSITION_DETAIL: (id: number) => buildApiUrl(`/catalog/analysis-composition/${id}/`),
 } as const
 
 // Protocol management endpoints

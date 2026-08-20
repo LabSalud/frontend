@@ -8,10 +8,13 @@ import { Label } from "@/components/ui/label"
 import { esExponenteValido } from "@/lib/notacion"
 import { CampoNotacionCientifica } from "./campo-notacion-cientifica"
 import {
+  rangosConNombreParaEnviar,
   rangosParaEnviar,
   rangosVacios,
   ValoresDeReferencia,
+  type NamedRange,
   type RangeMap,
+  type RangoConNombre,
   type RefRange,
 } from "./valores-de-referencia"
 
@@ -38,6 +41,7 @@ export type DeterminacionEnEdicion = {
   unidad: string
   exponente: string
   ranges: RangeMap
+  rangosConNombre: RangoConNombre[]
 }
 
 let siguienteId = 0
@@ -50,6 +54,7 @@ export function determinacionVacia(nombre = ""): DeterminacionEnEdicion {
     unidad: "",
     exponente: "",
     ranges: rangosVacios(),
+    rangosConNombre: [],
   }
 }
 
@@ -58,6 +63,7 @@ export type DeterminacionParaEnviar = {
   measure_unit: string
   scientific_exponent: number | null
   reference_ranges: RefRange[]
+  named_ranges: NamedRange[]
 }
 
 /** Lo que espera el backend en `determinations` al crear el análisis. */
@@ -73,6 +79,7 @@ export function paraEnviar(
       measure_unit: d.unidad.trim(),
       scientific_exponent: esExponenteValido(Number(d.exponente)) ? Number(d.exponente) : null,
       reference_ranges: rangosParaEnviar(d.ranges),
+      named_ranges: rangosConNombreParaEnviar(d.rangosConNombre),
     }))
     .filter((d) => d.name)
 }
@@ -185,6 +192,8 @@ export function DeterminacionesDelAlta({
           <ValoresDeReferencia
             ranges={det.ranges}
             onChange={(ranges) => actualizar(det.id, { ranges })}
+            namedRanges={det.rangosConNombre}
+            onNamedRangesChange={(rangosConNombre) => actualizar(det.id, { rangosConNombre })}
             disabled={disabled}
           />
         </div>

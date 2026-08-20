@@ -43,8 +43,11 @@ export interface ProtocolDetailViewData {
   status?: { id?: number; name?: string }
   patient?: { id: number; dni?: string; is_anonymous?: boolean }
   doctor?: { license?: string }
-  insurance?: { name?: string }
+  insurance?: { name?: string; chooses_billing_entity?: boolean }
   affiliate_number?: string
+  /** A qué entidad se le presenta ESTE protocolo. Solo la eligen las obras
+   *  sociales que facturan por Centro o por Clínica según la preautorización. */
+  billing_entity?: { id: number; name: string } | null
   // Pago (desglose)
   amount_due?: string
   private_amount_due?: string
@@ -83,6 +86,7 @@ export interface ProtocolDetailViewProps {
   onOrderStatus: () => void
   onPreauth: () => void
   onCoseguro: () => void
+  onEntidadDeFacturacion: () => void
   onHistory: () => void
   onUnplanned: () => void
   onToggleAuthorization: (detail: ProtocolDetailType) => void
@@ -179,6 +183,7 @@ export function ProtocolDetailView(props: ProtocolDetailViewProps) {
     onOrderStatus,
     onPreauth,
     onCoseguro,
+    onEntidadDeFacturacion,
     onHistory,
     onUnplanned,
     onToggleAuthorization,
@@ -456,6 +461,39 @@ export function ProtocolDetailView(props: ProtocolDetailViewProps) {
 
         {/* Facturación: desglose + pagos + ARCA */}
         <SidebarCard icon={CreditCard} title="Facturación">
+          {/* A QUÉ ENTIDAD VA ESTE PROTOCOLO.
+              Solo aparece en las obras sociales que facturan por Centro o por
+              Clínica según la preautorización: en las demás la entidad sale de
+              la obra social y no hay nada que elegir.
+
+              Se puede corregir porque se elige en el mostrador, con la
+              preautorización en la mano, y ahí se puede errar. Una entidad
+              equivocada no da ningún error: el protocolo aparece en los
+              pendientes de la otra y se factura ahí. Se descubre al cerrar el
+              mes, cuando ya se presentó. */}
+          {detail.insurance?.chooses_billing_entity && (
+            <div className="flex items-center justify-between gap-2 py-1">
+              <span className="text-sm text-gray-500">Entidad a facturar</span>
+              <div className="flex items-center gap-1.5">
+                <span className={cn(
+                  "text-sm font-medium",
+                  detail.billing_entity ? "text-gray-900" : "text-amber-700",
+                )}>
+                  {detail.billing_entity?.name || "Sin elegir"}
+                </span>
+                {isEditable && (
+                  <button
+                    onClick={onEntidadDeFacturacion}
+                    className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-[#204983]"
+                    title="Cambiar la entidad a facturar"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
           {nonZero(detail.analyses_amount_due) && <Row label="Análisis particulares" value={money(detail.analyses_amount_due)} />}
           {nonZero(detail.coseguro_amount) && <Row label="Coseguro" value={money(detail.coseguro_amount)} />}
           {nonZero(detail.material_descartable_amount) && <Row label="Material descartable" value={money(detail.material_descartable_amount)} />}

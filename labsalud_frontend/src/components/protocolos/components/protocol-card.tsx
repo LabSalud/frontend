@@ -48,6 +48,7 @@ import {
   EditDialog,
   ReportDialog,
   CoseguroDialog,
+  EntidadDeFacturacionDialog,
   PreauthorizationDialog,
   OrderStatusDialog,
   ArcaBillingDialog,
@@ -87,7 +88,12 @@ interface ProtocolDetailResponse {
     charges_material_descartable?: boolean
     charges_derivacion?: boolean
     requires_preauthorization?: boolean
+    /** Factura por Centro o por Clínica según la preautorización del paciente:
+     *  la entidad se elige por protocolo. */
+    chooses_billing_entity?: boolean
   }
+  /** A qué entidad se le presenta ESTE protocolo. */
+  billing_entity?: { id: number; name: string } | null
   affiliate_number?: string
   status: ProtocolStatus
   send_method: {
@@ -218,6 +224,8 @@ export function ProtocolCard({
   const [arcaInvoicePdfUrl, setArcaInvoicePdfUrl] = useState<string | null>(null)
   const [coseguroDialogOpen, setCoseguroDialogOpen] = useState(false)
   const [isProcessingCoseguro, setIsProcessingCoseguro] = useState(false)
+  const [entidadDialogOpen, setEntidadDialogOpen] = useState(false)
+  const [guardandoEntidad, setGuardandoEntidad] = useState(false)
   const [unplannedDialogOpen, setUnplannedDialogOpen] = useState(false)
   const [preauthDialogOpen, setPreauthDialogOpen] = useState(false)
   const [isProcessingPreauth, setIsProcessingPreauth] = useState(false)
@@ -1107,6 +1115,37 @@ export function ProtocolCard({
     setCoseguroDialogOpen(true)
   }
 
+  const handleAbrirEntidad = async () => {
+    if (!protocolDetail) await fetchProtocolDetail()
+    setEntidadDialogOpen(true)
+  }
+
+  const handleCambiarEntidad = async (entidadId: number): Promise<boolean> => {
+    setGuardandoEntidad(true)
+    try {
+      const response = await apiRequest(PROTOCOL_ENDPOINTS.PROTOCOL_DETAIL(protocol.id), {
+        method: "PATCH",
+        body: { billing_entity: entidadId },
+      })
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}))
+        throw new Error(formatApiError(data, "No se pudo cambiar la entidad."))
+      }
+      toast.success("Entidad actualizada", {
+        description: "El protocolo se va a presentar en la entidad elegida.",
+        duration: TOAST_DURATION,
+      })
+      await fetchProtocolDetail()
+      onUpdate?.()
+      return true
+    } catch (error) {
+      toast.error(getErrorMessage(error), { duration: TOAST_DURATION })
+      return false
+    } finally {
+      setGuardandoEntidad(false)
+    }
+  }
+
   const handleSetCoseguro = async (amount: number): Promise<boolean> => {
     setIsProcessingCoseguro(true)
     try {
@@ -1363,6 +1402,7 @@ export function ProtocolCard({
           onOrderStatus={handleOpenOrderStatusDialog}
           onPreauth={handleOpenPreauthDialog}
           onCoseguro={handleOpenCoseguroDialog}
+          onEntidadDeFacturacion={handleAbrirEntidad}
           onHistory={() => setHistoryDialogOpen(true)}
           onUnplanned={handleOpenUnplanned}
           onToggleAuthorization={handleToggleAuthorization}
@@ -1790,6 +1830,15 @@ export function ProtocolCard({
         insuranceChargesCoseguro={insuranceChargesCoseguro}
         onConfirm={handleSetCoseguro}
         isProcessing={isProcessingCoseguro}
+      />
+
+      <EntidadDeFacturacionDialog
+        open={entidadDialogOpen}
+        onOpenChange={setEntidadDialogOpen}
+        entidadActualId={protocolDetail?.billing_entity?.id ?? null}
+        nombreDeLaObraSocial={protocolDetail?.insurance?.name}
+        onGuardar={handleCambiarEntidad}
+        procesando={guardandoEntidad}
       />
 
       <UnplannedTransactionsDialog

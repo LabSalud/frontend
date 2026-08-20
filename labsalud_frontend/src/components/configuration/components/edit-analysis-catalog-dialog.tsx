@@ -15,6 +15,8 @@ import { useToast } from "@/hooks/use-toast"
 import { Loader2, TestTube } from "lucide-react"
 import { CATALOG_ENDPOINTS } from "@/config/api"
 import { formatApiError, getErrorMessage } from "@/lib/api-error"
+import { useNbuOptions } from "@/hooks/use-nbu-options"
+import { resolverUb } from "@/lib/ub-por-nomenclador"
 
 interface EditAnalysisCatalogDialogProps {
   open: boolean
@@ -42,6 +44,15 @@ export const EditAnalysisCatalogDialog: React.FC<EditAnalysisCatalogDialogProps>
   const [isLoading, setIsLoading] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
 
+  // EL UB QUE SE COBRA ES ESTE, NO EL DE ARRIBA
+  // `bio_unit` es una etiqueta que se muestra en la pantalla de resultados. Lo
+  // que decide cuánto paga el paciente es el UB del nomenclador de su obra
+  // social, y hasta ahora solo se podía tocar desde la pantalla de
+  // Nomencladores, escribiendo el código del análisis de memoria.
+  const { nbus } = useNbuOptions()
+  const [ubPorNbu, setUbPorNbu] = useState<Record<number, string>>({})
+  const [ubOriginal, setUbOriginal] = useState<Record<number, string>>({})
+
   useEffect(() => {
     if (analysis && open) {
       setCode(analysis.code.toString())
@@ -53,6 +64,15 @@ export const EditAnalysisCatalogDialog: React.FC<EditAnalysisCatalogDialogProps>
       setIsObsolete(analysis.is_obsolete ?? false)
       setIsRefNormalized(analysis.is_ref_normalized ?? false)
       setErrors({})
+      // Se arma con los valores del análisis y NO con la lista de nomencladores:
+      // esa lista se rehace en cada render mientras carga, y con ella en las
+      // dependencias el efecto volvía a correr y borraba lo tipeado.
+      const propios: Record<number, string> = {}
+      for (const valor of analysis.bio_unit_values ?? []) {
+        if (valor.nbu_id) propios[valor.nbu_id] = valor.value
+      }
+      setUbPorNbu(propios)
+      setUbOriginal(propios)
     }
   }, [analysis, open])
 
@@ -65,6 +85,14 @@ export const EditAnalysisCatalogDialog: React.FC<EditAnalysisCatalogDialogProps>
     else if (!/^[\w.-]+$/.test(code.trim()))
       newErrors.code = "El código no puede tener espacios ni símbolos raros."
     if (!bioUnit.trim()) newErrors.bioUnit = "La unidad bioquímica es requerida."
+
+    // El principal es el último eslabón de la cadena: si se lo vacía no queda de
+    // dónde heredar y el análisis deja de poder cobrarse. El backend también lo
+    // rechaza; acá se avisa antes de escribir nada.
+    const principal = nbus.find((nbu) => nbu.is_default)
+    if (principal && ubOriginal[principal.id] && !(ubPorNbu[principal.id] ?? "").trim()) {
+      newErrors.ub = `${principal.name} es el nomenclador principal: no puede quedarse sin UB. Cambiá el valor, o quitalo desde una actualización que cuelgue de él.`
+    }
 
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
@@ -89,8 +117,35 @@ export const EditAnalysisCatalogDialog: React.FC<EditAnalysisCatalogDialogProps>
       if (isObsolete !== (analysis.is_obsolete ?? false)) analysisUpdateData.is_obsolete = isObsolete
       if (isRefNormalized !== (analysis.is_ref_normalized ?? false)) analysisUpdateData.is_ref_normalized = isRefNormalized
 
+      // Los UB van PRIMERO y con el código viejo: si en la misma pasada se
+      // cambió el código, quitar un UB pide el código con el que está guardado.
+      const cambiosDeUb = nbus.filter(
+        (nbu) => (ubPorNbu[nbu.id] ?? "").trim() !== (ubOriginal[nbu.id] ?? ""),
+      )
+      for (const nbu of cambiosDeUb) {
+        const valor = (ubPorNbu[nbu.id] ?? "").trim()
+        const respuesta = valor
+          ? await apiRequest(CATALOG_ENDPOINTS.NBU_UPDATE_UB_VALUE(nbu.id), {
+              method: "POST",
+              body: { analysis_id: analysis.id, value: valor },
+            })
+          : await apiRequest(CATALOG_ENDPOINTS.NBU_DELETE_UB_VALUE(nbu.id, analysis.code), {
+              method: "DELETE",
+            })
+        if (!respuesta.ok) {
+          const datos = await respuesta.json().catch(() => ({}))
+          throw new Error(formatApiError(datos, `No se pudo guardar el UB en ${nbu.name}.`))
+        }
+      }
+
       if (Object.keys(analysisUpdateData).length === 0) {
-        toastActions.info("Sin cambios", { description: "No se realizaron modificaciones." })
+        if (cambiosDeUb.length === 0) {
+          toastActions.info("Sin cambios", { description: "No se realizaron modificaciones." })
+          onOpenChange(false)
+          return
+        }
+        toastActions.success("Éxito", { description: "UB actualizado correctamente." })
+        onSuccess(analysis)
         onOpenChange(false)
         return
       }
@@ -168,7 +223,7 @@ export const EditAnalysisCatalogDialog: React.FC<EditAnalysisCatalogDialogProps>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="edit-bioUnit">Unidad Bioquímica (principal) *</Label>
+            <Label htmlFor="edit-bioUnit">Unidad Bioquímica (etiqueta) *</Label>
             <Input
               id="edit-bioUnit"
               value={bioUnit}
@@ -176,30 +231,55 @@ export const EditAnalysisCatalogDialog: React.FC<EditAnalysisCatalogDialogProps>
               placeholder="Ingrese la unidad bioquímica principal"
             />
             <p className="text-xs text-gray-500">
-              Es la UB que se usa por defecto. Cada OOSS puede elegir la UB de un año específico según su nomenclador.
+              Es el texto que se muestra junto al análisis. No interviene en el precio: lo que se
+              cobra sale del UB por nomenclador, más abajo.
             </p>
             {errors.bioUnit && <p className="text-sm text-red-500">{errors.bioUnit}</p>}
           </div>
 
-          {analysis.bio_unit_values && analysis.bio_unit_values.length > 0 && (
+          {/* ESTE ES EL UB QUE SE COBRA.
+              Antes se listaba de solo lectura, "UB históricas por año", y para
+              cambiar uno había que ir a Nomencladores y escribir el código del
+              análisis de memoria. Es el número que multiplica el valor de la UB
+              de cada obra social: es acá donde se lo busca cuando algo se está
+              cobrando mal. */}
+          {nbus.length > 0 && (
             <div className="space-y-2 rounded-md border border-blue-100 bg-blue-50/50 p-3">
-              <Label className="text-sm font-semibold text-blue-900">
-                UB históricas por año (referencia)
-              </Label>
+              <Label className="text-sm font-semibold text-blue-900">UB por nomenclador</Label>
               <p className="text-xs text-blue-800">
-                Estos valores se importan desde el catálogo Excel. Cada obra social usa la UB del año de su nomenclador asignado.
+                Es lo que se cobra: cada obra social usa el nomenclador que tiene asignado. Dejarlo
+                vacío hace que el análisis herede el UB del nomenclador del que cuelga — así solo se
+                carga lo que cambió en cada actualización.
               </p>
-              <div className="flex flex-wrap gap-1.5 mt-2">
-                {analysis.bio_unit_values.map((item) => (
-                  <span
-                    key={item.year}
-                    className="inline-flex items-center gap-1 rounded-md border border-blue-200 bg-white px-2 py-1 text-xs font-mono text-blue-700"
-                  >
-                    <span className="font-semibold">{item.year}</span>
-                    <span className="text-blue-400">·</span>
-                    <span>{item.value}</span>
-                  </span>
-                ))}
+              {errors.ub && <p className="text-sm text-red-600">{errors.ub}</p>}
+              <div className="mt-1 space-y-1.5">
+                {nbus.map((nbu) => {
+                  const rige = resolverUb(analysis.bio_unit_values, nbu.id, nbus)
+                  return (
+                    <div key={nbu.id} className="flex items-center gap-2 rounded-md bg-white p-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm text-gray-900">
+                          {nbu.name}
+                          {nbu.year ? <span className="text-gray-400"> · {nbu.year}</span> : null}
+                        </p>
+                        <p className="text-[11px] text-gray-500">
+                          {rige.esPropio
+                            ? "Valor propio"
+                            : rige.valor
+                              ? `Hereda ${rige.valor} de ${rige.heredadoDe}`
+                              : "Sin UB en esta cadena"}
+                        </p>
+                      </div>
+                      <Input
+                        value={ubPorNbu[nbu.id] ?? ""}
+                        onChange={(e) => setUbPorNbu((previo) => ({ ...previo, [nbu.id]: e.target.value }))}
+                        placeholder={rige.valor && !rige.esPropio ? `${rige.valor} (heredado)` : "UB"}
+                        className="h-8 w-24 shrink-0 tabular-nums"
+                        aria-label={`UB en ${nbu.name}`}
+                      />
+                    </div>
+                  )
+                })}
               </div>
             </div>
           )}

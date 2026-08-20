@@ -19,6 +19,7 @@ import {
   Download,
   Settings2,
   Save,
+  Pencil,
 } from "lucide-react"
 import { AnalysisDetailDialog } from "./components/analysis-detail-dialog"
 import { CreateAnalysisCatalogDialog } from "./components/create-analysis-catalog-dialog"
@@ -308,6 +309,34 @@ export function AnalysisManagement() {
         ) : (
           <span className="text-xs text-gray-400">—</span>
         ),
+    },
+    {
+      // EL LÁPIZ EN LA FILA
+      // Cuando la lista pasó de acordeón a tabla+ficha, editar quedó a dos
+      // clics y escondido: había que abrir la ficha del análisis para recién
+      // ahí encontrar el botón, al fondo. Para corregir un nombre o un UB eso
+      // es todo el trabajo. Vuelve donde estaba.
+      id: "acciones",
+      header: "",
+      align: "right",
+      className: "w-12",
+      cell: (a) => (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-8 w-8 p-0 text-gray-500 hover:bg-blue-50 hover:text-[#204983]"
+          title="Editar análisis"
+          aria-label={`Editar ${a.name || "análisis"}`}
+          onClick={(event) => {
+            // La fila abre la ficha; el lápiz va derecho a editar.
+            event.stopPropagation()
+            setSelectedAnalysis(a)
+            setIsEditAnalysisModalOpen(true)
+          }}
+        >
+          <Pencil className="h-4 w-4" />
+        </Button>
+      ),
     },
   ]
 

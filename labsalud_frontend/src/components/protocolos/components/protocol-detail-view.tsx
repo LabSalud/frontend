@@ -21,6 +21,9 @@ import {
   FileText,
   Loader2,
   Minus,
+  Mail,
+  MessageCircle,
+  Printer,
 } from "lucide-react"
 import { ListaOrdenable } from "@/components/common/lista-ordenable"
 import { Button } from "../../ui/button"
@@ -29,7 +32,7 @@ import { Switch } from "../../ui/switch"
 import { InitialsAvatar } from "@/components/common/initials-avatar"
 import { StatusPill } from "@/components/common/status-pill"
 import { AuditTimelineMini } from "@/components/common/audit-timeline-mini"
-import { getPreauthStatusInfo } from "@/lib/status-styles"
+import { getPreauthStatusInfo, getSendMethodInfo } from "@/lib/status-styles"
 import { isActoBioquimico } from "@/lib/codigos-analisis"
 import { cn } from "@/lib/utils"
 import { MensajesDeWhatsApp } from "./mensajes-de-whatsapp"
@@ -46,6 +49,8 @@ export interface ProtocolDetailViewData {
   doctor?: { license?: string }
   insurance?: { name?: string; chooses_billing_entity?: boolean }
   affiliate_number?: string
+  /** Por dónde se le entrega el resultado al paciente. */
+  send_method?: { id?: number; name?: string }
   /** A qué entidad se le presenta ESTE protocolo. Solo la eligen las obras
    *  sociales que facturan por Centro o por Clínica según la preautorización. */
   billing_entity?: { id: number; name: string } | null
@@ -79,7 +84,6 @@ export interface ProtocolDetailViewProps {
   // acciones
   onReport: () => void
   onPayment: () => void
-  onEdit: () => void
   onCancel: () => void
   onUncancel: () => void
   onArca: () => void
@@ -166,6 +170,38 @@ function Row({ label, value, strong }: { label: ReactNode; value: ReactNode; str
   )
 }
 
+/**
+ * La UB de una práctica dentro del protocolo, y de qué nomenclador salió.
+ *
+ * POR QUÉ NO ES UN SOLO NÚMERO
+ * ============================
+ * Cada análisis tiene una cantidad de UB por nomenclador, y un protocolo usa
+ * dos: el de Particular y el que usa la obra social. Cuál corre lo decide el
+ * interruptor de la fila.
+ *
+ * Se muestra porque es de dónde sale el precio. Cuando alguien pregunta por qué
+ * un análisis salió lo que salió, o por qué el mismo análisis vale distinto en
+ * dos protocolos, la respuesta casi siempre es ésta —y hasta ahora había que ir
+ * a buscarla al nomenclador.
+ *
+ * El aclarador dice de dónde salió: una obra social puede no nombrar la
+ * práctica, y ahí se cobra por el nomenclador particular. Ver `get_ub` en
+ * `laboratory/protocols/serializers.py`.
+ */
+function ubDeLaFila(d: ProtocolDetailType, isPrivate: boolean) {
+  if (isPrivate || !d.is_authorized) {
+    return { valor: d.ub, detalle: "UB del nomenclador particular" }
+  }
+  if (d.ub_obra_social) {
+    return { valor: d.ub, detalle: "UB del nomenclador de la obra social" }
+  }
+  return {
+    valor: d.ub,
+    detalle:
+      "El nomenclador de la obra social no nombra esta práctica: se toma la UB de Particular",
+  }
+}
+
 export function ProtocolDetailView(props: ProtocolDetailViewProps) {
   const {
     detail,
@@ -177,7 +213,6 @@ export function ProtocolDetailView(props: ProtocolDetailViewProps) {
     statusName,
     onReport,
     onPayment,
-    onEdit,
     onCancel,
     onUncancel,
     onArca,
@@ -212,6 +247,9 @@ export function ProtocolDetailView(props: ProtocolDetailViewProps) {
 
   const details = detail.details ?? []
   const isPrivate = (insuranceName || "").toLowerCase() === "particular"
+  const envio = getSendMethodInfo(detail.send_method?.name)
+  const IconoDeEnvio =
+    envio.accion === "whatsapp" ? MessageCircle : envio.accion === "email" ? Mail : Printer
   const unplanned = detail.unplanned_transactions ?? []
   const balancePending = Number.parseFloat(detail.amount_pending || "0")
   const toReturn = Number.parseFloat(detail.amount_to_return || "0")
@@ -256,11 +294,31 @@ export function ProtocolDetailView(props: ProtocolDetailViewProps) {
               {showReports && (
                 // Sin permiso el botón NO se esconde: queda deshabilitado con
                 // el motivo, para que se entienda por qué dejó de andar.
-                <span title={reportsDisabledReason} className="inline-flex">
+                //
+                // EL MÉTODO DE ENVÍO VA COLGADO DEL BOTÓN
+                // =======================================
+                // Es lo primero que se necesita saber antes de tocarlo: si el
+                // paciente retira, no hay nada que mandar; si va por WhatsApp o
+                // por mail, sí. Estaba adentro del diálogo, así que para
+                // saberlo había que abrirlo —y a esa altura ya se abrió por las
+                // dudas—. Se sigue cambiando ahí adentro; acá solo se lee.
+                <span title={reportsDisabledReason} className="inline-flex flex-col items-stretch gap-1">
                   <Button size="sm" variant="outline" onClick={onReport} disabled={Boolean(reportsDisabledReason)}>
                     <FileText className="mr-1.5 h-4 w-4" />
                     Reportes
                   </Button>
+                  {/* Mientras el detalle no llegó no hay método: no se
+                      inventa un "Sin método de envío" que después cambia. */}
+                  {detail.send_method?.name && (
+                    <Badge
+                      variant="outline"
+                      title={`Método de envío: ${envio.label}`}
+                      className={cn("justify-center gap-1 font-normal", envio.badge)}
+                    >
+                      <IconoDeEnvio className="h-3 w-3" />
+                      <span className="truncate">{envio.label}</span>
+                    </Badge>
+                  )}
                 </span>
               )}
               {isCancelled
@@ -310,6 +368,7 @@ export function ProtocolDetailView(props: ProtocolDetailViewProps) {
               >
                 {(d, manija) => {
                 const isBillingAct = isActoBioquimico(d.code)
+                const ub = ubDeLaFila(d, isPrivate)
                 return (
                 <li className="flex items-center justify-between gap-3 py-2.5">
                   <div className="flex min-w-0 items-center gap-2.5">
@@ -362,6 +421,15 @@ export function ProtocolDetailView(props: ProtocolDetailViewProps) {
                       {d.code}
                     </span>
                     <span className="truncate text-sm font-medium text-gray-800">{d.name}</span>
+                    {ub.valor && (
+                      <Badge
+                        variant="outline"
+                        title={ub.detalle}
+                        className="shrink-0 border-slate-200 font-mono text-[11px] text-slate-500"
+                      >
+                        UB {ub.valor}
+                      </Badge>
+                    )}
                     {isBillingAct && (
                       <Badge variant="outline" className="shrink-0 border-slate-200 text-slate-500">
                         Sin resultado
@@ -435,9 +503,6 @@ export function ProtocolDetailView(props: ProtocolDetailViewProps) {
                 <Button size="sm" variant="ghost" className="h-7 px-2 text-xs text-[#204983]" onClick={onObraSocial}>
                   <Pencil className="mr-1 h-3.5 w-3.5" />
                   Cambiar
-                </Button>
-                <Button size="sm" variant="ghost" className="h-7 px-2 text-xs text-gray-500" onClick={onEdit}>
-                  Más datos
                 </Button>
               </div>
             )

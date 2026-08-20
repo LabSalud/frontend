@@ -6,6 +6,7 @@ import { AlertTriangle, Loader2, Shield } from "lucide-react"
 import { ObraSocialCombobox } from "@/components/ingreso/components/obra-social-combobox"
 import { BillingEntitySelect } from "@/components/configuration/components/billing-entity-select"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
   Dialog,
@@ -15,7 +16,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { MEDICAL_ENDPOINTS } from "@/config/api"
+import { MEDICAL_ENDPOINTS, PATIENT_ENDPOINTS } from "@/config/api"
 import { useApi } from "@/hooks/use-api"
 import type { Insurance } from "@/types"
 
@@ -31,6 +32,21 @@ import type { Insurance } from "@/types"
  * Por eso el cartel. Si el paciente ya pagó, el saldo se mueve — puede quedar
  * debiendo o a favor— y eso se ve en el momento, no cuando alguien cierra la
  * caja.
+ *
+ * EL NÚMERO DE AFILIADO SE EDITA ACÁ
+ * =================================
+ * Porque es de la obra social: es el número CON EL QUE ESA obra social conoce
+ * al paciente, y el que va impreso en el informe y en la presentación. No tenía
+ * dónde corregirse, y un dígito mal copiado en el mostrador se descubría cuando
+ * la obra social rechazaba la presentación.
+ *
+ * Se puede guardar solo el número, sin tocar la obra social: corregir un
+ * dígito no tiene por qué rehacer los precios de todo el protocolo.
+ *
+ * Al elegir OTRA obra social el número se reemplaza por el que el paciente
+ * tenga con ESA —el laboratorio ya lo vio en un protocolo anterior— y si no hay
+ * ninguno, se vacía. Dejar ahí el número de la obra social anterior sería
+ * ofrecer un dato equivocado justo cuando nadie lo va a revisar.
  */
 
 type Props = {
@@ -38,7 +54,16 @@ type Props = {
   onOpenChange: (open: boolean) => void
   obraSocialActual?: { id?: number; name?: string } | null
   entidadActualId?: number | null
-  onGuardar: (insuranceId: number, billingEntityId: number | null) => Promise<boolean>
+  /** El número de afiliado que tiene hoy el protocolo. */
+  numeroDeAfiliadoActual?: string
+  /** Para ofrecer el número que el paciente ya usó con la obra social elegida. */
+  pacienteId?: number | null
+  /** `insuranceId` viene `null` cuando solo se corrigió el número de afiliado. */
+  onGuardar: (
+    insuranceId: number | null,
+    billingEntityId: number | null,
+    numeroDeAfiliado: string,
+  ) => Promise<boolean>
   procesando?: boolean
 }
 
@@ -47,6 +72,8 @@ export function ObraSocialDialog({
   onOpenChange,
   obraSocialActual,
   entidadActualId,
+  numeroDeAfiliadoActual = "",
+  pacienteId,
   onGuardar,
   procesando = false,
 }: Props) {
@@ -54,11 +81,15 @@ export function ObraSocialDialog({
   const [obrasSociales, setObrasSociales] = useState<Insurance[]>([])
   const [elegida, setElegida] = useState<Insurance | null>(null)
   const [entidad, setEntidad] = useState("")
+  const [numero, setNumero] = useState(numeroDeAfiliadoActual)
+  /** Los números que este paciente ya usó, por obra social. */
+  const [afiliacionesConocidas, setAfiliacionesConocidas] = useState<Record<number, string>>({})
 
   useEffect(() => {
     if (!open) return
     setElegida(null)
     setEntidad(entidadActualId ? String(entidadActualId) : "")
+    setNumero(numeroDeAfiliadoActual)
     apiRequest(`${MEDICAL_ENDPOINTS.INSURANCES}?limit=20&offset=0&is_active=true`)
       .then((r) => (r.ok ? r.json() : null))
       .then((datos) => {
@@ -68,11 +99,44 @@ export function ObraSocialDialog({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
 
+  useEffect(() => {
+    if (!open || !pacienteId) return
+    apiRequest(PATIENT_ENDPOINTS.PATIENT_AFILIACIONES(pacienteId))
+      .then((r) => (r.ok ? r.json() : null))
+      .then((datos) => {
+        if (!datos) return
+        const porOoss: Record<number, string> = {}
+        for (const fila of datos.afiliaciones || []) porOoss[fila.insurance_id] = fila.affiliate_number
+        setAfiliacionesConocidas(porOoss)
+      })
+      .catch(() => {
+        // Que no se sepa el número de antes no puede romper el diálogo: se
+        // escribe a mano, como siempre.
+      })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, pacienteId])
+
   // La entidad solo se pide en las que facturan por Centro o por Clínica según
   // la preautorización. En el resto sale de la obra social.
   const pideEntidad = Boolean(elegida?.chooses_billing_entity)
   const cambio = Boolean(elegida) && elegida?.id !== obraSocialActual?.id
-  const puedeGuardar = cambio && (!pideEntidad || Boolean(entidad))
+  const cambioDeNumero = numero.trim() !== (numeroDeAfiliadoActual || "").trim()
+
+  // La que va a quedar: la elegida si eligió, la de ahora si no.
+  const obraSocialEfectiva = elegida ?? obraSocialActual
+  const esParticular = (obraSocialEfectiva?.name || "Particular").trim().toLowerCase() === "particular"
+
+  const puedeGuardar = (cambio || cambioDeNumero) && (!pideEntidad || Boolean(entidad))
+
+  /** Al cambiar de obra social, el número que se ofrece es el de ESA. */
+  const elegirObraSocial = (nueva: Insurance | null) => {
+    setElegida(nueva)
+    if (!nueva || nueva.id === obraSocialActual?.id) {
+      setNumero(numeroDeAfiliadoActual)
+      return
+    }
+    setNumero(afiliacionesConocidas[nueva.id] || "")
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -93,10 +157,31 @@ export function ObraSocialDialog({
             <ObraSocialCombobox
               obrasSociales={obrasSociales}
               selectedObraSocial={elegida}
-              onObraSocialSelect={setElegida}
+              onObraSocialSelect={elegirObraSocial}
               onShowCreateObraSocial={() => {}}
             />
           </div>
+
+          {!esParticular && (
+            <div className="space-y-1.5">
+              <Label htmlFor="numero-de-afiliado">
+                N° de afiliado
+                {obraSocialEfectiva?.name && (
+                  <span className="ml-1 font-normal text-gray-500">
+                    en {obraSocialEfectiva.name}
+                  </span>
+                )}
+              </Label>
+              <Input
+                id="numero-de-afiliado"
+                value={numero}
+                onChange={(e) => setNumero(e.target.value)}
+                placeholder="Sin número de afiliado"
+                disabled={procesando}
+                className="h-9 text-sm"
+              />
+            </div>
+          )}
 
           {pideEntidad && (
             <div className="space-y-1.5 rounded-md border border-amber-200 bg-amber-50 p-3">
@@ -135,10 +220,11 @@ export function ObraSocialDialog({
           </Button>
           <Button
             onClick={async () => {
-              if (!elegida) return
+              if (!puedeGuardar) return
               const guardado = await onGuardar(
-                elegida.id,
+                cambio && elegida ? elegida.id : null,
                 pideEntidad && entidad ? Number(entidad) : null,
+                numero.trim(),
               )
               if (guardado) onOpenChange(false)
             }}
@@ -146,7 +232,7 @@ export function ObraSocialDialog({
             className="bg-[#204983] hover:bg-[#1a3d6f]"
           >
             {procesando ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Shield className="mr-2 h-4 w-4" />}
-            Cambiar y recalcular
+            {cambio ? "Cambiar y recalcular" : "Guardar"}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Separator } from "../../../ui/separator"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { ACTO_BIOQUIMICO_CODES } from "@/lib/codigos-analisis"
+import { getSendMethodAction } from "@/lib/status-styles"
 import type { ProtocolDetail, ReportSignature, SendMethod } from "@/types"
 
 type ReportProtocolAnalysis = ProtocolDetail & {
@@ -149,21 +150,6 @@ function isSelectableAnalysis(analysis: ReportProtocolAnalysis) {
 
 function isVisibleAnalysis(analysis: ReportProtocolAnalysis) {
   return !EXCLUDED_ANALYSIS_CODES.has(analysis.code)
-}
-
-const normalizeText = (value: string) =>
-  value
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-
-const getSendMethodAction = (sendMethodName?: string): "print" | "email" | "whatsapp" | null => {
-  const method = normalizeText(sendMethodName || "")
-  if (!method) return null
-  if (method.includes("whatsapp") || method.includes("wsp")) return "whatsapp"
-  if (method.includes("email") || method.includes("mail")) return "email"
-  if (method.includes("retiro") || method.includes("fisico") || method.includes("impres")) return "print"
-  return null
 }
 
 const getActionColor = (action: "print" | "download" | "email" | "whatsapp", activeAction: string | null) => {

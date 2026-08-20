@@ -1172,16 +1172,28 @@ export function ProtocolCard({
     setObraSocialDialogOpen(true)
   }
 
-  const handleCambiarObraSocial = async (insuranceId: number, billingEntityId: number | null) => {
+  const handleCambiarObraSocial = async (
+    insuranceId: number | null,
+    billingEntityId: number | null,
+    numeroDeAfiliado: string,
+  ) => {
     setGuardandoObraSocial(true)
     try {
+      // `insurance` va SOLO si de verdad cambió: mandarla igual haría que el
+      // backend rehiciera los precios del protocolo para corregir un dígito
+      // del número de afiliado.
+      const cambiaObraSocial = insuranceId !== null
+      const numeroCambio = numeroDeAfiliado !== (protocolDetail?.affiliate_number || "")
       return await parchearProtocolo(
         {
-          insurance: insuranceId,
+          ...(cambiaObraSocial ? { insurance: insuranceId } : {}),
           ...(billingEntityId ? { billing_entity: billingEntityId } : {}),
+          ...(numeroCambio ? { affiliate_number: numeroDeAfiliado } : {}),
         },
-        "Obra social actualizada",
-        "No se pudo cambiar la obra social.",
+        cambiaObraSocial ? "Obra social actualizada" : "N° de afiliado actualizado",
+        cambiaObraSocial
+          ? "No se pudo cambiar la obra social."
+          : "No se pudo cambiar el N° de afiliado.",
       )
     } finally {
       setGuardandoObraSocial(false)
@@ -1480,7 +1492,6 @@ export function ProtocolCard({
           statusName={statusName}
           onReport={handleOpenReportDialog}
           onPayment={handleOpenPaymentDialog}
-          onEdit={handleOpenEditDialog}
           onCancel={handleCancelProtocol}
           onUncancel={handleUncancelProtocol}
           onArca={handleOpenArcaDialog}
@@ -1936,6 +1947,8 @@ export function ProtocolCard({
         onOpenChange={setObraSocialDialogOpen}
         obraSocialActual={protocolDetail?.insurance ?? null}
         entidadActualId={protocolDetail?.billing_entity?.id ?? null}
+        numeroDeAfiliadoActual={protocolDetail?.affiliate_number || ""}
+        pacienteId={protocol.patient?.id ?? null}
         onGuardar={handleCambiarObraSocial}
         procesando={guardandoObraSocial}
       />

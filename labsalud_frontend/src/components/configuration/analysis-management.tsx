@@ -24,6 +24,7 @@ import {
 import { AnalysisDetailDialog } from "./components/analysis-detail-dialog"
 import { CreateAnalysisCatalogDialog } from "./components/create-analysis-catalog-dialog"
 import { EditAnalysisCatalogDialog } from "./components/edit-analysis-catalog-dialog"
+import { PropagarPreciosDialog } from "./components/propagar-precios-dialog"
 import { DeleteAnalysisCatalogDialog } from "./components/delete-analysis-catalog-dialog"
 import { ImportDataDialog } from "./components/import-data-dialog"
 import { AnalysisHistoryDialog } from "./components/analysis-history-dialog"
@@ -68,6 +69,11 @@ export function AnalysisManagement() {
   })
   const [loadingPricing, setLoadingPricing] = useState(false)
   const [savingPricing, setSavingPricing] = useState(false)
+  // El material descartable y la derivación quedan CONGELADOS en cada
+  // protocolo al crearlo, así que cambiarlos acá no alcanza a los que ya
+  // existen. Sin este aviso, los de hoy se quedaban con el monto viejo y nadie
+  // se enteraba hasta cuadrar la caja.
+  const [propagarMontos, setPropagarMontos] = useState(false)
 
   const fetchPricingConfig = useCallback(async () => {
     try {
@@ -266,6 +272,7 @@ export function AnalysisManagement() {
         particular_porcentaje_a_cobrar: data.particular_porcentaje_a_cobrar || "100.00",
       })
       toastActions.success("Éxito", { description: "Montos extra actualizados correctamente." })
+      setPropagarMontos(true)
     } catch (err) {
       toastActions.error("Error", { description: getErrorMessage(err, "No se pudieron guardar los montos.") })
     } finally {
@@ -591,6 +598,12 @@ export function AnalysisManagement() {
           analysisName={selectedAnalysisForHistory?.name || ""}
         />
       )}
+
+      <PropagarPreciosDialog
+        open={propagarMontos}
+        onOpenChange={setPropagarMontos}
+        titulo="Protocolos con los montos viejos"
+      />
 
       <ImportDataDialog
         open={isImportModalOpen}

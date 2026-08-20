@@ -153,6 +153,10 @@ export const PROTOCOL_ENDPOINTS = {
   SET_EXTRAS: (id: number) => buildApiUrl(`/protocols/protocols/${id}/set-extras/`),
   /** Los pagos del paciente, uno por forma. Listar y agregar. */
   PROTOCOL_PAGOS: (id: number) => buildApiUrl(`/protocols/protocols/${id}/pagos/`),
+  /** Protocolos ya creados a los que les cambiaría el precio si se los repreciara. */
+  PROTOCOLOS_DESACTUALIZADOS: buildApiUrl("/protocols/protocols/desactualizados/"),
+  /** Aplica los precios de hoy a los protocolos elegidos. */
+  REPRECAR_PROTOCOLOS: buildApiUrl("/protocols/protocols/reprecar/"),
   /** Corregir o anular UNO: la forma vive en el pago, no en el protocolo. */
   PROTOCOL_PAGO: (protocolId: number, pagoId: number) =>
     buildApiUrl(`/protocols/protocols/${protocolId}/pagos/${pagoId}/`),

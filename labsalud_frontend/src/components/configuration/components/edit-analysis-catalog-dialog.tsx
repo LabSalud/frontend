@@ -17,6 +17,7 @@ import { CATALOG_ENDPOINTS } from "@/config/api"
 import { formatApiError, getErrorMessage } from "@/lib/api-error"
 import { useNbuOptions } from "@/hooks/use-nbu-options"
 import { resolverUb } from "@/lib/ub-por-nomenclador"
+import { PropagarPreciosDialog } from "./propagar-precios-dialog"
 
 interface EditAnalysisCatalogDialogProps {
   open: boolean
@@ -52,6 +53,8 @@ export const EditAnalysisCatalogDialog: React.FC<EditAnalysisCatalogDialogProps>
   const { nbus } = useNbuOptions()
   const [ubPorNbu, setUbPorNbu] = useState<Record<number, string>>({})
   const [ubOriginal, setUbOriginal] = useState<Record<number, string>>({})
+  // Cambiar el UB acá tampoco alcanza a los protocolos ya creados.
+  const [propagar, setPropagar] = useState(false)
 
   useEffect(() => {
     if (analysis && open) {
@@ -147,6 +150,7 @@ export const EditAnalysisCatalogDialog: React.FC<EditAnalysisCatalogDialogProps>
         toastActions.success("Éxito", { description: "UB actualizado correctamente." })
         onSuccess(analysis)
         onOpenChange(false)
+        setPropagar(true)
         return
       }
 
@@ -160,6 +164,7 @@ export const EditAnalysisCatalogDialog: React.FC<EditAnalysisCatalogDialogProps>
         toastActions.success("Éxito", { description: "Análisis actualizado correctamente." })
         onSuccess(updatedAnalysis)
         onOpenChange(false)
+        if (cambiosDeUb.length > 0) setPropagar(true)
       } else {
         const errorData = await response.json().catch(() => ({ detail: "Error desconocido" }))
         const errorMessage = formatApiError(errorData, "No se pudo actualizar el análisis.")
@@ -192,6 +197,16 @@ export const EditAnalysisCatalogDialog: React.FC<EditAnalysisCatalogDialogProps>
   if (!analysis) return null
 
   return (
+    <>
+    {/* El diálogo de propagación vive fuera del de edición: se abre justo
+        cuando este se cierra, así que anidarlo lo desmontaría al abrirse. */}
+    <PropagarPreciosDialog
+      open={propagar}
+      onOpenChange={setPropagar}
+      analysisId={analysis.id}
+      titulo={`Protocolos con ${analysis.name}`}
+    />
+
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="w-[95vw] max-w-[500px] max-h-[90vh] overflow-y-auto">
         <DialogHeading icon={TestTube} title="Editar análisis" description={analysis.name} />
@@ -364,5 +379,6 @@ export const EditAnalysisCatalogDialog: React.FC<EditAnalysisCatalogDialogProps>
         </DialogFooter>
       </DialogContent>
     </Dialog>
+    </>
   )
 }

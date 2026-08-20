@@ -32,6 +32,7 @@ import { AuditTimelineMini } from "@/components/common/audit-timeline-mini"
 import { getPreauthStatusInfo } from "@/lib/status-styles"
 import { isActoBioquimico } from "@/lib/codigos-analisis"
 import { cn } from "@/lib/utils"
+import { MensajesDeWhatsApp } from "./mensajes-de-whatsapp"
 import type {
   ProtocolAuditEvent,
   ProtocolDetail as ProtocolDetailType,
@@ -403,6 +404,12 @@ export function ProtocolDetailView(props: ProtocolDetailViewProps) {
             </div>
           )}
         </Section>
+
+        {/* DEBAJO DE LOS ANÁLISIS, PORQUE HABLA DE ELLOS.
+            Cada mensaje dice qué análisis llevaba: la pregunta que se contesta
+            acá es "¿le llegó la glucemia?", y para eso hay que tener la lista
+            de arriba a la vista. */}
+        <MensajesDeWhatsApp protocolId={detail.id} />
 
       </div>
 

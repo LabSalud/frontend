@@ -261,6 +261,10 @@ export const REPORTING_ENDPOINTS = {
   SIGNATURES: buildApiUrl("/reports/signatures/"),
   SIGNATURE_DETAIL: (id: number) => buildApiUrl(`/reports/signatures/${id}/`),
   SIGNATURE_SET_DEFAULT: (id: number) => buildApiUrl(`/reports/signatures/${id}/set-default/`),
+  /** Qué se le mandó al paciente por WhatsApp de este protocolo, y qué pasó con
+   *  cada mensaje. */
+  WHATSAPP_DEL_PROTOCOLO: (protocolId: number) =>
+    buildApiUrl(`/reports/whatsapp/protocol/${protocolId}/`),
 } as const
 
 // Billing endpoints

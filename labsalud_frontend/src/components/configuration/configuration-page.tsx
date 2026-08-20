@@ -10,12 +10,14 @@ import { AuditManagement } from "./audit-management"
 import { NbuManagement } from "./nbu-management"
 import { SignaturesManagement } from "./signatures-management"
 import { BillingManagement } from "./billing-management"
+import { MontosFijosManagement } from "./montos-fijos-management"
 
 const CONFIG_TABS = [
   "medicos",
   "obras-sociales",
   "nomencladores",
   "analisis",
+  "montos",
   "firmas",
   "facturacion",
   "auditoria",
@@ -59,7 +61,7 @@ export default function ConfigurationPage() {
       <div className="min-w-0 max-w-full rounded-2xl bg-white/95 p-4 shadow-md backdrop-blur-sm md:p-6">
         <div className="mb-5">
           <h1 className="text-xl font-bold text-gray-800 md:text-2xl">Configuración del sistema</h1>
-          <p className="text-sm text-gray-500">Catálogos, nomencladores, firmas y auditoría.</p>
+          <p className="text-sm text-gray-500">Catálogos, nomencladores, montos fijos, firmas y auditoría.</p>
         </div>
 
         <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full min-w-0">
@@ -68,6 +70,7 @@ export default function ConfigurationPage() {
             <TabsTrigger value="obras-sociales" className={tabClass}>Obras Sociales</TabsTrigger>
             <TabsTrigger value="nomencladores" className={tabClass}>Nomencladores</TabsTrigger>
             <TabsTrigger value="analisis" className={tabClass}>Análisis</TabsTrigger>
+            <TabsTrigger value="montos" className={tabClass}>Montos fijos</TabsTrigger>
             <TabsTrigger value="firmas" className={tabClass}>Firmas</TabsTrigger>
             <TabsTrigger value="facturacion" className={tabClass}>Facturación</TabsTrigger>
             <TabsTrigger value="auditoria" className={tabClass}>Auditoría</TabsTrigger>
@@ -87,6 +90,10 @@ export default function ConfigurationPage() {
 
           <TabsContent value="analisis" className="min-w-0">
             <AnalysisManagement />
+          </TabsContent>
+
+          <TabsContent value="montos" className="min-w-0">
+            <MontosFijosManagement />
           </TabsContent>
 
           <TabsContent value="firmas" className="min-w-0">

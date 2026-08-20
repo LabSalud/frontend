@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Separator } from "../../../ui/separator"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { ACTO_BIOQUIMICO_CODES } from "@/lib/codigos-analisis"
-import type { ProtocolDetail, ReportSignature } from "@/types"
+import type { ProtocolDetail, ReportSignature, SendMethod } from "@/types"
 
 type ReportProtocolAnalysis = ProtocolDetail & {
   is_sent?: boolean
@@ -48,6 +48,11 @@ interface ReportDialogProps {
   onSendEmail: () => void
   onSendWhatsApp: () => void
   sendMethodName?: string
+  /** Los métodos de envío disponibles, para poder corregirlo desde acá. */
+  sendMethods?: SendMethod[]
+  sendMethodId?: string
+  onSendMethodChange?: (sendMethodId: string) => void
+  savingSendMethod?: boolean
   emailDisabledReason?: string
   whatsappDisabledReason?: string
   isGenerating: boolean
@@ -406,6 +411,10 @@ export function ReportDialog({
   onSendEmail,
   onSendWhatsApp,
   sendMethodName,
+  sendMethods = [],
+  sendMethodId = "",
+  onSendMethodChange,
+  savingSendMethod = false,
   emailDisabledReason,
   whatsappDisabledReason,
   isGenerating,
@@ -485,6 +494,33 @@ export function ReportDialog({
   const selectedCount = selectedAnalysisIds.filter((id) => visibleAnalyses.some((analysis) => analysis.id === id)).length
   const selectableCount = visibleAnalyses.filter(isSelectableAnalysis).length
   const activeSendAction = getSendMethodAction(sendMethodName)
+
+  // EL MÉTODO DE ENVÍO VIVE ACÁ, NO EN FACTURACIÓN.
+  // No es plata: es cómo se le hace llegar el informe al paciente, y es lo que
+  // decide cuál de estos botones queda resaltado. Tenerlo en otra pantalla
+  // obligaba a salir, cambiarlo y volver — justo cuando ya se está por mandar.
+  const envioDeResultados = onSendMethodChange ? (
+    <div className="mb-1 flex flex-wrap items-center gap-2 rounded-md border border-gray-200 bg-gray-50 px-2.5 py-2">
+      <span className="text-xs text-gray-600">Envío de resultados</span>
+      <Select
+        value={sendMethodId}
+        onValueChange={onSendMethodChange}
+        disabled={savingSendMethod || sendMethods.length === 0}
+      >
+        <SelectTrigger className="h-7 w-auto min-w-[9rem] bg-white text-xs">
+          <SelectValue placeholder={sendMethodName || "Sin método"} />
+        </SelectTrigger>
+        <SelectContent>
+          {sendMethods.map((metodo) => (
+            <SelectItem key={metodo.id} value={String(metodo.id)}>
+              {metodo.name}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      {savingSendMethod && <Loader2 className="h-3.5 w-3.5 animate-spin text-gray-400" />}
+    </div>
+  ) : null
   const isBusy = isGenerating || isDownloading || isSending || isSendingWhatsApp
   const noSelectedAnalysisReason =
     selectedCount === 0 ? "No hay análisis seleccionados para incluir en el reporte." : undefined
@@ -648,6 +684,7 @@ export function ReportDialog({
 
             <div className="flex shrink-0 flex-col gap-2 px-6 py-4">
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Acciones</p>
+              {envioDeResultados}
 
               <div className="grid grid-cols-2 gap-2">
                 <ActionButton
@@ -851,6 +888,7 @@ export function ReportDialog({
 
                         <div className="flex flex-col gap-2">
                           <p className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">Acciones</p>
+                          {envioDeResultados}
                           <div className="grid grid-cols-1 gap-2">
                             <ActionButton
                               onClick={onGenerateReport}

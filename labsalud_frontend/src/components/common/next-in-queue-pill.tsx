@@ -28,6 +28,13 @@ interface NextInQueuePillProps {
  *
  * Va del lado que APUNTA la flecha, no pegado al texto: la flecha señala el
  * destino, y el destino es el número.
+ *
+ * SIGUIENTE VA A LA IZQUIERDA Y ANTERIOR A LA DERECHA
+ * ===================================================
+ * Al revés de lo que suele hacerse. Es como lo pidió el laboratorio: el que
+ * sigue es el que se va a abrir, así que queda del lado por donde se empieza a
+ * leer, y volver al anterior es la acción secundaria. Cada flecha sigue
+ * apuntando hacia afuera, al número al que lleva.
  */
 export function NextInQueuePill({ prevId, nextId, basePath, maxWidthClass = "max-w-6xl" }: NextInQueuePillProps) {
   const navigate = useNavigate()
@@ -88,19 +95,6 @@ export function NextInQueuePill({ prevId, nextId, basePath, maxWidthClass = "max
           atBottom ? "w-full" : "w-[min(24rem,100%)]",
         )}
       >
-        {prevId && (
-          <button
-            type="button"
-            onClick={() => saltarA(prevId)}
-            className={btn}
-            aria-label={`Anterior: protocolo ${prevId}`}
-          >
-            {numero(prevId)}
-            <ArrowLeft className={cn(iconSize, "shrink-0")} />
-            <span className="truncate">Anterior</span>
-          </button>
-        )}
-        {prevId && nextId && <div className="w-px shrink-0 bg-white/20" />}
         {nextId && (
           <button
             type="button"
@@ -108,9 +102,22 @@ export function NextInQueuePill({ prevId, nextId, basePath, maxWidthClass = "max
             className={btn}
             aria-label={`Siguiente: protocolo ${nextId}`}
           >
-            <span className="truncate">Siguiente</span>
-            <ArrowRight className={cn(iconSize, "shrink-0")} />
             {numero(nextId)}
+            <ArrowLeft className={cn(iconSize, "shrink-0")} />
+            <span className="truncate">Siguiente</span>
+          </button>
+        )}
+        {prevId && nextId && <div className="w-px shrink-0 bg-white/20" />}
+        {prevId && (
+          <button
+            type="button"
+            onClick={() => saltarA(prevId)}
+            className={btn}
+            aria-label={`Anterior: protocolo ${prevId}`}
+          >
+            <span className="truncate">Anterior</span>
+            <ArrowRight className={cn(iconSize, "shrink-0")} />
+            {numero(prevId)}
           </button>
         )}
       </div>

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react"
 import { Link } from "react-router-dom"
 import {
-  ArrowUpRight, Banknote, ExternalLink, Landmark, Loader2, Pencil, Receipt,
+  ArrowUpRight, Banknote, ExternalLink, Landmark, Loader2, Minus, Pencil, Receipt,
   Save, Wallet,
 } from "lucide-react"
 
@@ -17,6 +17,16 @@ import { useApi } from "@/hooks/use-api"
 import { useToast } from "@/hooks/use-toast"
 import { formatApiError, getErrorMessage } from "@/lib/api-error"
 import { FormaDePagoDialog } from "@/components/protocolos/components/dialogs/forma-de-pago-dialog"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import type { PagoDelProtocolo, Protocol } from "@/types"
 
 /**
@@ -65,6 +75,8 @@ export function CorreccionDelCobro({ protocolId, onCambio }: Props) {
   const [guardandoCobro, setGuardandoCobro] = useState(false)
   const [noContempladosAbierto, setNoContempladosAbierto] = useState(false)
   const [corrigiendo, setCorrigiendo] = useState<PagoDelProtocolo | null>(null)
+  const [anulando, setAnulando] = useState<PagoDelProtocolo | null>(null)
+  const [guardandoAnulacion, setGuardandoAnulacion] = useState(false)
 
   const [cargos, setCargos] = useState({ material: "", derivacion: "", coseguro: "" })
   const [cobro, setCobro] = useState({ efectivo: "", transferencia: "", cuentaId: "" })
@@ -138,6 +150,32 @@ export function CorreccionDelCobro({ protocolId, onCambio }: Props) {
       })
     } finally {
       setGuardandoCargos(false)
+    }
+  }
+
+  const anularPago = async () => {
+    if (!anulando) return
+    setGuardandoAnulacion(true)
+    try {
+      const respuesta = await apiRequest(
+        PROTOCOL_ENDPOINTS.PROTOCOL_PAGO(protocolId, anulando.id),
+        { method: "DELETE" },
+      )
+      if (!respuesta.ok && respuesta.status !== 204) {
+        const datos = await respuesta.json().catch(() => ({}))
+        throw new Error(formatApiError(datos, "No se pudo anular el cobro."))
+      }
+      toastActions.success("Cobro anulado", {
+        description: "El saldo del protocolo se recalculó.",
+      })
+      setAnulando(null)
+      await refrescar()
+    } catch (err) {
+      toastActions.error("No se pudo anular el cobro", {
+        description: getErrorMessage(err),
+      })
+    } finally {
+      setGuardandoAnulacion(false)
     }
   }
 
@@ -357,6 +395,20 @@ export function CorreccionDelCobro({ protocolId, onCambio }: Props) {
               key={pago.id}
               className="flex flex-wrap items-center gap-2 rounded border border-gray-200 bg-white px-2 py-1.5 text-sm"
             >
+              {/* EL MENOS VA PRIMERO DE TODO, COMO EN LOS ANÁLISIS.
+                  Sacar algo tiene que estar siempre en el mismo lugar y no
+                  perdido entre los datos de la fila. */}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6 shrink-0 text-gray-400 hover:bg-red-50 hover:text-red-600"
+                aria-label={`Anular el cobro de ${plata(pago.amount)}`}
+                title="Anular este movimiento"
+                onClick={() => setAnulando(pago)}
+              >
+                <Minus className="h-3.5 w-3.5" />
+              </Button>
+
               {pago.tipo === "devolucion" ? (
                 <span className="inline-flex items-center gap-1 rounded border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-xs text-amber-800">
                   <ArrowUpRight className="h-3 w-3" />
@@ -459,6 +511,49 @@ export function CorreccionDelCobro({ protocolId, onCambio }: Props) {
           </Button>
         </div>
       </div>
+
+      {/* SE PREGUNTA ANTES, PORQUE MUEVE PLATA.
+          Anular baja lo pagado y puede dejar al protocolo debiendo. Un clic sin
+          confirmación al lado de un lápiz es un error esperando. */}
+      <AlertDialog open={anulando !== null} onOpenChange={(abierto) => !abierto && setAnulando(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Anular este movimiento?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {anulando ? (
+                <>
+                  {anulando.tipo === "devolucion" ? "Devolución" : "Cobro"} de{" "}
+                  <strong>{plata(anulando.amount)}</strong>
+                  {anulando.payment_method === "transferencia"
+                    ? " por transferencia"
+                    : anulando.payment_method === "efectivo"
+                      ? " en efectivo"
+                      : ""}
+                  . Deja de contar y sale de esta lista; el saldo del protocolo se
+                  recalcula solo. Queda registrado en el historial del protocolo,
+                  con quién lo anuló.
+                </>
+              ) : null}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={guardandoAnulacion}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(evento) => {
+                // El AlertDialog cierra solo al confirmar; sin esto se cierra
+                // antes de que termine el pedido y no se ve si falló.
+                evento.preventDefault()
+                anularPago()
+              }}
+              disabled={guardandoAnulacion}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {guardandoAnulacion ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Anular
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <FormaDePagoDialog
         open={corrigiendo !== null}

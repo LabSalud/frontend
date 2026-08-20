@@ -49,6 +49,8 @@ import {
   ReportDialog,
   CoseguroDialog,
   EntidadDeFacturacionDialog,
+  MedicoDialog,
+  ObraSocialDialog,
   PreauthorizationDialog,
   OrderStatusDialog,
   ArcaBillingDialog,
@@ -226,6 +228,11 @@ export function ProtocolCard({
   const [isProcessingCoseguro, setIsProcessingCoseguro] = useState(false)
   const [entidadDialogOpen, setEntidadDialogOpen] = useState(false)
   const [guardandoEntidad, setGuardandoEntidad] = useState(false)
+  const [medicoDialogOpen, setMedicoDialogOpen] = useState(false)
+  const [guardandoMedico, setGuardandoMedico] = useState(false)
+  const [obraSocialDialogOpen, setObraSocialDialogOpen] = useState(false)
+  const [guardandoObraSocial, setGuardandoObraSocial] = useState(false)
+  const [guardandoEnvio, setGuardandoEnvio] = useState(false)
   const [unplannedDialogOpen, setUnplannedDialogOpen] = useState(false)
   const [preauthDialogOpen, setPreauthDialogOpen] = useState(false)
   const [isProcessingPreauth, setIsProcessingPreauth] = useState(false)
@@ -1115,6 +1122,85 @@ export function ProtocolCard({
     setCoseguroDialogOpen(true)
   }
 
+  // Un solo camino para los tres: son todos un PATCH al protocolo y todos
+  // terminan igual —refrescar el detalle y avisar—. Tres copias del mismo
+  // try/catch era la otra opción.
+  const parchearProtocolo = async (
+    cuerpo: Record<string, unknown>,
+    exito: string,
+    fallo: string,
+  ): Promise<boolean> => {
+    try {
+      const response = await apiRequest(PROTOCOL_ENDPOINTS.PROTOCOL_DETAIL(protocol.id), {
+        method: "PATCH",
+        body: cuerpo,
+      })
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}))
+        throw new Error(formatApiError(data, fallo))
+      }
+      toast.success(exito, { duration: TOAST_DURATION })
+      await fetchProtocolDetail()
+      onUpdate?.()
+      return true
+    } catch (error) {
+      toast.error(getErrorMessage(error, fallo), { duration: TOAST_DURATION })
+      return false
+    }
+  }
+
+  const handleAbrirMedico = async () => {
+    if (!protocolDetail) await fetchProtocolDetail()
+    setMedicoDialogOpen(true)
+  }
+
+  const handleCambiarMedico = async (medicoId: number) => {
+    setGuardandoMedico(true)
+    try {
+      return await parchearProtocolo(
+        { doctor: medicoId },
+        "Médico actualizado",
+        "No se pudo cambiar el médico.",
+      )
+    } finally {
+      setGuardandoMedico(false)
+    }
+  }
+
+  const handleAbrirObraSocial = async () => {
+    if (!protocolDetail) await fetchProtocolDetail()
+    setObraSocialDialogOpen(true)
+  }
+
+  const handleCambiarObraSocial = async (insuranceId: number, billingEntityId: number | null) => {
+    setGuardandoObraSocial(true)
+    try {
+      return await parchearProtocolo(
+        {
+          insurance: insuranceId,
+          ...(billingEntityId ? { billing_entity: billingEntityId } : {}),
+        },
+        "Obra social actualizada",
+        "No se pudo cambiar la obra social.",
+      )
+    } finally {
+      setGuardandoObraSocial(false)
+    }
+  }
+
+  const handleCambiarEnvio = async (sendMethodId: string) => {
+    setGuardandoEnvio(true)
+    try {
+      await parchearProtocolo(
+        { send_method: Number(sendMethodId) },
+        "Método de envío actualizado",
+        "No se pudo cambiar el método de envío.",
+      )
+    } finally {
+      setGuardandoEnvio(false)
+    }
+  }
+
   const handleAbrirEntidad = async () => {
     if (!protocolDetail) await fetchProtocolDetail()
     setEntidadDialogOpen(true)
@@ -1390,7 +1476,6 @@ export function ProtocolCard({
           patientAge={protocol.patient?.age}
           doctorName={getDoctorName()}
           insuranceName={getInsuranceName()}
-          sendMethodName={getSendMethodName()}
           statusId={statusId}
           statusName={statusName}
           onReport={handleOpenReportDialog}
@@ -1403,6 +1488,8 @@ export function ProtocolCard({
           onPreauth={handleOpenPreauthDialog}
           onCoseguro={handleOpenCoseguroDialog}
           onEntidadDeFacturacion={handleAbrirEntidad}
+          onMedico={handleAbrirMedico}
+          onObraSocial={handleAbrirObraSocial}
           onHistory={() => setHistoryDialogOpen(true)}
           onUnplanned={handleOpenUnplanned}
           onToggleAuthorization={handleToggleAuthorization}
@@ -1687,6 +1774,10 @@ export function ProtocolCard({
         onSendEmail={handleSendEmail}
         onSendWhatsApp={handleSendWhatsApp}
         sendMethodName={protocolDetail?.send_method?.name || ""}
+        sendMethods={sendMethods}
+        sendMethodId={protocolDetail?.send_method?.id ? String(protocolDetail.send_method.id) : ""}
+        onSendMethodChange={handleCambiarEnvio}
+        savingSendMethod={guardandoEnvio}
         emailDisabledReason={emailDisabledReason}
         whatsappDisabledReason={whatsappDisabledReason}
         isGenerating={isGeneratingReport}
@@ -1830,6 +1921,23 @@ export function ProtocolCard({
         insuranceChargesCoseguro={insuranceChargesCoseguro}
         onConfirm={handleSetCoseguro}
         isProcessing={isProcessingCoseguro}
+      />
+
+      <MedicoDialog
+        open={medicoDialogOpen}
+        onOpenChange={setMedicoDialogOpen}
+        medicoActual={protocolDetail?.doctor ?? null}
+        onGuardar={handleCambiarMedico}
+        procesando={guardandoMedico}
+      />
+
+      <ObraSocialDialog
+        open={obraSocialDialogOpen}
+        onOpenChange={setObraSocialDialogOpen}
+        obraSocialActual={protocolDetail?.insurance ?? null}
+        entidadActualId={protocolDetail?.billing_entity?.id ?? null}
+        onGuardar={handleCambiarObraSocial}
+        procesando={guardandoObraSocial}
       />
 
       <EntidadDeFacturacionDialog

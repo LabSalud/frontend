@@ -74,7 +74,6 @@ export interface ProtocolDetailViewProps {
   patientSex?: string
   doctorName: string
   insuranceName: string
-  sendMethodName: string
   statusId: number
   statusName: string
   // acciones
@@ -88,6 +87,8 @@ export interface ProtocolDetailViewProps {
   onPreauth: () => void
   onCoseguro: () => void
   onEntidadDeFacturacion: () => void
+  onMedico: () => void
+  onObraSocial: () => void
   onHistory: () => void
   onUnplanned: () => void
   onToggleAuthorization: (detail: ProtocolDetailType) => void
@@ -173,7 +174,6 @@ export function ProtocolDetailView(props: ProtocolDetailViewProps) {
     patientSex,
     doctorName,
     insuranceName,
-    sendMethodName,
     statusName,
     onReport,
     onPayment,
@@ -185,6 +185,8 @@ export function ProtocolDetailView(props: ProtocolDetailViewProps) {
     onPreauth,
     onCoseguro,
     onEntidadDeFacturacion,
+    onMedico,
+    onObraSocial,
     onHistory,
     onUnplanned,
     onToggleAuthorization,
@@ -213,6 +215,10 @@ export function ProtocolDetailView(props: ProtocolDetailViewProps) {
   const unplanned = detail.unplanned_transactions ?? []
   const balancePending = Number.parseFloat(detail.amount_pending || "0")
   const toReturn = Number.parseFloat(detail.amount_to_return || "0")
+  // El total a pagar del paciente. Se mira este y no el saldo: un protocolo
+  // cobrado y saldado SÍ tiene movimientos en el libro, y hay que poder ir.
+  const totalAPagar = Number.parseFloat(detail.private_amount_due ?? detail.amount_due ?? "0")
+  const sinNadaQueCobrar = !(totalAPagar > 0) && Number.parseFloat(detail.patient_paid || "0") <= 0
   const isPendingValidation = detail.status?.id === 2 || detail.status?.id === 11
 
   return (
@@ -421,14 +427,23 @@ export function ProtocolDetailView(props: ProtocolDetailViewProps) {
           title="Obra social"
           actions={
             isEditable && (
-              <Button size="sm" variant="ghost" className="h-7 px-2 text-xs text-[#204983]" onClick={onEdit}>
-                <Pencil className="mr-1 h-3.5 w-3.5" />
-                Editar
-              </Button>
+              <div className="flex items-center gap-1">
+                {/* CAMBIAR LA OBRA SOCIAL ES OTRA COSA QUE EDITAR EL PROTOCOLO.
+                    Rehace los precios del protocolo entero, así que tiene su
+                    propio diálogo con su propio aviso, y no un campo más en una
+                    lista de campos sueltos. */}
+                <Button size="sm" variant="ghost" className="h-7 px-2 text-xs text-[#204983]" onClick={onObraSocial}>
+                  <Pencil className="mr-1 h-3.5 w-3.5" />
+                  Cambiar
+                </Button>
+                <Button size="sm" variant="ghost" className="h-7 px-2 text-xs text-gray-500" onClick={onEdit}>
+                  Más datos
+                </Button>
+              </div>
             )
           }
         >
-          <Row label="Entidad" value={insuranceName || "Particular"} />
+          <Row label="Obra social" value={insuranceName || "Particular"} />
           {detail.affiliate_number && <Row label="N° afiliado" value={detail.affiliate_number} />}
 
           {/* Estados visibles sin abrir diálogos; el botón queda para cambiarlos. */}
@@ -461,7 +476,18 @@ export function ProtocolDetailView(props: ProtocolDetailViewProps) {
         </SidebarCard>
 
         {/* Médico */}
-        <SidebarCard icon={Stethoscope} title="Médico solicitante">
+        <SidebarCard
+          icon={Stethoscope}
+          title="Médico solicitante"
+          actions={
+            isEditable && (
+              <Button size="sm" variant="ghost" className="h-7 px-2 text-xs text-[#204983]" onClick={onMedico}>
+                <Pencil className="mr-1 h-3.5 w-3.5" />
+                Cambiar
+              </Button>
+            )
+          }
+        >
           <Row label="Profesional" value={doctorName || "—"} />
           {detail.doctor?.license && <Row label="Matrícula" value={detail.doctor.license} />}
         </SidebarCard>
@@ -533,7 +559,6 @@ export function ProtocolDetailView(props: ProtocolDetailViewProps) {
             ) : (
               <Row label="Saldo" value={<span className="font-medium text-emerald-600">Saldado</span>} />
             )}
-            <Row label="Envío de resultados" value={sendMethodName || "—"} />
           </div>
 
           <div className="mt-3 grid grid-cols-1 gap-2">
@@ -567,17 +592,35 @@ export function ProtocolDetailView(props: ProtocolDetailViewProps) {
                 `administrar_libro_diario`, se lo dice la ruta; el panel de
                 corrección lo chequea y el backend lo exige. Un botón que no
                 está no se puede preguntar por qué no está. */}
-            <Button
-              asChild
-              size="sm"
-              variant="outline"
-              className="h-8 border-[#204983] text-xs text-[#204983] hover:bg-[#204983] hover:text-white"
-            >
-              <Link to={`/libro-diario?protocolo=${detail.id}`} data-no-expand>
+            {/* SIN NADA QUE COBRAR NO HAY FILA EN EL LIBRO.
+                El libro lista movimientos de plata. Un protocolo que no tiene
+                nada para cobrar no genera ninguno, así que el botón llevaba a
+                buscar una fila que no existe. Queda deshabilitado y diciendo
+                por qué, en vez de mandar a un lugar vacío. */}
+            {sinNadaQueCobrar ? (
+              <Button
+                size="sm"
+                variant="outline"
+                disabled
+                className="h-8 text-xs"
+                title="Este protocolo no tiene nada para cobrar, así que no tiene movimientos en el libro diario."
+              >
                 <BookOpen className="mr-1 h-3.5 w-3.5" />
                 Ver en libro diario
-              </Link>
-            </Button>
+              </Button>
+            ) : (
+              <Button
+                asChild
+                size="sm"
+                variant="outline"
+                className="h-8 border-[#204983] text-xs text-[#204983] hover:bg-[#204983] hover:text-white"
+              >
+                <Link to={`/libro-diario?protocolo=${detail.id}`} data-no-expand>
+                  <BookOpen className="mr-1 h-3.5 w-3.5" />
+                  Ver en libro diario
+                </Link>
+              </Button>
+            )}
           </div>
         </SidebarCard>
 

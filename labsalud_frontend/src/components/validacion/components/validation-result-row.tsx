@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import {
   formatEvaluatedReference,
+  formatNamedReferenceRanges,
   formatReferenceRange,
   formatReferenceValues,
   getReferenceEvaluationLabel,
@@ -85,9 +86,14 @@ export function ValidationResultRow({ result, saving, disabled = false, onValida
   const isWrong = result.is_wrong
   const hasValue = !!result.value
 
-  const referenceItems = det.reference_ranges?.length
-    ? det.reference_ranges.map(formatReferenceRange)
-    : formatReferenceValues(det.reference_values)
+  // Primero los rangos del paciente —los que se evalúan— y después los
+  // rangos con nombre, que sólo informan. Ver `NamedReferenceRange`.
+  const referenceItems = [
+    ...(det.reference_ranges?.length
+      ? det.reference_ranges.map(formatReferenceRange)
+      : formatReferenceValues(det.reference_values)),
+    ...formatNamedReferenceRanges(det.named_ranges),
+  ]
   const evaluation = result.reference_range_evaluation
   const isOutOfRange = result.is_out_of_reference_range || evaluation?.is_out_of_reference_range
   const evaluatedReference = formatEvaluatedReference(evaluation)

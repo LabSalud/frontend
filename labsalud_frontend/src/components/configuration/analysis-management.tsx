@@ -8,7 +8,6 @@ import { CATALOG_ENDPOINTS } from "@/config/api"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Skeleton } from "@/components/ui/skeleton"
 import { AuditAvatars } from "@/components/common/audit-avatars"
 import { DataTable, type Column } from "@/components/common/data-table"
 import {
@@ -17,8 +16,6 @@ import {
   TestTube,
   Plus,
   Download,
-  Settings2,
-  Save,
   Pencil,
 } from "lucide-react"
 import { AnalysisDetailDialog } from "./components/analysis-detail-dialog"
@@ -27,7 +24,7 @@ import { EditAnalysisCatalogDialog } from "./components/edit-analysis-catalog-di
 import { DeleteAnalysisCatalogDialog } from "./components/delete-analysis-catalog-dialog"
 import { ImportDataDialog } from "./components/import-data-dialog"
 import { AnalysisHistoryDialog } from "./components/analysis-history-dialog"
-import type { Analysis, PricingConfig } from "@/types"
+import type { Analysis } from "@/types"
 import { formatApiError, getErrorMessage } from "@/lib/api-error"
 
 export function AnalysisManagement() {
@@ -57,43 +54,6 @@ export function AnalysisManagement() {
   const [isHistoryDialogOpen, setIsHistoryDialogOpen] = useState(false)
   const [selectedAnalysisForHistory, setSelectedAnalysisForHistory] = useState<Analysis | null>(null)
   const [selectedAnalysis, setSelectedAnalysis] = useState<Analysis | null>(null)
-  const [pricingConfig, setPricingConfig] = useState<PricingConfig | null>(null)
-  const [pricingForm, setPricingForm] = useState({
-    material_descartable_amount: "",
-    derivacion_amount: "",
-    particular_minimum_amount: "",
-    redondeo_maximo: "",
-    particular_desde_ub: "",
-    particular_porcentaje_a_cobrar: "",
-  })
-  const [loadingPricing, setLoadingPricing] = useState(false)
-  const [savingPricing, setSavingPricing] = useState(false)
-
-  const fetchPricingConfig = useCallback(async () => {
-    try {
-      setLoadingPricing(true)
-      const response = await apiRequest(CATALOG_ENDPOINTS.PRICING_CONFIG)
-      if (!response.ok) {
-        const data = await response.json().catch(() => ({}))
-        throw new Error(formatApiError(data, "No se pudo cargar la configuración de precios."))
-      }
-      const data: PricingConfig = await response.json()
-      setPricingConfig(data)
-      setPricingForm({
-        material_descartable_amount: data.material_descartable_amount || "0.00",
-        derivacion_amount: data.derivacion_amount || "0.00",
-        particular_minimum_amount: data.particular_minimum_amount || "0.00",
-        redondeo_maximo: data.redondeo_maximo || "0.00",
-        particular_desde_ub: data.particular_desde_ub || "0.00",
-        particular_porcentaje_a_cobrar: data.particular_porcentaje_a_cobrar || "100.00",
-      })
-    } catch (err) {
-      toastActions.error("Error", { description: getErrorMessage(err, "No se pudieron cargar los montos extra.") })
-    } finally {
-      setLoadingPricing(false)
-    }
-  }, [apiRequest, toastActions])
-
   const fetchAnalyses = useCallback(
     async (search = "", reset = true, showSearching = false) => {
       if (reset && !showSearching && isLoadingInitial) return
@@ -177,10 +137,6 @@ export function AnalysisManagement() {
   }, [])
 
   useEffect(() => {
-    fetchPricingConfig()
-  }, [fetchPricingConfig])
-
-  useEffect(() => {
     if (debouncedSearchTerm !== searchTerm) return
     fetchAnalyses(debouncedSearchTerm, true, true)
   }, [debouncedSearchTerm])
@@ -234,43 +190,6 @@ export function AnalysisManagement() {
     setRefreshKey((prev) => prev + 1)
     fetchAnalyses(searchTerm, true, true)
     toastActions.success("Éxito", { description: "Análisis desactivado correctamente." })
-  }
-
-  const handleSavePricing = async (event: React.FormEvent) => {
-    event.preventDefault()
-    try {
-      setSavingPricing(true)
-      const response = await apiRequest(CATALOG_ENDPOINTS.PRICING_CONFIG, {
-        method: "PATCH",
-        body: {
-          material_descartable_amount: pricingForm.material_descartable_amount || "0.00",
-          derivacion_amount: pricingForm.derivacion_amount || "0.00",
-          particular_minimum_amount: pricingForm.particular_minimum_amount || "0.00",
-          redondeo_maximo: pricingForm.redondeo_maximo || "0.00",
-          particular_desde_ub: pricingForm.particular_desde_ub || "0.00",
-          particular_porcentaje_a_cobrar: pricingForm.particular_porcentaje_a_cobrar || "100.00",
-        },
-      })
-      if (!response.ok) {
-        const data = await response.json().catch(() => ({}))
-        throw new Error(formatApiError(data, "No se pudieron guardar los montos."))
-      }
-      const data: PricingConfig = await response.json()
-      setPricingConfig(data)
-      setPricingForm({
-        material_descartable_amount: data.material_descartable_amount || "0.00",
-        derivacion_amount: data.derivacion_amount || "0.00",
-        particular_minimum_amount: data.particular_minimum_amount || "0.00",
-        redondeo_maximo: data.redondeo_maximo || "0.00",
-        particular_desde_ub: data.particular_desde_ub || "0.00",
-        particular_porcentaje_a_cobrar: data.particular_porcentaje_a_cobrar || "100.00",
-      })
-      toastActions.success("Éxito", { description: "Montos extra actualizados correctamente." })
-    } catch (err) {
-      toastActions.error("Error", { description: getErrorMessage(err, "No se pudieron guardar los montos.") })
-    } finally {
-      setSavingPricing(false)
-    }
   }
 
   const columns: Column<Analysis>[] = [
@@ -382,154 +301,6 @@ export function AnalysisManagement() {
         </div>
       </div>
 
-      <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-        <div className="mb-3 flex items-start gap-2">
-          <Settings2 className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#204983]" />
-          <div>
-            <h4 className="text-sm font-semibold text-gray-800">Montos fijos</h4>
-            <p className="text-xs text-gray-500">
-              Valen para todo el sistema y se aplican a cada protocolo que entre
-              de acá en adelante.
-            </p>
-          </div>
-        </div>
-        {loadingPricing && !pricingConfig ? (
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <Skeleton className="h-16 rounded" />
-            <Skeleton className="h-16 rounded" />
-            <Skeleton className="h-16 rounded" />
-            <Skeleton className="h-16 rounded" />
-          </div>
-        ) : (
-          <form onSubmit={handleSavePricing} className="space-y-3">
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              <div className="space-y-1.5">
-                <label htmlFor="analysis-material-descartable" className="text-sm font-medium text-gray-700">
-                  Material descartable
-                </label>
-                <Input
-                  id="analysis-material-descartable"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={pricingForm.material_descartable_amount}
-                  onChange={(event) =>
-                    setPricingForm((prev) => ({ ...prev, material_descartable_amount: event.target.value }))
-                  }
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label htmlFor="analysis-derivacion-amount" className="text-sm font-medium text-gray-700">
-                  Derivación
-                </label>
-                <Input
-                  id="analysis-derivacion-amount"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={pricingForm.derivacion_amount}
-                  onChange={(event) => setPricingForm((prev) => ({ ...prev, derivacion_amount: event.target.value }))}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label htmlFor="analysis-minimo-particular" className="text-sm font-medium text-gray-700">
-                  Mínimo particular
-                </label>
-                <Input
-                  id="analysis-minimo-particular"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={pricingForm.particular_minimum_amount}
-                  onChange={(event) =>
-                    setPricingForm((prev) => ({ ...prev, particular_minimum_amount: event.target.value }))
-                  }
-                />
-                <p className="text-xs text-gray-500">
-                  Piso del total que paga un paciente particular. En 0 no se aplica.
-                </p>
-              </div>
-              <div className="space-y-1.5">
-                <label htmlFor="analysis-redondeo" className="text-sm font-medium text-gray-700">
-                  Tope de redondeo
-                </label>
-                <Input
-                  id="analysis-redondeo"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={pricingForm.redondeo_maximo}
-                  onChange={(event) =>
-                    setPricingForm((prev) => ({ ...prev, redondeo_maximo: event.target.value }))
-                  }
-                />
-                <p className="text-xs text-gray-500">
-                  Si el paciente paga de más hasta este monto, se toma como redondeo
-                  y el saldo queda en cero. Pasado el tope se avisa que hay que
-                  devolver. En 0 no se redondea nunca.
-                </p>
-              </div>
-              {/* EL DESCUENTO POR VOLUMEN VA EN DOS CAMPOS PORQUE SON DOS DECISIONES.
-                  A partir de cuántas UB, y cuánto se cobra. Juntarlos en un solo
-                  campo ("70% desde 30") obligaría a parsear texto para cambiar
-                  cualquiera de los dos. */}
-              <div className="space-y-1.5">
-                <label htmlFor="analysis-desde-ub" className="text-sm font-medium text-gray-700">
-                  Descuento particular desde
-                </label>
-                <Input
-                  id="analysis-desde-ub"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={pricingForm.particular_desde_ub}
-                  onChange={(event) =>
-                    setPricingForm((prev) => ({ ...prev, particular_desde_ub: event.target.value }))
-                  }
-                />
-                <p className="text-xs text-gray-500">
-                  Cantidad de UB a partir de la cual el particular deja de pagar el
-                  total. Se aplica pasando este número, no al llegar. En 0 no se
-                  aplica ningún descuento.
-                </p>
-              </div>
-              <div className="space-y-1.5">
-                <label htmlFor="analysis-porcentaje-particular" className="text-sm font-medium text-gray-700">
-                  Porcentaje a cobrar
-                </label>
-                <Input
-                  id="analysis-porcentaje-particular"
-                  type="number"
-                  min="0"
-                  max="100"
-                  step="0.01"
-                  value={pricingForm.particular_porcentaje_a_cobrar}
-                  onChange={(event) =>
-                    setPricingForm((prev) => ({ ...prev, particular_porcentaje_a_cobrar: event.target.value }))
-                  }
-                />
-                <p className="text-xs text-gray-500">
-                  Qué porcentaje de los análisis se le cobra pasadas esas UB. 70 = se
-                  cobra el 70%. El material descartable y la derivación se cobran
-                  enteros. En 100 no se descuenta nada.
-                </p>
-              </div>
-            </div>
-
-            <div className="flex justify-end">
-              <Button
-                type="submit"
-                className="w-full bg-[#204983] hover:bg-[#1a3d6f] sm:w-auto"
-                disabled={savingPricing}
-              >
-                {savingPricing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                Guardar
-              </Button>
-            </div>
-          </form>
-        )}
-      </div>
-
       {!isLoadingInitial && error && <div className="text-center text-red-500 py-8">{error}</div>}
 
       <DataTable
@@ -558,6 +329,7 @@ export function AnalysisManagement() {
         onEdit={handleEditFromSheet}
         onDelete={handleDeleteFromSheet}
         onShowHistory={handleShowHistoryFromSheet}
+        onDeterminacionesCopiadas={() => setRefreshKey((prev) => prev + 1)}
       />
 
       <CreateAnalysisCatalogDialog

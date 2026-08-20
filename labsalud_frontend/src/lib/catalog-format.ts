@@ -1,4 +1,10 @@
-import type { BioUnitValue, ReferenceRange, ReferenceRangeEvaluation, ReferenceValues } from "@/types"
+import type {
+  BioUnitValue,
+  NamedReferenceRange,
+  ReferenceRange,
+  ReferenceRangeEvaluation,
+  ReferenceValues,
+} from "@/types"
 
 const referenceGroupLabels: Record<string, string> = {
   hombre_mayor: "Hombre adulto",
@@ -20,18 +26,41 @@ const analysisCategoryLabels: Record<string, string> = {
 export const formatAnalysisCategory = (category?: string): string =>
   category ? analysisCategoryLabels[category] || category : ""
 
-export const formatReferenceRange = (range: ReferenceRange): string => {
-  const min = range.min_value || "-"
-  const max = range.max_value || "-"
-  return `${formatReferenceGroup(range.group)}: ${min} - ${max}`
+/**
+ * Los límites de un rango, como se leen.
+ *
+ * El rango puede ser abierto: con un solo límite es `> 4,5` o `< 5,9`, que es
+ * lo que imprime el informe. Mostrarlo como `4,5 - -` decía otra cosa que el
+ * papel que se lleva el paciente.
+ */
+export const formatReferenceBounds = (minValue?: string, maxValue?: string): string => {
+  const min = (minValue || "").trim()
+  const max = (maxValue || "").trim()
+  if (min && max) return `${min} - ${max}`
+  if (min) return `> ${min}`
+  if (max) return `< ${max}`
+  return ""
 }
+
+export const formatReferenceRange = (range: ReferenceRange): string =>
+  `${formatReferenceGroup(range.group)}: ${formatReferenceBounds(range.min_value, range.max_value) || "-"}`
+
+/** Un rango con nombre: el nombre lo puso el laboratorio y va tal cual. */
+export const formatNamedReferenceRange = (range: NamedReferenceRange): string =>
+  `${range.label}: ${formatReferenceBounds(range.min_value, range.max_value) || "-"}`
+
+/** Los rangos con nombre que tengan algún límite, en orden. */
+export const formatNamedReferenceRanges = (ranges?: NamedReferenceRange[]): string[] =>
+  (ranges || [])
+    .filter((range) => range.label && formatReferenceBounds(range.min_value, range.max_value))
+    .map(formatNamedReferenceRange)
 
 export const formatReferenceValues = (values?: ReferenceValues): string[] => {
   if (!values) return []
 
   return Object.entries(values)
     .filter(([, bounds]) => bounds && (bounds.min || bounds.max))
-    .map(([group, bounds]) => `${formatReferenceGroup(group)}: ${bounds?.min || "-"} - ${bounds?.max || "-"}`)
+    .map(([group, bounds]) => `${formatReferenceGroup(group)}: ${formatReferenceBounds(bounds?.min, bounds?.max) || "-"}`)
 }
 
 export const formatBioUnitValues = (values?: BioUnitValue[]): string[] => {

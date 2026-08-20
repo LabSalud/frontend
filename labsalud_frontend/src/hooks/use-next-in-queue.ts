@@ -4,6 +4,7 @@ import { useMemo } from "react"
 import { useApiQuery } from "@/hooks/use-api-query"
 import { RESULTS_ENDPOINTS } from "@/config/api"
 import { appendStatusParams, normalizeStatusFilter, statusFilterKey } from "@/lib/status-filter"
+import { vecinosPorNumeroDeProtocolo } from "@/lib/vecinos-del-protocolo"
 
 /**
  * Devuelve el protocolo anterior y siguiente en la cola (resultados/validación),
@@ -32,10 +33,7 @@ export function useQueueNav(currentId: number, statusStorageKey: string): { prev
   })
 
   const ids = query.data?.results?.map((r) => r.id) ?? []
-  const idx = ids.indexOf(currentId)
-  if (idx < 0) return { prevId: null, nextId: null }
-  return {
-    prevId: idx > 0 ? ids[idx - 1] : null,
-    nextId: idx < ids.length - 1 ? ids[idx + 1] : null,
-  }
+  // Anterior y siguiente son por NÚMERO de protocolo, no por posición en la
+  // cola. Ver `vecinosPorNumeroDeProtocolo`.
+  return vecinosPorNumeroDeProtocolo(ids, currentId)
 }

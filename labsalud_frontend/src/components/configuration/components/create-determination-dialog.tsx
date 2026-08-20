@@ -17,10 +17,12 @@ import { formatApiError, getErrorMessage } from "@/lib/api-error"
 import { esExponenteValido } from "@/lib/notacion"
 import { CampoNotacionCientifica } from "./campo-notacion-cientifica"
 import {
+  rangosConNombreParaEnviar,
   rangosParaEnviar,
   rangosVacios,
   ValoresDeReferencia,
   type RangeMap,
+  type RangoConNombre,
 } from "./valores-de-referencia"
 
 interface CreateDeterminationDialogProps {
@@ -49,6 +51,7 @@ export const CreateDeterminationDialog: React.FC<CreateDeterminationDialogProps>
   const [exponente, setExponente] = useState("")
   const [formula, setFormula] = useState("")
   const [ranges, setRanges] = useState<RangeMap>(rangosVacios)
+  const [namedRanges, setNamedRanges] = useState<RangoConNombre[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
 
@@ -70,6 +73,7 @@ export const CreateDeterminationDialog: React.FC<CreateDeterminationDialogProps>
       setExponente("")
       setFormula("")
       setRanges(rangosVacios())
+      setNamedRanges([])
       setErrors({})
       setIsLoading(false)
     }
@@ -98,6 +102,7 @@ export const CreateDeterminationDialog: React.FC<CreateDeterminationDialogProps>
         scientific_exponent: exponente.trim() === "" ? null : Number(exponente),
         formula: formula || "",
         reference_ranges: rangosParaEnviar(ranges),
+        named_ranges: rangosConNombreParaEnviar(namedRanges),
       }
       const response = await apiRequest(CATALOG_ENDPOINTS.DETERMINATIONS, {
         method: "POST",
@@ -212,7 +217,12 @@ export const CreateDeterminationDialog: React.FC<CreateDeterminationDialogProps>
             {errors.formula && <p className="text-xs md:text-sm text-red-500">{errors.formula}</p>}
           </div>
 
-          <ValoresDeReferencia ranges={ranges} onChange={setRanges} />
+          <ValoresDeReferencia
+            ranges={ranges}
+            onChange={setRanges}
+            namedRanges={namedRanges}
+            onNamedRangesChange={setNamedRanges}
+          />
         </div>
 
         <DialogFooter className="flex-col gap-2 sm:flex-row">

@@ -5,6 +5,7 @@ import { useEffect } from "react"
 import { API_CONFIG } from "@/config/api"
 import { useApiQuery } from "@/hooks/use-api-query"
 import type { PaginatedPage } from "@/hooks/use-api-infinite-query"
+import { vecinosPorNumeroDeProtocolo } from "@/lib/vecinos-del-protocolo"
 
 const CLAVE = "labsalud_orden_de_la_lista_de_protocolos"
 
@@ -88,11 +89,9 @@ export function useProtocolListNav(currentId: number): { prevId: number | null; 
 
   const completa = enElBorde && traidos?.length ? [...ids, ...traidos.map((r) => r.id)] : ids
 
-  if (idx < 0) return { prevId: null, nextId: null }
-  return {
-    prevId: idx > 0 ? completa[idx - 1] : null,
-    nextId: idx < completa.length - 1 ? completa[idx + 1] : null,
-  }
+  // Anterior y siguiente son por NÚMERO de protocolo, no por posición: la lista
+  // viene del más nuevo al más viejo. Ver `vecinosPorNumeroDeProtocolo`.
+  return vecinosPorNumeroDeProtocolo(completa, currentId)
 }
 
 /**

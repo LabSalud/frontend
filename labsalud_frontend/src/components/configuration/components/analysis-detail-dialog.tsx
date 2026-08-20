@@ -7,7 +7,7 @@ import { Separator } from "@/components/ui/separator"
 import { AuditAvatars } from "@/components/common/audit-avatars"
 import { History, Pencil, Trash, TestTube } from "lucide-react"
 import { AnalysisList } from "./analysis-list"
-import { AnalysisCompositionManager } from "./analysis-composition-manager"
+import { CopiarDeterminaciones } from "./copiar-determinaciones"
 import { formatBioUnitValues, formatAnalysisCategory } from "@/lib/catalog-format"
 import type { Analysis } from "@/types"
 
@@ -19,6 +19,9 @@ interface AnalysisDetailDialogProps {
   onEdit: (analysis: Analysis) => void
   onDelete: (analysis: Analysis) => void
   onShowHistory: (analysis: Analysis) => void
+  /** Se llama después de copiar determinaciones de otro análisis: la lista de
+   *  abajo tiene que volver a pedirlas. */
+  onDeterminacionesCopiadas?: () => void
 }
 
 export function AnalysisDetailDialog({
@@ -29,6 +32,7 @@ export function AnalysisDetailDialog({
   onEdit,
   onDelete,
   onShowHistory,
+  onDeterminacionesCopiadas,
 }: AnalysisDetailDialogProps) {
   if (!analysis) return null
   const bioUnitItems = formatBioUnitValues(analysis.bio_unit_values)
@@ -48,11 +52,6 @@ export function AnalysisDetailDialog({
                 {analysis.category && formatAnalysisCategory(analysis.category) && (
                   <Badge variant="outline" className="bg-violet-50 text-violet-700">
                     {formatAnalysisCategory(analysis.category)}
-                  </Badge>
-                )}
-                {analysis.is_module && (
-                  <Badge variant="outline" className="bg-blue-50 text-blue-700">
-                    Módulo
                   </Badge>
                 )}
                 {analysis.is_ref_normalized && (
@@ -127,12 +126,11 @@ export function AnalysisDetailDialog({
 
           <Separator />
 
-          <AnalysisCompositionManager analysis={analysis} />
-
-          <Separator />
-
           <div>
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Determinaciones</p>
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Determinaciones</p>
+              <CopiarDeterminaciones analysis={analysis} onCopiadas={onDeterminacionesCopiadas} />
+            </div>
             <div className="rounded-lg border border-gray-200 bg-gray-50">
               <AnalysisList analysis={analysis} showInactive={false} refreshKey={refreshKey} />
             </div>

@@ -108,6 +108,8 @@ export const MEDICAL_ENDPOINTS = {
 
 export const CATALOG_ENDPOINTS = {
   ANALYSIS: buildApiUrl("/catalog/analysis/"),
+  ANALYSIS_COPIAR_DETERMINACIONES: (id: number) =>
+    buildApiUrl(`/catalog/analysis/${id}/copiar-determinaciones/`),
   ANALYSIS_DETAIL: (id: number) => buildApiUrl(`/catalog/analysis/${id}/`),
   ANALYSIS_AUDIT_TIMELINE: (id: number) => buildApiUrl(`/catalog/analysis/${id}/audit-timeline/`),
   ANALYSIS_IMPORT: buildApiUrl("/catalog/analysis/import-catalog/"),
@@ -134,8 +136,6 @@ export const CATALOG_ENDPOINTS = {
   NBU_CREATE_WITH_IMPORT: buildApiUrl("/catalog/nbu/create-with-import/"),
   PRICING_CONFIG: buildApiUrl("/catalog/pricing-config/"),
   // Composición de análisis (módulos): qué prácticas incluye/excluye un análisis.
-  ANALYSIS_COMPOSITION: buildApiUrl("/catalog/analysis-composition/"),
-  ANALYSIS_COMPOSITION_DETAIL: (id: number) => buildApiUrl(`/catalog/analysis-composition/${id}/`),
 } as const
 
 // Protocol management endpoints
@@ -153,6 +153,10 @@ export const PROTOCOL_ENDPOINTS = {
   SET_EXTRAS: (id: number) => buildApiUrl(`/protocols/protocols/${id}/set-extras/`),
   /** Los pagos del paciente, uno por forma. Listar y agregar. */
   PROTOCOL_PAGOS: (id: number) => buildApiUrl(`/protocols/protocols/${id}/pagos/`),
+  /** Protocolos ya creados a los que les cambiaría el precio si se los repreciara. */
+  PROTOCOLOS_DESACTUALIZADOS: buildApiUrl("/protocols/protocols/desactualizados/"),
+  /** Aplica los precios de hoy a los protocolos elegidos. */
+  REPRECAR_PROTOCOLOS: buildApiUrl("/protocols/protocols/reprecar/"),
   /** Corregir o anular UNO: la forma vive en el pago, no en el protocolo. */
   PROTOCOL_PAGO: (protocolId: number, pagoId: number) =>
     buildApiUrl(`/protocols/protocols/${protocolId}/pagos/${pagoId}/`),

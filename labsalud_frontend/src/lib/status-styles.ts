@@ -320,3 +320,51 @@ export const getPreauthStatusInfo = (status?: PreauthStatus | null) => {
       }
   }
 }
+
+/**
+ * Por dónde se le entrega el resultado al paciente.
+ *
+ * POR QUÉ SE MIRA EL NOMBRE Y NO EL ID
+ * ====================================
+ * Los métodos de envío son una tabla que el laboratorio edita: los ids de hoy
+ * (1 Retiro Físico, 2 Email, 3 WhatsApp) no son un contrato. Se normaliza el
+ * texto —sin acentos y en minúscula— y se busca la palabra, así que un
+ * "Retiro físico" renombrado a "Retira por mostrador" sigue cayendo del lado
+ * correcto.
+ *
+ * `accion` es lo que hay que hacer con el informe, y es lo que el diálogo de
+ * reportes usa para resaltar el botón que corresponde.
+ */
+export type SendMethodAction = "print" | "email" | "whatsapp" | null
+
+export const getSendMethodAction = (sendMethodName?: string | null): SendMethodAction => {
+  const method = (sendMethodName || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+  if (!method) return null
+  if (method.includes("whatsapp") || method.includes("wsp")) return "whatsapp"
+  if (method.includes("email") || method.includes("mail")) return "email"
+  if (method.includes("retiro") || method.includes("fisico") || method.includes("impres")) return "print"
+  return null
+}
+
+export const getSendMethodInfo = (sendMethodName?: string | null) => {
+  const accion = getSendMethodAction(sendMethodName)
+  const label = (sendMethodName || "").trim()
+
+  switch (accion) {
+    case "whatsapp":
+      return { accion, label, badge: "bg-green-50 text-green-700 border-green-200" }
+    case "email":
+      return { accion, label, badge: "bg-sky-50 text-sky-700 border-sky-200" }
+    case "print":
+      return { accion, label, badge: "bg-slate-50 text-slate-700 border-slate-200" }
+    default:
+      return {
+        accion,
+        label: label || "Sin método de envío",
+        badge: "bg-gray-50 text-gray-600 border-gray-200",
+      }
+  }
+}

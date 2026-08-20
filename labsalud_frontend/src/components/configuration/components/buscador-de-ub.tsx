@@ -12,6 +12,7 @@ import { useDebounce } from "@/hooks/use-debounce"
 import { useToast } from "@/hooks/use-toast"
 import { formatApiError, getErrorMessage } from "@/lib/api-error"
 import { resolverUb, ubPropio } from "@/lib/ub-por-nomenclador"
+import { PropagarPreciosDialog } from "./propagar-precios-dialog"
 import type { Analysis, NBU } from "@/types"
 
 /**
@@ -49,6 +50,9 @@ export function BuscadorDeUb({ nbu, nomencladores, onCambio }: Props) {
   const [encontrados, setEncontrados] = useState<Analysis[]>([])
   const [edicion, setEdicion] = useState<Record<number, string>>({})
   const [guardando, setGuardando] = useState<number | null>(null)
+  // Guardar un UB no toca los protocolos ya creados. Cuando el cambio es una
+  // corrección, los de esta mañana normalmente sí tenían que llevarla.
+  const [propagando, setPropagando] = useState<Analysis | null>(null)
 
   useEffect(() => {
     if (!buscado) {
@@ -105,6 +109,7 @@ export function BuscadorDeUb({ nbu, nomencladores, onCambio }: Props) {
       })
       aplicarEnLaFila(analisis.id, limpio)
       onCambio()
+      setPropagando(analisis)
     } catch (err) {
       error("Error al guardar UB", { description: getErrorMessage(err) })
     } finally {
@@ -129,6 +134,7 @@ export function BuscadorDeUb({ nbu, nomencladores, onCambio }: Props) {
       })
       aplicarEnLaFila(analisis.id, null)
       onCambio()
+      setPropagando(analisis)
     } catch (err) {
       error("Error al quitar UB", { description: getErrorMessage(err) })
     } finally {
@@ -161,6 +167,14 @@ export function BuscadorDeUb({ nbu, nomencladores, onCambio }: Props) {
   }
 
   return (
+    <>
+    <PropagarPreciosDialog
+      open={propagando !== null}
+      onOpenChange={(abierto) => !abierto && setPropagando(null)}
+      analysisId={propagando?.id}
+      titulo={propagando ? `Protocolos con ${propagando.name}` : undefined}
+    />
+
     <div className="min-w-0 space-y-2 rounded-md border border-gray-200 bg-gray-50 p-3">
       <div className="relative">
         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
@@ -262,5 +276,6 @@ export function BuscadorDeUb({ nbu, nomencladores, onCambio }: Props) {
         </div>
       )}
     </div>
+    </>
   )
 }

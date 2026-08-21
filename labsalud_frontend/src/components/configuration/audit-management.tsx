@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react"
 import { useApi } from "@/hooks/use-api"
 import { AUDIT_ENDPOINTS } from "@/config/api"
 import { useInfiniteScroll } from "@/hooks/use-infinite-scroll"
+import { DateRangePicker } from "@/components/ui/date-range-picker"
 import { Loader2, Search, Filter, X } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -210,29 +211,24 @@ export function AuditManagement() {
               />
             </div>
 
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <div className="space-y-1.5">
-                <Label htmlFor="audit-date-from" className="text-xs font-medium text-slate-600">
-                  Desde
-                </Label>
-                <Input
-                  id="audit-date-from"
-                  type="date"
-                  value={dateFrom}
-                  onChange={(e) => setDateFrom(e.target.value)}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="audit-date-to" className="text-xs font-medium text-slate-600">
-                  Hasta
-                </Label>
-                <Input
-                  id="audit-date-to"
-                  type="date"
-                  value={dateTo}
-                  onChange={(e) => setDateTo(e.target.value)}
-                />
-              </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-slate-600">Fechas</Label>
+              {/* Un solo calendario para las dos puntas: acá el rango es
+                  opcional, así que además tiene "Sin filtro de fecha". */}
+              <DateRangePicker
+                desde={dateFrom}
+                hasta={dateTo}
+                onChange={(desde, hasta) => {
+                  setDateFrom(desde)
+                  setDateTo(hasta)
+                }}
+                onLimpiar={() => {
+                  setDateFrom("")
+                  setDateTo("")
+                }}
+                placeholder="Cualquier fecha"
+                className="w-full"
+              />
             </div>
           </div>
 

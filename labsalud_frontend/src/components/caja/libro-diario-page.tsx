@@ -4,7 +4,7 @@ import { useSearchParams } from "react-router-dom"
 import { Banknote, BookOpen, ChevronDown, Landmark, Plus, Trash2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+import { DateRangePicker } from "@/components/ui/date-range-picker"
 import { ANALYTICS_ENDPOINTS, PROTOCOL_ENDPOINTS } from "@/config/api"
 import { useApiQuery } from "@/hooks/use-api-query"
 import { BILLING_ENDPOINTS } from "@/config/api"
@@ -281,50 +281,25 @@ export default function LibroDiarioPage() {
             </p>
           </div>
 
-          <div className="flex flex-wrap items-end gap-3">
-            <label className="flex flex-col gap-1">
-              <span className="text-xs font-medium text-gray-600">Desde</span>
-              <Input
-                type="date"
-                value={desde}
-                max={hasta}
-                onChange={(e) => setDesde(e.target.value)}
-                className="h-9 w-40"
-              />
-            </label>
-            <label className="flex flex-col gap-1">
-              <span className="text-xs font-medium text-gray-600">Hasta</span>
-              <Input
-                type="date"
-                value={hasta}
-                min={desde}
-                max={hoyISO()}
-                onChange={(e) => setHasta(e.target.value)}
-                className="h-9 w-40"
-              />
-            </label>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setDesde(hoyISO())
-                  setHasta(hoyISO())
-                }}
-              >
-                Hoy
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setDesde(haceDias(30))
-                  setHasta(hoyISO())
-                }}
-              >
-                Último mes
-              </Button>
-            </div>
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Un solo control para el rango: los dos extremos se eligen sobre
+                el mismo calendario, viendo el camino entre ellos, y no queda
+                forma de dejar un "hasta" anterior al "desde". */}
+            <DateRangePicker
+              desde={desde}
+              hasta={hasta}
+              onChange={(nuevoDesde, nuevoHasta) => {
+                setDesde(nuevoDesde)
+                setHasta(nuevoHasta)
+              }}
+              max={hoyISO()}
+              className="w-full sm:w-[17rem]"
+              atajos={[
+                { label: "Hoy", desde: hoyISO(), hasta: hoyISO() },
+                { label: "Últimos 7 días", desde: haceDias(7), hasta: hoyISO() },
+                { label: "Últimos 30 días", desde: haceDias(30), hasta: hoyISO() },
+              ]}
+            />
 
             {puedeCargarMovimientos ? (
               <Button

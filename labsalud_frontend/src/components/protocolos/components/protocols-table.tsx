@@ -21,6 +21,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { PERMISSION_MESSAGES } from "@/config/permissions"
 import { getProtocolStatusStyleByName } from "@/lib/status-styles"
+import { comoFechaCorta, diaDeIso, diasEntre, hoy } from "@/lib/dias"
 import { cn } from "@/lib/utils"
 import type { ProtocolListItem } from "@/types"
 
@@ -39,6 +40,12 @@ interface ProtocolsTableProps {
   /** Permiso `gestionar_impresiones`: sin él el botón de reporte queda inhabilitado. */
   canPrintReports: boolean
   busyId?: number | null
+  /** Separar las filas por día de ingreso con una línea marcada.
+   *
+   * Se apaga cuando la tabla está ordenada por otra cosa: con el orden por
+   * apellido las fechas quedan salteadas y el separador diría "de acá para
+   * arriba son del 21" sobre filas que no lo son. */
+  separarPorDia?: boolean
 }
 
 function formatDni(dni?: string | null) {
@@ -186,6 +193,7 @@ export function ProtocolsTable({
   canUncancel,
   canPrintReports,
   busyId,
+  separarPorDia,
 }: ProtocolsTableProps) {
   const columns: Column<ProtocolListItem>[] = [
     {
@@ -331,6 +339,16 @@ export function ProtocolsTable({
   // selección (no hace falta apuntar al checkbox); sin selección, navega.
   const selectionMode = selectedIds.size > 0
 
+  // Corte de día: sale cuando la fila arranca una fecha distinta de la
+  // anterior, y también en la primera fila, que si no queda huérfana arriba
+  // del primer separador sin que se sepa de qué día es.
+  const separadorDeDia = (fila: ProtocolListItem, anterior: ProtocolListItem | undefined) => {
+    const dia = diaDeIso(fila.created_at)
+    if (!dia) return null
+    if (anterior && diaDeIso(anterior.created_at) === dia) return null
+    return <SeparadorDeDia dia={dia} />
+  }
+
   return (
     <DataTable
       columns={columns}
@@ -341,9 +359,33 @@ export function ProtocolsTable({
       onSortChange={onSortChange}
       isLoading={isLoading}
       emptyMessage="No se encontraron protocolos"
+      rowSeparator={separarPorDia ? separadorDeDia : undefined}
       rowClassName={(p) =>
         cn("border-l-4", getProtocolStatusStyleByName(p.status?.name).border, selectedIds.has(p.id) && "bg-blue-50/50")
       }
     />
+  )
+}
+
+/**
+ * El corte entre un día y el siguiente: la línea de la tabla, remarcada.
+ *
+ * NO SUMA ALTURA
+ * ==============
+ * Es la misma línea divisoria que ya separaba dos filas, nada más que en el
+ * azul de LabSalud y de 2px. El `<div>` mide lo que mide ese borde y la
+ * etiqueta va posicionada encima, con fondo blanco para que la línea se corte
+ * detrás del texto. Así las filas quedan igual de juntas que antes: el día se
+ * lee sin que la lista se estire ni los protocolos queden separados en cajas.
+ */
+function SeparadorDeDia({ dia }: { dia: string }) {
+  // "Hoy" solo para el día de hoy; de ahí para atrás, la fecha.
+  const etiqueta = diasEntre(dia, hoy()) === 0 ? "Hoy" : comoFechaCorta(dia)
+  return (
+    <div className="relative border-t-2 border-[#204983]">
+      <span className="absolute left-4 top-0 -translate-y-1/2 bg-white px-1.5 text-[11px] font-bold uppercase tracking-wide text-[#204983]">
+        {etiqueta}
+      </span>
+    </div>
   )
 }

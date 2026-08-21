@@ -352,6 +352,13 @@ export interface Insurance {
   chooses_billing_entity?: boolean
   /** El paciente paga como particular y la OOSS le reintegra después. */
   a_reintegro?: boolean
+  /**
+   * Tope de UB POR ANÁLISIS: del que lo supera se cobra el porcentaje de abajo.
+   * "0.00" = sin descuento. Se mide análisis por análisis, no sobre el protocolo.
+   */
+  descuento_desde_ub?: string
+  /** Qué porcentaje del análisis se cobra pasado el tope. "100.00" = no se descuenta. */
+  descuento_porcentaje_a_cobrar?: string
   nbu?: Nbu | number | null
   /** Entidad de facturación a la que se presenta esta OOSS actualmente (null = sin asignar). */
   billing_entity?: { id: number; name: string } | null
@@ -907,13 +914,6 @@ export interface PricingConfig {
    * laboratorio. "0.00" = no se redondea nunca.
    */
   redondeo_maximo: string
-  /**
-   * A partir de cuántas UB el particular deja de pagar el total. "0.00" = sin
-   * descuento por volumen.
-   */
-  particular_desde_ub: string
-  /** Qué porcentaje de los análisis se le cobra pasado ese volumen. "70.00" = el 70%. */
-  particular_porcentaje_a_cobrar: string
 }
 
 // Respuesta de POST /protocols/protocols/quote/ — preview de precios que reusa
@@ -926,8 +926,8 @@ export interface QuoteDetail {
   private_ub: string
   insurance_ub: string | null
   patient_amount: string
-  /** true = ya está cubierta por un módulo presente en el protocolo: no suma UB ni se cobra ($0). */
-  included_in_module?: boolean
+  /** Cuánto se le descontó a ESTE análisis por superar el tope de UB de la obra social. */
+  descuento?: string
 }
 
 export interface QuoteResult {

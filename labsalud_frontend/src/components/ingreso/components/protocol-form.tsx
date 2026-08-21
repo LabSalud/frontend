@@ -172,7 +172,7 @@ function StatusButtonGroup<T extends string>({
 interface Totals {
   authorizedTotal: number
   privateTotal: number
-  /** Lo que se le descontó al particular por volumen. Ya está restado. */
+  /** Lo que se descontó por los análisis que superan el tope de UB. Ya está restado. */
   descuentoPorVolumen: number
   total: number
   patientOwes: number
@@ -681,7 +681,7 @@ export function ProtocolForm({
                     análisis de arriba y parece un error de la pantalla. */}
                 {totals.descuentoPorVolumen > 0 && (
                   <>
-                    <div className="text-emerald-700">Descuento por volumen:</div>
+                    <div className="text-emerald-700">Descuento por análisis grande:</div>
                     <div className="text-right font-medium text-emerald-700">
                       −${totals.descuentoPorVolumen.toFixed(2)}
                     </div>

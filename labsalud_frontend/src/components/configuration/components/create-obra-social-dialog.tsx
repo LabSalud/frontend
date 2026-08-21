@@ -36,6 +36,8 @@ interface FormData {
   requires_preauthorization: boolean
   requires_historia_clinica: boolean
   a_reintegro: boolean
+  descuento_desde_ub: string
+  descuento_porcentaje_a_cobrar: string
 }
 
 interface ValidationState {
@@ -57,6 +59,8 @@ const initialFormData: FormData = {
   requires_preauthorization: false,
   requires_historia_clinica: false,
   a_reintegro: false,
+  descuento_desde_ub: "0.00",
+  descuento_porcentaje_a_cobrar: "100.00",
 }
 
 export function CreateObraSocialDialog({ open, onOpenChange, onSuccess }: CreateObraSocialDialogProps) {
@@ -132,6 +136,8 @@ export function CreateObraSocialDialog({ open, onOpenChange, onSuccess }: Create
         requires_historia_clinica: formData.requires_historia_clinica,
         chooses_billing_entity: formData.chooses_billing_entity,
         a_reintegro: formData.a_reintegro,
+        descuento_desde_ub: formData.descuento_desde_ub || "0.00",
+        descuento_porcentaje_a_cobrar: formData.descuento_porcentaje_a_cobrar || "100.00",
       }
       if (formData.description.trim()) body.description = formData.description
       if (formData.ub_value.trim()) body.ub_value = Number.parseFloat(formData.ub_value)
@@ -377,6 +383,55 @@ export function CreateObraSocialDialog({ open, onOpenChange, onSuccess }: Create
                   checked={formData.a_reintegro}
                   onCheckedChange={(checked) => handleSwitchChange("a_reintegro", checked)}
                 />
+              </div>
+
+              {/* DEL ANÁLISIS GRANDE NO SE COBRA EL 100%.
+                  Se mide ANÁLISIS POR ANÁLISIS y no sobre la suma del
+                  protocolo: lo que es grande es la práctica, no la lista. */}
+              <div className="space-y-3 rounded-lg border border-gray-200 p-3">
+                <div>
+                  <p className="text-sm font-medium text-gray-700">Descuento por análisis grande</p>
+                  <p className="text-xs text-gray-500">
+                    Del análisis que supera el tope se cobra el porcentaje, y no el
+                    total. Se mide análisis por análisis, no sobre el protocolo.
+                    Con el tope en 0 no se aplica nada.{" "}
+                    <span className="font-medium">El que corre es el de Particular:</span>{" "}
+                    todo lo que paga el paciente —incluido el análisis que una obra
+                    social no autoriza— se cotiza con esa lista.
+                  </p>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="descuento_desde_ub">Tope de UB por análisis</Label>
+                    <Input
+                      id="descuento_desde_ub"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={formData.descuento_desde_ub}
+                      onChange={(e) =>
+                        setFormData((prev) => ({ ...prev, descuento_desde_ub: e.target.value }))
+                      }
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="descuento_porcentaje_a_cobrar">Porcentaje a cobrar</Label>
+                    <Input
+                      id="descuento_porcentaje_a_cobrar"
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="0.01"
+                      value={formData.descuento_porcentaje_a_cobrar}
+                      onChange={(e) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          descuento_porcentaje_a_cobrar: e.target.value,
+                        }))
+                      }
+                    />
+                  </div>
+                </div>
               </div>
             </div>
           </div>

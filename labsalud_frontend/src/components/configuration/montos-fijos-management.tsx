@@ -35,8 +35,6 @@ const VACIO = {
   derivacion_amount: "",
   particular_minimum_amount: "",
   redondeo_maximo: "",
-  particular_desde_ub: "",
-  particular_porcentaje_a_cobrar: "",
 }
 
 /** Los montos como los deja el backend, con los defaults de cada campo. */
@@ -45,8 +43,6 @@ const desdeLaConfig = (data: PricingConfig) => ({
   derivacion_amount: data.derivacion_amount || "0.00",
   particular_minimum_amount: data.particular_minimum_amount || "0.00",
   redondeo_maximo: data.redondeo_maximo || "0.00",
-  particular_desde_ub: data.particular_desde_ub || "0.00",
-  particular_porcentaje_a_cobrar: data.particular_porcentaje_a_cobrar || "100.00",
 })
 
 export function MontosFijosManagement() {
@@ -98,8 +94,6 @@ export function MontosFijosManagement() {
           derivacion_amount: pricingForm.derivacion_amount || "0.00",
           particular_minimum_amount: pricingForm.particular_minimum_amount || "0.00",
           redondeo_maximo: pricingForm.redondeo_maximo || "0.00",
-          particular_desde_ub: pricingForm.particular_desde_ub || "0.00",
-          particular_porcentaje_a_cobrar: pricingForm.particular_porcentaje_a_cobrar || "100.00",
         },
       })
       if (!response.ok) {
@@ -129,7 +123,8 @@ export function MontosFijosManagement() {
             <h4 className="text-sm font-semibold text-gray-800">Montos fijos</h4>
             <p className="text-xs text-gray-500">
               Valen para todo el sistema y se aplican a cada protocolo que entre
-              de acá en adelante.
+              de acá en adelante. El descuento por análisis grande no está acá:
+              es de cada obra social y se configura en la suya.
             </p>
           </div>
         </div>
@@ -207,51 +202,6 @@ export function MontosFijosManagement() {
                   Si el paciente paga de más hasta este monto, se toma como redondeo
                   y el saldo queda en cero. Pasado el tope se avisa que hay que
                   devolver. En 0 no se redondea nunca.
-                </p>
-              </div>
-              {/* EL DESCUENTO POR VOLUMEN VA EN DOS CAMPOS PORQUE SON DOS DECISIONES.
-                  A partir de cuántas UB, y cuánto se cobra. Juntarlos en un solo
-                  campo ("70% desde 30") obligaría a parsear texto para cambiar
-                  cualquiera de los dos. */}
-              <div className="space-y-1.5">
-                <label htmlFor="montos-desde-ub" className="text-sm font-medium text-gray-700">
-                  Descuento particular desde
-                </label>
-                <Input
-                  id="montos-desde-ub"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={pricingForm.particular_desde_ub}
-                  onChange={(event) =>
-                    setPricingForm((prev) => ({ ...prev, particular_desde_ub: event.target.value }))
-                  }
-                />
-                <p className="text-xs text-gray-500">
-                  Cantidad de UB a partir de la cual el particular deja de pagar el
-                  total. Se aplica pasando este número, no al llegar. En 0 no se
-                  aplica ningún descuento.
-                </p>
-              </div>
-              <div className="space-y-1.5">
-                <label htmlFor="montos-porcentaje-particular" className="text-sm font-medium text-gray-700">
-                  Porcentaje a cobrar
-                </label>
-                <Input
-                  id="montos-porcentaje-particular"
-                  type="number"
-                  min="0"
-                  max="100"
-                  step="0.01"
-                  value={pricingForm.particular_porcentaje_a_cobrar}
-                  onChange={(event) =>
-                    setPricingForm((prev) => ({ ...prev, particular_porcentaje_a_cobrar: event.target.value }))
-                  }
-                />
-                <p className="text-xs text-gray-500">
-                  Qué porcentaje de los análisis se le cobra pasadas esas UB. 70 = se
-                  cobra el 70%. El material descartable y la derivación se cobran
-                  enteros. En 100 no se descuenta nada.
                 </p>
               </div>
             </div>

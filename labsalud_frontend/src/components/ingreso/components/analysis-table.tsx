@@ -48,15 +48,15 @@ export function AnalysisTable({
   const isParticular = (analysis: SelectedAnalysis) =>
     isPrivateInsurance || forcePrivateAnalyses || !analysis.is_authorized
 
-  // ¿Ya está cubierta por un módulo presente? El backend la cotiza en $0 y no suma UB.
-  const isIncludedInModule = (analysis: SelectedAnalysis): boolean =>
-    quoteById?.[analysis.id]?.included_in_module === true
+  // ¿A ESTE análisis se le descontó por superar el tope de UB de la obra social?
+  // El descuento es por análisis, no por protocolo: quien lo mira tiene que
+  // poder ver cuál de las prácticas sale menos, y por qué.
+  const descuentoDe = (analysis: SelectedAnalysis): number =>
+    Number.parseFloat(quoteById?.[analysis.id]?.descuento || "0") || 0
 
   // Cantidad de UB a mostrar: la del nomenclador correcto (cotización) según si
-  // es particular (private_ub) o lo cubre la OOSS (insurance_ub). Las incluidas
-  // en un módulo no suman UB.
+  // es particular (private_ub) o lo cubre la OOSS (insurance_ub).
   const ubFor = (analysis: SelectedAnalysis): string => {
-    if (isIncludedInModule(analysis)) return "0"
     const q = quoteById?.[analysis.id]
     if (q) return isParticular(analysis) ? q.private_ub : q.insurance_ub ?? q.private_ub
     return analysis.bio_unit
@@ -79,7 +79,7 @@ export function AnalysisTable({
   }
 
   const totalUb = selectedAnalyses.reduce((sum, a) => sum + (Number.parseFloat(ubFor(a)) || 0), 0)
-  const includedCount = selectedAnalyses.filter(isIncludedInModule).length
+  const conDescuento = selectedAnalyses.filter((a) => descuentoDe(a) > 0).length
   const authorizedCount = isPrivateInsurance || forcePrivateAnalyses ? 0 : selectedAnalyses.filter((a) => a.is_authorized).length
 
   return (
@@ -126,11 +126,7 @@ export function AnalysisTable({
                     <div className="flex items-start justify-between gap-2 mb-2">
                       <div className="shrink-0 pt-0.5">{manija}</div>
                       <div className="flex-1 min-w-0">
-                        <p
-                          className={`text-sm font-medium leading-tight break-words ${
-                            isIncludedInModule(analysis) ? "text-gray-400 line-through" : ""
-                          }`}
-                        >
+                        <p className="text-sm font-medium leading-tight break-words">
                           {analysis.name}
                         </p>
                         <div className="flex flex-wrap items-center gap-2 mt-1">
@@ -147,9 +143,13 @@ export function AnalysisTable({
                               En desuso
                             </Badge>
                           )}
-                          {isIncludedInModule(analysis) && (
-                            <Badge variant="outline" className="bg-blue-50 text-blue-700 text-xs">
-                              Incluida en módulo
+                          {descuentoDe(analysis) > 0 && (
+                            <Badge
+                              variant="outline"
+                              className="bg-emerald-50 text-emerald-700 text-xs"
+                              title="Supera el tope de UB de la obra social: de este análisis se cobra una parte"
+                            >
+                              Con descuento
                             </Badge>
                           )}
                         </div>
@@ -228,11 +228,7 @@ export function AnalysisTable({
                         <>
                         <TableCell className="w-8 p-2 align-top">{manija}</TableCell>
                         <TableCell className="font-medium text-xs lg:text-sm p-2 align-top">
-                          <div
-                            className={`leading-tight break-words whitespace-normal ${
-                              isIncludedInModule(analysis) ? "text-gray-400 line-through" : ""
-                            }`}
-                          >
+                          <div className="leading-tight break-words whitespace-normal">
                             {analysis.name}
                           </div>
                           <div className="mt-1 flex flex-wrap gap-1">
@@ -241,9 +237,13 @@ export function AnalysisTable({
                                 En desuso
                               </Badge>
                             )}
-                            {isIncludedInModule(analysis) && (
-                              <Badge variant="outline" className="bg-blue-50 text-blue-700 text-[10px]">
-                                Incluida en módulo
+                            {descuentoDe(analysis) > 0 && (
+                              <Badge
+                                variant="outline"
+                                className="bg-emerald-50 text-emerald-700 text-[10px]"
+                                title="Supera el tope de UB de la obra social: de este análisis se cobra una parte"
+                              >
+                                Con descuento
                               </Badge>
                             )}
                           </div>
@@ -309,10 +309,11 @@ export function AnalysisTable({
                 <span className="text-gray-600">
                   Total UB: <strong className="text-[#204983]">{totalUb.toFixed(2)}</strong>
                 </span>
-                {includedCount > 0 && (
-                  <span className="text-xs text-blue-700">
-                    {includedCount} {includedCount === 1 ? "práctica incluida" : "prácticas incluidas"} en módulos (no
-                    se cobran aparte)
+                {conDescuento > 0 && (
+                  <span className="text-xs text-emerald-700">
+                    {conDescuento === 1
+                      ? "1 análisis supera el tope de UB y se cobra en parte"
+                      : `${conDescuento} análisis superan el tope de UB y se cobran en parte`}
                   </span>
                 )}
               </div>

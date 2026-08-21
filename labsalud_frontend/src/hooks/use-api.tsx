@@ -12,6 +12,29 @@ import {
 } from "@/lib/auth-storage"
 import { dispatchSessionExpiredEvent } from "@/lib/session-events"
 
+/**
+ * Latencia artificial, sólo para el dev server.
+ *
+ * En local el backend contesta en milisegundos y todo se siente instantáneo:
+ * los skeletons no se llegan a ver y no hay forma de saber si el scroll
+ * infinito realmente adelanta el lote siguiente o si simplemente el backend
+ * es rápido. Con `VITE_API_DELAY_MS=400` en el `.env` cada request espera eso
+ * (con un jitter de ±30%, porque una red real no es constante) antes de salir.
+ *
+ * NO LLEGA A PRODUCCIÓN: `import.meta.env.DEV` es el literal `false` en
+ * cualquier `vite build`, así que el `if` de abajo queda en `if (false)` y
+ * rollup borra tanto la llamada como esta función del bundle. No hay nada que
+ * acordarse de sacar antes de compilar; si querés comprobarlo,
+ * `npm run build && grep -r VITE_API_DELAY_MS dist/` no encuentra nada.
+ */
+const DELAY_API_DEV = import.meta.env.DEV ? Number(import.meta.env.VITE_API_DELAY_MS) || 0 : 0
+
+const demorarComoEnProduccion = async () => {
+  if (DELAY_API_DEV <= 0) return
+  const conJitter = DELAY_API_DEV * (0.7 + Math.random() * 0.6)
+  await new Promise((resolve) => setTimeout(resolve, conJitter))
+}
+
 // JSDoc documentation for ApiRequestOptions and useApi hook
 /**
  * Options for API requests, including HTTP method, request body, headers, and timeout.
@@ -71,6 +94,10 @@ export const useApi = () => {
       const { method = "GET", body, headers = {}, timeout = API_CONFIG.TIMEOUT } = apiOptions
 
       const makeRequest = async (): Promise<Response> => {
+        // Se demora antes de armar el AbortController para que la espera
+        // simulada no se coma el timeout real del request.
+        if (import.meta.env.DEV) await demorarComoEnProduccion()
+
         const requestHeaders: Record<string, string> = {
           ...headers,
         }

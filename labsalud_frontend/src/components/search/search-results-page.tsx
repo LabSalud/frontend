@@ -273,7 +273,7 @@ export default function SearchResultsPage() {
   const lastOnPage = (page - 1) * pageSize + results.length
 
   return (
-    <div className="mx-auto w-full max-w-6xl overflow-x-hidden px-4 py-4">
+    <div className="w-full overflow-x-hidden py-4">
       <div className="min-w-0 max-w-full rounded-2xl bg-white/95 p-4 shadow-md backdrop-blur-sm md:p-6">
         <div className="mb-5">
           <h1 className="text-xl font-bold text-gray-800 md:text-2xl">Búsqueda</h1>

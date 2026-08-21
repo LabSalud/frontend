@@ -53,7 +53,7 @@ export default function FacturacionPage() {
 
   if (m.entitiesLoading && m.entities.length === 0) {
     return (
-      <div className="mx-auto w-full max-w-6xl px-4 py-4">
+      <div className="w-full py-4">
         <div className="rounded-2xl bg-white/95 p-4 shadow-md backdrop-blur-sm md:p-6 space-y-4">
           <Skeleton className="h-8 w-64 rounded" />
           <Skeleton className="h-10 w-full max-w-md rounded" />
@@ -65,7 +65,7 @@ export default function FacturacionPage() {
 
   if (!entity) {
     return (
-      <div className="mx-auto w-full max-w-6xl px-4 py-4">
+      <div className="w-full py-4">
         <div className="flex flex-col items-center gap-4 rounded-2xl bg-white/95 p-6 text-center shadow-md backdrop-blur-sm">
           <p className="text-sm text-gray-500">
             Todavía no hay entidades de facturación configuradas.
@@ -82,7 +82,7 @@ export default function FacturacionPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 py-4">
+    <div className="w-full py-4">
       <div className="rounded-2xl bg-white/95 p-4 shadow-md backdrop-blur-sm md:p-6">
         <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>

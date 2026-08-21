@@ -57,7 +57,7 @@ export default function ConfigurationPage() {
     "flex-shrink-0 rounded-full border border-transparent bg-transparent px-4 py-1.5 text-sm font-medium text-gray-600 shadow-none transition-colors hover:bg-gray-100 data-[state=active]:border-[#204983] data-[state=active]:bg-[#204983] data-[state=active]:text-white data-[state=active]:shadow-sm"
 
   return (
-    <div className="mx-auto w-full max-w-6xl overflow-x-hidden px-4 py-4">
+    <div className="w-full overflow-x-hidden py-4">
       <div className="min-w-0 max-w-full rounded-2xl bg-white/95 p-4 shadow-md backdrop-blur-sm md:p-6">
         <div className="mb-5">
           <h1 className="text-xl font-bold text-gray-800 md:text-2xl">Configuración del sistema</h1>

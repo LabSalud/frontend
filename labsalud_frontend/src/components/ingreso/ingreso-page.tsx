@@ -767,8 +767,8 @@ export default function IngresoPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen p-2 sm:p-4 lg:p-6">
-        <div className="max-w-7xl mx-auto">
+      <div className="min-h-screen w-full py-2 sm:py-4 lg:py-6">
+        <div className="w-full">
           {/* Header skeleton */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6 mb-4 sm:mb-6 lg:mb-8">
             <div className="text-center">
@@ -815,7 +815,7 @@ export default function IngresoPage() {
     (!shouldShowPreauth || preauthStatus)
 
   return (
-    <div className="mx-auto w-full max-w-7xl px-4 py-4">
+    <div className="w-full py-4">
       <div className="rounded-2xl bg-white/95 p-4 shadow-md backdrop-blur-sm md:p-6">
         <div className="mb-4 flex items-center justify-center gap-2">
           <FileText className="h-6 w-6 text-[#204983]" />

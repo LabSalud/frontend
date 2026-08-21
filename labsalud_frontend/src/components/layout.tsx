@@ -32,7 +32,20 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       {/* Content */}
       <div className="relative z-10">
         <Navbar />
-        <main className="px-2 pt-4 sm:px-4">{children || <Outlet />}</main>
+        {/* EL GUTTER DE LAS PÁGINAS VIVE ACÁ Y EN NINGÚN OTRO LADO.
+            `lg:px-8` son los 32px a los que arranca la barra blanca de la
+            navbar: 16px del `lg:px-4` de su wrapper más 16px de su `mx-4`.
+            Así el contenido de cualquier página queda alineado al pixel con
+            la navbar y, como no hay `max-w-*`, en pantallas grandes se estira
+            todo lo que dé — que es lo que hace desaparecer el scroll
+            horizontal de las tablas anchas. Si la pantalla no alcanza, la
+            tabla vuelve a scrollear sola (`overflow-x-auto` en ui/table).
+            En mobile la navbar va full-bleed, pero acá se dejan 16px a
+            propósito: las tarjetas tienen borde redondeado y sombra y pegadas
+            al vidrio se ven cortadas.
+            Las páginas NO deben volver a poner `mx-auto`, `max-w-*` ni
+            padding horizontal en su contenedor raíz: se desalinean. */}
+        <main className="w-full px-4 pt-4 lg:px-8">{children || <Outlet />}</main>
       </div>
     </div>
   )

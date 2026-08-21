@@ -262,7 +262,7 @@ export default function LibroDiarioPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-full px-4 py-4">
+    <div className="w-full py-4">
       <div className="rounded-2xl bg-white/95 p-4 shadow-md backdrop-blur-sm md:p-6">
         {/* Fila superior: título · rango de fechas · atajos.
             Misma caja blanca y mismo esqueleto que Pacientes, Protocolos y

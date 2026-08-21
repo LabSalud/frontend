@@ -95,7 +95,7 @@ export default function ProtocolDetailPage() {
 
   if (detailQuery.isLoading) {
     return (
-      <div className="mx-auto w-full max-w-7xl px-3 py-4 sm:px-4">
+      <div className="w-full py-4">
         {Breadcrumb}
         <ProtocolDetailSkeleton />
       </div>
@@ -104,7 +104,7 @@ export default function ProtocolDetailPage() {
 
   if (detailQuery.error || !protocol) {
     return (
-      <div className="mx-auto w-full max-w-7xl px-3 py-4 sm:px-4">
+      <div className="w-full py-4">
         {Breadcrumb}
         <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 p-4 text-red-700">
           <AlertCircle className="h-5 w-5" />
@@ -118,7 +118,7 @@ export default function ProtocolDetailPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-7xl px-3 py-4 pb-28 sm:px-4">
+    <div className="w-full py-4 pb-28">
       {Breadcrumb}
       <ProtocolCard
         protocol={protocol}

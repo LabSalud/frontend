@@ -609,7 +609,7 @@ export default function ProtocolosPage() {
 
   if (error) {
     return (
-      <div className="w-full max-w-7xl mx-auto py-4 px-4">
+      <div className="w-full py-4">
         <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-md p-6">
           <h1 className="text-xl md:text-2xl font-bold text-gray-800 mb-4">Gestión de Protocolos</h1>
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
@@ -627,7 +627,7 @@ export default function ProtocolosPage() {
   }
 
   return (
-    <div className="w-full max-w-full mx-auto py-4 px-4">
+    <div className="w-full py-4">
       <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-md p-4 md:p-6">
         {/* Fila superior: título (izq) · búsqueda (centro) · filtros (der).
             Título y Filtros con el mismo ancho para quedar balanceados. */}

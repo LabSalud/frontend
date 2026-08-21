@@ -7,6 +7,7 @@ import { DialogHeading } from "@/components/common/dialog-heading"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { InputUnidadDeMedida } from "./input-unidad-de-medida"
 import { Textarea } from "@/components/ui/textarea"
 import { useApi } from "@/hooks/use-api"
 import { useToast } from "@/hooks/use-toast"
@@ -183,12 +184,10 @@ export const EditDeterminationDialog: React.FC<EditDeterminationDialogProps> = (
             <Label htmlFor="edit-determination-measureUnit" className="text-sm">
               Unidad de Medida *
             </Label>
-            <Input
+            <InputUnidadDeMedida
               id="edit-determination-measureUnit"
               value={measureUnit}
-              onChange={(e) => setMeasureUnit(e.target.value)}
-              placeholder="ej: mg/dL, UI/L, etc."
-              className="text-sm"
+              onChange={setMeasureUnit}
             />
             {errors.measureUnit && <p className="text-xs md:text-sm text-red-500">{errors.measureUnit}</p>}
           </div>

@@ -15,7 +15,7 @@
  *   (`laboratory/catalog/notacion.py`), y el valor se guarda como se escribió.
  */
 
-const SUPERINDICES = ["⁰", "¹", "²", "³", "⁴", "⁵", "⁶", "⁷", "⁸", "⁹"]
+import { aSupraindice } from "@/lib/supraindices"
 
 /** Más que esto no es una unidad, es un error de carga. */
 export const EXPONENTE_MAXIMO = 30
@@ -33,7 +33,7 @@ export function esExponenteValido(exponente: number | null | undefined): exponen
 export function superindice(exponente: number): string {
   return String(exponente)
     .split("")
-    .map((d) => SUPERINDICES[Number(d)] ?? d)
+    .map(aSupraindice)
     .join("")
 }
 

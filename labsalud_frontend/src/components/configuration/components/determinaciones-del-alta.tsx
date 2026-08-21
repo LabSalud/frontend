@@ -5,6 +5,7 @@ import { Plus, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { InputUnidadDeMedida } from "./input-unidad-de-medida"
 import { esExponenteValido } from "@/lib/notacion"
 import { CampoNotacionCientifica } from "./campo-notacion-cientifica"
 import {
@@ -172,13 +173,11 @@ export function DeterminacionesDelAlta({
             <Label htmlFor={`det-unidad-${det.id}`} className="text-sm">
               Unidad de medida
             </Label>
-            <Input
+            <InputUnidadDeMedida
               id={`det-unidad-${det.id}`}
               value={det.unidad}
-              onChange={(e) => actualizar(det.id, { unidad: e.target.value })}
-              placeholder="ej: mg/dL, UI/L, etc."
+              onChange={(unidad) => actualizar(det.id, { unidad })}
               disabled={disabled}
-              className="text-sm"
             />
           </div>
 

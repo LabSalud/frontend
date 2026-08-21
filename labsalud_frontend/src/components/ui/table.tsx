@@ -31,7 +31,12 @@ function TableBody({ className, ...props }: React.ComponentProps<"tbody">) {
   return (
     <tbody
       data-slot="table-body"
-      className={cn("[&_tr:last-child]:border-0", className)}
+      // Solo el borde de ABAJO. Era `border-0`, que apagaba TODOS los bordes de
+      // la última fila: las tablas que pintan el estado con un `border-l-4`
+      // —los protocolos— perdían el color justo en la fila de abajo, y quedaba
+      // como si esa no tuviera estado. Lo que hay que sacar es la línea que se
+      // duplica con el borde del contenedor, que es la de abajo.
+      className={cn("[&_tr:last-child]:border-b-0", className)}
       {...props}
     />
   )

@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect, useRef, useState } from "react"
 import { Printer, Download, Mail, MessageCircle, GitMerge, Loader2, PenLine, X, Lock } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -16,6 +17,9 @@ import { cn } from "@/lib/utils"
 import type { ReportSignature } from "@/types"
 
 type BatchAction = "print" | "download" | "email" | "whatsapp"
+
+/** Lo que la barra queda despegada del borde de abajo (`bottom-4`), en px. */
+const SEPARACION_DEL_BORDE = 16
 
 interface BatchActionBarProps {
   selectedCount: number
@@ -45,6 +49,17 @@ interface BatchActionBarProps {
  * Barra flotante centrada para acciones en lote sobre los protocolos
  * seleccionados (reportes / envío / unificación). Presentacional: recibe todo
  * por props desde la página.
+ *
+ * LA BARRA SE HACE SU PROPIO LUGAR
+ * ================================
+ * Flota fija abajo, así que tapaba las últimas filas de la lista: se
+ * seleccionaba un protocolo, aparecía la barra, y el de más abajo dejaba de
+ * poder clickearse. El click iba a la barra, no a la fila — y desde la fila no
+ * hay forma de saberlo.
+ *
+ * Por eso deja un hueco en el flujo con SU alto medido, y no con un número
+ * puesto a mano: la barra envuelve en pantallas chicas y crece cuando se elige
+ * firma, así que su alto cambia mientras se la usa.
  */
 export function BatchActionBar({
   selectedCount,
@@ -67,146 +82,173 @@ export function BatchActionBar({
   const defaultSignature = signatures.find((s) => s.is_default)
   const blocked = Boolean(disabledReason)
 
+  const barraRef = useRef<HTMLDivElement>(null)
+  const [altoDeLaBarra, setAltoDeLaBarra] = useState(0)
+
+  useEffect(() => {
+    const nodo = barraRef.current
+    if (!nodo) return
+    const medir = () => setAltoDeLaBarra(nodo.getBoundingClientRect().height)
+    medir()
+    const observador = new ResizeObserver(medir)
+    observador.observe(nodo)
+    window.addEventListener("resize", medir)
+    return () => {
+      observador.disconnect()
+      window.removeEventListener("resize", medir)
+    }
+  }, [])
+
   return (
-    <div className="fixed inset-x-0 bottom-4 z-50 flex justify-center px-3">
-      <div className="max-h-[70vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-gray-200 bg-white/95 p-3 shadow-xl backdrop-blur-sm">
-        {/* Opciones (centradas) */}
-        <div className="flex flex-wrap items-center justify-center gap-2">
-          <span className="rounded-full bg-[#204983] px-2.5 py-1 text-xs font-semibold text-white">{selectedCount} sel.</span>
-          <Button variant="ghost" size="sm" onClick={onSelectAll} className="h-8 text-xs">
-            Todos
-          </Button>
-          <Button variant="ghost" size="sm" onClick={onDeselectAll} className="h-8 text-xs">
-            Ninguno
-          </Button>
+    <>
+      {/* El hueco: el alto de la barra, más lo que la despega del borde. */}
+      <div aria-hidden style={{ height: altoDeLaBarra + SEPARACION_DEL_BORDE * 2 }} />
+      {/* El contenedor ocupa el ancho entero para centrar la barra, pero no
+          recibe clicks: a los costados de una barra de 3xl hay pantalla libre,
+          y ahí abajo hay filas de la lista. */}
+      <div className="pointer-events-none fixed inset-x-0 bottom-4 z-50 flex justify-center px-3">
+        <div
+          ref={barraRef}
+          className="pointer-events-auto max-h-[70vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-gray-200 bg-white/95 p-3 shadow-xl backdrop-blur-sm"
+        >
+          {/* Opciones (centradas) */}
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            <span className="rounded-full bg-[#204983] px-2.5 py-1 text-xs font-semibold text-white">{selectedCount} sel.</span>
+            <Button variant="ghost" size="sm" onClick={onSelectAll} className="h-8 text-xs">
+              Todos
+            </Button>
+            <Button variant="ghost" size="sm" onClick={onDeselectAll} className="h-8 text-xs">
+              Ninguno
+            </Button>
 
-          <Select value={reportType} onValueChange={(v) => onReportTypeChange(v as "full" | "summary")}>
-            <SelectTrigger className="h-9 w-[150px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="full">Reporte completo</SelectItem>
-              <SelectItem value="summary">Resumen</SelectItem>
-            </SelectContent>
-          </Select>
+            <Select value={reportType} onValueChange={(v) => onReportTypeChange(v as "full" | "summary")}>
+              <SelectTrigger className="h-9 w-[150px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="full">Reporte completo</SelectItem>
+                <SelectItem value="summary">Resumen</SelectItem>
+              </SelectContent>
+            </Select>
 
-          <div className="flex items-center gap-1">
-            <Input
-              type="date"
-              value={date}
-              onChange={(e) => onDateChange(e.target.value)}
-              className="h-9 w-[150px]"
-              title="Fecha de emisión (opcional)"
-            />
-            {date && (
-              <button type="button" onClick={() => onDateChange("")} className="text-gray-400 hover:text-gray-600" title="Limpiar fecha">
-                <X className="h-4 w-4" />
-              </button>
+            <div className="flex items-center gap-1">
+              <Input
+                type="date"
+                value={date}
+                onChange={(e) => onDateChange(e.target.value)}
+                className="h-9 w-[150px]"
+                title="Fecha de emisión (opcional)"
+              />
+              {date && (
+                <button type="button" onClick={() => onDateChange("")} className="text-gray-400 hover:text-gray-600" title="Limpiar fecha">
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => onSignedChange(!signed)}
+              className={cn(
+                "flex h-9 items-center gap-2 rounded-lg border px-3 text-xs font-medium transition-colors sm:text-sm",
+                signed ? "border-[#204983] bg-blue-50 text-[#204983]" : "border-gray-200 bg-white text-gray-700 hover:border-gray-300",
+              )}
+            >
+              <PenLine className="h-4 w-4 shrink-0" />
+              {signed ? "Firma digital" : "Sin firma"}
+            </button>
+
+            {signed && (
+              <Select value={signatureId} onValueChange={onSignatureIdChange}>
+                <SelectTrigger className="h-9 w-[200px]">
+                  <SelectValue placeholder="Firma" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="default">
+                    {defaultSignature ? `${defaultSignature.name} (predeterminada)` : "Predeterminada del sistema"}
+                  </SelectItem>
+                  {signatures
+                    .filter((s) => !s.is_default)
+                    .map((s) => (
+                      <SelectItem key={s.id} value={s.id.toString()}>
+                        {s.name}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
             )}
           </div>
 
-          <button
-            type="button"
-            onClick={() => onSignedChange(!signed)}
-            className={cn(
-              "flex h-9 items-center gap-2 rounded-lg border px-3 text-xs font-medium transition-colors sm:text-sm",
-              signed ? "border-[#204983] bg-blue-50 text-[#204983]" : "border-gray-200 bg-white text-gray-700 hover:border-gray-300",
+          {/* Acciones (centradas) */}
+          <div className="mt-2.5 flex flex-wrap items-center justify-center gap-2 border-t border-gray-100 pt-2.5">
+            {blocked && (
+              <p className="flex w-full items-center justify-center gap-1.5 text-center text-xs font-medium text-slate-600">
+                <Lock className="h-3.5 w-3.5 shrink-0" />
+                {disabledReason}
+              </p>
             )}
-          >
-            <PenLine className="h-4 w-4 shrink-0" />
-            {signed ? "Firma digital" : "Sin firma"}
-          </button>
-
-          {signed && (
-            <Select value={signatureId} onValueChange={onSignatureIdChange}>
-              <SelectTrigger className="h-9 w-[200px]">
-                <SelectValue placeholder="Firma" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="default">
-                  {defaultSignature ? `${defaultSignature.name} (predeterminada)` : "Predeterminada del sistema"}
-                </SelectItem>
-                {signatures
-                  .filter((s) => !s.is_default)
-                  .map((s) => (
-                    <SelectItem key={s.id} value={s.id.toString()}>
-                      {s.name}
-                    </SelectItem>
-                  ))}
-              </SelectContent>
-            </Select>
-          )}
-        </div>
-
-        {/* Acciones (centradas) */}
-        <div className="mt-2.5 flex flex-wrap items-center justify-center gap-2 border-t border-gray-100 pt-2.5">
-          {blocked && (
-            <p className="flex w-full items-center justify-center gap-1.5 text-center text-xs font-medium text-slate-600">
-              <Lock className="h-3.5 w-3.5 shrink-0" />
-              {disabledReason}
-            </p>
-          )}
-          <span title={disabledReason} className="inline-flex">
-            <Button size="sm" variant="outline" disabled={blocked || selectedCount === 0 || isProcessing} onClick={() => onBatch("print")}>
-              {isProcessing ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Printer className="mr-1 h-4 w-4" />}
-              Imprimir
-            </Button>
-          </span>
-          <span title={disabledReason} className="inline-flex">
-            <Button
-              size="sm"
-              disabled={blocked || selectedCount === 0 || isProcessing}
-              onClick={() => onBatch("download")}
-              className="bg-[#204983] hover:bg-[#1a3d6f]"
-            >
-              {isProcessing ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Download className="mr-1 h-4 w-4" />}
-              Descargar
-            </Button>
-          </span>
-          <span title={disabledReason} className="inline-flex">
-            <Button size="sm" variant="outline" disabled={blocked || selectedCount === 0 || isProcessing} onClick={() => onBatch("email")}>
-              <Mail className="mr-1 h-4 w-4" />
-              Email
-            </Button>
-          </span>
-          <span title={disabledReason} className="inline-flex">
-            <Button size="sm" variant="outline" disabled={blocked || selectedCount === 0 || isProcessing} onClick={() => onBatch("whatsapp")}>
-              <MessageCircle className="mr-1 h-4 w-4" />
-              WhatsApp
-            </Button>
-          </span>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
+            <span title={disabledReason} className="inline-flex">
+              <Button size="sm" variant="outline" disabled={blocked || selectedCount === 0 || isProcessing} onClick={() => onBatch("print")}>
+                {isProcessing ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Printer className="mr-1 h-4 w-4" />}
+                Imprimir
+              </Button>
+            </span>
+            <span title={disabledReason} className="inline-flex">
               <Button
                 size="sm"
-                variant="outline"
-                disabled={blocked || selectedCount < 2 || isProcessing}
-                className="border-[#204983] text-[#204983] hover:bg-[#204983] hover:text-white"
-                title={disabledReason || "Combinar varios protocolos del mismo paciente en un único reporte"}
+                disabled={blocked || selectedCount === 0 || isProcessing}
+                onClick={() => onBatch("download")}
+                className="bg-[#204983] hover:bg-[#1a3d6f]"
               >
-                {isProcessing ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <GitMerge className="mr-1 h-4 w-4" />}
-                Unificar
+                {isProcessing ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Download className="mr-1 h-4 w-4" />}
+                Descargar
               </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="center" className="w-56">
-              <DropdownMenuLabel>Reporte unificado</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => onMerge("print")}>
-                <Printer className="mr-2 h-4 w-4" /> Imprimir
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onMerge("download")}>
-                <Download className="mr-2 h-4 w-4" /> Descargar PDF
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onMerge("email")}>
-                <Mail className="mr-2 h-4 w-4" /> Enviar por email
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onMerge("whatsapp")}>
-                <MessageCircle className="mr-2 h-4 w-4" /> Enviar por WhatsApp
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+            </span>
+            <span title={disabledReason} className="inline-flex">
+              <Button size="sm" variant="outline" disabled={blocked || selectedCount === 0 || isProcessing} onClick={() => onBatch("email")}>
+                <Mail className="mr-1 h-4 w-4" />
+                Email
+              </Button>
+            </span>
+            <span title={disabledReason} className="inline-flex">
+              <Button size="sm" variant="outline" disabled={blocked || selectedCount === 0 || isProcessing} onClick={() => onBatch("whatsapp")}>
+                <MessageCircle className="mr-1 h-4 w-4" />
+                WhatsApp
+              </Button>
+            </span>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={blocked || selectedCount < 2 || isProcessing}
+                  className="border-[#204983] text-[#204983] hover:bg-[#204983] hover:text-white"
+                  title={disabledReason || "Combinar varios protocolos del mismo paciente en un único reporte"}
+                >
+                  {isProcessing ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <GitMerge className="mr-1 h-4 w-4" />}
+                  Unificar
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="center" className="w-56">
+                <DropdownMenuLabel>Reporte unificado</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => onMerge("print")}>
+                  <Printer className="mr-2 h-4 w-4" /> Imprimir
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onMerge("download")}>
+                  <Download className="mr-2 h-4 w-4" /> Descargar PDF
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onMerge("email")}>
+                  <Mail className="mr-2 h-4 w-4" /> Enviar por email
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onMerge("whatsapp")}>
+                  <MessageCircle className="mr-2 h-4 w-4" /> Enviar por WhatsApp
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
       </div>
-    </div>
+    </>
   )
 }

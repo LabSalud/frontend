@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Keyboard, Loader2, Lock, Plus, Trash2 } from "lucide-react"
+import { Check, Keyboard, Loader2, Lock, Pencil, Plus, Trash2, X } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -32,16 +32,122 @@ import type { MacroDeResultado } from "@/types"
  * cargando la misma determinación escribirían dos textos distintos con la
  * misma tecla — que es el problema que esto viene a resolver.
  *
- * LA TECLA SE APRIETA, NO SE ESCRIBE
- * ==================================
- * El campo de la tecla se completa apretando la combinación de verdad. Es la
- * única forma de que quien la configura compruebe en el momento que Alt + esa
- * tecla hace algo en su teclado: escribir "n" a mano y descubrir después que
- * en esa máquina la combinación estaba tomada es el modo de que un atajo nazca
- * roto.
+ * SE EDITAN EN LA FILA, NO EN UN DIÁLOGO
+ * ======================================
+ * Una macro son dos campos. Un diálogo para eso tapa la lista justo cuando lo
+ * que se está decidiendo es qué tecla queda libre y qué dicen las demás — que
+ * es la información que hay que tener a la vista para elegir bien.
  */
 
 const VACIA = { tecla: "", texto: "" }
+
+/** Los dos campos de una macro. Los mismos en el alta y en la edición. */
+type Campos = { tecla: string; texto: string }
+
+/**
+ * LA TECLA SE APRIETA, NO SE ESCRIBE
+ * ==================================
+ * El campo se completa apretando la combinación de verdad. Es la única forma
+ * de que quien la configura compruebe en el momento que Alt + esa tecla hace
+ * algo en su teclado: escribir "n" a mano y descubrir después que en esa
+ * máquina la combinación estaba tomada es el modo de que un atajo nazca roto.
+ *
+ * Está suelto y no adentro del formulario del alta porque lo usan los dos —el
+ * alta y la fila que se está editando— y duplicarlo garantizaba que un día se
+ * comporten distinto.
+ */
+function CamposDeLaMacro({
+  valores,
+  onChange,
+  onError,
+  onEnter,
+  onEscape,
+  disabled,
+  idTecla,
+  idTexto,
+  autoFocus,
+}: {
+  valores: Campos
+  onChange: (valores: Campos) => void
+  onError: (mensaje: string) => void
+  onEnter?: () => void
+  onEscape?: () => void
+  disabled?: boolean
+  idTecla: string
+  idTexto: string
+  autoFocus?: boolean
+}) {
+  const capturarTecla = (evento: React.KeyboardEvent<HTMLInputElement>) => {
+    // Tab se deja pasar: es la forma de salir del campo, y capturarlo dejaría
+    // el formulario sin manera de recorrerse con el teclado.
+    if (evento.key === "Tab") return
+    if (evento.key === "Escape") {
+      onEscape?.()
+      return
+    }
+    // Alt sola es el PRIMER evento de la combinación: hay que apretarla antes
+    // que la letra. Tratarla como una tecla inválida mostraba el error justo
+    // en el momento en que la persona estaba haciendo lo correcto.
+    if (["Alt", "Shift", "Control", "Meta"].includes(evento.key)) return
+    evento.preventDefault()
+
+    if (!evento.altKey) {
+      onError("Apretá Alt junto con la tecla, como se va a usar después.")
+      return
+    }
+    const tecla = teclaDelEvento(evento.code)
+    if (!tecla) {
+      onError("Esa tecla no sirve para un atajo. Tiene que ser una letra o un número.")
+      return
+    }
+    onError("")
+    onChange({ ...valores, tecla })
+  }
+
+  return (
+    <>
+      <div className="space-y-1.5 sm:w-40">
+        <label htmlFor={idTecla} className="text-sm font-medium text-gray-700">
+          Atajo
+        </label>
+        <Input
+          id={idTecla}
+          value={valores.tecla ? `Alt + ${valores.tecla}` : ""}
+          onKeyDown={capturarTecla}
+          // Sin `readOnly`: el campo tiene que poder recibir foco para capturar
+          // la combinación. Lo que se escriba con el teclado ya lo intercepta
+          // `capturarTecla`; esto cubre el pegado.
+          onChange={() => undefined}
+          placeholder="Apretá Alt + tecla"
+          autoComplete="off"
+          disabled={disabled}
+          className="text-center font-medium"
+        />
+      </div>
+      <div className="flex-1 space-y-1.5">
+        <label htmlFor={idTexto} className="text-sm font-medium text-gray-700">
+          Texto que carga
+        </label>
+        <Input
+          id={idTexto}
+          value={valores.texto}
+          onChange={(evento) => onChange({ ...valores, texto: evento.target.value })}
+          onKeyDown={(evento) => {
+            if (evento.key === "Enter" && onEnter) {
+              evento.preventDefault()
+              onEnter()
+            }
+            if (evento.key === "Escape") onEscape?.()
+          }}
+          placeholder="ej: No se observan elementos"
+          maxLength={255}
+          disabled={disabled}
+          autoFocus={autoFocus}
+        />
+      </div>
+    </>
+  )
+}
 
 export function MacrosManagement() {
   const { apiRequest } = useApi()
@@ -53,32 +159,26 @@ export function MacrosManagement() {
   // qué palabras se carga un cualitativo, y eso lo decide quien carga.
   const puedeEditar = hasPermission(PERMISSIONS.MANAGE_RESULTS.codename)
 
-  const [nueva, setNueva] = useState(VACIA)
+  const [nueva, setNueva] = useState<Campos>(VACIA)
   const [guardando, setGuardando] = useState(false)
-  const [borrando, setBorrando] = useState<number | null>(null)
   const [error, setError] = useState("")
 
-  const capturarTecla = (evento: React.KeyboardEvent<HTMLInputElement>) => {
-    // Tab y Escape se dejan pasar: son la forma de salir del campo, y capturar
-    // Tab dejaría el formulario sin manera de recorrerse con el teclado.
-    if (evento.key === "Tab" || evento.key === "Escape") return
-    // Alt sola es el PRIMER evento de la combinación: hay que apretarla antes
-    // que la letra. Tratarla como una tecla inválida mostraba el error justo
-    // en el momento en que la persona estaba haciendo lo correcto.
-    if (["Alt", "Shift", "Control", "Meta"].includes(evento.key)) return
-    evento.preventDefault()
+  // Qué fila se está editando, y con qué valores. `null` = ninguna.
+  const [editando, setEditando] = useState<number | null>(null)
+  const [edicion, setEdicion] = useState<Campos>(VACIA)
+  const [errorDeLaFila, setErrorDeLaFila] = useState("")
 
-    if (!evento.altKey) {
-      setError("Apretá Alt junto con la tecla, como se va a usar después.")
-      return
-    }
-    const tecla = teclaDelEvento(evento.code)
-    if (!tecla) {
-      setError("Esa tecla no sirve para un atajo. Tiene que ser una letra o un número.")
-      return
-    }
-    setError("")
-    setNueva((previa) => ({ ...previa, tecla }))
+  const [ocupado, setOcupado] = useState<number | null>(null)
+
+  const abrirEdicion = (macro: MacroDeResultado) => {
+    setEditando(macro.id)
+    setEdicion({ tecla: macro.tecla, texto: macro.texto })
+    setErrorDeLaFila("")
+  }
+
+  const cerrarEdicion = () => {
+    setEditando(null)
+    setErrorDeLaFila("")
   }
 
   const agregar = async () => {
@@ -117,8 +217,49 @@ export function MacrosManagement() {
     }
   }
 
+  const guardarEdicion = async (macro: MacroDeResultado) => {
+    const texto = edicion.texto.trim()
+    if (!edicion.tecla) {
+      setErrorDeLaFila("Apretá Alt y la tecla que querés usar.")
+      return
+    }
+    if (!texto) {
+      setErrorDeLaFila("Escribí el texto que la macro tiene que cargar.")
+      return
+    }
+    // Sin cambios se cierra y no se le pega al backend: guardar por guardar
+    // deja un evento en la auditoría de algo que no pasó.
+    if (edicion.tecla === macro.tecla && texto === macro.texto) {
+      cerrarEdicion()
+      return
+    }
+
+    setOcupado(macro.id)
+    try {
+      const respuesta = await apiRequest(RESULTS_ENDPOINTS.MACRO_DETAIL(macro.id), {
+        method: "PATCH",
+        body: { tecla: edicion.tecla, texto },
+      })
+      if (!respuesta.ok) {
+        const datos = await respuesta.json().catch(() => ({}))
+        throw new Error(formatApiError(datos, "No se pudo guardar la macro."))
+      }
+      cerrarEdicion()
+      refetch()
+      toastActions.success("Macro actualizada", {
+        description: `Alt + ${edicion.tecla} carga «${texto}».`,
+      })
+    } catch (problema) {
+      // El error se muestra EN LA FILA y la edición queda abierta: si se
+      // cerrara, lo tipeado se perdería justo cuando hay que corregirlo.
+      setErrorDeLaFila(getErrorMessage(problema, "No se pudo guardar la macro."))
+    } finally {
+      setOcupado(null)
+    }
+  }
+
   const borrar = async (macro: MacroDeResultado) => {
-    setBorrando(macro.id)
+    setOcupado(macro.id)
     try {
       const respuesta = await apiRequest(RESULTS_ENDPOINTS.MACRO_DETAIL(macro.id), {
         method: "DELETE",
@@ -139,7 +280,7 @@ export function MacrosManagement() {
         description: getErrorMessage(problema, "No se pudo borrar la macro."),
       })
     } finally {
-      setBorrando(null)
+      setOcupado(null)
     }
   }
 
@@ -177,35 +318,14 @@ export function MacrosManagement() {
             className="mb-4 space-y-2"
           >
             <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
-              <div className="space-y-1.5 sm:w-40">
-                <label htmlFor="macro-tecla" className="text-sm font-medium text-gray-700">
-                  Atajo
-                </label>
-                <Input
-                  id="macro-tecla"
-                  value={nueva.tecla ? `Alt + ${nueva.tecla}` : ""}
-                  onKeyDown={capturarTecla}
-                  // Sin `readOnly`: el campo tiene que poder recibir foco para
-                  // capturar la combinación. Lo que se escriba con el teclado
-                  // ya lo intercepta `capturarTecla`; esto cubre el pegado.
-                  onChange={() => undefined}
-                  placeholder="Apretá Alt + tecla"
-                  autoComplete="off"
-                  className="text-center font-medium"
-                />
-              </div>
-              <div className="flex-1 space-y-1.5">
-                <label htmlFor="macro-texto" className="text-sm font-medium text-gray-700">
-                  Texto que carga
-                </label>
-                <Input
-                  id="macro-texto"
-                  value={nueva.texto}
-                  onChange={(evento) => setNueva((previa) => ({ ...previa, texto: evento.target.value }))}
-                  placeholder="ej: No se observan elementos"
-                  maxLength={255}
-                />
-              </div>
+              <CamposDeLaMacro
+                valores={nueva}
+                onChange={setNueva}
+                onError={setError}
+                disabled={guardando}
+                idTecla="macro-tecla"
+                idTexto="macro-texto"
+              />
               <Button
                 type="submit"
                 disabled={guardando}
@@ -235,32 +355,96 @@ export function MacrosManagement() {
           </p>
         ) : (
           <ul className="space-y-2">
-            {macros.map((macro) => (
-              <li
-                key={macro.id}
-                className="flex items-center gap-3 rounded-lg border border-gray-200 bg-white p-2.5"
-              >
-                <kbd className="shrink-0 rounded border border-gray-300 bg-gray-50 px-2 py-1 font-sans text-xs font-medium text-gray-700">
-                  Alt + {macro.tecla}
-                </kbd>
-                <span className="min-w-0 flex-1 truncate text-sm text-gray-800">{macro.texto}</span>
-                {puedeEditar && (
-                  <button
-                    type="button"
-                    onClick={() => borrar(macro)}
-                    disabled={borrando === macro.id}
-                    aria-label={`Borrar la macro Alt + ${macro.tecla}`}
-                    className="shrink-0 rounded p-1.5 text-gray-400 transition-colors hover:bg-rose-50 hover:text-rose-600 disabled:opacity-50"
+            {macros.map((macro) => {
+              const enEdicion = editando === macro.id
+              const trabajando = ocupado === macro.id
+
+              if (enEdicion) {
+                return (
+                  <li
+                    key={macro.id}
+                    className="space-y-2 rounded-lg border border-[#204983] bg-[#204983]/5 p-2.5"
                   >
-                    {borrando === macro.id ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Trash2 className="h-4 w-4" />
-                    )}
-                  </button>
-                )}
-              </li>
-            ))}
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+                      <CamposDeLaMacro
+                        valores={edicion}
+                        onChange={setEdicion}
+                        onError={setErrorDeLaFila}
+                        onEnter={() => guardarEdicion(macro)}
+                        onEscape={cerrarEdicion}
+                        disabled={trabajando}
+                        idTecla={`macro-tecla-${macro.id}`}
+                        idTexto={`macro-texto-${macro.id}`}
+                        autoFocus
+                      />
+                      <div className="flex gap-2">
+                        <Button
+                          type="button"
+                          onClick={() => guardarEdicion(macro)}
+                          disabled={trabajando}
+                          className="bg-[#204983] hover:bg-[#1a3d6f]"
+                        >
+                          {trabajando ? (
+                            <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                          ) : (
+                            <Check className="mr-1 h-4 w-4" />
+                          )}
+                          Guardar
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={cerrarEdicion}
+                          disabled={trabajando}
+                        >
+                          <X className="mr-1 h-4 w-4" />
+                          Cancelar
+                        </Button>
+                      </div>
+                    </div>
+                    {errorDeLaFila && <p className="text-sm text-red-600">{errorDeLaFila}</p>}
+                  </li>
+                )
+              }
+
+              return (
+                <li
+                  key={macro.id}
+                  className="flex items-center gap-3 rounded-lg border border-gray-200 bg-white p-2.5"
+                >
+                  <kbd className="shrink-0 rounded border border-gray-300 bg-gray-50 px-2 py-1 font-sans text-xs font-medium text-gray-700">
+                    Alt + {macro.tecla}
+                  </kbd>
+                  <span className="min-w-0 flex-1 truncate text-sm text-gray-800">{macro.texto}</span>
+                  {puedeEditar && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => abrirEdicion(macro)}
+                        disabled={trabajando}
+                        aria-label={`Editar la macro Alt + ${macro.tecla}`}
+                        className="shrink-0 rounded p-1.5 text-gray-400 transition-colors hover:bg-[#204983]/10 hover:text-[#204983] disabled:opacity-50"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => borrar(macro)}
+                        disabled={trabajando}
+                        aria-label={`Borrar la macro Alt + ${macro.tecla}`}
+                        className="shrink-0 rounded p-1.5 text-gray-400 transition-colors hover:bg-rose-50 hover:text-rose-600 disabled:opacity-50"
+                      >
+                        {trabajando ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Trash2 className="h-4 w-4" />
+                        )}
+                      </button>
+                    </>
+                  )}
+                </li>
+              )
+            })}
           </ul>
         )}
       </div>

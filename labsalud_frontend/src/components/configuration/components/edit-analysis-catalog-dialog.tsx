@@ -16,8 +16,10 @@ import { Loader2, TestTube } from "lucide-react"
 import { CATALOG_ENDPOINTS } from "@/config/api"
 import { formatApiError, getErrorMessage } from "@/lib/api-error"
 import { useNbuOptions } from "@/hooks/use-nbu-options"
+import { usePreciosFijos } from "@/hooks/use-precios-fijos"
 import { resolverUb } from "@/lib/ub-por-nomenclador"
 import { PropagarPreciosDialog } from "./propagar-precios-dialog"
+import { CampoPrecioFijo } from "./campo-precio-fijo"
 
 interface EditAnalysisCatalogDialogProps {
   open: boolean
@@ -39,6 +41,9 @@ export const EditAnalysisCatalogDialog: React.FC<EditAnalysisCatalogDialogProps>
   const [bioUnit, setBioUnit] = useState("")
   const [isUrgent, setIsUrgent] = useState(false)
   const [requiresDerivacion, setRequiresDerivacion] = useState(false)
+  const { habilitados: preciosFijosHabilitados } = usePreciosFijos()
+  const [cobraPrecioFijo, setCobraPrecioFijo] = useState(false)
+  const [precioParticular, setPrecioParticular] = useState("")
   const [category, setCategory] = useState<string>("")
   const [isObsolete, setIsObsolete] = useState(false)
   const [isRefNormalized, setIsRefNormalized] = useState(false)
@@ -63,6 +68,8 @@ export const EditAnalysisCatalogDialog: React.FC<EditAnalysisCatalogDialogProps>
       setBioUnit(analysis.bio_unit)
       setIsUrgent(analysis.is_urgent)
       setRequiresDerivacion(analysis.requires_derivacion ?? false)
+      setCobraPrecioFijo(analysis.cobra_precio_fijo ?? false)
+      setPrecioParticular(analysis.precio_particular ?? "")
       setCategory(analysis.category ?? "")
       setIsObsolete(analysis.is_obsolete ?? false)
       setIsRefNormalized(analysis.is_ref_normalized ?? false)
@@ -87,7 +94,16 @@ export const EditAnalysisCatalogDialog: React.FC<EditAnalysisCatalogDialogProps>
     if (!code.trim()) newErrors.code = "El código es requerido."
     else if (!/^[\w.-]+$/.test(code.trim()))
       newErrors.code = "El código no puede tener espacios ni símbolos raros."
-    if (!bioUnit.trim()) newErrors.bioUnit = "La unidad bioquímica es requerida."
+    // Con precio fijo la UB no cobra nada: son las prácticas que no están en
+    // ningún nomenclador. Exigírsela obligaría a inventarle una.
+    const cobraFijo = cobraPrecioFijo && preciosFijosHabilitados
+    if (!cobraFijo && !bioUnit.trim()) newErrors.bioUnit = "La unidad bioquímica es requerida."
+    if (cobraFijo) {
+      const precio = Number.parseFloat(precioParticular)
+      if (!precioParticular.trim() || Number.isNaN(precio) || precio < 0) {
+        newErrors.precioParticular = "Poné un precio válido (0 o más)."
+      }
+    }
 
     // El principal es el último eslabón de la cadena: si se lo vacía no queda de
     // dónde heredar y el análisis deja de poder cobrarse. El backend también lo
@@ -113,6 +129,16 @@ export const EditAnalysisCatalogDialog: React.FC<EditAnalysisCatalogDialogProps>
       if (isUrgent !== analysis.is_urgent) analysisUpdateData.is_urgent = isUrgent
       if (requiresDerivacion !== (analysis.requires_derivacion ?? false)) {
         analysisUpdateData.requires_derivacion = requiresDerivacion
+      }
+      // Solo si la función está habilitada: si no, apagar el interruptor
+      // global apagaría de paso el de cada análisis al primer guardado.
+      if (preciosFijosHabilitados) {
+        if (cobraPrecioFijo !== (analysis.cobra_precio_fijo ?? false)) {
+          analysisUpdateData.cobra_precio_fijo = cobraPrecioFijo
+        }
+        if (cobraPrecioFijo && precioParticular !== (analysis.precio_particular ?? "")) {
+          analysisUpdateData.precio_particular = precioParticular
+        }
       }
       if (category !== (analysis.category ?? "")) {
         analysisUpdateData.category = category as Analysis["category"]
@@ -238,7 +264,10 @@ export const EditAnalysisCatalogDialog: React.FC<EditAnalysisCatalogDialogProps>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="edit-bioUnit">Unidad Bioquímica (etiqueta) *</Label>
+            <Label htmlFor="edit-bioUnit">
+              Unidad Bioquímica (etiqueta){" "}
+              {cobraPrecioFijo && preciosFijosHabilitados ? "" : "*"}
+            </Label>
             <Input
               id="edit-bioUnit"
               value={bioUnit}
@@ -324,6 +353,15 @@ export const EditAnalysisCatalogDialog: React.FC<EditAnalysisCatalogDialogProps>
               onCheckedChange={setRequiresDerivacion}
             />
           </div>
+
+          <CampoPrecioFijo
+            habilitado={preciosFijosHabilitados}
+            cobraPrecioFijo={cobraPrecioFijo}
+            onCobraPrecioFijoChange={setCobraPrecioFijo}
+            precio={precioParticular}
+            onPrecioChange={setPrecioParticular}
+            error={errors.precioParticular}
+          />
 
           <div className="space-y-2">
             <Label htmlFor="edit-category">Categoría NBU</Label>

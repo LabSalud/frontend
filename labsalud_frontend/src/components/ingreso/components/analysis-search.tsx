@@ -20,6 +20,7 @@ import {
   mismoCodigo,
   normalizarCodigo,
 } from "../../../lib/codigos-analisis"
+import { usePreciosFijos } from "@/hooks/use-precios-fijos"
 
 
 interface AnalysisSearchProps {
@@ -33,6 +34,9 @@ interface PaginatedResponse<T> {
 }
 
 export function AnalysisSearch({ selectedAnalyses, onAnalysisChange }: AnalysisSearchProps) {
+  // Un análisis con precio cargado pero la función deshabilitada se cobra
+  // por UB: anunciarle el precio a quien lo elige sería mentirle.
+  const { habilitados: preciosFijosHabilitados } = usePreciosFijos()
   const { apiRequest } = useApi()
   const [searchTerm, setSearchTerm] = useState("")
   const [searchResults, setSearchResults] = useState<Analysis[]>([])
@@ -332,7 +336,10 @@ export function AnalysisSearch({ selectedAnalyses, onAnalysisChange }: AnalysisS
                 <div>
                   <div className="font-medium text-sm">{analysis.name}</div>
                   <div className="text-xs text-gray-500">
-                    Código: {analysis.code || "N/A"} | UB: {analysis.bio_unit}
+                    Código: {analysis.code || "N/A"} |{" "}
+                    {preciosFijosHabilitados && analysis.cobra_precio_fijo
+                      ? `Precio fijo: $${analysis.precio_particular ?? "0.00"}`
+                      : `UB: ${analysis.bio_unit}`}
                   </div>
                 </div>
                 {analysis.is_urgent && (

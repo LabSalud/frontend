@@ -10,6 +10,7 @@ import { AnalysisList } from "./analysis-list"
 import { CopiarDeterminaciones } from "./copiar-determinaciones"
 import { formatBioUnitValues, formatAnalysisCategory } from "@/lib/catalog-format"
 import type { Analysis } from "@/types"
+import { usePreciosFijos } from "@/hooks/use-precios-fijos"
 
 interface AnalysisDetailDialogProps {
   analysis: Analysis | null
@@ -34,6 +35,11 @@ export function AnalysisDetailDialog({
   onShowHistory,
   onDeterminacionesCopiadas,
 }: AnalysisDetailDialogProps) {
+  // Antes del early return: los hooks se llaman siempre, en el mismo orden.
+  // Sin la función habilitada el precio cargado no cotiza nada, y la ficha no
+  // puede anunciar un cobro que no va a pasar.
+  const { habilitados: preciosFijosHabilitados } = usePreciosFijos()
+
   if (!analysis) return null
   const bioUnitItems = formatBioUnitValues(analysis.bio_unit_values)
 
@@ -62,6 +68,15 @@ export function AnalysisDetailDialog({
                 {analysis.is_obsolete && (
                   <Badge variant="outline" className="bg-amber-50 text-amber-700">
                     En desuso
+                  </Badge>
+                )}
+                {preciosFijosHabilitados && analysis.cobra_precio_fijo && (
+                  <Badge
+                    variant="outline"
+                    className="bg-sky-50 text-sky-700"
+                    title="Al paciente se le cobra un precio cargado, no la cuenta por UB"
+                  >
+                    ${analysis.precio_particular ?? "0.00"} fijo
                   </Badge>
                 )}
               </DialogTitle>

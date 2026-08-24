@@ -6,8 +6,10 @@ import { Loader2, Save, Settings2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Switch } from "@/components/ui/switch"
 import { CATALOG_ENDPOINTS } from "@/config/api"
 import { useApi } from "@/hooks/use-api"
+import { olvidarPreciosFijos } from "@/hooks/use-precios-fijos"
 import { useToast } from "@/hooks/use-toast"
 import { formatApiError, getErrorMessage } from "@/lib/api-error"
 import type { PricingConfig } from "@/types"
@@ -35,6 +37,7 @@ const VACIO = {
   derivacion_amount: "",
   particular_minimum_amount: "",
   redondeo_maximo: "",
+  precios_fijos_habilitados: false,
 }
 
 /** Los montos como los deja el backend, con los defaults de cada campo. */
@@ -43,6 +46,7 @@ const desdeLaConfig = (data: PricingConfig) => ({
   derivacion_amount: data.derivacion_amount || "0.00",
   particular_minimum_amount: data.particular_minimum_amount || "0.00",
   redondeo_maximo: data.redondeo_maximo || "0.00",
+  precios_fijos_habilitados: Boolean(data.precios_fijos_habilitados),
 })
 
 export function MontosFijosManagement() {
@@ -94,6 +98,7 @@ export function MontosFijosManagement() {
           derivacion_amount: pricingForm.derivacion_amount || "0.00",
           particular_minimum_amount: pricingForm.particular_minimum_amount || "0.00",
           redondeo_maximo: pricingForm.redondeo_maximo || "0.00",
+          precios_fijos_habilitados: pricingForm.precios_fijos_habilitados,
         },
       })
       if (!response.ok) {
@@ -103,6 +108,9 @@ export function MontosFijosManagement() {
       const data: PricingConfig = await response.json()
       setPricingConfig(data)
       setPricingForm(desdeLaConfig(data))
+      // Las pantallas de análisis leen el interruptor de una caché de módulo.
+      // Sin esto, prenderlo acá no aparecía hasta recargar la página.
+      olvidarPreciosFijos()
       toastActions.success("Éxito", { description: "Montos extra actualizados correctamente." })
       setPropagarMontos(true)
     } catch (err) {
@@ -204,6 +212,38 @@ export function MontosFijosManagement() {
                   devolver. En 0 no se redondea nunca.
                 </p>
               </div>
+            </div>
+
+            {/*
+              Va aparte de los montos porque no es un monto: es un interruptor
+              que cambia CÓMO se cobra. Y va acá y no en la pantalla de
+              análisis porque es una decisión del laboratorio entera, no de una
+              práctica — desde la ficha de un análisis no se ve que prenderlo
+              habilita la función para todas.
+            */}
+            <div className="flex items-start justify-between gap-4 rounded-md border border-gray-200 bg-gray-50 p-3">
+              <div className="space-y-0.5">
+                <label
+                  htmlFor="montos-precios-fijos"
+                  className="text-sm font-medium text-gray-700"
+                >
+                  Cobrar análisis a precio fijo
+                </label>
+                <p className="text-xs text-gray-500">
+                  Permite que ciertos análisis se cobren a un precio cargado en
+                  vez de calcularlos por UB. El precio se pone en cada análisis,
+                  y solo cambia lo que paga el paciente: lo que se le presenta a
+                  la obra social sigue saliendo del nomenclador. Apagado, todo
+                  se cobra por UB aunque tengan precio cargado.
+                </p>
+              </div>
+              <Switch
+                id="montos-precios-fijos"
+                checked={pricingForm.precios_fijos_habilitados}
+                onCheckedChange={(checked) =>
+                  setPricingForm((prev) => ({ ...prev, precios_fijos_habilitados: checked }))
+                }
+              />
             </div>
 
             <div className="flex justify-end">

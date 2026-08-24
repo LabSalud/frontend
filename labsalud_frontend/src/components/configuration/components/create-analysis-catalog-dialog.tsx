@@ -11,10 +11,12 @@ import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useApi } from "@/hooks/use-api"
+import { usePreciosFijos } from "@/hooks/use-precios-fijos"
 import { useToast } from "@/hooks/use-toast"
 import { Loader2, TestTube } from "lucide-react"
 import { CATALOG_ENDPOINTS } from "@/config/api"
 import { formatApiError, getErrorMessage } from "@/lib/api-error"
+import { CampoPrecioFijo } from "./campo-precio-fijo"
 import {
   determinacionVacia,
   DeterminacionesDelAlta,
@@ -36,11 +38,14 @@ export const CreateAnalysisCatalogDialog: React.FC<CreateAnalysisCatalogDialogPr
 }) => {
   const { apiRequest } = useApi()
   const toastActions = useToast()
+  const { habilitados: preciosFijosHabilitados } = usePreciosFijos()
   const [code, setCode] = useState("")
   const [name, setName] = useState("")
   const [bioUnit, setBioUnit] = useState("")
   const [isUrgent, setIsUrgent] = useState(false)
   const [requiresDerivacion, setRequiresDerivacion] = useState(false)
+  const [cobraPrecioFijo, setCobraPrecioFijo] = useState(false)
+  const [precioParticular, setPrecioParticular] = useState("")
   const [category, setCategory] = useState<string>("")
   const [isObsolete, setIsObsolete] = useState(false)
   const [isRefNormalized, setIsRefNormalized] = useState(false)
@@ -58,6 +63,8 @@ export const CreateAnalysisCatalogDialog: React.FC<CreateAnalysisCatalogDialogPr
       setBioUnit("")
       setIsUrgent(false)
       setRequiresDerivacion(false)
+      setCobraPrecioFijo(false)
+      setPrecioParticular("")
       setCategory("")
       setIsObsolete(false)
       setIsRefNormalized(false)
@@ -76,7 +83,17 @@ export const CreateAnalysisCatalogDialog: React.FC<CreateAnalysisCatalogDialogPr
     if (!code.trim()) newErrors.code = "El código es requerido."
     else if (!/^[\w.-]+$/.test(code.trim()))
       newErrors.code = "El código no puede tener espacios ni símbolos raros."
-    if (!bioUnit.trim()) newErrors.bioUnit = "La unidad bioquímica es requerida."
+    // Con precio fijo la UB no cobra nada, y estas son justamente las
+    // prácticas que no están en ningún nomenclador. Exigírsela obligaría a
+    // inventarle una, que es lo que la función vino a evitar.
+    const cobraFijo = cobraPrecioFijo && preciosFijosHabilitados
+    if (!cobraFijo && !bioUnit.trim()) newErrors.bioUnit = "La unidad bioquímica es requerida."
+    if (cobraFijo) {
+      const precio = Number.parseFloat(precioParticular)
+      if (!precioParticular.trim() || Number.isNaN(precio) || precio < 0) {
+        newErrors.precioParticular = "Poné un precio válido (0 o más)."
+      }
+    }
 
     const problema = validar(determinaciones, esModulo)
     if (problema) newErrors.determinaciones = problema
@@ -96,6 +113,10 @@ export const CreateAnalysisCatalogDialog: React.FC<CreateAnalysisCatalogDialogPr
         bio_unit: bioUnit,
         is_urgent: isUrgent,
         requires_derivacion: requiresDerivacion,
+        cobra_precio_fijo: cobraPrecioFijo && preciosFijosHabilitados,
+        ...(cobraPrecioFijo && preciosFijosHabilitados
+          ? { precio_particular: precioParticular }
+          : {}),
         ...(category ? { category } : {}),
         is_obsolete: isObsolete,
         is_ref_normalized: isRefNormalized,
@@ -174,7 +195,9 @@ export const CreateAnalysisCatalogDialog: React.FC<CreateAnalysisCatalogDialogPr
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="bioUnit">Unidad Bioquímica *</Label>
+            <Label htmlFor="bioUnit">
+              Unidad Bioquímica {cobraPrecioFijo && preciosFijosHabilitados ? "" : "*"}
+            </Label>
             <Input
               id="bioUnit"
               value={bioUnit}
@@ -209,6 +232,15 @@ export const CreateAnalysisCatalogDialog: React.FC<CreateAnalysisCatalogDialogPr
               onCheckedChange={setRequiresDerivacion}
             />
           </div>
+
+          <CampoPrecioFijo
+            habilitado={preciosFijosHabilitados}
+            cobraPrecioFijo={cobraPrecioFijo}
+            onCobraPrecioFijoChange={setCobraPrecioFijo}
+            precio={precioParticular}
+            onPrecioChange={setPrecioParticular}
+            error={errors.precioParticular}
+          />
 
           <div className="space-y-2">
             <Label htmlFor="category">Categoría NBU</Label>

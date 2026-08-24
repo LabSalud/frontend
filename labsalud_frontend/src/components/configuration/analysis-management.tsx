@@ -1,6 +1,7 @@
 "use client"
 import { useState, useEffect, useCallback } from "react"
 import { useApi } from "@/hooks/use-api"
+import { usePreciosFijos } from "@/hooks/use-precios-fijos"
 import { useToast } from "@/hooks/use-toast"
 import { useInfiniteScroll } from "@/hooks/use-infinite-scroll"
 import { useDebounce } from "@/hooks/use-debounce"
@@ -30,6 +31,7 @@ import { formatApiError, getErrorMessage } from "@/lib/api-error"
 export function AnalysisManagement() {
   const { apiRequest } = useApi()
   const toastActions = useToast()
+  const { habilitados: preciosFijosHabilitados } = usePreciosFijos()
 
   const [analyses, setAnalyses] = useState<Analysis[]>([])
   const [totalAnalyses, setTotalAnalyses] = useState(0)
@@ -222,9 +224,19 @@ export function AnalysisManagement() {
     },
     {
       id: "ub",
-      header: "UB",
+      // El análisis que se cobra a precio fijo muestra el precio y no la UB:
+      // es lo que se le va a cobrar al paciente, y la UB de esa fila —si la
+      // tiene— no participa de ese número.
+      header: preciosFijosHabilitados ? "UB / Precio" : "UB",
       responsive: "hidden md:table-cell",
-      cell: (a) => <span className="text-sm text-gray-600">{a.bio_unit || "N/A"}</span>,
+      cell: (a) =>
+        preciosFijosHabilitados && a.cobra_precio_fijo ? (
+          <Badge variant="outline" className="border-sky-300 bg-sky-50 text-[10px] text-sky-800">
+            ${a.precio_particular ?? "0.00"} fijo
+          </Badge>
+        ) : (
+          <span className="text-sm text-gray-600">{a.bio_unit || "N/A"}</span>
+        ),
     },
     {
       id: "audit",

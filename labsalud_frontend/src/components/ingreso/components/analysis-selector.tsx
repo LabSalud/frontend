@@ -10,6 +10,7 @@ import { useApi } from "../../../hooks/use-api"
 import { toast } from "sonner"
 import type { Analysis } from "../../../types"
 import { CATALOG_ENDPOINTS } from "@/config/api"
+import { usePreciosFijos } from "@/hooks/use-precios-fijos"
 
 interface AnalysisSelectorProps {
   selectedAnalyses: Analysis[]
@@ -24,6 +25,9 @@ interface PaginatedResponse<T> {
 }
 
 export function AnalysisSelector({ selectedAnalyses, onAnalysisChange }: AnalysisSelectorProps) {
+  // Ver `AnalysisSearch`: sin la función habilitada, el precio cargado no
+  // cotiza nada y mostrarlo confundiría a quien arma el protocolo.
+  const { habilitados: preciosFijosHabilitados } = usePreciosFijos()
   const { apiRequest } = useApi()
   const [analyses, setAnalyses] = useState<Analysis[]>([])
   const [searchTerm, setSearchTerm] = useState("")
@@ -142,7 +146,11 @@ export function AnalysisSelector({ selectedAnalyses, onAnalysisChange }: Analysi
                       <div className="font-medium truncate">{analysis.name}</div>
                       <div className="text-sm text-gray-500 flex flex-wrap gap-x-2">
                         <span>Código: {analysis.code}</span>
-                        {analysis.bio_unit && <span>Unidad: {analysis.bio_unit}</span>}
+                        {preciosFijosHabilitados && analysis.cobra_precio_fijo ? (
+                          <span>Precio fijo: ${analysis.precio_particular ?? "0.00"}</span>
+                        ) : (
+                          analysis.bio_unit && <span>Unidad: {analysis.bio_unit}</span>
+                        )}
                         {analysis.is_urgent && (
                           <Badge variant="destructive" className="text-xs">
                             Urgente

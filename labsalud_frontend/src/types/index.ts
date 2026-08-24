@@ -398,6 +398,13 @@ export interface Analysis {
   is_urgent: boolean
   is_active: boolean
   requires_derivacion?: boolean
+  /**
+   * Si está activo, al paciente se le cobra `precio_particular` en vez de
+   * calcularlo por UB. Requiere `PricingConfig.precios_fijos_habilitados`.
+   */
+  cobra_precio_fijo?: boolean
+  /** El precio fijo cargado. Solo rige si `cobra_precio_fijo` está activo. */
+  precio_particular?: string
   // --- Enriquecimiento NBU (todo opcional / retrocompatible) ---
   category?: AnalysisCategory
   is_ref_normalized?: boolean
@@ -633,6 +640,11 @@ export interface ProtocolDetail {
   ub_particular?: string | null
   /** La UB del nomenclador de la OOSS. `null` = esa OOSS no nombra la práctica. */
   ub_obra_social?: string | null
+  /**
+   * El precio al que se cobró este análisis, o `null` si fue por UB. Sale del
+   * snapshot: es lo que cobró ESTE protocolo, que puede no ser el precio de hoy.
+   */
+  precio_fijo?: string | null
   is_urgent: boolean
   is_active: boolean
 }
@@ -914,6 +926,11 @@ export interface PricingConfig {
    * laboratorio. "0.00" = no se redondea nunca.
    */
   redondeo_maximo: string
+  /**
+   * Habilita cobrar análisis sueltos a un precio fijo en vez de por UB.
+   * Apagado, los precios cargados en el catálogo no cotizan nada.
+   */
+  precios_fijos_habilitados?: boolean
 }
 
 // Respuesta de POST /protocols/protocols/quote/ — preview de precios que reusa
@@ -923,11 +940,14 @@ export interface QuoteDetail {
   code: string
   name: string
   is_authorized: boolean
-  private_ub: string
+  /** `null` si el análisis no tiene UB, que solo puede pasar con precio fijo. */
+  private_ub: string | null
   insurance_ub: string | null
   patient_amount: string
   /** Cuánto se le descontó a ESTE análisis por superar el tope de UB de la obra social. */
   descuento?: string
+  /** El precio al que se cobra, o `null` si sale por UB (lo habitual). */
+  precio_fijo?: string | null
 }
 
 export interface QuoteResult {

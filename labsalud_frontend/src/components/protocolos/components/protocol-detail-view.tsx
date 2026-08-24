@@ -189,6 +189,15 @@ function Row({ label, value, strong }: { label: ReactNode; value: ReactNode; str
  * `laboratory/protocols/serializers.py`.
  */
 function ubDeLaFila(d: ProtocolDetailType, isPrivate: boolean) {
+  // Un análisis cobrado a precio fijo no salió de ningún nomenclador. Mostrar
+  // su UB acá contestaría con un número que no participó del precio, que es
+  // justo lo contrario de para qué está esta explicación.
+  if (d.precio_fijo && (isPrivate || !d.is_authorized)) {
+    return {
+      valor: `$${d.precio_fijo}`,
+      detalle: "Precio fijo cargado en el análisis: no se cobró por UB",
+    }
+  }
   if (isPrivate || !d.is_authorized) {
     return { valor: d.ub, detalle: "UB del nomenclador particular" }
   }

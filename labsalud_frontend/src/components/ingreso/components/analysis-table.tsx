@@ -54,11 +54,23 @@ export function AnalysisTable({
   const descuentoDe = (analysis: SelectedAnalysis): number =>
     Number.parseFloat(quoteById?.[analysis.id]?.descuento || "0") || 0
 
+  // ¿Este análisis se cobra a precio fijo en vez de por UB?
+  //
+  // Solo del lado del paciente: uno cubierto por la obra social se le presenta
+  // por nomenclador, y ahí la UB sigue siendo la que corresponde mostrar.
+  const aPrecioFijo = (analysis: SelectedAnalysis): boolean =>
+    isParticular(analysis) && Boolean(quoteById?.[analysis.id]?.precio_fijo)
+
   // Cantidad de UB a mostrar: la del nomenclador correcto (cotización) según si
   // es particular (private_ub) o lo cubre la OOSS (insurance_ub).
+  //
+  // Con precio fijo no hay UB que mostrar: el análisis puede no tener ninguna,
+  // y si la tiene, no es la que se cobró. Un número ahí se lee como si hubiera
+  // participado del precio.
   const ubFor = (analysis: SelectedAnalysis): string => {
+    if (aPrecioFijo(analysis)) return "—"
     const q = quoteById?.[analysis.id]
-    if (q) return isParticular(analysis) ? q.private_ub : q.insurance_ub ?? q.private_ub
+    if (q) return (isParticular(analysis) ? q.private_ub : q.insurance_ub ?? q.private_ub) ?? "—"
     return analysis.bio_unit
   }
 
@@ -79,6 +91,7 @@ export function AnalysisTable({
   }
 
   const totalUb = selectedAnalyses.reduce((sum, a) => sum + (Number.parseFloat(ubFor(a)) || 0), 0)
+  const conPrecioFijo = selectedAnalyses.filter(aPrecioFijo).length
   const conDescuento = selectedAnalyses.filter((a) => descuentoDe(a) > 0).length
   const authorizedCount = isPrivateInsurance || forcePrivateAnalyses ? 0 : selectedAnalyses.filter((a) => a.is_authorized).length
 
@@ -150,6 +163,15 @@ export function AnalysisTable({
                               title="Supera el tope de UB de la obra social: de este análisis se cobra una parte"
                             >
                               Con descuento
+                            </Badge>
+                          )}
+                          {aPrecioFijo(analysis) && (
+                            <Badge
+                              variant="outline"
+                              className="bg-sky-50 text-sky-700 text-xs"
+                              title="Se cobra a un precio cargado en el análisis, no por UB"
+                            >
+                              Precio fijo
                             </Badge>
                           )}
                         </div>
@@ -246,6 +268,15 @@ export function AnalysisTable({
                                 Con descuento
                               </Badge>
                             )}
+                            {aPrecioFijo(analysis) && (
+                              <Badge
+                                variant="outline"
+                                className="bg-sky-50 text-sky-700 text-[10px]"
+                                title="Se cobra a un precio cargado en el análisis, no por UB"
+                              >
+                                Precio fijo
+                              </Badge>
+                            )}
                           </div>
                         </TableCell>
                         <TableCell className="text-center p-2 align-top">
@@ -314,6 +345,15 @@ export function AnalysisTable({
                     {conDescuento === 1
                       ? "1 análisis supera el tope de UB y se cobra en parte"
                       : `${conDescuento} análisis superan el tope de UB y se cobran en parte`}
+                  </span>
+                )}
+                {conPrecioFijo > 0 && (
+                  // Sin este cartel, el total de UB parece que le falta algo:
+                  // hay análisis en la lista que no aportan ninguna.
+                  <span className="text-xs text-sky-700">
+                    {conPrecioFijo === 1
+                      ? "1 análisis se cobra a precio fijo y no suma UB"
+                      : `${conPrecioFijo} análisis se cobran a precio fijo y no suman UB`}
                   </span>
                 )}
               </div>

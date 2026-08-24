@@ -99,8 +99,12 @@ export function ProtocolResultsLoader({ controller }: ProtocolResultsLoaderProps
         const tecla = teclaDelEvento(e.code)
         const macro = tecla ? porTecla.get(tecla) : undefined
         if (macro) {
-          // Siempre, haya macro o no en una fila bloqueada: en macOS `Alt + n`
-          // escribe "˜" en el input, que es peor que no hacer nada.
+          // También en una fila bloqueada, donde no se escribe nada: en macOS
+          // `Alt + n` mete un "˜" en el input, que es peor que no hacer nada.
+          //
+          // Y SOLO cuando hay macro: sin esto, Alt + flecha izquierda dejaría
+          // de volver atrás en el navegador porque acá se lo tragó una tecla
+          // que no hace nada.
           e.preventDefault()
           if (!bloqueada) onChange(resultId, "value", macro.texto)
         }

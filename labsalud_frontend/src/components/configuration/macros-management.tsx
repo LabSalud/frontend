@@ -62,15 +62,19 @@ export function MacrosManagement() {
     // Tab y Escape se dejan pasar: son la forma de salir del campo, y capturar
     // Tab dejaría el formulario sin manera de recorrerse con el teclado.
     if (evento.key === "Tab" || evento.key === "Escape") return
+    // Alt sola es el PRIMER evento de la combinación: hay que apretarla antes
+    // que la letra. Tratarla como una tecla inválida mostraba el error justo
+    // en el momento en que la persona estaba haciendo lo correcto.
+    if (["Alt", "Shift", "Control", "Meta"].includes(evento.key)) return
     evento.preventDefault()
 
+    if (!evento.altKey) {
+      setError("Apretá Alt junto con la tecla, como se va a usar después.")
+      return
+    }
     const tecla = teclaDelEvento(evento.code)
     if (!tecla) {
       setError("Esa tecla no sirve para un atajo. Tiene que ser una letra o un número.")
-      return
-    }
-    if (!evento.altKey) {
-      setError("Apretá Alt junto con la tecla, como se va a usar después.")
       return
     }
     setError("")

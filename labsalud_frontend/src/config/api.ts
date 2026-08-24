@@ -258,6 +258,9 @@ export const RESULTS_ENDPOINTS = {
   // Cola de resultados: protocolos por estado (incluye los que aún no tienen
   // ningún valor) con progreso cargados/validados. Ver spec en doc/.
   QUEUE: buildApiUrl("/results/results/queue/"),
+  /** Los atajos `Alt + tecla` que escriben un cualitativo entero. */
+  MACROS: buildApiUrl("/results/macros/"),
+  MACRO_DETAIL: (id: number) => buildApiUrl(`/results/macros/${id}/`),
 } as const
 
 // Reporting endpoints

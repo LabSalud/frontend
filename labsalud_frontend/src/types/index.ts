@@ -1337,6 +1337,20 @@ export interface BillingOossControlResponse {
   results: BillingOossControlItem[]
 }
 
+/**
+ * Un atajo de teclado que escribe un resultado que se repite todo el día.
+ *
+ * `Alt + tecla` pone `texto` en el campo enfocado de la pantalla de carga. Son
+ * del laboratorio, no de cada usuario: lo que se busca es que el informe diga
+ * siempre lo mismo.
+ */
+export interface MacroDeResultado {
+  id: number
+  /** Una letra (a-z) o un dígito, siempre en minúscula. */
+  tecla: string
+  texto: string
+}
+
 // ============================================================================
 // BÚSQUEDA GLOBAL
 // ============================================================================

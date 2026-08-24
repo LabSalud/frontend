@@ -1,12 +1,20 @@
 import { useEffect, useState } from "react"
 import { useSearchParams } from "react-router-dom"
 
-import { Banknote, BookOpen, ChevronDown, Landmark, Plus, Trash2 } from "lucide-react"
+import {
+  ArrowDownWideNarrow, Banknote, BookOpen, ChevronDown, Landmark, Plus, Search,
+  Trash2, X,
+} from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select"
+import { DateRangePicker } from "@/components/ui/date-range-picker"
 import { ANALYTICS_ENDPOINTS, PROTOCOL_ENDPOINTS } from "@/config/api"
 import { useApiQuery } from "@/hooks/use-api-query"
+import { useDebounce } from "@/hooks/use-debounce"
 import { BILLING_ENDPOINTS } from "@/config/api"
 import useAuth from "@/contexts/auth-context"
 import { useApi } from "@/hooks/use-api"
@@ -69,7 +77,14 @@ type Respuesta = {
   hay_mas: boolean
   desde: string | null
   hasta: string | null
+  /** Lo que se buscó, tal como lo aplicó el backend. `null` si no se buscó. */
+  buscar: string | null
+  /** Con cuál de los dos órdenes respondió el backend. */
+  orden: Orden
 }
+
+/** Cómo se ordenan las filas. Los mismos dos valores que acepta el endpoint. */
+type Orden = "fecha" | "protocolo"
 
 const plata = (valor: string | undefined) =>
   new Intl.NumberFormat("es-AR", {
@@ -115,6 +130,28 @@ export default function LibroDiarioPage() {
 
   const [desde, setDesde] = useState(haceDias(7))
   const [hasta, setHasta] = useState(hoyISO())
+  // LA BÚSQUEDA VA AL BACKEND, NO SE FILTRA ACÁ
+  //
+  // El rango de fechas puede tener más movimientos que los que entran en la
+  // pantalla (el backend corta en un tope y lo avisa). Filtrando lo que ya
+  // llegó, buscar un apellido de hace tres semanas no lo encontraría aunque
+  // esté dentro del rango — y el vacío se leería como "no hay", que es la
+  // respuesta equivocada.
+  //
+  // Con debounce porque cada tecla sería una consulta al libro entero.
+  const [buscado, setBuscado] = useState("")
+  const buscar = useDebounce(buscado.trim(), 300)
+  // POR FECHA DE ARRANQUE
+  //
+  // El libro es un registro cronológico: lo primero que se hace con él es
+  // mirar qué pasó hoy, y conciliar la caja pide recorrer los movimientos en
+  // el orden en que ocurrieron. Por protocolo sirve para otra cosa —revisar
+  // una tanda, con los de una jornada juntos y en orden— y por eso se elige.
+  //
+  // Reordena en el backend, no acá: las filas que llegan son las del rango con
+  // el tope de la pantalla, así que ordenarlas en el navegador daría el orden
+  // correcto de un recorte elegido por fecha.
+  const [orden, setOrden] = useState<Orden>("fecha")
   const [agregando, setAgregando] = useState(false)
   // Qué pago se está corrigiendo, y de qué protocolo. `null` = cerrado.
   const [corrigiendo, setCorrigiendo] = useState<
@@ -132,12 +169,14 @@ export default function LibroDiarioPage() {
   const puedeCargarMovimientos = hasPermission(PERMISSIONS.MANAGE_BILLING.codename)
 
   const consulta = useApiQuery<Respuesta>({
-    queryKey: ["analytics", "libro-diario", desde, hasta, protocoloSenalado],
+    queryKey: ["analytics", "libro-diario", desde, hasta, protocoloSenalado, buscar, orden],
     // Siempre agrupado: una fila por protocolo con la fecha de su último pago.
     // El detalle de cada cobro se abre en la fila.
     url:
       `${ANALYTICS_ENDPOINTS.LIBRO_DIARIO}?agrupado=protocolo&desde=${desde}&hasta=${hasta}` +
-      (protocoloSenalado ? `&protocolo=${protocoloSenalado}` : ""),
+      (protocoloSenalado ? `&protocolo=${protocoloSenalado}` : "") +
+      (buscar ? `&buscar=${encodeURIComponent(buscar)}` : "") +
+      `&orden=${orden}`,
     staleTime: 30 * 1000,
   })
 
@@ -262,7 +301,7 @@ export default function LibroDiarioPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-full px-4 py-4">
+    <div className="w-full py-4">
       <div className="rounded-2xl bg-white/95 p-4 shadow-md backdrop-blur-sm md:p-6">
         {/* Fila superior: título · rango de fechas · atajos.
             Misma caja blanca y mismo esqueleto que Pacientes, Protocolos y
@@ -275,56 +314,78 @@ export default function LibroDiarioPage() {
               Libro diario
             </h1>
             <p className="text-sm text-gray-500">
-              {movimientos.length > 0
-                ? `${movimientos.length} movimientos`
-                : "Cada movimiento de plata, en orden"}
+              {movimientos.length === 0
+                ? "Cada movimiento de plata, en orden"
+                : buscar
+                  // Con una búsqueda activa los totales de abajo son los de lo
+                  // que coincide, no los del período: decirlo evita leer un
+                  // "Entró" recortado como si fuera el del rango entero.
+                  ? `${movimientos.length} movimientos coinciden con «${buscar}»`
+                  : `${movimientos.length} movimientos`}
             </p>
           </div>
 
-          <div className="flex flex-wrap items-end gap-3">
-            <label className="flex flex-col gap-1">
-              <span className="text-xs font-medium text-gray-600">Desde</span>
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Un solo control para el rango: los dos extremos se eligen sobre
+                el mismo calendario, viendo el camino entre ellos, y no queda
+                forma de dejar un "hasta" anterior al "desde". */}
+            <DateRangePicker
+              desde={desde}
+              hasta={hasta}
+              onChange={(nuevoDesde, nuevoHasta) => {
+                setDesde(nuevoDesde)
+                setHasta(nuevoHasta)
+              }}
+              max={hoyISO()}
+              className="w-full sm:w-[17rem]"
+              atajos={[
+                { label: "Hoy", desde: hoyISO(), hasta: hoyISO() },
+                { label: "Últimos 7 días", desde: haceDias(7), hasta: hoyISO() },
+                { label: "Últimos 30 días", desde: haceDias(30), hasta: hoyISO() },
+              ]}
+            />
+
+            {/* La barra: número de protocolo o paciente, sin elegir cuál. En el
+                mostrador llega cualquiera de los dos y pedirle a la persona que
+                elija el modo es hacerle resolver a ella una ambigüedad que la
+                base resuelve sola. */}
+            <div className="relative w-full sm:w-64">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
               <Input
-                type="date"
-                value={desde}
-                max={hasta}
-                onChange={(e) => setDesde(e.target.value)}
-                className="h-9 w-40"
+                type="search"
+                value={buscado}
+                onChange={(evento) => setBuscado(evento.target.value)}
+                placeholder="Protocolo o paciente…"
+                aria-label="Buscar en el libro diario"
+                autoComplete="off"
+                spellCheck={false}
+                className="h-9 pl-9 pr-9"
               />
-            </label>
-            <label className="flex flex-col gap-1">
-              <span className="text-xs font-medium text-gray-600">Hasta</span>
-              <Input
-                type="date"
-                value={hasta}
-                min={desde}
-                max={hoyISO()}
-                onChange={(e) => setHasta(e.target.value)}
-                className="h-9 w-40"
-              />
-            </label>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setDesde(hoyISO())
-                  setHasta(hoyISO())
-                }}
-              >
-                Hoy
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setDesde(haceDias(30))
-                  setHasta(hoyISO())
-                }}
-              >
-                Último mes
-              </Button>
+              {buscado ? (
+                <button
+                  type="button"
+                  onClick={() => setBuscado("")}
+                  aria-label="Limpiar la búsqueda"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              ) : null}
             </div>
+
+            <Select value={orden} onValueChange={(valor) => setOrden(valor as Orden)}>
+              <SelectTrigger
+                className="h-9 w-full sm:w-44"
+                aria-label="Ordenar el libro"
+              >
+                <ArrowDownWideNarrow className="mr-1 h-4 w-4 shrink-0 text-gray-400" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="fecha">Por fecha</SelectItem>
+                <SelectItem value="protocolo">Por protocolo</SelectItem>
+              </SelectContent>
+            </Select>
 
             {puedeCargarMovimientos ? (
               <Button
@@ -377,8 +438,9 @@ export default function LibroDiarioPage() {
               <p className="py-6 text-center text-sm text-gray-400">Cargando…</p>
             ) : movimientos.length === 0 ? (
               <p className="py-6 text-center text-sm text-gray-400">
-                No hubo movimientos de plata en estas fechas. Probá con un rango
-                más amplio.
+                {buscar
+                  ? `Ningún movimiento coincide con «${buscar}» en estas fechas. Probá con un rango más amplio, o con el apellido o el número de protocolo.`
+                  : "No hubo movimientos de plata en estas fechas. Probá con un rango más amplio."}
               </p>
             ) : (
               movimientos.map((fila) => {
@@ -535,7 +597,8 @@ export default function LibroDiarioPage() {
 
         {consulta.data?.hay_mas ? (
           <p className="mt-4 text-center text-xs text-gray-500">
-            Hay más movimientos de los que entran en esta pantalla. Acotá las fechas para verlos todos.
+            Hay más movimientos de los que entran en esta pantalla. Acotá las fechas —o buscá por
+            protocolo o paciente— para verlos todos.
           </p>
         ) : null}
       </div>

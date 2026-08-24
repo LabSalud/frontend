@@ -108,7 +108,7 @@ export default function ManagementPage() {
 
   if (isLoading) {
     return (
-      <div className="max-w-6xl mx-auto py-4 sm:py-6 px-3 sm:px-4">
+      <div className="w-full py-4 sm:py-6">
         <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-md p-4 sm:p-6">
           {/* Header skeleton */}
           <Skeleton className="h-8 w-80 rounded mb-6" />
@@ -151,7 +151,7 @@ export default function ManagementPage() {
 
   if (error) {
     return (
-      <div className="max-w-6xl mx-auto py-4 sm:py-6 px-3 sm:px-4">
+      <div className="w-full py-4 sm:py-6">
         <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-md p-4 sm:p-6">
           <h1 className="text-xl sm:text-2xl font-bold text-gray-800 mb-4">Gestión de Usuarios y Permisos</h1>
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded text-sm sm:text-base">
@@ -164,7 +164,7 @@ export default function ManagementPage() {
 
   if (!canAccessManagement) {
     return (
-      <div className="max-w-6xl mx-auto py-4 sm:py-6 px-3 sm:px-4">
+      <div className="w-full py-4 sm:py-6">
         <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-md p-4 sm:p-6">
           <h1 className="text-xl sm:text-2xl font-bold text-gray-800 mb-4">Gestión de Usuarios y Permisos</h1>
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
@@ -179,7 +179,7 @@ export default function ManagementPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 py-4">
+    <div className="w-full py-4">
       <div className="rounded-2xl bg-white/95 p-4 shadow-md backdrop-blur-sm md:p-6">
         <div className="mb-5">
           <h1 className="text-xl font-bold text-gray-800 md:text-2xl">Usuarios y permisos</h1>

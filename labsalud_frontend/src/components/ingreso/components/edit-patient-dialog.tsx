@@ -226,13 +226,13 @@ export function EditPatientDialog({ isOpen, onClose, patient, onPatientUpdated }
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="phone_landline">Teléfono fijo</Label>
+              <Label htmlFor="phone_landline">Teléfono alternativo</Label>
               <Input
                 id="phone_landline"
                 name="phone_landline"
                 value={formData.phone_landline}
                 onChange={handleInputChange}
-                placeholder="Teléfono fijo"
+                placeholder="Teléfono alternativo"
               />
             </div>
           </div>

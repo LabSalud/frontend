@@ -111,7 +111,7 @@ export default function PatientDetailPage() {
 
   if (patientQuery.isLoading) {
     return (
-      <div className="mx-auto w-full max-w-7xl px-3 py-4 sm:px-4">
+      <div className="w-full py-4">
         {Breadcrumb}
         <PatientDetailSkeleton />
       </div>
@@ -120,7 +120,7 @@ export default function PatientDetailPage() {
 
   if (patientQuery.error || !patient) {
     return (
-      <div className="mx-auto w-full max-w-7xl px-3 py-4 sm:px-4">
+      <div className="w-full py-4">
         {Breadcrumb}
         <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 p-4 text-red-700">
           <AlertCircle className="h-5 w-5" />
@@ -137,7 +137,7 @@ export default function PatientDetailPage() {
   const address = [patient.address, patient.city, patient.province, patient.country].filter(Boolean).join(", ")
 
   return (
-    <div className="mx-auto w-full max-w-7xl px-3 py-4 sm:px-4">
+    <div className="w-full py-4">
       {Breadcrumb}
 
       {/* Cabecera */}

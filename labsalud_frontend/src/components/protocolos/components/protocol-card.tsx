@@ -48,6 +48,9 @@ import {
   EditDialog,
   ReportDialog,
   CoseguroDialog,
+  EntidadDeFacturacionDialog,
+  MedicoDialog,
+  ObraSocialDialog,
   PreauthorizationDialog,
   OrderStatusDialog,
   ArcaBillingDialog,
@@ -87,7 +90,12 @@ interface ProtocolDetailResponse {
     charges_material_descartable?: boolean
     charges_derivacion?: boolean
     requires_preauthorization?: boolean
+    /** Factura por Centro o por Clínica según la preautorización del paciente:
+     *  la entidad se elige por protocolo. */
+    chooses_billing_entity?: boolean
   }
+  /** A qué entidad se le presenta ESTE protocolo. */
+  billing_entity?: { id: number; name: string } | null
   affiliate_number?: string
   status: ProtocolStatus
   send_method: {
@@ -218,6 +226,13 @@ export function ProtocolCard({
   const [arcaInvoicePdfUrl, setArcaInvoicePdfUrl] = useState<string | null>(null)
   const [coseguroDialogOpen, setCoseguroDialogOpen] = useState(false)
   const [isProcessingCoseguro, setIsProcessingCoseguro] = useState(false)
+  const [entidadDialogOpen, setEntidadDialogOpen] = useState(false)
+  const [guardandoEntidad, setGuardandoEntidad] = useState(false)
+  const [medicoDialogOpen, setMedicoDialogOpen] = useState(false)
+  const [guardandoMedico, setGuardandoMedico] = useState(false)
+  const [obraSocialDialogOpen, setObraSocialDialogOpen] = useState(false)
+  const [guardandoObraSocial, setGuardandoObraSocial] = useState(false)
+  const [guardandoEnvio, setGuardandoEnvio] = useState(false)
   const [unplannedDialogOpen, setUnplannedDialogOpen] = useState(false)
   const [preauthDialogOpen, setPreauthDialogOpen] = useState(false)
   const [isProcessingPreauth, setIsProcessingPreauth] = useState(false)
@@ -1107,6 +1122,128 @@ export function ProtocolCard({
     setCoseguroDialogOpen(true)
   }
 
+  // Un solo camino para los tres: son todos un PATCH al protocolo y todos
+  // terminan igual —refrescar el detalle y avisar—. Tres copias del mismo
+  // try/catch era la otra opción.
+  const parchearProtocolo = async (
+    cuerpo: Record<string, unknown>,
+    exito: string,
+    fallo: string,
+  ): Promise<boolean> => {
+    try {
+      const response = await apiRequest(PROTOCOL_ENDPOINTS.PROTOCOL_DETAIL(protocol.id), {
+        method: "PATCH",
+        body: cuerpo,
+      })
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}))
+        throw new Error(formatApiError(data, fallo))
+      }
+      toast.success(exito, { duration: TOAST_DURATION })
+      await fetchProtocolDetail()
+      onUpdate?.()
+      return true
+    } catch (error) {
+      toast.error(getErrorMessage(error, fallo), { duration: TOAST_DURATION })
+      return false
+    }
+  }
+
+  const handleAbrirMedico = async () => {
+    if (!protocolDetail) await fetchProtocolDetail()
+    setMedicoDialogOpen(true)
+  }
+
+  const handleCambiarMedico = async (medicoId: number) => {
+    setGuardandoMedico(true)
+    try {
+      return await parchearProtocolo(
+        { doctor: medicoId },
+        "Médico actualizado",
+        "No se pudo cambiar el médico.",
+      )
+    } finally {
+      setGuardandoMedico(false)
+    }
+  }
+
+  const handleAbrirObraSocial = async () => {
+    if (!protocolDetail) await fetchProtocolDetail()
+    setObraSocialDialogOpen(true)
+  }
+
+  const handleCambiarObraSocial = async (
+    insuranceId: number | null,
+    billingEntityId: number | null,
+    numeroDeAfiliado: string,
+  ) => {
+    setGuardandoObraSocial(true)
+    try {
+      // `insurance` va SOLO si de verdad cambió: mandarla igual haría que el
+      // backend rehiciera los precios del protocolo para corregir un dígito
+      // del número de afiliado.
+      const cambiaObraSocial = insuranceId !== null
+      const numeroCambio = numeroDeAfiliado !== (protocolDetail?.affiliate_number || "")
+      return await parchearProtocolo(
+        {
+          ...(cambiaObraSocial ? { insurance: insuranceId } : {}),
+          ...(billingEntityId ? { billing_entity: billingEntityId } : {}),
+          ...(numeroCambio ? { affiliate_number: numeroDeAfiliado } : {}),
+        },
+        cambiaObraSocial ? "Obra social actualizada" : "N° de afiliado actualizado",
+        cambiaObraSocial
+          ? "No se pudo cambiar la obra social."
+          : "No se pudo cambiar el N° de afiliado.",
+      )
+    } finally {
+      setGuardandoObraSocial(false)
+    }
+  }
+
+  const handleCambiarEnvio = async (sendMethodId: string) => {
+    setGuardandoEnvio(true)
+    try {
+      await parchearProtocolo(
+        { send_method: Number(sendMethodId) },
+        "Método de envío actualizado",
+        "No se pudo cambiar el método de envío.",
+      )
+    } finally {
+      setGuardandoEnvio(false)
+    }
+  }
+
+  const handleAbrirEntidad = async () => {
+    if (!protocolDetail) await fetchProtocolDetail()
+    setEntidadDialogOpen(true)
+  }
+
+  const handleCambiarEntidad = async (entidadId: number): Promise<boolean> => {
+    setGuardandoEntidad(true)
+    try {
+      const response = await apiRequest(PROTOCOL_ENDPOINTS.PROTOCOL_DETAIL(protocol.id), {
+        method: "PATCH",
+        body: { billing_entity: entidadId },
+      })
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}))
+        throw new Error(formatApiError(data, "No se pudo cambiar la entidad."))
+      }
+      toast.success("Entidad actualizada", {
+        description: "El protocolo se va a presentar en la entidad elegida.",
+        duration: TOAST_DURATION,
+      })
+      await fetchProtocolDetail()
+      onUpdate?.()
+      return true
+    } catch (error) {
+      toast.error(getErrorMessage(error), { duration: TOAST_DURATION })
+      return false
+    } finally {
+      setGuardandoEntidad(false)
+    }
+  }
+
   const handleSetCoseguro = async (amount: number): Promise<boolean> => {
     setIsProcessingCoseguro(true)
     try {
@@ -1351,18 +1488,19 @@ export function ProtocolCard({
           patientAge={protocol.patient?.age}
           doctorName={getDoctorName()}
           insuranceName={getInsuranceName()}
-          sendMethodName={getSendMethodName()}
           statusId={statusId}
           statusName={statusName}
           onReport={handleOpenReportDialog}
           onPayment={handleOpenPaymentDialog}
-          onEdit={handleOpenEditDialog}
           onCancel={handleCancelProtocol}
           onUncancel={handleUncancelProtocol}
           onArca={handleOpenArcaDialog}
           onOrderStatus={handleOpenOrderStatusDialog}
           onPreauth={handleOpenPreauthDialog}
           onCoseguro={handleOpenCoseguroDialog}
+          onEntidadDeFacturacion={handleAbrirEntidad}
+          onMedico={handleAbrirMedico}
+          onObraSocial={handleAbrirObraSocial}
           onHistory={() => setHistoryDialogOpen(true)}
           onUnplanned={handleOpenUnplanned}
           onToggleAuthorization={handleToggleAuthorization}
@@ -1647,6 +1785,10 @@ export function ProtocolCard({
         onSendEmail={handleSendEmail}
         onSendWhatsApp={handleSendWhatsApp}
         sendMethodName={protocolDetail?.send_method?.name || ""}
+        sendMethods={sendMethods}
+        sendMethodId={protocolDetail?.send_method?.id ? String(protocolDetail.send_method.id) : ""}
+        onSendMethodChange={handleCambiarEnvio}
+        savingSendMethod={guardandoEnvio}
         emailDisabledReason={emailDisabledReason}
         whatsappDisabledReason={whatsappDisabledReason}
         isGenerating={isGeneratingReport}
@@ -1790,6 +1932,34 @@ export function ProtocolCard({
         insuranceChargesCoseguro={insuranceChargesCoseguro}
         onConfirm={handleSetCoseguro}
         isProcessing={isProcessingCoseguro}
+      />
+
+      <MedicoDialog
+        open={medicoDialogOpen}
+        onOpenChange={setMedicoDialogOpen}
+        medicoActual={protocolDetail?.doctor ?? null}
+        onGuardar={handleCambiarMedico}
+        procesando={guardandoMedico}
+      />
+
+      <ObraSocialDialog
+        open={obraSocialDialogOpen}
+        onOpenChange={setObraSocialDialogOpen}
+        obraSocialActual={protocolDetail?.insurance ?? null}
+        entidadActualId={protocolDetail?.billing_entity?.id ?? null}
+        numeroDeAfiliadoActual={protocolDetail?.affiliate_number || ""}
+        pacienteId={protocol.patient?.id ?? null}
+        onGuardar={handleCambiarObraSocial}
+        procesando={guardandoObraSocial}
+      />
+
+      <EntidadDeFacturacionDialog
+        open={entidadDialogOpen}
+        onOpenChange={setEntidadDialogOpen}
+        entidadActualId={protocolDetail?.billing_entity?.id ?? null}
+        nombreDeLaObraSocial={protocolDetail?.insurance?.name}
+        onGuardar={handleCambiarEntidad}
+        procesando={guardandoEntidad}
       />
 
       <UnplannedTransactionsDialog

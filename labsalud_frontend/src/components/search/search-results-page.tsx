@@ -5,6 +5,7 @@ import { useEffect, useState } from "react"
 import { useNavigate, useSearchParams } from "react-router-dom"
 import {
   AlertCircle,
+  BookOpen,
   ChevronLeft,
   ChevronRight,
   FileText,
@@ -27,10 +28,12 @@ import { getProtocolStatusBadgeClassByName } from "@/lib/status-styles"
 import {
   buildGlobalSearchPath,
   GLOBAL_SEARCH_FILTERS,
+  GLOBAL_SEARCH_FILTROS_CON_PERMISO,
   GLOBAL_SEARCH_MIN_CHARS,
   isGlobalSearchFilter,
   useGlobalSearch,
 } from "@/hooks/use-global-search"
+import useAuth from "@/contexts/auth-context"
 import type { GlobalSearchFilter, GlobalSearchItem } from "@/types"
 
 // Chips de filtro, con el mismo look de pestaña pill que el resto de la app.
@@ -45,6 +48,7 @@ const FILTER_LABELS: Record<GlobalSearchFilter, string> = {
   protocol: "Protocolos",
   result: "Resultados",
   validation: "Validaciones",
+  ledger: "Libro diario",
 }
 
 // Etiqueta e ícono de cada tipo en la columna "Tipo" (en singular: es una fila).
@@ -69,6 +73,11 @@ const TYPE_META: Record<string, { label: string; icon: React.ElementType; badge:
     icon: ShieldCheck,
     badge: "border-emerald-200 bg-emerald-50 text-emerald-700",
   },
+  ledger: {
+    label: "Libro diario",
+    icon: BookOpen,
+    badge: "border-violet-200 bg-violet-50 text-violet-700",
+  },
 }
 
 // Si el backend suma un tipo nuevo, la fila igual se dibuja (con el tipo crudo
@@ -82,6 +91,13 @@ const SEARCH_HINTS = [
   { label: "N° de protocolo", example: "4822" },
   { label: "Análisis", example: "hemograma" },
 ]
+
+/**
+ * El estado del libro diario es un saldo ("Debe $ 500,00"), no un estado de
+ * protocolo: pasarlo por los colores de estado le pondría el color de
+ * "cualquier otro", que en esa paleta es gris y se lee como "sin dato".
+ */
+const esEstadoDeProtocolo = (item: GlobalSearchItem) => item.type !== "ledger"
 
 /**
  * Con `counts_capped` el backend dejó de contar en un tope, así que los conteos
@@ -137,6 +153,15 @@ export default function SearchResultsPage() {
   const page = parsePage(searchParams.get("page"))
 
   const [inputValue, setInputValue] = useState(urlTerm)
+  const { hasPermission } = useAuth()
+
+  // Un filtro que el usuario no puede ver no se ofrece: el backend ya lo manda
+  // en cero, y un chip que siempre dice 0 se lee como "no hay nada", no como
+  // "no lo podés ver".
+  const filtrosVisibles = GLOBAL_SEARCH_FILTERS.filter((filtro) => {
+    const permiso = GLOBAL_SEARCH_FILTROS_CON_PERMISO[filtro]
+    return !permiso || hasPermission(permiso)
+  })
 
   // La URL manda: si cambia (Enter en la navbar, botón atrás, link compartido)
   // el input tiene que reflejar lo que se está mostrando.
@@ -249,7 +274,12 @@ export default function SearchResultsPage() {
         item.status ? (
           <Badge
             variant="outline"
-            className={cn("max-w-full truncate", getProtocolStatusBadgeClassByName(item.status, true))}
+            className={cn(
+              "max-w-full truncate",
+              esEstadoDeProtocolo(item)
+                ? getProtocolStatusBadgeClassByName(item.status, true)
+                : "border-violet-200 bg-violet-50 text-violet-700",
+            )}
           >
             <span className="truncate">{item.status}</span>
           </Badge>
@@ -273,12 +303,12 @@ export default function SearchResultsPage() {
   const lastOnPage = (page - 1) * pageSize + results.length
 
   return (
-    <div className="mx-auto w-full max-w-6xl overflow-x-hidden px-4 py-4">
+    <div className="w-full overflow-x-hidden py-4">
       <div className="min-w-0 max-w-full rounded-2xl bg-white/95 p-4 shadow-md backdrop-blur-sm md:p-6">
         <div className="mb-5">
           <h1 className="text-xl font-bold text-gray-800 md:text-2xl">Búsqueda</h1>
           <p className="text-sm text-gray-500">
-            Pacientes, protocolos, resultados y validaciones, todo junto.
+            Pacientes, protocolos, resultados, validaciones y movimientos del libro, todo junto.
           </p>
         </div>
 
@@ -310,7 +340,7 @@ export default function SearchResultsPage() {
         </form>
 
         <div className="mt-4 flex flex-wrap gap-2">
-          {GLOBAL_SEARCH_FILTERS.map((filter) => {
+          {filtrosVisibles.map((filter) => {
             const isActive = filter === type
             return (
               <button

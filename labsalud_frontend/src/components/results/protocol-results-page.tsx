@@ -31,7 +31,7 @@ export default function ProtocolResultsPage() {
 
   if (controller.error && !header) {
     return (
-      <div className="mx-auto w-full max-w-6xl px-3 py-4 sm:px-4">
+      <div className="w-full py-4">
         {Breadcrumb}
         <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 p-4 text-red-700">
           <AlertCircle className="h-5 w-5" />
@@ -49,7 +49,7 @@ export default function ProtocolResultsPage() {
     : `${header?.patient?.first_name ?? ""} ${header?.patient?.last_name ?? ""}`.trim()
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-3 py-4 pb-28 sm:px-4">
+    <div className="w-full py-4 pb-28">
       {Breadcrumb}
 
       <section className="mb-4 rounded-xl border-2 border-blue-400 bg-white p-4 shadow-sm md:p-5">

@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button"
 import { ProtocolCard } from "./components/protocol-card"
 import { ProtocolDetailSkeleton } from "./components/protocol-detail-skeleton"
 import { useApiQuery } from "@/hooks/use-api-query"
+import { useProtocolListNav } from "@/hooks/use-protocol-list-nav"
+import { NextInQueuePill } from "@/components/common/next-in-queue-pill"
 import { useQueryClient } from "@tanstack/react-query"
 import { PROTOCOL_ENDPOINTS, REPORTING_ENDPOINTS } from "@/config/api"
 import type { Protocol, ProtocolListItem, ReportSignature, SendMethod } from "@/types"
@@ -26,6 +28,7 @@ export default function ProtocolDetailPage() {
   const [searchParams] = useSearchParams()
   const autoOpenReport = searchParams.get("report") === "1"
   const queryClient = useQueryClient()
+  const { prevId, nextId } = useProtocolListNav(Number(id))
 
   const detailQuery = useApiQuery<Protocol>({
     queryKey: ["protocols", "detail", id],
@@ -92,7 +95,7 @@ export default function ProtocolDetailPage() {
 
   if (detailQuery.isLoading) {
     return (
-      <div className="mx-auto w-full max-w-7xl px-3 py-4 sm:px-4">
+      <div className="w-full py-4">
         {Breadcrumb}
         <ProtocolDetailSkeleton />
       </div>
@@ -101,7 +104,7 @@ export default function ProtocolDetailPage() {
 
   if (detailQuery.error || !protocol) {
     return (
-      <div className="mx-auto w-full max-w-7xl px-3 py-4 sm:px-4">
+      <div className="w-full py-4">
         {Breadcrumb}
         <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 p-4 text-red-700">
           <AlertCircle className="h-5 w-5" />
@@ -115,7 +118,7 @@ export default function ProtocolDetailPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-7xl px-3 py-4 sm:px-4">
+    <div className="w-full py-4 pb-28">
       {Breadcrumb}
       <ProtocolCard
         protocol={protocol}
@@ -126,6 +129,10 @@ export default function ProtocolDetailPage() {
         autoOpenReport={autoOpenReport}
         initialDetail={detail as never}
       />
+
+      {/* La misma píldora de resultados y validación: ir y volver entre
+          protocolos sin pasar por la lista cada vez. */}
+      <NextInQueuePill prevId={prevId} nextId={nextId} basePath="/protocolos" maxWidthClass="max-w-7xl" />
     </div>
   )
 }

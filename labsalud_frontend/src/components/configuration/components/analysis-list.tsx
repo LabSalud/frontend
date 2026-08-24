@@ -33,7 +33,11 @@ import { DeterminationHistoryDialog } from "./determination-history-dialog"
 import { AuditAvatars } from "@/components/common/audit-avatars"
 import type { Determination } from "@/types"
 import { CATALOG_ENDPOINTS } from "@/config/api"
-import { formatReferenceRange, formatReferenceValues } from "@/lib/catalog-format"
+import {
+  formatNamedReferenceRanges,
+  formatReferenceRange,
+  formatReferenceValues,
+} from "@/lib/catalog-format"
 import { formatApiError, getErrorMessage } from "@/lib/api-error"
 
 interface AnalysisCatalog {
@@ -306,9 +310,12 @@ export const AnalysisList: React.FC<AnalysisListProps> = ({ analysis, showInacti
           >
             {(analysisItem, manija) => {
             const isExpanded = expandedDeterminations.has(analysisItem.id)
-            const referenceItems = analysisItem.reference_ranges?.length
-              ? analysisItem.reference_ranges.map(formatReferenceRange)
-              : formatReferenceValues(analysisItem.reference_values)
+            const referenceItems = [
+              ...(analysisItem.reference_ranges?.length
+                ? analysisItem.reference_ranges.map(formatReferenceRange)
+                : formatReferenceValues(analysisItem.reference_values)),
+              ...formatNamedReferenceRanges(analysisItem.named_ranges),
+            ]
 
             return (
               <div

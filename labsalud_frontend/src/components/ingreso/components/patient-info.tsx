@@ -173,7 +173,7 @@ export function PatientInfo({ patient, onEdit }: PatientInfoProps) {
               <div className="flex items-center gap-2 text-xs sm:text-sm">
                 <Phone className="h-3 w-3 sm:h-4 sm:w-4 text-gray-500" />
                 <div>
-                  <p className="font-medium">Teléfono fijo</p>
+                  <p className="font-medium">Teléfono alternativo</p>
                   <p className="text-gray-600 break-all">{patient.alt_phone}</p>
                 </div>
               </div>

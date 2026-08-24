@@ -2,13 +2,14 @@
 
 import type React from "react"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { FlaskConical, AlertCircle, ChevronDown, Search, Sigma, X, Lock } from "lucide-react"
+import { FlaskConical, AlertCircle, ChevronDown, Keyboard, Search, Sigma, X, Lock } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import useAuth from "@/contexts/auth-context"
 import { PERMISSIONS, PERMISSION_MESSAGES } from "@/config/permissions"
 import type { useProtocolResults } from "@/hooks/use-protocol-results"
+import { teclaDelEvento, useMacrosDeResultado } from "@/hooks/use-macros-de-resultado"
 import { calculateFormulaValue } from "@/lib/result-formulas"
 import { ResultDeterminationRow } from "./result-determination-row"
 import { ResumenDeResultados } from "@/components/common/resumen-de-resultados"
@@ -19,8 +20,9 @@ interface ProtocolResultsLoaderProps {
 
 /**
  * Carga de resultados de un protocolo (presentacional): búsqueda de análisis,
- * agrupación y navegación por teclado (Enter guarda y baja; ↑↓ mueven; → notas).
- * Los datos llegan por `controller` (hook useProtocolResults en la página).
+ * agrupación y navegación por teclado (Enter guarda y baja; ↑↓ mueven; → notas;
+ * Alt + tecla escribe una macro). Los datos llegan por `controller` (hook
+ * useProtocolResults en la página).
  */
 export function ProtocolResultsLoader({ controller }: ProtocolResultsLoaderProps) {
   const { loading, error, protocol, results, groups, submodulos, orderedIds, values, saving, onChange, onSave, previousResults, loadingPrevious, loadPrevious } =
@@ -33,6 +35,11 @@ export function ProtocolResultsLoader({ controller }: ProtocolResultsLoaderProps
   // Protocolo cancelado: se muestra la info pero en SOLO LECTURA (hay que
   // descancelarlo para editar). El backend además bloquea la escritura.
   const isCancelled = (protocol?.status?.name || "").trim().toLowerCase() === "cancelado"
+
+  // Los atajos `Alt + tecla` que escriben un cualitativo entero. Se configuran
+  // en Configuración y son del laboratorio: lo que se busca es que el informe
+  // diga siempre lo mismo, y para eso las tiene que tener todo el mundo.
+  const { macros, porTecla } = useMacrosDeResultado()
 
   const [search, setSearch] = useState("")
   // Análisis colapsables: colapsados si ya tienen todos los resultados
@@ -76,8 +83,34 @@ export function ProtocolResultsLoader({ controller }: ProtocolResultsLoaderProps
   }
 
   const onInputKeyDown = useCallback(
-    async (e: React.KeyboardEvent<HTMLInputElement>, resultId: number) => {
+    async (e: React.KeyboardEvent<HTMLInputElement>, resultId: number, bloqueada: boolean) => {
       const i = orderedIds.indexOf(resultId)
+
+      // ALT + TECLA: LA MACRO ESCRIBE, NO GUARDA
+      //
+      // Escribe el texto y deja el cursor donde está. Guardar de una sería un
+      // atajo que graba un resultado con una sola tecla, sin que se llegue a
+      // leer lo que quedó escrito — y para eso ya está Enter, que además baja
+      // a la siguiente. La macro reemplaza el tipeo, no la decisión.
+      //
+      // Se chequea antes que todo lo demás porque Alt + una flecha no tiene
+      // por qué mover: quien apretó Alt está pidiendo una macro.
+      if (e.altKey && !e.ctrlKey && !e.metaKey) {
+        const tecla = teclaDelEvento(e.code)
+        const macro = tecla ? porTecla.get(tecla) : undefined
+        if (macro) {
+          // También en una fila bloqueada, donde no se escribe nada: en macOS
+          // `Alt + n` mete un "˜" en el input, que es peor que no hacer nada.
+          //
+          // Y SOLO cuando hay macro: sin esto, Alt + flecha izquierda dejaría
+          // de volver atrás en el navegador porque acá se lo tragó una tecla
+          // que no hace nada.
+          e.preventDefault()
+          if (!bloqueada) onChange(resultId, "value", macro.texto)
+        }
+        return
+      }
+
       if (e.key === "Enter") {
         e.preventDefault()
         // Sin permiso, Enter sigue sirviendo para recorrer la lista pero no
@@ -98,7 +131,7 @@ export function ProtocolResultsLoader({ controller }: ProtocolResultsLoaderProps
         }
       }
     },
-    [orderedIds, onSave, canEdit],
+    [orderedIds, onSave, onChange, canEdit, porTecla],
   )
 
   const onTextareaKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>, resultId: number) => {
@@ -177,6 +210,27 @@ export function ProtocolResultsLoader({ controller }: ProtocolResultsLoaderProps
         )}
       </div>
 
+      {/* LAS MACROS SE MUESTRAN, NO SE ADIVINAN.
+          Un atajo de teclado que no está escrito en ninguna parte lo usa quien
+          lo configuró y nadie más. Va acá arriba, donde se lo lee una vez y se
+          lo recuerda, y no en un tooltip que hay que salir a buscar. */}
+      {canEdit && macros.length > 0 && (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-gray-100 bg-gray-50/70 px-3 py-2 text-xs text-gray-500">
+          <span className="flex items-center gap-1 font-medium text-gray-600">
+            <Keyboard className="h-3.5 w-3.5" />
+            Atajos
+          </span>
+          {macros.map((macro) => (
+            <span key={macro.id} className="flex items-center gap-1">
+              <kbd className="rounded border border-gray-300 bg-white px-1 font-sans text-[10px] font-medium text-gray-600">
+                Alt+{macro.tecla}
+              </kbd>
+              <span className="truncate text-gray-500">{macro.texto}</span>
+            </span>
+          ))}
+        </div>
+      )}
+
       {filteredGroups.length === 0 ? (
         <p className="py-6 text-center text-sm text-gray-400">Ningún análisis coincide con “{search}”.</p>
       ) : (
@@ -230,7 +284,9 @@ export function ProtocolResultsLoader({ controller }: ProtocolResultsLoaderProps
                       registerTextarea={(el) => {
                         textareaRefs.current[result.id] = el
                       }}
-                      onInputKeyDown={(e) => onInputKeyDown(e, result.id)}
+                      onInputKeyDown={(e) =>
+                        onInputKeyDown(e, result.id, formulaResolved || isCancelled || !canEdit)
+                      }
                       onTextareaKeyDown={(e) => onTextareaKeyDown(e, result.id)}
                       previous={previousResults[result.id] || []}
                       loadingPrevious={loadingPrevious.has(result.id)}

@@ -260,7 +260,7 @@ export function CreatePatientDialog({ initialDni = "", onPatientCreated, onCance
               />
             </div>
             <div>
-              <Label htmlFor="phone_landline">Teléfono Fijo</Label>
+              <Label htmlFor="phone_landline">Teléfono alternativo</Label>
               <Input
                 id="phone_landline"
                 value={formData.phone_landline}

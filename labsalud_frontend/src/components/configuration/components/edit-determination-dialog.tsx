@@ -7,6 +7,7 @@ import { DialogHeading } from "@/components/common/dialog-heading"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { InputUnidadDeMedida } from "./input-unidad-de-medida"
 import { Textarea } from "@/components/ui/textarea"
 import { useApi } from "@/hooks/use-api"
 import { useToast } from "@/hooks/use-toast"
@@ -17,11 +18,15 @@ import { formatApiError, getErrorMessage } from "@/lib/api-error"
 import { CampoNotacionCientifica } from "./campo-notacion-cientifica"
 import { esExponenteValido } from "@/lib/notacion"
 import {
+  rangosConNombreDesde,
+  rangosConNombreParaEnviar,
   rangosDesde,
   rangosParaEnviar,
   rangosVacios,
   ValoresDeReferencia,
+  type NamedRange,
   type RangeMap,
+  type RangoConNombre,
   type RefRange,
 } from "./valores-de-referencia"
 
@@ -50,6 +55,7 @@ export const EditDeterminationDialog: React.FC<EditDeterminationDialogProps> = (
   const [exponente, setExponente] = useState("")
   const [formula, setFormula] = useState("")
   const [ranges, setRanges] = useState<RangeMap>(rangosVacios)
+  const [namedRanges, setNamedRanges] = useState<RangoConNombre[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
 
@@ -73,6 +79,9 @@ export const EditDeterminationDialog: React.FC<EditDeterminationDialogProps> = (
       // Los valores de referencia estructurados (reference_ranges) en los 4
       // grupos. Antes se leía el JSON `reference_values`, por eso no aparecían.
       setRanges(rangosDesde((determination as { reference_ranges?: RefRange[] }).reference_ranges))
+      setNamedRanges(
+        rangosConNombreDesde((determination as { named_ranges?: NamedRange[] }).named_ranges),
+      )
       setErrors({})
       setIsLoading(false)
     }
@@ -105,6 +114,8 @@ export const EditDeterminationDialog: React.FC<EditDeterminationDialogProps> = (
 
       // Siempre mandamos los valores de referencia (por si se limpió un grupo).
       body.reference_ranges = rangosParaEnviar(ranges)
+      // Ídem los rangos con nombre: la lista que se manda es la que queda.
+      body.named_ranges = rangosConNombreParaEnviar(namedRanges)
 
       const response = await apiRequest(CATALOG_ENDPOINTS.DETERMINATION_DETAIL(determination.id), {
         method: "PATCH",
@@ -173,12 +184,10 @@ export const EditDeterminationDialog: React.FC<EditDeterminationDialogProps> = (
             <Label htmlFor="edit-determination-measureUnit" className="text-sm">
               Unidad de Medida *
             </Label>
-            <Input
+            <InputUnidadDeMedida
               id="edit-determination-measureUnit"
               value={measureUnit}
-              onChange={(e) => setMeasureUnit(e.target.value)}
-              placeholder="ej: mg/dL, UI/L, etc."
-              className="text-sm"
+              onChange={setMeasureUnit}
             />
             {errors.measureUnit && <p className="text-xs md:text-sm text-red-500">{errors.measureUnit}</p>}
           </div>
@@ -205,7 +214,12 @@ export const EditDeterminationDialog: React.FC<EditDeterminationDialogProps> = (
             />
           </div>
 
-          <ValoresDeReferencia ranges={ranges} onChange={setRanges} />
+          <ValoresDeReferencia
+            ranges={ranges}
+            onChange={setRanges}
+            namedRanges={namedRanges}
+            onNamedRangesChange={setNamedRanges}
+          />
         </div>
 
         <DialogFooter className="flex-col gap-2 sm:flex-row">

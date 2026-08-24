@@ -1,6 +1,6 @@
 "use client"
 
-import type { ReactNode } from "react"
+import { Fragment, type ReactNode } from "react"
 import { ChevronDown, ChevronUp, ChevronsUpDown, AlertCircle } from "lucide-react"
 import {
   Table,
@@ -49,6 +49,14 @@ interface DataTableProps<T> {
   /** Pie de tabla: sentinel de scroll infinito, "cargando más", etc. */
   footer?: ReactNode
   rowClassName?: (row: T) => string
+  /** Fila separadora que se inserta ANTES de `fila` cuando devuelve algo.
+   *
+   * Recibe también la fila anterior (`undefined` en la primera) para poder
+   * decidir por el corte y no por la fila sola: así el separador de día sale
+   * una vez, cuando la fecha cambia, y no repetido en cada fila.
+   *
+   * Ocupa todas las columnas y no dispara `onRowClick`. */
+  rowSeparator?: (fila: T, anterior: T | undefined) => ReactNode
 }
 
 const alignClass = {
@@ -76,6 +84,7 @@ export function DataTable<T>({
   emptyMessage = "No hay datos para mostrar",
   footer,
   rowClassName,
+  rowSeparator,
 }: DataTableProps<T>) {
   const renderSortIcon = (col: Column<T>) => {
     if (!col.sortable || !col.sortField) return null
@@ -156,26 +165,40 @@ export function DataTable<T>({
               </TableCell>
             </TableRow>
           ) : (
-            rows.map((row) => (
-              <TableRow
-                key={getRowId(row)}
-                className={cn(
-                  "border-gray-100",
-                  onRowClick && "cursor-pointer",
-                  rowClassName?.(row),
-                )}
-                onClick={onRowClick ? () => onRowClick(row) : undefined}
-              >
-                {columns.map((col) => (
-                  <TableCell
-                    key={col.id}
-                    className={cn("px-3 py-3", alignClass[col.align ?? "left"], col.responsive, col.className)}
+            rows.map((row, i) => {
+              const separador = rowSeparator?.(row, i > 0 ? rows[i - 1] : undefined)
+              return (
+                <Fragment key={getRowId(row)}>
+                  {separador && (
+                    // `border-b-0` y `p-0`: la fila separadora no tiene que
+                    // aportar ni una línea gris de más ni un pixel de alto.
+                    // Lo único que se ve es lo que dibuje `rowSeparator`.
+                    <TableRow className="border-b-0 hover:bg-transparent">
+                      <TableCell colSpan={columns.length} className="p-0">
+                        {separador}
+                      </TableCell>
+                    </TableRow>
+                  )}
+                  <TableRow
+                    className={cn(
+                      "border-gray-100",
+                      onRowClick && "cursor-pointer",
+                      rowClassName?.(row),
+                    )}
+                    onClick={onRowClick ? () => onRowClick(row) : undefined}
                   >
-                    {col.cell(row)}
-                  </TableCell>
-                ))}
-              </TableRow>
-            ))
+                    {columns.map((col) => (
+                      <TableCell
+                        key={col.id}
+                        className={cn("px-3 py-3", alignClass[col.align ?? "left"], col.responsive, col.className)}
+                      >
+                        {col.cell(row)}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                </Fragment>
+              )
+            })
           )}
         </TableBody>
       </Table>

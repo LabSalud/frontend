@@ -2,6 +2,7 @@
 
 import { useApiQuery } from "@/hooks/use-api-query"
 import { SEARCH_ENDPOINTS } from "@/config/api"
+import { PERMISSIONS } from "@/config/permissions"
 import type { GlobalSearchCounts, GlobalSearchFilter, GlobalSearchResponse } from "@/types"
 
 /** El backend devuelve `results: []` con menos de 2 caracteres: ni siquiera vale la pena pedirle. */
@@ -17,7 +18,21 @@ export const GLOBAL_SEARCH_FILTERS: GlobalSearchFilter[] = [
   "protocol",
   "result",
   "validation",
+  "ledger",
 ]
+
+/**
+ * El libro diario es el único tipo con permiso propio.
+ *
+ * Los demás son cosas que cualquier usuario autenticado ya ve un click más
+ * allá. El libro no: `administrar_libro_diario` existe justamente para que
+ * haya quien opere el sistema sin ver cada movimiento de plata. El backend no
+ * lo consulta sin el permiso —el conteo llega en cero—; acá se esconde también
+ * el chip, para no ofrecer un filtro que nunca puede traer nada.
+ */
+export const GLOBAL_SEARCH_FILTROS_CON_PERMISO: Partial<Record<GlobalSearchFilter, string>> = {
+  ledger: PERMISSIONS.MANAGE_LEDGER.codename,
+}
 
 export const isGlobalSearchFilter = (value: string | null): value is GlobalSearchFilter =>
   value !== null && (GLOBAL_SEARCH_FILTERS as string[]).includes(value)
@@ -56,6 +71,7 @@ const EMPTY_COUNTS: GlobalSearchCounts = {
   protocol: 0,
   result: 0,
   validation: 0,
+  ledger: 0,
 }
 
 /**

@@ -34,6 +34,9 @@ import type { SortState } from "@/components/common/data-table"
 import { useApi } from "../../hooks/use-api"
 import { useApiQuery } from "@/hooks/use-api-query"
 import { useApiInfiniteQuery, flattenPages } from "@/hooks/use-api-infinite-query"
+import { NavegadorDeDias } from "./components/navegador-de-dias"
+import { comoFechaCorta } from "@/lib/dias"
+import { guardarOrdenDeLaLista } from "@/hooks/use-protocol-list-nav"
 import { useInfiniteScroll } from "../../hooks/use-infinite-scroll"
 import { useDebounce } from "../../hooks/use-debounce"
 import { useNavigate } from "react-router-dom"
@@ -184,6 +187,17 @@ export default function ProtocolosPage() {
     ? signaturesQuery.data
     : signaturesQuery.data?.results || []
 
+  // El día que se está mirando, o null para el listado completo. Arranca en
+  // null: entrar a Protocolos sigue mostrando todo, y ver un día es algo que
+  // se pide, no algo que se hereda de la sesión anterior.
+  const [dia, setDia] = useState<string | null>(null)
+
+  // Los separadores de día solo tienen sentido con la lista en orden
+  // cronológico. Ordenada por apellido, las fechas quedan salteadas y una
+  // línea que dice "de acá para abajo son del 21" estaría mintiendo. `sort`
+  // en null es el default del backend, que es `-created_at`.
+  const ordenadoPorFecha = !sort || sort.field === "created_at" || sort.field === "id"
+
   const buildUrl = useCallback(
     (offset: number) => {
       const params = new URLSearchParams({
@@ -217,9 +231,15 @@ export default function ProtocolosPage() {
         params.append("payment_status", paymentStatusFilter)
       }
 
+      // El corte del día lo hace el backend en la zona del laboratorio. Traer
+      // todo y filtrar acá sería pedir miles de filas para tirarlas.
+      if (dia) {
+        params.append("fecha", dia)
+      }
+
       return `${PROTOCOL_ENDPOINTS.PROTOCOLS}?${params.toString()}`
     },
-    [debouncedSearchTerm, statusFilter, isPrintedFilter, paymentStatusFilter, sort],
+    [debouncedSearchTerm, statusFilter, isPrintedFilter, paymentStatusFilter, sort, dia],
   )
 
   // queryKey estable por combinación de filtros: cachea cada vista (ej. volver
@@ -234,6 +254,7 @@ export default function ProtocolosPage() {
     isPrintedFilter,
     paymentStatusFilter,
     sort ? `${sort.dir}:${sort.field}` : "",
+    dia ?? "",
   ] as const
 
   const protocolsQuery = useApiInfiniteQuery<ProtocolListItem>({
@@ -243,6 +264,18 @@ export default function ProtocolosPage() {
   })
 
   const allProtocols = flattenPages<ProtocolListItem>(protocolsQuery.data?.pages)
+
+  // EL ORDEN QUE SE ESTÁ VIENDO, GUARDADO PARA EL DETALLE
+  // La píldora del detalle salta al protocolo de la fila de arriba o la de
+  // abajo, y esa fila la definen la búsqueda y el orden de la tabla, que viven
+  // acá y no sobreviven a la navegación. Por eso se anota desde esta pantalla.
+  const idsALaVista = allProtocols.map((p) => p.id).join(",")
+  const paginaSiguiente =
+    protocolsQuery.data?.pages?.[protocolsQuery.data.pages.length - 1]?.next ?? null
+  useEffect(() => {
+    if (!idsALaVista) return
+    guardarOrdenDeLaLista(idsALaVista.split(",").map(Number), paginaSiguiente)
+  }, [idsALaVista, paginaSiguiente])
   const isInitialLoading = protocolsQuery.isLoading
   // Fetching pero ya con datos previos en pantalla (búsqueda/filtro cambiando
   // o refetch en background): spinner sutil sin vaciar la tabla.
@@ -596,7 +629,7 @@ export default function ProtocolosPage() {
 
   if (error) {
     return (
-      <div className="w-full max-w-7xl mx-auto py-4 px-4">
+      <div className="w-full py-4">
         <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-md p-6">
           <h1 className="text-xl md:text-2xl font-bold text-gray-800 mb-4">Gestión de Protocolos</h1>
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
@@ -614,19 +647,21 @@ export default function ProtocolosPage() {
   }
 
   return (
-    <div className="w-full max-w-full mx-auto py-4 px-4">
+    <div className="w-full py-4">
       <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-md p-4 md:p-6">
-        {/* Fila superior: título (izq) · búsqueda (centro) · filtros (der).
-            Título y Filtros con el mismo ancho para quedar balanceados. */}
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-4">
-          <div className="lg:w-52 lg:shrink-0">
+        {/* Fila superior: título · búsqueda · día · filtros.
+            El navegador de días entró acá, así que la búsqueda cede ancho
+            (sigue con flex-1, pero con min-w-0 para poder achicarse de
+            verdad) y Filtros pasó de w-52 a lo que ocupa su texto. */}
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-3">
+          <div className="lg:w-44 lg:shrink-0">
             <h1 className="text-xl md:text-2xl font-bold text-gray-800">Protocolos</h1>
             <p className="text-sm text-gray-500">
               {activeProtocolsCount != null ? `${activeProtocolsCount} activos` : `${allProtocols.length} protocolos`}
               {searchTerm && ` · ${allProtocols.length} resultados`}
             </p>
           </div>
-          <div className="relative w-full lg:flex-1">
+          <div className="relative w-full min-w-0 lg:flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
             <Input
               ref={searchInputRef}
@@ -649,12 +684,14 @@ export default function ProtocolosPage() {
               </div>
             )}
           </div>
-          <div className="lg:w-52 lg:shrink-0">
+          <NavegadorDeDias dia={dia} onChange={setDia} className="w-full lg:w-auto lg:shrink-0" />
+
+          <div className="lg:shrink-0">
             <Popover>
               <PopoverTrigger asChild>
-                <Button variant="outline" className="h-11 w-full justify-center gap-2">
+                <Button variant="outline" className="h-11 w-full justify-center gap-2 lg:w-auto lg:px-3">
                   <Filter className="h-4 w-4" />
-                  Filtros
+                  <span className="lg:sr-only xl:not-sr-only">Filtros</span>
                   {(isPrintedFilter !== "all" || paymentStatusFilter !== "all") && (
                     <span className="ml-1 h-2 w-2 rounded-full bg-[#204983]" />
                   )}
@@ -792,15 +829,19 @@ export default function ProtocolosPage() {
         {allProtocols.length === 0 && !isInitialLoading && !isSearching ? (
           <div className="p-8 sm:p-12 text-center">
             <FileText className="h-12 w-12 sm:h-16 sm:w-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-2">No se encontraron protocolos</h3>
+            <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-2">
+              {dia ? `Sin protocolos el ${comoFechaCorta(dia)}` : "No se encontraron protocolos"}
+            </h3>
             <p className="text-sm sm:text-base text-gray-600 mb-6">
-              {searchTerm || hasAnyStatusFilter || isPrintedFilter !== "all" || paymentStatusFilter !== "all"
-                ? "Intenta ajustar los filtros de búsqueda"
-                : "Aún no hay protocolos registrados en el sistema"}
+              {dia
+                ? "Probá con otro día usando las flechas, o cancelá el filtro para ver todos."
+                : searchTerm || hasAnyStatusFilter || isPrintedFilter !== "all" || paymentStatusFilter !== "all"
+                  ? "Intenta ajustar los filtros de búsqueda"
+                  : "Aún no hay protocolos registrados en el sistema"}
             </p>
             <Button onClick={handleNewProtocol} className="bg-[#204983] hover:bg-[#1a3d6b] text-white">
               <Plus className="h-4 w-4 mr-2" />
-              Crear Primer Protocolo
+              {dia ? "Nuevo protocolo" : "Crear Primer Protocolo"}
             </Button>
           </div>
         ) : (
@@ -818,6 +859,7 @@ export default function ProtocolosPage() {
             canUncancel={canUncancel}
             canPrintReports={canPrintReports}
             busyId={quickActions.busyId}
+            separarPorDia={ordenadoPorFecha}
           />
         )}
 

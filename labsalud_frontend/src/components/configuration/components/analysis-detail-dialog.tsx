@@ -7,9 +7,10 @@ import { Separator } from "@/components/ui/separator"
 import { AuditAvatars } from "@/components/common/audit-avatars"
 import { History, Pencil, Trash, TestTube } from "lucide-react"
 import { AnalysisList } from "./analysis-list"
-import { AnalysisCompositionManager } from "./analysis-composition-manager"
+import { CopiarDeterminaciones } from "./copiar-determinaciones"
 import { formatBioUnitValues, formatAnalysisCategory } from "@/lib/catalog-format"
 import type { Analysis } from "@/types"
+import { usePreciosFijos } from "@/hooks/use-precios-fijos"
 
 interface AnalysisDetailDialogProps {
   analysis: Analysis | null
@@ -19,6 +20,9 @@ interface AnalysisDetailDialogProps {
   onEdit: (analysis: Analysis) => void
   onDelete: (analysis: Analysis) => void
   onShowHistory: (analysis: Analysis) => void
+  /** Se llama después de copiar determinaciones de otro análisis: la lista de
+   *  abajo tiene que volver a pedirlas. */
+  onDeterminacionesCopiadas?: () => void
 }
 
 export function AnalysisDetailDialog({
@@ -29,7 +33,13 @@ export function AnalysisDetailDialog({
   onEdit,
   onDelete,
   onShowHistory,
+  onDeterminacionesCopiadas,
 }: AnalysisDetailDialogProps) {
+  // Antes del early return: los hooks se llaman siempre, en el mismo orden.
+  // Sin la función habilitada el precio cargado no cotiza nada, y la ficha no
+  // puede anunciar un cobro que no va a pasar.
+  const { habilitados: preciosFijosHabilitados } = usePreciosFijos()
+
   if (!analysis) return null
   const bioUnitItems = formatBioUnitValues(analysis.bio_unit_values)
 
@@ -50,11 +60,6 @@ export function AnalysisDetailDialog({
                     {formatAnalysisCategory(analysis.category)}
                   </Badge>
                 )}
-                {analysis.is_module && (
-                  <Badge variant="outline" className="bg-blue-50 text-blue-700">
-                    Módulo
-                  </Badge>
-                )}
                 {analysis.is_ref_normalized && (
                   <Badge variant="outline" className="bg-emerald-50 text-emerald-700" title="Normalizado (N) en el NBU">
                     N
@@ -63,6 +68,15 @@ export function AnalysisDetailDialog({
                 {analysis.is_obsolete && (
                   <Badge variant="outline" className="bg-amber-50 text-amber-700">
                     En desuso
+                  </Badge>
+                )}
+                {preciosFijosHabilitados && analysis.cobra_precio_fijo && (
+                  <Badge
+                    variant="outline"
+                    className="bg-sky-50 text-sky-700"
+                    title="Al paciente se le cobra un precio cargado, no la cuenta por UB"
+                  >
+                    ${analysis.precio_particular ?? "0.00"} fijo
                   </Badge>
                 )}
               </DialogTitle>
@@ -127,12 +141,11 @@ export function AnalysisDetailDialog({
 
           <Separator />
 
-          <AnalysisCompositionManager analysis={analysis} />
-
-          <Separator />
-
           <div>
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Determinaciones</p>
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Determinaciones</p>
+              <CopiarDeterminaciones analysis={analysis} onCopiadas={onDeterminacionesCopiadas} />
+            </div>
             <div className="rounded-lg border border-gray-200 bg-gray-50">
               <AnalysisList analysis={analysis} showInactive={false} refreshKey={refreshKey} />
             </div>

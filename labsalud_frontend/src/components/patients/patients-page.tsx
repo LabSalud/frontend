@@ -76,7 +76,7 @@ export default function PatientsPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-full px-4 py-4">
+    <div className="w-full py-4">
       <div className="rounded-2xl bg-white/95 p-4 shadow-md backdrop-blur-sm md:p-6">
         {/* Fila superior: título · búsqueda · nuevo paciente */}
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-4">

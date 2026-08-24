@@ -191,7 +191,7 @@ export default function ContingenciaPage() {
   const pendientes = resumen?.pendientes ?? 0
 
   return (
-    <div className="mx-auto w-full max-w-6xl overflow-x-hidden px-4 py-4">
+    <div className="w-full overflow-x-hidden py-4">
       <div className="min-w-0 max-w-full rounded-2xl bg-white/95 p-4 shadow-md backdrop-blur-sm md:p-6">
         <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>

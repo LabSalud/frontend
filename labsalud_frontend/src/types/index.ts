@@ -352,6 +352,13 @@ export interface Insurance {
   chooses_billing_entity?: boolean
   /** El paciente paga como particular y la OOSS le reintegra después. */
   a_reintegro?: boolean
+  /**
+   * Tope de UB POR ANÁLISIS: del que lo supera se cobra el porcentaje de abajo.
+   * "0.00" = sin descuento. Se mide análisis por análisis, no sobre el protocolo.
+   */
+  descuento_desde_ub?: string
+  /** Qué porcentaje del análisis se cobra pasado el tope. "100.00" = no se descuenta. */
+  descuento_porcentaje_a_cobrar?: string
   nbu?: Nbu | number | null
   /** Entidad de facturación a la que se presenta esta OOSS actualmente (null = sin asignar). */
   billing_entity?: { id: number; name: string } | null
@@ -370,19 +377,6 @@ export type ObraSocial = Insurance
 
 /** Categoría NBU del análisis. "" = sin clasificar. */
 export type AnalysisCategory = "pmo" | "pe" | "gestion" | ""
-
-/** Relación de composición: qué prácticas incluye/excluye un módulo. */
-export type AnalysisRelationType = "includes" | "not_includes" | "included_in"
-
-export interface AnalysisComponent {
-  id: number
-  child: number
-  child_code: string
-  child_name: string
-  relation_type: AnalysisRelationType
-  relation_type_display: string
-  is_active: boolean
-}
 
 /** Ficha NBU del análisis (reglas de alcance/facturación y notas del laboratorio). */
 export interface NbuInfo {
@@ -404,12 +398,17 @@ export interface Analysis {
   is_urgent: boolean
   is_active: boolean
   requires_derivacion?: boolean
+  /**
+   * Si está activo, al paciente se le cobra `precio_particular` en vez de
+   * calcularlo por UB. Requiere `PricingConfig.precios_fijos_habilitados`.
+   */
+  cobra_precio_fijo?: boolean
+  /** El precio fijo cargado. Solo rige si `cobra_precio_fijo` está activo. */
+  precio_particular?: string
   // --- Enriquecimiento NBU (todo opcional / retrocompatible) ---
   category?: AnalysisCategory
   is_ref_normalized?: boolean
   is_obsolete?: boolean
-  is_module?: boolean
-  components?: AnalysisComponent[]
   nbu_info?: NbuInfo | null
   creation?: CreationAudit
   last_change?: LastChangeAudit
@@ -497,6 +496,21 @@ export interface ReferenceRange {
   max_value: string
 }
 
+/**
+ * Un rango de referencia con nombre, cargado a mano por el laboratorio.
+ *
+ * No tiene sexo ni grupo etario y NO entra en la detección automática: se
+ * imprime en el informe, debajo del rango del paciente, para que el médico lea
+ * el resultado en contexto (las franjas del colesterol, por ejemplo).
+ */
+export interface NamedReferenceRange {
+  id?: number
+  label: string
+  min_value: string
+  max_value: string
+  orden?: number
+}
+
 export type ReferenceRangeEvaluationStatus =
   | "not_evaluated"
   | "no_applicable_reference"
@@ -570,6 +584,7 @@ export interface Determination {
   formula: string
   reference_values?: ReferenceValues
   reference_ranges?: ReferenceRange[]
+  named_ranges?: NamedReferenceRange[]
   /** Posición dentro del análisis. Se ordena arrastrando en el catálogo. */
   orden?: number
   is_active: boolean
@@ -619,7 +634,17 @@ export interface ProtocolDetail {
   is_loaded?: boolean
   code: string
   name: string
+  /** La UB que le corresponde: la de la OOSS si va cubierto, la de Particular si no. */
   ub: string
+  /** La UB del nomenclador de Particular. */
+  ub_particular?: string | null
+  /** La UB del nomenclador de la OOSS. `null` = esa OOSS no nombra la práctica. */
+  ub_obra_social?: string | null
+  /**
+   * El precio al que se cobró este análisis, o `null` si fue por UB. Sale del
+   * snapshot: es lo que cobró ESTE protocolo, que puede no ser el precio de hoy.
+   */
+  precio_fijo?: string | null
   is_urgent: boolean
   is_active: boolean
 }
@@ -674,6 +699,9 @@ export interface Protocol {
   extra_amounts_overridden?: boolean
   // Pricing breakdown (new fields - May 2026)
   analyses_amount_due?: string
+  /** Lo que se le descontó al particular por volumen. Ya está restado de
+   *  `analyses_amount_due`; va aparte para que el total cierre con las partes. */
+  descuento_por_volumen?: string
   coseguro_amount?: string
   material_descartable_amount?: string
   derivacion_amount?: string
@@ -682,7 +710,6 @@ export interface Protocol {
   extras_total?: string
   private_amount_due?: string
   /** Cuántos componentes no se cobraron por estar incluidos en un módulo presente. */
-  included_components_skipped?: number
   nbu?: Nbu | null
   // Returned by protocol create response
   value_paid?: string
@@ -776,12 +803,14 @@ export interface ProtocolListItem {
   redondeo?: string
   // Pricing breakdown (new fields)
   analyses_amount_due?: string
+  /** Lo que se le descontó al particular por volumen. Ya está restado de
+   *  `analyses_amount_due`. */
+  descuento_por_volumen?: string
   coseguro_amount?: string
   material_descartable_amount?: string
   derivacion_amount?: string
   extras_total?: string
   /** Cuántos componentes no se cobraron por estar incluidos en un módulo presente. */
-  included_components_skipped?: number
   payment_status: PaymentStatus
   billing_status?: BillingStatus
   is_printed: boolean
@@ -897,6 +926,11 @@ export interface PricingConfig {
    * laboratorio. "0.00" = no se redondea nunca.
    */
   redondeo_maximo: string
+  /**
+   * Habilita cobrar análisis sueltos a un precio fijo en vez de por UB.
+   * Apagado, los precios cargados en el catálogo no cotizan nada.
+   */
+  precios_fijos_habilitados?: boolean
 }
 
 // Respuesta de POST /protocols/protocols/quote/ — preview de precios que reusa
@@ -906,11 +940,14 @@ export interface QuoteDetail {
   code: string
   name: string
   is_authorized: boolean
-  private_ub: string
+  /** `null` si el análisis no tiene UB, que solo puede pasar con precio fijo. */
+  private_ub: string | null
   insurance_ub: string | null
   patient_amount: string
-  /** true = ya está cubierta por un módulo presente en el protocolo: no suma UB ni se cobra ($0). */
-  included_in_module?: boolean
+  /** Cuánto se le descontó a ESTE análisis por superar el tope de UB de la obra social. */
+  descuento?: string
+  /** El precio al que se cobra, o `null` si sale por UB (lo habitual). */
+  precio_fijo?: string | null
 }
 
 export interface QuoteResult {
@@ -920,6 +957,8 @@ export interface QuoteResult {
   total_ub_authorized: string
   total_ub_private: string
   analyses_amount_due: string
+  /** Lo que se le descontó al particular por volumen. "0.00" si no aplicó. */
+  descuento_por_volumen: string
   material_descartable_amount: string
   derivacion_amount: string
   coseguro_amount: string
@@ -999,6 +1038,7 @@ export interface ResultDetermination {
   formula: string
   reference_values?: ReferenceValues
   reference_ranges?: ReferenceRange[]
+  named_ranges?: NamedReferenceRange[]
 }
 
 export interface ResultAnalysis {
@@ -1297,11 +1337,25 @@ export interface BillingOossControlResponse {
   results: BillingOossControlItem[]
 }
 
+/**
+ * Un atajo de teclado que escribe un resultado que se repite todo el día.
+ *
+ * `Alt + tecla` pone `texto` en el campo enfocado de la pantalla de carga. Son
+ * del laboratorio, no de cada usuario: lo que se busca es que el informe diga
+ * siempre lo mismo.
+ */
+export interface MacroDeResultado {
+  id: number
+  /** Una letra (a-z) o un dígito, siempre en minúscula. */
+  tecla: string
+  texto: string
+}
+
 // ============================================================================
 // BÚSQUEDA GLOBAL
 // ============================================================================
 
-export type GlobalSearchType = "patient" | "protocol" | "result" | "validation"
+export type GlobalSearchType = "patient" | "protocol" | "result" | "validation" | "ledger"
 
 /** Paciente asociado a un resultado de búsqueda. Puede no existir (ej: si algún día se indexan entidades sin paciente). */
 export interface GlobalSearchPatientRef {
@@ -1326,7 +1380,7 @@ export interface GlobalSearchItem {
   matched_on: string
 }
 
-/** Filtro por tipo. `all` es el default: trae los cuatro tipos mezclados. */
+/** Filtro por tipo. `all` es el default: trae todos los tipos mezclados. */
 export type GlobalSearchFilter = GlobalSearchType | "all"
 
 /** Totales por tipo para las chips. Vienen completos aunque se filtre por un solo tipo. */

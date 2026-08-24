@@ -41,7 +41,7 @@ export function DetailLayout({
   const navigate = useNavigate()
 
   return (
-    <div className="mx-auto w-full max-w-7xl px-3 py-4 sm:px-4">
+    <div className="w-full py-4">
       {breadcrumbs && breadcrumbs.length > 0 && (
         <nav className="mb-3 flex flex-wrap items-center gap-1 text-sm text-gray-500">
           {breadcrumbs.map((crumb, i) => (

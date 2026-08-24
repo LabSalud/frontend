@@ -92,7 +92,7 @@ export default function ValidacionPage() {
 
   if (!canValidate) {
     return (
-      <div className="mx-auto w-full max-w-full px-4 py-4">
+      <div className="w-full py-4">
         <div className="rounded-2xl border-2 border-emerald-500 bg-white/95 p-6 shadow-md backdrop-blur-sm">
           <h1 className="mb-3 text-xl font-bold text-gray-800">Validación de Resultados</h1>
           <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-red-700">
@@ -105,7 +105,7 @@ export default function ValidacionPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-full px-4 py-4">
+    <div className="w-full py-4">
       <div className="rounded-2xl border-2 border-emerald-500 bg-white/95 p-4 shadow-md backdrop-blur-sm md:p-6">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-4">
           <div className="lg:w-56 lg:shrink-0">

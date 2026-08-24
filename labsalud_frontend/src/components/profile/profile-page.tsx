@@ -258,7 +258,7 @@ export default function ProfilePage() {
 
   if (!user || isLoadingProfile) {
     return (
-      <div className="w-full max-w-4xl mx-auto py-4 px-2 sm:px-4 space-y-4 sm:space-y-6">
+      <div className="w-full py-4 space-y-4 sm:space-y-6">
         {/* Header skeleton */}
         <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-md p-4 sm:p-6">
           <Skeleton className="h-8 w-64 rounded mb-2" />
@@ -309,7 +309,7 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="w-full max-w-4xl mx-auto py-4 px-2 sm:px-4 space-y-4 sm:space-y-6">
+    <div className="w-full py-4 space-y-4 sm:space-y-6">
       <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-md p-4 sm:p-6">
         <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-800">Mi Perfil</h1>
         <p className="text-sm sm:text-base text-gray-600 mt-1">

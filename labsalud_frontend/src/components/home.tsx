@@ -281,7 +281,7 @@ export default function Home() {
   ]
 
   return (
-    <div className="mx-auto w-full max-w-7xl px-4 py-5 sm:px-6">
+    <div className="w-full py-5">
       <section className="mb-5 rounded-lg border border-slate-200 bg-white/70 p-4 shadow-sm backdrop-blur-sm sm:p-5">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex min-w-0 items-center gap-3">

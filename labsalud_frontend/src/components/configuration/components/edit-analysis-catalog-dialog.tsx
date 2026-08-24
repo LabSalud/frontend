@@ -15,6 +15,11 @@ import { useToast } from "@/hooks/use-toast"
 import { Loader2, TestTube } from "lucide-react"
 import { CATALOG_ENDPOINTS } from "@/config/api"
 import { formatApiError, getErrorMessage } from "@/lib/api-error"
+import { useNbuOptions } from "@/hooks/use-nbu-options"
+import { usePreciosFijos } from "@/hooks/use-precios-fijos"
+import { PropagarPreciosDialog } from "./propagar-precios-dialog"
+import { CampoPrecioFijo } from "./campo-precio-fijo"
+import { CampoUbPorNomenclador } from "./campo-ub-por-nomenclador"
 
 interface EditAnalysisCatalogDialogProps {
   open: boolean
@@ -33,26 +38,55 @@ export const EditAnalysisCatalogDialog: React.FC<EditAnalysisCatalogDialogProps>
   const toastActions = useToast()
   const [code, setCode] = useState("")
   const [name, setName] = useState("")
-  const [bioUnit, setBioUnit] = useState("")
   const [isUrgent, setIsUrgent] = useState(false)
   const [requiresDerivacion, setRequiresDerivacion] = useState(false)
+  const { habilitados: preciosFijosHabilitados } = usePreciosFijos()
+  const [cobraPrecioFijo, setCobraPrecioFijo] = useState(false)
+  const [precioParticular, setPrecioParticular] = useState("")
   const [category, setCategory] = useState<string>("")
   const [isObsolete, setIsObsolete] = useState(false)
   const [isRefNormalized, setIsRefNormalized] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
 
+  // EL ÚNICO UB QUE SE CARGA A MANO
+  //
+  // Arriba de esto había un campo "Unidad Bioquímica (etiqueta)" que escribía
+  // `Analysis.bio_unit`. Eran dos números para lo mismo, tipeados por separado
+  // y en la misma pantalla, sin ninguna forma de saber cuál mandaba: el precio
+  // siempre salió de acá, pero la pantalla de ingreso usa `bio_unit` como
+  // estimación mientras llega la cotización — así que el que se veía primero
+  // era justo el que nadie mantenía.
+  //
+  // Ahora `bio_unit` lo deriva el backend del UB del nomenclador principal
+  // (ver `sincronizar_bio_unit`) y el formulario dejó de ofrecerlo.
+  const { nbus } = useNbuOptions()
+  const [ubPorNbu, setUbPorNbu] = useState<Record<number, string>>({})
+  const [ubOriginal, setUbOriginal] = useState<Record<number, string>>({})
+  // Cambiar el UB acá tampoco alcanza a los protocolos ya creados.
+  const [propagar, setPropagar] = useState(false)
+
   useEffect(() => {
     if (analysis && open) {
       setCode(analysis.code.toString())
       setName(analysis.name)
-      setBioUnit(analysis.bio_unit)
       setIsUrgent(analysis.is_urgent)
       setRequiresDerivacion(analysis.requires_derivacion ?? false)
+      setCobraPrecioFijo(analysis.cobra_precio_fijo ?? false)
+      setPrecioParticular(analysis.precio_particular ?? "")
       setCategory(analysis.category ?? "")
       setIsObsolete(analysis.is_obsolete ?? false)
       setIsRefNormalized(analysis.is_ref_normalized ?? false)
       setErrors({})
+      // Se arma con los valores del análisis y NO con la lista de nomencladores:
+      // esa lista se rehace en cada render mientras carga, y con ella en las
+      // dependencias el efecto volvía a correr y borraba lo tipeado.
+      const propios: Record<number, string> = {}
+      for (const valor of analysis.bio_unit_values ?? []) {
+        if (valor.nbu_id) propios[valor.nbu_id] = valor.value
+      }
+      setUbPorNbu(propios)
+      setUbOriginal(propios)
     }
   }, [analysis, open])
 
@@ -64,7 +98,21 @@ export const EditAnalysisCatalogDialog: React.FC<EditAnalysisCatalogDialogProps>
     if (!code.trim()) newErrors.code = "El código es requerido."
     else if (!/^[\w.-]+$/.test(code.trim()))
       newErrors.code = "El código no puede tener espacios ni símbolos raros."
-    if (!bioUnit.trim()) newErrors.bioUnit = "La unidad bioquímica es requerida."
+    const cobraFijo = cobraPrecioFijo && preciosFijosHabilitados
+    if (cobraFijo) {
+      const precio = Number.parseFloat(precioParticular)
+      if (!precioParticular.trim() || Number.isNaN(precio) || precio < 0) {
+        newErrors.precioParticular = "Poné un precio válido (0 o más)."
+      }
+    }
+
+    // El principal es el último eslabón de la cadena: si se lo vacía no queda de
+    // dónde heredar y el análisis deja de poder cobrarse. El backend también lo
+    // rechaza; acá se avisa antes de escribir nada.
+    const principal = nbus.find((nbu) => nbu.is_default)
+    if (principal && ubOriginal[principal.id] && !(ubPorNbu[principal.id] ?? "").trim()) {
+      newErrors.ub = `${principal.name} es el nomenclador principal: no puede quedarse sin UB. Cambiá el valor, o quitalo desde una actualización que cuelgue de él.`
+    }
 
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
@@ -78,10 +126,19 @@ export const EditAnalysisCatalogDialog: React.FC<EditAnalysisCatalogDialogProps>
       const analysisUpdateData: Partial<Analysis> = {}
       if (code.trim() !== analysis.code) analysisUpdateData.code = code.trim()
       if (name !== analysis.name) analysisUpdateData.name = name
-      if (bioUnit !== analysis.bio_unit) analysisUpdateData.bio_unit = bioUnit
       if (isUrgent !== analysis.is_urgent) analysisUpdateData.is_urgent = isUrgent
       if (requiresDerivacion !== (analysis.requires_derivacion ?? false)) {
         analysisUpdateData.requires_derivacion = requiresDerivacion
+      }
+      // Solo si la función está habilitada: si no, apagar el interruptor
+      // global apagaría de paso el de cada análisis al primer guardado.
+      if (preciosFijosHabilitados) {
+        if (cobraPrecioFijo !== (analysis.cobra_precio_fijo ?? false)) {
+          analysisUpdateData.cobra_precio_fijo = cobraPrecioFijo
+        }
+        if (cobraPrecioFijo && precioParticular !== (analysis.precio_particular ?? "")) {
+          analysisUpdateData.precio_particular = precioParticular
+        }
       }
       if (category !== (analysis.category ?? "")) {
         analysisUpdateData.category = category as Analysis["category"]
@@ -89,9 +146,37 @@ export const EditAnalysisCatalogDialog: React.FC<EditAnalysisCatalogDialogProps>
       if (isObsolete !== (analysis.is_obsolete ?? false)) analysisUpdateData.is_obsolete = isObsolete
       if (isRefNormalized !== (analysis.is_ref_normalized ?? false)) analysisUpdateData.is_ref_normalized = isRefNormalized
 
+      // Los UB van PRIMERO y con el código viejo: si en la misma pasada se
+      // cambió el código, quitar un UB pide el código con el que está guardado.
+      const cambiosDeUb = nbus.filter(
+        (nbu) => (ubPorNbu[nbu.id] ?? "").trim() !== (ubOriginal[nbu.id] ?? ""),
+      )
+      for (const nbu of cambiosDeUb) {
+        const valor = (ubPorNbu[nbu.id] ?? "").trim()
+        const respuesta = valor
+          ? await apiRequest(CATALOG_ENDPOINTS.NBU_UPDATE_UB_VALUE(nbu.id), {
+              method: "POST",
+              body: { analysis_id: analysis.id, value: valor },
+            })
+          : await apiRequest(CATALOG_ENDPOINTS.NBU_DELETE_UB_VALUE(nbu.id, analysis.code), {
+              method: "DELETE",
+            })
+        if (!respuesta.ok) {
+          const datos = await respuesta.json().catch(() => ({}))
+          throw new Error(formatApiError(datos, `No se pudo guardar el UB en ${nbu.name}.`))
+        }
+      }
+
       if (Object.keys(analysisUpdateData).length === 0) {
-        toastActions.info("Sin cambios", { description: "No se realizaron modificaciones." })
+        if (cambiosDeUb.length === 0) {
+          toastActions.info("Sin cambios", { description: "No se realizaron modificaciones." })
+          onOpenChange(false)
+          return
+        }
+        toastActions.success("Éxito", { description: "UB actualizado correctamente." })
+        onSuccess(analysis)
         onOpenChange(false)
+        setPropagar(true)
         return
       }
 
@@ -105,6 +190,7 @@ export const EditAnalysisCatalogDialog: React.FC<EditAnalysisCatalogDialogProps>
         toastActions.success("Éxito", { description: "Análisis actualizado correctamente." })
         onSuccess(updatedAnalysis)
         onOpenChange(false)
+        if (cambiosDeUb.length > 0) setPropagar(true)
       } else {
         const errorData = await response.json().catch(() => ({ detail: "Error desconocido" }))
         const errorMessage = formatApiError(errorData, "No se pudo actualizar el análisis.")
@@ -137,6 +223,16 @@ export const EditAnalysisCatalogDialog: React.FC<EditAnalysisCatalogDialogProps>
   if (!analysis) return null
 
   return (
+    <>
+    {/* El diálogo de propagación vive fuera del de edición: se abre justo
+        cuando este se cierra, así que anidarlo lo desmontaría al abrirse. */}
+    <PropagarPreciosDialog
+      open={propagar}
+      onOpenChange={setPropagar}
+      analysisId={analysis.id}
+      titulo={`Protocolos con ${analysis.name}`}
+    />
+
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="w-[95vw] max-w-[500px] max-h-[90vh] overflow-y-auto">
         <DialogHeading icon={TestTube} title="Editar análisis" description={analysis.name} />
@@ -167,42 +263,13 @@ export const EditAnalysisCatalogDialog: React.FC<EditAnalysisCatalogDialogProps>
             {errors.name && <p className="text-sm text-red-500">{errors.name}</p>}
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="edit-bioUnit">Unidad Bioquímica (principal) *</Label>
-            <Input
-              id="edit-bioUnit"
-              value={bioUnit}
-              onChange={(e) => setBioUnit(e.target.value)}
-              placeholder="Ingrese la unidad bioquímica principal"
-            />
-            <p className="text-xs text-gray-500">
-              Es la UB que se usa por defecto. Cada OOSS puede elegir la UB de un año específico según su nomenclador.
-            </p>
-            {errors.bioUnit && <p className="text-sm text-red-500">{errors.bioUnit}</p>}
-          </div>
-
-          {analysis.bio_unit_values && analysis.bio_unit_values.length > 0 && (
-            <div className="space-y-2 rounded-md border border-blue-100 bg-blue-50/50 p-3">
-              <Label className="text-sm font-semibold text-blue-900">
-                UB históricas por año (referencia)
-              </Label>
-              <p className="text-xs text-blue-800">
-                Estos valores se importan desde el catálogo Excel. Cada obra social usa la UB del año de su nomenclador asignado.
-              </p>
-              <div className="flex flex-wrap gap-1.5 mt-2">
-                {analysis.bio_unit_values.map((item) => (
-                  <span
-                    key={item.year}
-                    className="inline-flex items-center gap-1 rounded-md border border-blue-200 bg-white px-2 py-1 text-xs font-mono text-blue-700"
-                  >
-                    <span className="font-semibold">{item.year}</span>
-                    <span className="text-blue-400">·</span>
-                    <span>{item.value}</span>
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
+          <CampoUbPorNomenclador
+            nbus={nbus}
+            valores={ubPorNbu}
+            onChange={setUbPorNbu}
+            error={errors.ub}
+            disabled={isLoading}
+          />
 
           <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
             <div>
@@ -229,6 +296,15 @@ export const EditAnalysisCatalogDialog: React.FC<EditAnalysisCatalogDialogProps>
               onCheckedChange={setRequiresDerivacion}
             />
           </div>
+
+          <CampoPrecioFijo
+            habilitado={preciosFijosHabilitados}
+            cobraPrecioFijo={cobraPrecioFijo}
+            onCobraPrecioFijoChange={setCobraPrecioFijo}
+            precio={precioParticular}
+            onPrecioChange={setPrecioParticular}
+            error={errors.precioParticular}
+          />
 
           <div className="space-y-2">
             <Label htmlFor="edit-category">Categoría NBU</Label>
@@ -284,5 +360,6 @@ export const EditAnalysisCatalogDialog: React.FC<EditAnalysisCatalogDialogProps>
         </DialogFooter>
       </DialogContent>
     </Dialog>
+    </>
   )
 }

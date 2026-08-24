@@ -1,10 +1,16 @@
 import { useEffect, useState } from "react"
 import { useSearchParams } from "react-router-dom"
 
-import { Banknote, BookOpen, ChevronDown, Landmark, Plus, Search, Trash2, X } from "lucide-react"
+import {
+  ArrowDownWideNarrow, Banknote, BookOpen, ChevronDown, Landmark, Plus, Search,
+  Trash2, X,
+} from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select"
 import { DateRangePicker } from "@/components/ui/date-range-picker"
 import { ANALYTICS_ENDPOINTS, PROTOCOL_ENDPOINTS } from "@/config/api"
 import { useApiQuery } from "@/hooks/use-api-query"
@@ -73,7 +79,12 @@ type Respuesta = {
   hasta: string | null
   /** Lo que se buscó, tal como lo aplicó el backend. `null` si no se buscó. */
   buscar: string | null
+  /** Con cuál de los dos órdenes respondió el backend. */
+  orden: Orden
 }
+
+/** Cómo se ordenan las filas. Los mismos dos valores que acepta el endpoint. */
+type Orden = "fecha" | "protocolo"
 
 const plata = (valor: string | undefined) =>
   new Intl.NumberFormat("es-AR", {
@@ -130,6 +141,17 @@ export default function LibroDiarioPage() {
   // Con debounce porque cada tecla sería una consulta al libro entero.
   const [buscado, setBuscado] = useState("")
   const buscar = useDebounce(buscado.trim(), 300)
+  // POR FECHA DE ARRANQUE
+  //
+  // El libro es un registro cronológico: lo primero que se hace con él es
+  // mirar qué pasó hoy, y conciliar la caja pide recorrer los movimientos en
+  // el orden en que ocurrieron. Por protocolo sirve para otra cosa —revisar
+  // una tanda, con los de una jornada juntos y en orden— y por eso se elige.
+  //
+  // Reordena en el backend, no acá: las filas que llegan son las del rango con
+  // el tope de la pantalla, así que ordenarlas en el navegador daría el orden
+  // correcto de un recorte elegido por fecha.
+  const [orden, setOrden] = useState<Orden>("fecha")
   const [agregando, setAgregando] = useState(false)
   // Qué pago se está corrigiendo, y de qué protocolo. `null` = cerrado.
   const [corrigiendo, setCorrigiendo] = useState<
@@ -147,13 +169,14 @@ export default function LibroDiarioPage() {
   const puedeCargarMovimientos = hasPermission(PERMISSIONS.MANAGE_BILLING.codename)
 
   const consulta = useApiQuery<Respuesta>({
-    queryKey: ["analytics", "libro-diario", desde, hasta, protocoloSenalado, buscar],
+    queryKey: ["analytics", "libro-diario", desde, hasta, protocoloSenalado, buscar, orden],
     // Siempre agrupado: una fila por protocolo con la fecha de su último pago.
     // El detalle de cada cobro se abre en la fila.
     url:
       `${ANALYTICS_ENDPOINTS.LIBRO_DIARIO}?agrupado=protocolo&desde=${desde}&hasta=${hasta}` +
       (protocoloSenalado ? `&protocolo=${protocoloSenalado}` : "") +
-      (buscar ? `&buscar=${encodeURIComponent(buscar)}` : ""),
+      (buscar ? `&buscar=${encodeURIComponent(buscar)}` : "") +
+      `&orden=${orden}`,
     staleTime: 30 * 1000,
   })
 
@@ -349,6 +372,20 @@ export default function LibroDiarioPage() {
                 </button>
               ) : null}
             </div>
+
+            <Select value={orden} onValueChange={(valor) => setOrden(valor as Orden)}>
+              <SelectTrigger
+                className="h-9 w-full sm:w-44"
+                aria-label="Ordenar el libro"
+              >
+                <ArrowDownWideNarrow className="mr-1 h-4 w-4 shrink-0 text-gray-400" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="fecha">Por fecha</SelectItem>
+                <SelectItem value="protocolo">Por protocolo</SelectItem>
+              </SelectContent>
+            </Select>
 
             {puedeCargarMovimientos ? (
               <Button

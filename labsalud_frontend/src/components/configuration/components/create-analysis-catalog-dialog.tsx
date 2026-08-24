@@ -100,7 +100,11 @@ export const CreateAnalysisCatalogDialog: React.FC<CreateAnalysisCatalogDialogPr
     // prácticas que no están en ningún nomenclador. Exigírsela obligaría a
     // inventarle una, que es lo que la función vino a evitar.
     const cobraFijo = cobraPrecioFijo && preciosFijosHabilitados
-    if (!cobraFijo && !nbus.some((nbu) => (ubPorNbu[nbu.id] ?? "").trim())) {
+    // `nbus.length > 0` no es una formalidad: el bloque del UB no se dibuja sin
+    // nomencladores, así que exigirlo cuando la lista todavía está viajando
+    // —o cuando el laboratorio no tiene ninguno cargado— dejaría el alta
+    // trabada con un error que no tiene dónde mostrarse.
+    if (!cobraFijo && nbus.length > 0 && !nbus.some((nbu) => (ubPorNbu[nbu.id] ?? "").trim())) {
       newErrors.ub = "Cargá el UB en al menos un nomenclador: sin ninguno el análisis cotiza cero."
     }
     if (cobraFijo) {

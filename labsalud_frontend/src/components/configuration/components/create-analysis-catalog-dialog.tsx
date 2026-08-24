@@ -16,7 +16,9 @@ import { useToast } from "@/hooks/use-toast"
 import { Loader2, TestTube } from "lucide-react"
 import { CATALOG_ENDPOINTS } from "@/config/api"
 import { formatApiError, getErrorMessage } from "@/lib/api-error"
+import { useNbuOptions } from "@/hooks/use-nbu-options"
 import { CampoPrecioFijo } from "./campo-precio-fijo"
+import { CampoUbPorNomenclador } from "./campo-ub-por-nomenclador"
 import {
   determinacionVacia,
   DeterminacionesDelAlta,
@@ -41,7 +43,6 @@ export const CreateAnalysisCatalogDialog: React.FC<CreateAnalysisCatalogDialogPr
   const { habilitados: preciosFijosHabilitados } = usePreciosFijos()
   const [code, setCode] = useState("")
   const [name, setName] = useState("")
-  const [bioUnit, setBioUnit] = useState("")
   const [isUrgent, setIsUrgent] = useState(false)
   const [requiresDerivacion, setRequiresDerivacion] = useState(false)
   const [cobraPrecioFijo, setCobraPrecioFijo] = useState(false)
@@ -50,6 +51,18 @@ export const CreateAnalysisCatalogDialog: React.FC<CreateAnalysisCatalogDialogPr
   const [isObsolete, setIsObsolete] = useState(false)
   const [isRefNormalized, setIsRefNormalized] = useState(false)
   const [esModulo, setEsModulo] = useState(false)
+  // EL UB SE CARGA ACÁ, NO DESPUÉS
+  //
+  // Este bloque estaba solo en la edición. Un análisis recién dado de alta
+  // existía, aparecía en el buscador del ingreso y se podía pedir — y cotizaba
+  // cero hasta que alguien se acordara de entrar a editarlo para cargarle el
+  // UB. Es el mismo componente que usa la edición: es el mismo dato.
+  //
+  // En su lugar había un campo "Unidad Bioquímica" que escribía `bio_unit`, un
+  // segundo número para lo mismo que no interviene en el precio. Ahora lo
+  // deriva el backend del UB del principal (ver `sincronizar_bio_unit`).
+  const { nbus } = useNbuOptions()
+  const [ubPorNbu, setUbPorNbu] = useState<Record<number, string>>({})
   const [determinaciones, setDeterminaciones] = useState<DeterminacionEnEdicion[]>([
     determinacionVacia(),
   ])
@@ -60,7 +73,6 @@ export const CreateAnalysisCatalogDialog: React.FC<CreateAnalysisCatalogDialogPr
     if (open) {
       setCode("")
       setName("")
-      setBioUnit("")
       setIsUrgent(false)
       setRequiresDerivacion(false)
       setCobraPrecioFijo(false)
@@ -69,6 +81,7 @@ export const CreateAnalysisCatalogDialog: React.FC<CreateAnalysisCatalogDialogPr
       setIsObsolete(false)
       setIsRefNormalized(false)
       setEsModulo(false)
+      setUbPorNbu({})
       setDeterminaciones([determinacionVacia()])
       setErrors({})
       setIsLoading(false)
@@ -87,7 +100,9 @@ export const CreateAnalysisCatalogDialog: React.FC<CreateAnalysisCatalogDialogPr
     // prácticas que no están en ningún nomenclador. Exigírsela obligaría a
     // inventarle una, que es lo que la función vino a evitar.
     const cobraFijo = cobraPrecioFijo && preciosFijosHabilitados
-    if (!cobraFijo && !bioUnit.trim()) newErrors.bioUnit = "La unidad bioquímica es requerida."
+    if (!cobraFijo && !nbus.some((nbu) => (ubPorNbu[nbu.id] ?? "").trim())) {
+      newErrors.ub = "Cargá el UB en al menos un nomenclador: sin ninguno el análisis cotiza cero."
+    }
     if (cobraFijo) {
       const precio = Number.parseFloat(precioParticular)
       if (!precioParticular.trim() || Number.isNaN(precio) || precio < 0) {
@@ -110,7 +125,6 @@ export const CreateAnalysisCatalogDialog: React.FC<CreateAnalysisCatalogDialogPr
       const analysisData = {
         code: code.trim(),
         name,
-        bio_unit: bioUnit,
         is_urgent: isUrgent,
         requires_derivacion: requiresDerivacion,
         cobra_precio_fijo: cobraPrecioFijo && preciosFijosHabilitados,
@@ -121,8 +135,12 @@ export const CreateAnalysisCatalogDialog: React.FC<CreateAnalysisCatalogDialogPr
         is_obsolete: isObsolete,
         is_ref_normalized: isRefNormalized,
         // Se crean en la misma transacción que el análisis: si algo falla, no
-        // queda un análisis a medio armar.
+        // queda un análisis a medio armar. Los UB van igual y por lo mismo: un
+        // análisis creado sin ellos cotiza cero.
         determinations: paraEnviar(determinaciones, name, esModulo),
+        ub_por_nomenclador: nbus
+          .filter((nbu) => (ubPorNbu[nbu.id] ?? "").trim())
+          .map((nbu) => ({ nbu_id: nbu.id, value: ubPorNbu[nbu.id].trim() })),
       }
       const response = await apiRequest(CATALOG_ENDPOINTS.ANALYSIS, {
         method: "POST",
@@ -194,18 +212,13 @@ export const CreateAnalysisCatalogDialog: React.FC<CreateAnalysisCatalogDialogPr
             {errors.name && <p className="text-sm text-red-500">{errors.name}</p>}
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="bioUnit">
-              Unidad Bioquímica {cobraPrecioFijo && preciosFijosHabilitados ? "" : "*"}
-            </Label>
-            <Input
-              id="bioUnit"
-              value={bioUnit}
-              onChange={(e) => setBioUnit(e.target.value)}
-              placeholder="Ingrese la unidad bioquímica"
-            />
-            {errors.bioUnit && <p className="text-sm text-red-500">{errors.bioUnit}</p>}
-          </div>
+          <CampoUbPorNomenclador
+            nbus={nbus}
+            valores={ubPorNbu}
+            onChange={setUbPorNbu}
+            error={errors.ub}
+            disabled={isLoading}
+          />
 
           <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
             <div>

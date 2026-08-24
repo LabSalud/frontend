@@ -17,9 +17,9 @@ import { CATALOG_ENDPOINTS } from "@/config/api"
 import { formatApiError, getErrorMessage } from "@/lib/api-error"
 import { useNbuOptions } from "@/hooks/use-nbu-options"
 import { usePreciosFijos } from "@/hooks/use-precios-fijos"
-import { resolverUb } from "@/lib/ub-por-nomenclador"
 import { PropagarPreciosDialog } from "./propagar-precios-dialog"
 import { CampoPrecioFijo } from "./campo-precio-fijo"
+import { CampoUbPorNomenclador } from "./campo-ub-por-nomenclador"
 
 interface EditAnalysisCatalogDialogProps {
   open: boolean
@@ -38,7 +38,6 @@ export const EditAnalysisCatalogDialog: React.FC<EditAnalysisCatalogDialogProps>
   const toastActions = useToast()
   const [code, setCode] = useState("")
   const [name, setName] = useState("")
-  const [bioUnit, setBioUnit] = useState("")
   const [isUrgent, setIsUrgent] = useState(false)
   const [requiresDerivacion, setRequiresDerivacion] = useState(false)
   const { habilitados: preciosFijosHabilitados } = usePreciosFijos()
@@ -50,11 +49,17 @@ export const EditAnalysisCatalogDialog: React.FC<EditAnalysisCatalogDialogProps>
   const [isLoading, setIsLoading] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
 
-  // EL UB QUE SE COBRA ES ESTE, NO EL DE ARRIBA
-  // `bio_unit` es una etiqueta que se muestra en la pantalla de resultados. Lo
-  // que decide cuánto paga el paciente es el UB del nomenclador de su obra
-  // social, y hasta ahora solo se podía tocar desde la pantalla de
-  // Nomencladores, escribiendo el código del análisis de memoria.
+  // EL ÚNICO UB QUE SE CARGA A MANO
+  //
+  // Arriba de esto había un campo "Unidad Bioquímica (etiqueta)" que escribía
+  // `Analysis.bio_unit`. Eran dos números para lo mismo, tipeados por separado
+  // y en la misma pantalla, sin ninguna forma de saber cuál mandaba: el precio
+  // siempre salió de acá, pero la pantalla de ingreso usa `bio_unit` como
+  // estimación mientras llega la cotización — así que el que se veía primero
+  // era justo el que nadie mantenía.
+  //
+  // Ahora `bio_unit` lo deriva el backend del UB del nomenclador principal
+  // (ver `sincronizar_bio_unit`) y el formulario dejó de ofrecerlo.
   const { nbus } = useNbuOptions()
   const [ubPorNbu, setUbPorNbu] = useState<Record<number, string>>({})
   const [ubOriginal, setUbOriginal] = useState<Record<number, string>>({})
@@ -65,7 +70,6 @@ export const EditAnalysisCatalogDialog: React.FC<EditAnalysisCatalogDialogProps>
     if (analysis && open) {
       setCode(analysis.code.toString())
       setName(analysis.name)
-      setBioUnit(analysis.bio_unit)
       setIsUrgent(analysis.is_urgent)
       setRequiresDerivacion(analysis.requires_derivacion ?? false)
       setCobraPrecioFijo(analysis.cobra_precio_fijo ?? false)
@@ -94,10 +98,7 @@ export const EditAnalysisCatalogDialog: React.FC<EditAnalysisCatalogDialogProps>
     if (!code.trim()) newErrors.code = "El código es requerido."
     else if (!/^[\w.-]+$/.test(code.trim()))
       newErrors.code = "El código no puede tener espacios ni símbolos raros."
-    // Con precio fijo la UB no cobra nada: son las prácticas que no están en
-    // ningún nomenclador. Exigírsela obligaría a inventarle una.
     const cobraFijo = cobraPrecioFijo && preciosFijosHabilitados
-    if (!cobraFijo && !bioUnit.trim()) newErrors.bioUnit = "La unidad bioquímica es requerida."
     if (cobraFijo) {
       const precio = Number.parseFloat(precioParticular)
       if (!precioParticular.trim() || Number.isNaN(precio) || precio < 0) {
@@ -125,7 +126,6 @@ export const EditAnalysisCatalogDialog: React.FC<EditAnalysisCatalogDialogProps>
       const analysisUpdateData: Partial<Analysis> = {}
       if (code.trim() !== analysis.code) analysisUpdateData.code = code.trim()
       if (name !== analysis.name) analysisUpdateData.name = name
-      if (bioUnit !== analysis.bio_unit) analysisUpdateData.bio_unit = bioUnit
       if (isUrgent !== analysis.is_urgent) analysisUpdateData.is_urgent = isUrgent
       if (requiresDerivacion !== (analysis.requires_derivacion ?? false)) {
         analysisUpdateData.requires_derivacion = requiresDerivacion
@@ -263,70 +263,13 @@ export const EditAnalysisCatalogDialog: React.FC<EditAnalysisCatalogDialogProps>
             {errors.name && <p className="text-sm text-red-500">{errors.name}</p>}
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="edit-bioUnit">
-              Unidad Bioquímica (etiqueta){" "}
-              {cobraPrecioFijo && preciosFijosHabilitados ? "" : "*"}
-            </Label>
-            <Input
-              id="edit-bioUnit"
-              value={bioUnit}
-              onChange={(e) => setBioUnit(e.target.value)}
-              placeholder="Ingrese la unidad bioquímica principal"
-            />
-            <p className="text-xs text-gray-500">
-              Es el texto que se muestra junto al análisis. No interviene en el precio: lo que se
-              cobra sale del UB por nomenclador, más abajo.
-            </p>
-            {errors.bioUnit && <p className="text-sm text-red-500">{errors.bioUnit}</p>}
-          </div>
-
-          {/* ESTE ES EL UB QUE SE COBRA.
-              Antes se listaba de solo lectura, "UB históricas por año", y para
-              cambiar uno había que ir a Nomencladores y escribir el código del
-              análisis de memoria. Es el número que multiplica el valor de la UB
-              de cada obra social: es acá donde se lo busca cuando algo se está
-              cobrando mal. */}
-          {nbus.length > 0 && (
-            <div className="space-y-2 rounded-md border border-blue-100 bg-blue-50/50 p-3">
-              <Label className="text-sm font-semibold text-blue-900">UB por nomenclador</Label>
-              <p className="text-xs text-blue-800">
-                Es lo que se cobra: cada obra social usa el nomenclador que tiene asignado. Dejarlo
-                vacío hace que el análisis herede el UB del nomenclador del que cuelga — así solo se
-                carga lo que cambió en cada actualización.
-              </p>
-              {errors.ub && <p className="text-sm text-red-600">{errors.ub}</p>}
-              <div className="mt-1 space-y-1.5">
-                {nbus.map((nbu) => {
-                  const rige = resolverUb(analysis.bio_unit_values, nbu.id, nbus)
-                  return (
-                    <div key={nbu.id} className="flex items-center gap-2 rounded-md bg-white p-2">
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm text-gray-900">
-                          {nbu.name}
-                          {nbu.year ? <span className="text-gray-400"> · {nbu.year}</span> : null}
-                        </p>
-                        <p className="text-[11px] text-gray-500">
-                          {rige.esPropio
-                            ? "Valor propio"
-                            : rige.valor
-                              ? `Hereda ${rige.valor} de ${rige.heredadoDe}`
-                              : "Sin UB en esta cadena"}
-                        </p>
-                      </div>
-                      <Input
-                        value={ubPorNbu[nbu.id] ?? ""}
-                        onChange={(e) => setUbPorNbu((previo) => ({ ...previo, [nbu.id]: e.target.value }))}
-                        placeholder={rige.valor && !rige.esPropio ? `${rige.valor} (heredado)` : "UB"}
-                        className="h-8 w-24 shrink-0 tabular-nums"
-                        aria-label={`UB en ${nbu.name}`}
-                      />
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-          )}
+          <CampoUbPorNomenclador
+            nbus={nbus}
+            valores={ubPorNbu}
+            onChange={setUbPorNbu}
+            error={errors.ub}
+            disabled={isLoading}
+          />
 
           <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
             <div>

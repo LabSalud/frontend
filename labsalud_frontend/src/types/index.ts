@@ -1341,7 +1341,7 @@ export interface BillingOossControlResponse {
 // BÚSQUEDA GLOBAL
 // ============================================================================
 
-export type GlobalSearchType = "patient" | "protocol" | "result" | "validation"
+export type GlobalSearchType = "patient" | "protocol" | "result" | "validation" | "ledger"
 
 /** Paciente asociado a un resultado de búsqueda. Puede no existir (ej: si algún día se indexan entidades sin paciente). */
 export interface GlobalSearchPatientRef {
@@ -1366,7 +1366,7 @@ export interface GlobalSearchItem {
   matched_on: string
 }
 
-/** Filtro por tipo. `all` es el default: trae los cuatro tipos mezclados. */
+/** Filtro por tipo. `all` es el default: trae todos los tipos mezclados. */
 export type GlobalSearchFilter = GlobalSearchType | "all"
 
 /** Totales por tipo para las chips. Vienen completos aunque se filtre por un solo tipo. */

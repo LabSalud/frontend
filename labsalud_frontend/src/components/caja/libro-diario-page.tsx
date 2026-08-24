@@ -1,12 +1,14 @@
 import { useEffect, useState } from "react"
 import { useSearchParams } from "react-router-dom"
 
-import { Banknote, BookOpen, ChevronDown, Landmark, Plus, Trash2 } from "lucide-react"
+import { Banknote, BookOpen, ChevronDown, Landmark, Plus, Search, Trash2, X } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { DateRangePicker } from "@/components/ui/date-range-picker"
 import { ANALYTICS_ENDPOINTS, PROTOCOL_ENDPOINTS } from "@/config/api"
 import { useApiQuery } from "@/hooks/use-api-query"
+import { useDebounce } from "@/hooks/use-debounce"
 import { BILLING_ENDPOINTS } from "@/config/api"
 import useAuth from "@/contexts/auth-context"
 import { useApi } from "@/hooks/use-api"
@@ -69,6 +71,8 @@ type Respuesta = {
   hay_mas: boolean
   desde: string | null
   hasta: string | null
+  /** Lo que se buscó, tal como lo aplicó el backend. `null` si no se buscó. */
+  buscar: string | null
 }
 
 const plata = (valor: string | undefined) =>
@@ -115,6 +119,17 @@ export default function LibroDiarioPage() {
 
   const [desde, setDesde] = useState(haceDias(7))
   const [hasta, setHasta] = useState(hoyISO())
+  // LA BÚSQUEDA VA AL BACKEND, NO SE FILTRA ACÁ
+  //
+  // El rango de fechas puede tener más movimientos que los que entran en la
+  // pantalla (el backend corta en un tope y lo avisa). Filtrando lo que ya
+  // llegó, buscar un apellido de hace tres semanas no lo encontraría aunque
+  // esté dentro del rango — y el vacío se leería como "no hay", que es la
+  // respuesta equivocada.
+  //
+  // Con debounce porque cada tecla sería una consulta al libro entero.
+  const [buscado, setBuscado] = useState("")
+  const buscar = useDebounce(buscado.trim(), 300)
   const [agregando, setAgregando] = useState(false)
   // Qué pago se está corrigiendo, y de qué protocolo. `null` = cerrado.
   const [corrigiendo, setCorrigiendo] = useState<
@@ -132,12 +147,13 @@ export default function LibroDiarioPage() {
   const puedeCargarMovimientos = hasPermission(PERMISSIONS.MANAGE_BILLING.codename)
 
   const consulta = useApiQuery<Respuesta>({
-    queryKey: ["analytics", "libro-diario", desde, hasta, protocoloSenalado],
+    queryKey: ["analytics", "libro-diario", desde, hasta, protocoloSenalado, buscar],
     // Siempre agrupado: una fila por protocolo con la fecha de su último pago.
     // El detalle de cada cobro se abre en la fila.
     url:
       `${ANALYTICS_ENDPOINTS.LIBRO_DIARIO}?agrupado=protocolo&desde=${desde}&hasta=${hasta}` +
-      (protocoloSenalado ? `&protocolo=${protocoloSenalado}` : ""),
+      (protocoloSenalado ? `&protocolo=${protocoloSenalado}` : "") +
+      (buscar ? `&buscar=${encodeURIComponent(buscar)}` : ""),
     staleTime: 30 * 1000,
   })
 
@@ -275,9 +291,14 @@ export default function LibroDiarioPage() {
               Libro diario
             </h1>
             <p className="text-sm text-gray-500">
-              {movimientos.length > 0
-                ? `${movimientos.length} movimientos`
-                : "Cada movimiento de plata, en orden"}
+              {movimientos.length === 0
+                ? "Cada movimiento de plata, en orden"
+                : buscar
+                  // Con una búsqueda activa los totales de abajo son los de lo
+                  // que coincide, no los del período: decirlo evita leer un
+                  // "Entró" recortado como si fuera el del rango entero.
+                  ? `${movimientos.length} movimientos coinciden con «${buscar}»`
+                  : `${movimientos.length} movimientos`}
             </p>
           </div>
 
@@ -300,6 +321,34 @@ export default function LibroDiarioPage() {
                 { label: "Últimos 30 días", desde: haceDias(30), hasta: hoyISO() },
               ]}
             />
+
+            {/* La barra: número de protocolo o paciente, sin elegir cuál. En el
+                mostrador llega cualquiera de los dos y pedirle a la persona que
+                elija el modo es hacerle resolver a ella una ambigüedad que la
+                base resuelve sola. */}
+            <div className="relative w-full sm:w-64">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+              <Input
+                type="search"
+                value={buscado}
+                onChange={(evento) => setBuscado(evento.target.value)}
+                placeholder="Protocolo o paciente…"
+                aria-label="Buscar en el libro diario"
+                autoComplete="off"
+                spellCheck={false}
+                className="h-9 pl-9 pr-9"
+              />
+              {buscado ? (
+                <button
+                  type="button"
+                  onClick={() => setBuscado("")}
+                  aria-label="Limpiar la búsqueda"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              ) : null}
+            </div>
 
             {puedeCargarMovimientos ? (
               <Button
@@ -352,8 +401,9 @@ export default function LibroDiarioPage() {
               <p className="py-6 text-center text-sm text-gray-400">Cargando…</p>
             ) : movimientos.length === 0 ? (
               <p className="py-6 text-center text-sm text-gray-400">
-                No hubo movimientos de plata en estas fechas. Probá con un rango
-                más amplio.
+                {buscar
+                  ? `Ningún movimiento coincide con «${buscar}» en estas fechas. Probá con un rango más amplio, o con el apellido o el número de protocolo.`
+                  : "No hubo movimientos de plata en estas fechas. Probá con un rango más amplio."}
               </p>
             ) : (
               movimientos.map((fila) => {
@@ -510,7 +560,8 @@ export default function LibroDiarioPage() {
 
         {consulta.data?.hay_mas ? (
           <p className="mt-4 text-center text-xs text-gray-500">
-            Hay más movimientos de los que entran en esta pantalla. Acotá las fechas para verlos todos.
+            Hay más movimientos de los que entran en esta pantalla. Acotá las fechas —o buscá por
+            protocolo o paciente— para verlos todos.
           </p>
         ) : null}
       </div>

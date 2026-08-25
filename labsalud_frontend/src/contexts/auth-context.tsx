@@ -20,12 +20,13 @@ import type {
 import {
   clearSession,
   getAccessToken,
-  getRefreshToken,
   getStoredUser,
   setAccessToken,
   setRefreshToken,
   setStoredUser,
 } from "@/lib/auth-storage"
+import { cerrarSesionEnElServidor } from "@/lib/cierre-de-sesion"
+import { refrescarSesion } from "@/lib/refresh-de-sesion"
 
 export interface TokenRefreshResponse {
   access: string
@@ -171,6 +172,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const logout = useCallback(
     (showToast = true) => {
+      // Primero el servidor, porque `clearSession()` borra el refresh token
+      // que hay que mandarle. No se espera: la pantalla cierra igual.
+      void cerrarSesionEnElServidor()
       clearSession()
       setToken(null)
       setUser(null)
@@ -187,6 +191,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const expireSession = useCallback(
     (message = "Tu sesión expiró. Volvé a iniciar sesión para continuar.") => {
+      // También acá, y por el motivo más importante de todos: el cierre por
+      // inactividad pasa por esta función, y ahí el refresh token está VIVO.
+      // La persona se fue del mostrador y la sesión se cerró sola; si no se
+      // invalida, el token sigue sirviendo las horas que le queden.
+      //
+      // Cuando se llega por un refresh que falló el token ya está muerto y la
+      // llamada no hace nada: el backend contesta 205 igual.
+      void cerrarSesionEnElServidor()
       clearSession()
       setToken(null)
       setUser(null)
@@ -270,32 +282,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
   )
 
   const refreshToken = useCallback(async (): Promise<boolean> => {
-    const refreshTokenValue = getRefreshToken()
-    if (!refreshTokenValue) return false
-
-    try {
-      const response = await fetch(AUTH_ENDPOINTS.TOKEN_REFRESH, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ refresh: refreshTokenValue }),
-      })
-
-      if (!response.ok) throw new Error()
-
-      const data: TokenRefreshResponse = await response.json()
-
-      setAccessToken(data.access)
-      if (data.refresh) {
-        setRefreshToken(data.refresh)
-      }
-      setToken(data.access)
-      return true
-    } catch {
+    // El pedido en sí vive en `@/lib/refresh-de-sesion`, compartido con
+    // `use-api`. Acá queda solo la reacción: sincronizar el estado de React y
+    // cerrar la sesión con un aviso si no se pudo renovar.
+    const renovada = await refrescarSesion()
+    if (!renovada) {
       expireSession("No se pudo renovar la sesión. Volvé a iniciar sesión.")
       return false
     }
+    // El token nuevo ya quedó guardado; se lee de ahí para no duplicar la
+    // fuente de verdad.
+    setToken(getAccessToken())
+    return true
   }, [expireSession])
 
   // Cierre de sesión exitoso, compartido por el login directo y por el que pasa

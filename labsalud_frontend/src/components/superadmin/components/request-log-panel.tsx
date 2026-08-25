@@ -171,7 +171,7 @@ export function RequestLogPanel({ onManualRefresh }: RequestLogPanelProps) {
                   <td className="whitespace-nowrap px-3 py-1.5 font-semibold text-gray-700">
                     {entry.method}
                   </td>
-                  <td className="max-w-[300px] truncate px-3 py-1.5 text-gray-900" title={entry.path}>
+                  <td className="max-w-0 truncate px-3 py-1.5 text-gray-900" title={entry.path}>
                     {entry.path}
                   </td>
                   <td className={`px-3 py-1.5 text-right font-semibold ${statusClass(entry.status_code)}`}>

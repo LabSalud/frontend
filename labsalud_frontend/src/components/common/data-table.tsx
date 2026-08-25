@@ -26,6 +26,40 @@ export interface Column<T> {
   sortable?: boolean
   sortField?: string
   align?: "left" | "right" | "center"
+  /** La columna cede su ancho preferido y se queda con el que sobra.
+   *
+   * Sirve para las columnas de texto largo —un nombre, un email— que hoy se
+   * cortan aunque haya lugar. El truncado tiene que depender del ancho REAL
+   * que la tabla le dio a la columna, no de un número escrito a mano: con un
+   * `max-w-[240px]` en el contenido, una pantalla que le da 400 px a la
+   * columna igual corta a los 240 y deja el resto en blanco.
+   *
+   * `max-w-0` es la forma de decirle al algoritmo de tabla que esta columna no
+   * tiene ancho preferido: reparte primero entre las demás y le deja el resto.
+   * El contenido se trunca contra ese resto, así que corta solo cuando de
+   * verdad no entra.
+   *
+   * El contenido necesita `truncate`, y si está adentro de un flex, `min-w-0`
+   * en el contenedor — sin eso un flex item no achica por debajo de su
+   * contenido y el truncate no llega a activarse nunca. */
+  flexible?: boolean
+  /** La columna se encoge hasta su contenido y no acepta espacio de relleno.
+   *
+   * Es la otra mitad de `flexible`, y sin ella `flexible` casi no sirve. El
+   * algoritmo de `table-layout: auto` reparte el espacio sobrante entre TODAS
+   * las columnas, y una columna con `max-w-0` declara ancho preferido cero, así
+   * que es la que menos recibe: el DNI se quedaba con 265 px para mostrar
+   * "12.345.678" mientras el nombre del paciente cortaba a 132.
+   *
+   * `w-px` es el modo de decir "encogé al contenido" en una tabla —un ancho
+   * declarado más chico que el contenido hace que la columna tome su mínimo—
+   * y `whitespace-nowrap` evita que el texto se parta en dos renglones al
+   * apretarla. Lo que sobra queda para las columnas `flexible`.
+   *
+   * Medido sobre la tabla de pacientes a 1600 px: sin esto el nombre corta a
+   * 132 px de los 248 que necesita; con esto entra completo, y a 1024 px vuelve
+   * a cortar, que es cuando de verdad no entra. */
+  compact?: boolean
   className?: string
   headerClassName?: string
   /** Clases de visibilidad responsive (ej. "hidden md:table-cell") aplicadas
@@ -140,7 +174,17 @@ export function DataTable<T>({
             Array.from({ length: skeletonRows }).map((_, i) => (
               <TableRow key={`sk-${i}`} className="border-gray-100 hover:bg-transparent">
                 {columns.map((col, ci) => (
-                  <TableCell key={col.id} className={cn("px-3 py-3", alignClass[col.align ?? "left"], col.responsive, col.className)}>
+                  <TableCell
+                    key={col.id}
+                    className={cn(
+                      "px-3 py-3",
+                      alignClass[col.align ?? "left"],
+                      col.flexible && "max-w-0",
+                      col.compact && "w-px whitespace-nowrap",
+                      col.responsive,
+                      col.className,
+                    )}
+                  >
                     {col.skeleton ?? (
                       <Skeleton
                         className={cn(
@@ -190,7 +234,14 @@ export function DataTable<T>({
                     {columns.map((col) => (
                       <TableCell
                         key={col.id}
-                        className={cn("px-3 py-3", alignClass[col.align ?? "left"], col.responsive, col.className)}
+                        className={cn(
+                          "px-3 py-3",
+                          alignClass[col.align ?? "left"],
+                          col.flexible && "max-w-0",
+                          col.compact && "w-px whitespace-nowrap",
+                          col.responsive,
+                          col.className,
+                        )}
                       >
                         {col.cell(row)}
                       </TableCell>

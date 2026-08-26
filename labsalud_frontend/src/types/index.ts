@@ -1055,6 +1055,12 @@ export interface Result {
   determination: ResultDetermination
   value: string
   is_valid: boolean
+  /**
+   * La determinación tiene fórmula pero el valor se carga a mano: el cálculo
+   * automático deja de pisarlo. Se enciende desde la pantalla de carga cuando
+   * la fórmula está mal y traba la fila.
+   */
+  carga_manual?: boolean
   /** true si este resultado ya fue enviado al paciente (envío parcial: se puede
    * enviar aunque el análisis no esté completo, con al menos un resultado). */
   is_sent?: boolean

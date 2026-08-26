@@ -148,6 +148,94 @@ export function useProtocolResults(protocolId: number) {
     [apiRequest, values, canEditResults],
   )
 
+  /**
+   * Enciende o apaga la carga a mano de una determinación con fórmula.
+   *
+   * Encendida, el cálculo deja de pisar el valor y la fila se escribe como
+   * cualquier otra: es la salida cuando la fórmula está mal cargada y traba el
+   * protocolo. Al apagarla se recalcula en el acto, así se ve enseguida qué
+   * decía la fórmula.
+   *
+   * El valor cargado a mano NO se borra al volver al cálculo: si la fórmula no
+   * resuelve —le falta un componente— la fila quedaría vacía y habría que
+   * escribirlo de nuevo.
+   */
+  const alternarCargaManual = useCallback(
+    async (resultId: number, manual: boolean): Promise<boolean> => {
+      if (!canEditResults) {
+        toast.error(PERMISSION_MESSAGES.MANAGE_RESULTS)
+        return false
+      }
+      setSaving((prev) => ({ ...prev, [resultId]: true }))
+      try {
+        const res = await apiRequest(RESULTS_ENDPOINTS.RESULT_DETAIL(resultId), {
+          method: "PATCH",
+          body: { carga_manual: manual },
+        })
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}))
+          throw new Error(formatApiError(err, "No se pudo cambiar el modo de carga"))
+        }
+        const updated: Result = await res.json()
+        const siguientes = results.map((r) => (r.id === resultId ? updated : r))
+        setResults(siguientes)
+        // Con la lista ya actualizada: si se apagó, el cálculo vuelve a correr
+        // sobre esta fila; si se encendió, la saltea.
+        setValues((prev) => applyFormulaCalculations(siguientes, prev))
+        return true
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "No se pudo cambiar el modo de carga")
+        return false
+      } finally {
+        setSaving((prev) => ({ ...prev, [resultId]: false }))
+      }
+    },
+    [apiRequest, canEditResults, results],
+  )
+
+  /**
+   * Borra el valor cargado: lo vacía en pantalla y en la base.
+   *
+   * Va aparte de `onSave` porque no puede depender de que el estado ya se haya
+   * actualizado —`onSave` lee `values` de su clausura— y porque borrar es una
+   * acción con su propio botón, no el efecto de dejar un campo vacío.
+   */
+  const borrarValor = useCallback(
+    async (resultId: number): Promise<boolean> => {
+      if (!canEditResults) {
+        toast.error(PERMISSION_MESSAGES.MANAGE_RESULTS)
+        return false
+      }
+      setSaving((prev) => ({ ...prev, [resultId]: true }))
+      try {
+        const res = await apiRequest(RESULTS_ENDPOINTS.RESULT_DETAIL(resultId), {
+          method: "PATCH",
+          body: { value: "" },
+        })
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}))
+          throw new Error(formatApiError(err, "No se pudo borrar el valor"))
+        }
+        const updated: Result = await res.json()
+        setResults((prev) => prev.map((r) => (r.id === resultId ? updated : r)))
+        setValues((prev) => ({
+          ...prev,
+          [resultId]: { value: updated.value || "", notes: updated.notes || "" },
+        }))
+        if (updated.protocol_status !== undefined) {
+          setProtocol((prev) => (prev ? { ...prev, status: updated.protocol_status ?? null } : prev))
+        }
+        return true
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "No se pudo borrar el valor")
+        return false
+      } finally {
+        setSaving((prev) => ({ ...prev, [resultId]: false }))
+      }
+    },
+    [apiRequest, canEditResults],
+  )
+
   // Validar / rechazar un resultado (validación, mouse-first).
   const onValidate = useCallback(
     async (resultId: number, isValid: boolean, notes?: string): Promise<boolean> => {
@@ -253,6 +341,8 @@ export function useProtocolResults(protocolId: number) {
     onChange,
     onSave,
     onValidate,
+    alternarCargaManual,
+    borrarValor,
     previousResults,
     loadingPrevious,
     loadPrevious,

@@ -25,7 +25,7 @@ interface ProtocolResultsLoaderProps {
  * useProtocolResults en la página).
  */
 export function ProtocolResultsLoader({ controller }: ProtocolResultsLoaderProps) {
-  const { loading, error, protocol, results, groups, submodulos, orderedIds, values, saving, onChange, onSave, previousResults, loadingPrevious, loadPrevious } =
+  const { loading, error, protocol, results, groups, submodulos, orderedIds, values, saving, onChange, onSave, alternarCargaManual, borrarValor, previousResults, loadingPrevious, loadPrevious } =
     controller
   const { hasPermission } = useAuth()
   // Sin `gestionar_resultados` la pantalla no desaparece: se sigue viendo todo
@@ -265,16 +265,28 @@ export function ProtocolResultsLoader({ controller }: ProtocolResultsLoaderProps
                   const calc = calculateFormulaValue(result, results, values)
                   const isFormula = !!result.determination.formula?.trim()
                   const formulaResolved = !!calc && calc.missingCodes.length === 0
+                  const cargaManual = !!result.carga_manual
+                  // En modo manual el campo se escribe aunque la fórmula
+                  // resuelva: es justo el caso en que resuelve mal.
+                  const bloqueada = (formulaResolved && !cargaManual) || isCancelled || !canEdit
+                  // Ya validado no se toca desde acá: se invalida primero.
+                  const puedeCambiarModo =
+                    !isCancelled && canEdit && !(result.is_valid && !result.is_wrong)
                   return (
                     <ResultDeterminationRow
                       key={result.id}
                       result={result}
                       value={values[result.id] || { value: "", notes: "" }}
                       saving={!!saving[result.id]}
-                      readOnly={formulaResolved || isCancelled || !canEdit}
+                      readOnly={bloqueada}
                       lockedReason={!canEdit ? PERMISSION_MESSAGES.MANAGE_RESULTS : undefined}
                       isFormula={isFormula}
                       formulaResolved={formulaResolved}
+                      cargaManual={cargaManual}
+                      onToggleCargaManual={
+                        puedeCambiarModo ? () => void alternarCargaManual(result.id, !cargaManual) : undefined
+                      }
+                      onBorrarValor={puedeCambiarModo ? () => void borrarValor(result.id) : undefined}
                       onChange={(field, val) => onChange(result.id, field, val)}
                       onSave={() => onSave(result.id)}
                       onLoadPrevious={() => loadPrevious(result.id, patientId, result.determination.id)}
@@ -284,9 +296,7 @@ export function ProtocolResultsLoader({ controller }: ProtocolResultsLoaderProps
                       registerTextarea={(el) => {
                         textareaRefs.current[result.id] = el
                       }}
-                      onInputKeyDown={(e) =>
-                        onInputKeyDown(e, result.id, formulaResolved || isCancelled || !canEdit)
-                      }
+                      onInputKeyDown={(e) => onInputKeyDown(e, result.id, bloqueada)}
                       onTextareaKeyDown={(e) => onTextareaKeyDown(e, result.id)}
                       previous={previousResults[result.id] || []}
                       loadingPrevious={loadingPrevious.has(result.id)}

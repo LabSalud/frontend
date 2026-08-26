@@ -1,3 +1,25 @@
+/**
+ * Fórmulas de determinaciones calculadas.
+ *
+ * EL CÓDIGO VIENE DE LA BASE, NO DE LA POSICIÓN
+ * =============================================
+ * Una fórmula referencia a sus componentes por código: `([660475_003] * 10) /
+ * [660475_001]`. Ese código lo genera el backend al crear la determinación y no
+ * cambia nunca — ni al arrastrarla a otro lugar, ni al dar de baja a una
+ * hermana.
+ *
+ * Hasta ahora el endpoint de resultados no mandaba `determination.code`, así
+ * que acá se deducía de la POSICIÓN en la lista. Mientras nadie tocara el
+ * análisis coincidía; apenas se reordenaba o se daba de baja una determinación,
+ * las de abajo se corrían un lugar y pasaban a responder por el código de la
+ * vecina. La fórmula seguía calculando —sin error, sin aviso— con el valor
+ * equivocado.
+ *
+ * `inferredCodeForIndex` quedó SOLO como red para un backend viejo (las PC de
+ * contingencia corren el suyo y pueden estar atrasadas). Si el código viene,
+ * manda el código.
+ */
+
 type FormulaDetermination = {
   id: number
   code?: string
@@ -13,6 +35,8 @@ export type FormulaResult = {
   id: number
   determination: FormulaDetermination
   analysis: FormulaAnalysis
+  /** Con esto encendido la fórmula no vuelve a pisar el valor. */
+  carga_manual?: boolean
 }
 
 export type FormulaValue = {
@@ -66,6 +90,7 @@ const buildResultCodeMap = (results: FormulaResult[]): Map<number, string> => {
   const resultCodes = new Map<number, string>()
   byAnalysis.forEach((analysisResults, analysisCode) => {
     analysisResults.forEach((result, index) => {
+      // El código real primero. La posición solo si no vino ninguno.
       resultCodes.set(result.id, result.determination.code || inferredCodeForIndex(analysisCode, index))
     })
   })
@@ -73,9 +98,44 @@ const buildResultCodeMap = (results: FormulaResult[]): Map<number, string> => {
   return resultCodes
 }
 
-const resolveRelativeCode = (code: string, currentAnalysisCode: string): string => {
+/**
+ * Los códigos del análisis indexados por su número: `1 → "660475_001"`.
+ *
+ * Es lo que hace que `[cod_1]` encuentre a su determinación sin depender de
+ * cómo esté escrito el código. Los 1519 que ya están cargados usan tres
+ * dígitos, pero las que se crearon desde la app quedaron con dos
+ * (`660475_07`), y rellenar a mano hasta tres no las encontraba nunca.
+ */
+const buildCodesByNumber = (
+  results: FormulaResult[],
+  analysisCode: string,
+): Map<number, string> => {
+  const porNumero = new Map<number, string>()
+
+  results.forEach((result) => {
+    if (result.analysis.code !== analysisCode) return
+    const code = result.determination.code
+    if (!code) return
+    const sufijo = code.split("_").pop()
+    if (!sufijo || !/^\d+$/.test(sufijo)) return
+    porNumero.set(Number(sufijo), code)
+  })
+
+  return porNumero
+}
+
+const resolveRelativeCode = (
+  code: string,
+  currentAnalysisCode: string,
+  codesByNumber: Map<number, string>,
+): string => {
   const relativeMatch = code.match(/^cod_(\d+)$/i)
   if (!relativeMatch) return code
+
+  const real = codesByNumber.get(Number(relativeMatch[1]))
+  if (real) return real
+
+  // Sin código real a la vista (backend viejo): se arma como se armaba antes.
   return `${currentAnalysisCode}_${relativeMatch[1].padStart(3, "0")}`
 }
 
@@ -105,10 +165,11 @@ export const calculateFormulaValue = (
   })
 
   const missingCodes: string[] = []
+  const codesByNumber = buildCodesByNumber(allResults, result.analysis.code)
   let expression = normalizeExpression(formula)
 
   expression = expression.replace(/\[([^\]]+)\]/g, (_match, rawCode: string) => {
-    const code = resolveRelativeCode(rawCode.trim(), result.analysis.code)
+    const code = resolveRelativeCode(rawCode.trim(), result.analysis.code, codesByNumber)
     const dependencyId = resultIdByCode.get(code)
     const dependencyValue = dependencyId ? toFormulaNumber(values[dependencyId]?.value) : null
 
@@ -140,6 +201,11 @@ export const applyFormulaCalculations = <T extends FormulaResult>(
     let changed = false
 
     results.forEach((result) => {
+      // Puesta a mano: el valor es de quien lo escribió, no del cálculo. Sigue
+      // sirviendo como componente de OTRAS fórmulas —está en `nextValues`—,
+      // que es lo que se quiere cuando una fórmula quedó mal y el resto no.
+      if (result.carga_manual) return
+
       const calculation = calculateFormulaValue(result, results, nextValues)
       if (!calculation || calculation.missingCodes.length > 0) return
 

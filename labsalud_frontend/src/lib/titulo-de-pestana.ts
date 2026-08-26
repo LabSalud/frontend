@@ -11,10 +11,10 @@
  * El formato es `Sección - Detalle`, y el detalle es el paciente cuando la
  * pantalla habla de uno solo:
  *
- *     Resultados - Juan Pérez
- *     Validación - Juan Pérez
- *     Protocolo - Juan Pérez
- *     Resultados - Labsalud      (la cola, que no es de nadie en particular)
+ *     Resultados | Juan Pérez
+ *     Validación | Juan Pérez
+ *     Protocolo | Juan Pérez
+ *     Resultados | Labsalud      (la cola, que no es de nadie en particular)
  *
  * Cuando no hay detalle va el nombre del sistema, para que una pestaña sola
  * siga diciendo de qué app es.
@@ -26,7 +26,7 @@ export const NOMBRE_DEL_SISTEMA = "Labsalud"
 /** `("Resultados", "Juan Pérez")` → `"Resultados - Juan Pérez"`. */
 export function tituloDePestana(seccion: string, detalle?: string | null): string {
   const limpio = detalle?.trim()
-  return `${seccion} - ${limpio || NOMBRE_DEL_SISTEMA}`
+  return `${seccion} | ${limpio || NOMBRE_DEL_SISTEMA}`
 }
 
 /** Nombre de cada pantalla sin parámetros, por ruta exacta. */
@@ -42,7 +42,7 @@ const SECCIONES_FIJAS: Record<string, string> = {
   "/contingencia": "Contingencia",
   "/ingreso": "Ingreso",
   "/protocolos": "Protocolos",
-  "/resultados": "Resultados",
+  "/resultados": "Resultado",
   "/validacion": "Validación",
   "/facturacion": "Facturación",
   "/libro-diario": "Libro diario",

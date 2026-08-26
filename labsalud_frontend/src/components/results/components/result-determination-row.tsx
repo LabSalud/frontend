@@ -2,7 +2,7 @@
 
 import type React from "react"
 import { useState } from "react"
-import { Loader2, Save, AlertTriangle, ShieldCheck, History, CheckCircle2, Circle } from "lucide-react"
+import { Loader2, Save, AlertTriangle, ShieldCheck, History, CheckCircle2, Circle, PencilLine, Sigma, Trash2 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
@@ -29,6 +29,13 @@ interface ResultDeterminationRowProps {
   lockedReason?: string
   isFormula: boolean
   formulaResolved: boolean
+  /** La fórmula quedó de lado: el valor se carga a mano. */
+  cargaManual: boolean
+  /** Enciende/apaga la carga a mano. `undefined` = no se puede (sin permiso,
+   *  protocolo cancelado o resultado ya validado). */
+  onToggleCargaManual?: () => void
+  /** Borra el valor cargado, en pantalla y en la base. */
+  onBorrarValor?: () => void
   onChange: (field: "value" | "notes", value: string) => void
   onSave: () => void
   onLoadPrevious: () => void
@@ -61,6 +68,9 @@ export function ResultDeterminationRow({
   lockedReason,
   isFormula,
   formulaResolved,
+  cargaManual,
+  onToggleCargaManual,
+  onBorrarValor,
   onChange,
   onSave,
   onLoadPrevious,
@@ -118,9 +128,40 @@ export function ResultDeterminationRow({
           <span className="font-semibold text-gray-900">{det.name}</span>
           {unit && <span className="ml-1 text-xs text-gray-500">({unit})</span>}
           {isFormula && (
-            <Badge variant="outline" className={cn("ml-2 text-[10px]", formulaResolved ? "border-blue-200 bg-blue-50 text-blue-700" : "border-amber-200 bg-amber-50 text-amber-700")}>
-              {formulaResolved ? "Auto" : "Fórmula pendiente"}
+            <Badge
+              variant="outline"
+              className={cn(
+                "ml-2 text-[10px]",
+                cargaManual
+                  ? "border-violet-200 bg-violet-50 text-violet-700"
+                  : formulaResolved
+                    ? "border-blue-200 bg-blue-50 text-blue-700"
+                    : "border-amber-200 bg-amber-50 text-amber-700",
+              )}
+            >
+              {cargaManual ? "A mano" : formulaResolved ? "Auto" : "Fórmula pendiente"}
             </Badge>
+          )}
+          {/* LA SALIDA CUANDO LA FÓRMULA ESTÁ MAL.
+              Una determinación calculada trae el valor sola y con el campo
+              bloqueado. Si la fórmula quedó mal cargada, eso trababa la fila
+              entera: no se podía escribir ni borrar, y el protocolo no cerraba.
+              El botón deja de lado el cálculo para ESTE protocolo; arreglar la
+              fórmula para todos es en Configuración. */}
+          {isFormula && onToggleCargaManual && (
+            <button
+              type="button"
+              onClick={onToggleCargaManual}
+              className="ml-2 inline-flex items-center gap-1 rounded border border-gray-200 px-1.5 py-0.5 align-middle text-[10px] font-medium text-gray-600 transition-colors hover:border-gray-300 hover:bg-gray-50 hover:text-gray-800"
+              title={
+                cargaManual
+                  ? "Vuelve a calcular el valor con la fórmula"
+                  : "Deja de lado la fórmula y permite escribir el valor a mano"
+              }
+            >
+              {cargaManual ? <Sigma className="h-3 w-3" /> : <PencilLine className="h-3 w-3" />}
+              {cargaManual ? "Volver a la fórmula" : "Cargar a mano"}
+            </button>
           )}
           {result.is_sent && (
             <Badge variant="outline" className="ml-2 border-sky-200 bg-sky-50 text-[10px] text-sky-700">
@@ -234,6 +275,21 @@ export function ResultDeterminationRow({
           title={lockedReason}
           className="min-h-0 flex-1 resize-none text-sm"
         />
+        {/* Borrar el valor. Solo en las de fórmula y solo cuando el campo se
+            puede escribir: en una fila en modo automático no tiene sentido,
+            porque el cálculo lo vuelve a poner enseguida. */}
+        {isFormula && onBorrarValor && !readOnly && !cannotSave && !!value.value && (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={onBorrarValor}
+            disabled={saving}
+            title="Borrar el valor cargado"
+            className="h-11 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        )}
         {/* El title va en el span: un botón deshabilitado no dispara eventos de
             mouse, así que su propio tooltip nativo no se muestra. */}
         <span title={lockedReason} className="inline-flex">

@@ -35,6 +35,8 @@ export type FormulaResult = {
   id: number
   determination: FormulaDetermination
   analysis: FormulaAnalysis
+  /** Con esto encendido la fórmula no vuelve a pisar el valor. */
+  carga_manual?: boolean
 }
 
 export type FormulaValue = {
@@ -199,6 +201,11 @@ export const applyFormulaCalculations = <T extends FormulaResult>(
     let changed = false
 
     results.forEach((result) => {
+      // Puesta a mano: el valor es de quien lo escribió, no del cálculo. Sigue
+      // sirviendo como componente de OTRAS fórmulas —está en `nextValues`—,
+      // que es lo que se quiere cuando una fórmula quedó mal y el resto no.
+      if (result.carga_manual) return
+
       const calculation = calculateFormulaValue(result, results, nextValues)
       if (!calculation || calculation.missingCodes.length > 0) return
 

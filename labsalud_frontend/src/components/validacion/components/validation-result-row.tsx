@@ -134,6 +134,15 @@ export function ValidationResultRow({ result, saving, disabled = false, onValida
             </Badge>
           )}
           {evaluatedReference && <span className="text-[10px] text-gray-500">{evaluatedReference}</span>}
+          {/* QUIEN VALIDA TIENE QUE SABER QUE ESTO NO LO CALCULÓ LA FÓRMULA.
+              La determinación es calculada, pero alguien dejó de lado el
+              cálculo y escribió el valor a mano. Sin esta marca, el que firma
+              lo lee como un número que salió de la fórmula. */}
+          {result.carga_manual && !!det.formula?.trim() && (
+            <Badge variant="outline" className="border-violet-200 bg-violet-50 text-[10px] text-violet-700">
+              Cargado a mano
+            </Badge>
+          )}
           {result.is_sent && (
             <Badge variant="outline" className="border-sky-200 bg-sky-50 text-[10px] text-sky-700">
               Enviado

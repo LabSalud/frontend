@@ -8,6 +8,8 @@ import { ProtocolCard } from "./components/protocol-card"
 import { ProtocolDetailSkeleton } from "./components/protocol-detail-skeleton"
 import { useApiQuery } from "@/hooks/use-api-query"
 import { useProtocolListNav } from "@/hooks/use-protocol-list-nav"
+import { useTituloDePestana } from "@/hooks/use-titulo-de-pestana"
+import { tituloDeDetalle } from "@/lib/titulo-de-pestana"
 import { NextInQueuePill } from "@/components/common/next-in-queue-pill"
 import { useQueryClient } from "@tanstack/react-query"
 import { PROTOCOL_ENDPOINTS, REPORTING_ENDPOINTS } from "@/config/api"
@@ -55,6 +57,8 @@ export default function ProtocolDetailPage() {
     : signaturesQuery.data?.results || []
 
   const detail = detailQuery.data
+
+  useTituloDePestana(tituloDeDetalle("Protocolo", detail?.patient))
 
   const protocol = useMemo<ProtocolListItem | null>(() => {
     if (!detail) return null

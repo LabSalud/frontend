@@ -7,6 +7,8 @@ import { InitialsAvatar } from "@/components/common/initials-avatar"
 import { StatusPill } from "@/components/common/status-pill"
 import { ProtocolMiniHeaderSkeleton } from "@/components/common/protocol-mini-header-skeleton"
 import { useProtocolResults } from "@/hooks/use-protocol-results"
+import { useTituloDePestana } from "@/hooks/use-titulo-de-pestana"
+import { nombreParaLaPestana, tituloDeDetalle } from "@/lib/titulo-de-pestana"
 import { useQueueNav } from "@/hooks/use-next-in-queue"
 import { NextInQueuePill } from "@/components/common/next-in-queue-pill"
 import { ProtocolResultsLoader } from "./components/protocol-results-loader"
@@ -17,6 +19,10 @@ export default function ProtocolResultsPage() {
   const controller = useProtocolResults(Number(protocolId))
   const header = controller.protocol
   const { prevId, nextId } = useQueueNav(Number(protocolId), "labsalud_results_status")
+
+  // "Resultados - Juan Pérez" en la pestaña: con varias abiertas a la vez es
+  // lo único que distingue la carga de este paciente de la del de al lado.
+  useTituloDePestana(tituloDeDetalle("Resultados", header?.patient))
 
   const Breadcrumb = (
     <nav className="mb-4 flex items-center gap-1.5 text-sm">
@@ -44,9 +50,7 @@ export default function ProtocolResultsPage() {
     )
   }
 
-  const name = header?.patient?.is_anonymous
-    ? "Paciente anónimo"
-    : `${header?.patient?.first_name ?? ""} ${header?.patient?.last_name ?? ""}`.trim()
+  const name = nombreParaLaPestana(header?.patient) ?? ""
 
   return (
     <div className="w-full py-4 pb-28">

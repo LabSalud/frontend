@@ -9,6 +9,8 @@ import { ProtocolMiniHeaderSkeleton } from "@/components/common/protocol-mini-he
 import useAuth from "@/contexts/auth-context"
 import { PERMISSIONS } from "@/config/permissions"
 import { useProtocolResults } from "@/hooks/use-protocol-results"
+import { useTituloDePestana } from "@/hooks/use-titulo-de-pestana"
+import { nombreParaLaPestana, tituloDeDetalle } from "@/lib/titulo-de-pestana"
 import { useQueueNav } from "@/hooks/use-next-in-queue"
 import { NextInQueuePill } from "@/components/common/next-in-queue-pill"
 import { ProtocolValidationLoader } from "./components/protocol-validation-loader"
@@ -20,6 +22,10 @@ export default function ProtocolValidationPage() {
   const controller = useProtocolResults(Number(protocolId))
   const header = controller.protocol
   const { prevId, nextId } = useQueueNav(Number(protocolId), "labsalud_validacion_status")
+
+  // Va antes del corte por permisos: los hooks se llaman siempre, y el título
+  // igual sirve en la pantalla de "no tenés permisos".
+  useTituloDePestana(tituloDeDetalle("Validación", header?.patient))
 
   if (!hasPermission(PERMISSIONS.VALIDATE_RESULTS.codename)) {
     return (
@@ -58,9 +64,7 @@ export default function ProtocolValidationPage() {
     )
   }
 
-  const name = header?.patient?.is_anonymous
-    ? "Paciente anónimo"
-    : `${header?.patient?.first_name ?? ""} ${header?.patient?.last_name ?? ""}`.trim()
+  const name = nombreParaLaPestana(header?.patient) ?? ""
 
   return (
     <div className="w-full py-4 pb-28">

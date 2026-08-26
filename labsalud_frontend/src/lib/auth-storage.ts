@@ -21,11 +21,19 @@ const ACCESS_TOKEN_KEY = "access_token"
 const REFRESH_TOKEN_KEY = "refresh_token"
 const USER_STORAGE_KEY = "user"
 
-// Vida útil aproximada de los tokens. El backend define la expiración real:
-// access ~ 15 min, refresh ~ 7 días. Si el backend devuelve un token con TTL menor,
-// la próxima request 401 disparará un refresh automático.
+// Cuánto vive la COOKIE. La expiración real la decide el backend
+// (`SIMPLE_JWT` en settings.py): access 15 min, refresh 8 horas. Acá se deja un
+// margen por encima para que el 401 y la renovación automática sean quienes
+// manejen el vencimiento, y no la desaparición silenciosa de la cookie.
+//
+// El refresh decía 7 días, y el comentario de al lado también. El backend
+// nunca emitió uno de 7 días: son 8 horas (`REFRESH_TOKEN_LIFETIME`). La
+// cookie sobrevivía seis días y medio a su propio token, así que al volver al
+// día siguiente el navegador mandaba un refresh vencido — presente pero
+// inválido, que es justo la condición que dispara varias renovaciones en
+// paralelo. Nueve horas: cubre las 8 con margen y se muere poco después.
 const ACCESS_TOKEN_MAX_AGE_SECONDS = 60 * 60 // 1 hora (margen sobre los 15 min del backend)
-const REFRESH_TOKEN_MAX_AGE_SECONDS = 60 * 60 * 24 * 7 // 7 días
+const REFRESH_TOKEN_MAX_AGE_SECONDS = 60 * 60 * 9 // 9 horas (margen sobre las 8 del backend)
 
 const isHttps = (): boolean => {
   if (typeof window === "undefined") return true

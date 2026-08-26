@@ -26,6 +26,8 @@ import { StatusPill } from "@/components/common/status-pill"
 import { AuditTimelineMini } from "@/components/common/audit-timeline-mini"
 import { useApi } from "@/hooks/use-api"
 import { useApiQuery } from "@/hooks/use-api-query"
+import { useTituloDePestana } from "@/hooks/use-titulo-de-pestana"
+import { tituloDeDetalle } from "@/lib/titulo-de-pestana"
 import { useQueryClient } from "@tanstack/react-query"
 import { EditPatientDialog } from "./components/edit-patient-dialog"
 import DeletePatientDialog from "./components/delete-patient-dialog"
@@ -78,6 +80,8 @@ export default function PatientDetailPage() {
     enabled: Boolean(id),
   })
   const patient = patientQuery.data
+
+  useTituloDePestana(tituloDeDetalle("Paciente", patient))
 
   const protocolsQuery = useApiQuery<{ results: ProtocolListItem[]; count: number }>({
     queryKey: ["patients", "protocols", id],

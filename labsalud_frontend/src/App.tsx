@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import ConfirmarEnvio from "./components/contingencia/confirmar-envio"
 import { AuthProvider } from "./contexts/auth-context"
 import { RouteChangeListener } from "./components/route-change-listener"
+import { TituloDePestana } from "./components/titulo-de-pestana"
 import { Layout } from "./components/layout"
 import { ProtectedRoute } from "./components/protected-route"
 import { Toaster } from "sonner"
@@ -96,6 +97,7 @@ function App() {
           <div className="relative z-10">
             <Router>
               <RouteChangeListener />
+              <TituloDePestana />
               <LimiteDeError>
               <Suspense fallback={<RouteFallback />}>
                 <Routes>

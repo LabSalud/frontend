@@ -49,6 +49,7 @@ export function ResultsQueueTable({ protocols, onRowClick, sort, onSortChange, i
   const columns: Column<ProtocolListItem>[] = [
     {
       id: "id",
+      compact: true,
       header: "Protocolo",
       sortable: true,
       sortField: "id",
@@ -59,13 +60,18 @@ export function ResultsQueueTable({ protocols, onRowClick, sort, onSortChange, i
     {
       id: "patient",
       header: "Paciente",
+      flexible: true,
       skeleton: patientSkeleton,
       cell: (p) => (
-        <div className="flex min-w-0 max-w-[220px] items-center gap-2.5">
+        <div className="flex min-w-0 items-center gap-2.5">
           <InitialsAvatar name={fullName(p)} size="sm" />
           <div className="min-w-0">
             {/* Sin link a la página del paciente (evita confusiones en la cola). */}
-            <span className="truncate font-semibold text-gray-800">{fullName(p)}</span>
+            {/* `block`: `truncate` es overflow-hidden, y sobre un elemento
+                inline no hace nada. Este span estaba adentro de un div en vez
+                de ser el flex item directo, así que se quedaba inline y no
+                truncaba nunca. */}
+            <span className="block truncate font-semibold text-gray-800">{fullName(p)}</span>
           </div>
         </div>
       ),
@@ -78,6 +84,7 @@ export function ResultsQueueTable({ protocols, onRowClick, sort, onSortChange, i
     },
     {
       id: "progress",
+      compact: true,
       header: "Progreso",
       skeleton: <Skeleton className="h-6 w-32 rounded" />,
       cell: (p) => (
@@ -90,6 +97,7 @@ export function ResultsQueueTable({ protocols, onRowClick, sort, onSortChange, i
     },
     {
       id: "status",
+      compact: true,
       header: "Estado",
       sortable: true,
       sortField: "status__name",
@@ -99,6 +107,7 @@ export function ResultsQueueTable({ protocols, onRowClick, sort, onSortChange, i
     },
     {
       id: "chevron",
+      compact: true,
       header: "",
       align: "right",
       className: "pr-4 w-10",

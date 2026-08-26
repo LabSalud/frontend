@@ -198,6 +198,7 @@ export function ProtocolsTable({
   const columns: Column<ProtocolListItem>[] = [
     {
       id: "select",
+      compact: true,
       header: "",
       className: "w-10 pl-4",
       responsive: "hidden md:table-cell",
@@ -214,6 +215,7 @@ export function ProtocolsTable({
     },
     {
       id: "id",
+      compact: true,
       header: "Protocolo",
       sortable: true,
       sortField: "id",
@@ -224,11 +226,19 @@ export function ProtocolsTable({
       header: "Paciente",
       sortable: true,
       sortField: "patient__last_name",
+      // `flexible` en vez de un max-width acá adentro. El comentario que estaba
+      // en este lugar decía que "en table auto-layout el max-width del td se
+      // ignora", y por eso el tope vivía en un div interno con un número fijo.
+      // Es cierto a medias: un `max-width: 240px` en el td sí se ignora, pero
+      // `max-width: 0` no — hace que la columna no declare ancho preferido y se
+      // quede con lo que sobra. Medido en Chrome sobre esta misma estructura:
+      // con el tope fijo el nombre corta a 198 px teniendo 1600 de pantalla;
+      // con `max-w-0` en el td usa los 239 que necesita y no corta. Con un
+      // nombre de verdad largo sigue cortando, que es lo que se quería.
+      flexible: true,
       skeleton: patientSkeleton,
-      // El max-width va en un div interno (no en el td): en table auto-layout el
-      // max-width del td se ignora. Así el nombre trunca y nunca empuja scroll.
       cell: (p) => (
-        <div className="flex min-w-0 max-w-[150px] items-center gap-2.5 sm:max-w-[200px] xl:max-w-[260px]">
+        <div className="flex min-w-0 items-center gap-2.5">
           <InitialsAvatar name={fullName(p)} size="sm" />
           <div className="min-w-0">
             {/* El nombre del paciente ya NO linkea a su página (generaba
@@ -248,10 +258,11 @@ export function ProtocolsTable({
       id: "insurance",
       header: "Obra social",
       responsive: "hidden xl:table-cell",
+      flexible: true,
       skeleton: <Skeleton className="h-4 w-24 rounded" />,
       cell: (p) =>
         p.insurance?.name ? (
-          <div className="max-w-[200px]">
+          <div className="min-w-0">
             <div className="truncate font-medium text-gray-700">{p.insurance.name}</div>
             {p.affiliate_number && <div className="truncate font-mono text-xs text-gray-500">{p.affiliate_number}</div>}
           </div>
@@ -261,6 +272,7 @@ export function ProtocolsTable({
     },
     {
       id: "status",
+      compact: true,
       header: "Estado",
       sortable: true,
       sortField: "status__name",
@@ -270,6 +282,7 @@ export function ProtocolsTable({
     },
     {
       id: "blockers",
+      compact: true,
       header: "Pendientes",
       responsive: "hidden lg:table-cell",
       skeleton: <Skeleton className="h-5 w-20 rounded" />,
@@ -277,6 +290,7 @@ export function ProtocolsTable({
     },
     {
       id: "balance",
+      compact: true,
       header: "Pago",
       responsive: "hidden md:table-cell",
       skeleton: <Skeleton className="h-4 w-24 rounded" />,
@@ -284,6 +298,7 @@ export function ProtocolsTable({
     },
     {
       id: "audit",
+      compact: true,
       header: "Auditoría",
       responsive: "hidden lg:table-cell",
       skeleton: auditSkeleton,
@@ -296,6 +311,7 @@ export function ProtocolsTable({
     },
     {
       id: "actions",
+      compact: true,
       header: "",
       align: "right",
       className: "pr-3",

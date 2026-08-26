@@ -69,6 +69,7 @@ export function PatientsTable({ patients, onRowClick, onMerge, onDelete, sort, o
   const columns: Column<Patient>[] = [
     {
       id: "dni",
+      compact: true,
       header: "DNI",
       sortable: true,
       sortField: "dni",
@@ -85,9 +86,10 @@ export function PatientsTable({ patients, onRowClick, onMerge, onDelete, sort, o
       header: "Paciente",
       sortable: true,
       sortField: "last_name",
+      flexible: true,
       skeleton: nameSkeleton,
       cell: (p) => (
-        <div className="flex min-w-0 max-w-[180px] items-center gap-2.5 sm:max-w-[240px]">
+        <div className="flex min-w-0 items-center gap-2.5">
           <InitialsAvatar name={fullName(p)} size="sm" />
           <span className="truncate font-semibold text-gray-800">{fullName(p)}</span>
         </div>
@@ -95,6 +97,7 @@ export function PatientsTable({ patients, onRowClick, onMerge, onDelete, sort, o
     },
     {
       id: "age",
+      compact: true,
       header: "Edad",
       align: "center",
       sortable: true,
@@ -105,6 +108,7 @@ export function PatientsTable({ patients, onRowClick, onMerge, onDelete, sort, o
     },
     {
       id: "sex",
+      compact: true,
       header: "Sexo",
       align: "center",
       responsive: "hidden md:table-cell",
@@ -117,6 +121,7 @@ export function PatientsTable({ patients, onRowClick, onMerge, onDelete, sort, o
     },
     {
       id: "phone",
+      compact: true,
       header: "Teléfono",
       responsive: "hidden lg:table-cell",
       skeleton: <Skeleton className="h-4 w-24 rounded" />,
@@ -134,10 +139,11 @@ export function PatientsTable({ patients, onRowClick, onMerge, onDelete, sort, o
       id: "email",
       header: "Email",
       responsive: "hidden xl:table-cell",
+      flexible: true,
       skeleton: <Skeleton className="h-4 w-36 rounded" />,
       cell: (p) =>
         p.email ? (
-          <span className="inline-flex max-w-[200px] items-center gap-1.5 text-sm text-gray-600">
+          <span className="flex min-w-0 items-center gap-1.5 text-sm text-gray-600">
             <Mail className="h-3.5 w-3.5 shrink-0 text-gray-400" />
             <span className="truncate">{p.email}</span>
           </span>
@@ -147,6 +153,7 @@ export function PatientsTable({ patients, onRowClick, onMerge, onDelete, sort, o
     },
     {
       id: "audit",
+      compact: true,
       header: "Auditoría",
       responsive: "hidden lg:table-cell",
       skeleton: auditSkeleton,
@@ -159,6 +166,7 @@ export function PatientsTable({ patients, onRowClick, onMerge, onDelete, sort, o
     },
     {
       id: "actions",
+      compact: true,
       header: "",
       align: "right",
       className: "pr-3",

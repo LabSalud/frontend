@@ -516,7 +516,7 @@ function EndpointTable({
         <tbody className="divide-y">
           {rows.map((row) => (
             <tr key={row.endpoint}>
-              <td className="max-w-[220px] truncate px-3 py-2 font-mono text-xs" title={row.endpoint}>
+              <td className="max-w-0 truncate px-3 py-2 font-mono text-xs" title={row.endpoint}>
                 {row.endpoint}
               </td>
               <td className={`px-3 py-2 text-right ${highlight === "count" ? "font-semibold" : ""}`}>

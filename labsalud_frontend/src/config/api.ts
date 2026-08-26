@@ -43,6 +43,9 @@ export const buildApiUrl = (endpoint: string): string => {
 export const AUTH_ENDPOINTS = {
   TOKEN: buildApiUrl("/auth/token/"),
   TOKEN_REFRESH: buildApiUrl("/auth/token/refresh/"),
+  /** Invalida el refresh token del lado del servidor. Va SIN Authorization: la
+   *  credencial es el propio refresh que viaja en el body. */
+  LOGOUT: buildApiUrl("/auth/logout/"),
   PASSWORD_RESET: buildApiUrl("/users/password-reset/"),
   // Segundo factor (TOTP). TOKEN_2FA cierra el login en dos pasos y, como el
   // login, va SIN Authorization: todavía no hay access token.

@@ -2,14 +2,9 @@
 
 import { useCallback } from "react"
 import { useLoading } from "@/hooks/use-loading"
-import { API_CONFIG, AUTH_ENDPOINTS } from "@/config/api"
-import {
-  clearSession,
-  getAccessToken,
-  getRefreshToken,
-  setAccessToken,
-  setRefreshToken,
-} from "@/lib/auth-storage"
+import { API_CONFIG } from "@/config/api"
+import { clearSession, getAccessToken } from "@/lib/auth-storage"
+import { refrescarSesion } from "@/lib/refresh-de-sesion"
 import { dispatchSessionExpiredEvent } from "@/lib/session-events"
 
 /**
@@ -58,33 +53,15 @@ export interface ApiRequestOptions {
 export const useApi = () => {
   const { setLoading } = useLoading()
 
-  const refreshToken = useCallback(async (): Promise<boolean> => {
-    const refreshTokenValue = getRefreshToken()
-    if (!refreshTokenValue) return false
-
-    try {
-      const response = await fetch(AUTH_ENDPOINTS.TOKEN_REFRESH, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ refresh: refreshTokenValue }),
-        mode: "cors",
-      })
-
-      if (!response.ok) return false
-
-      const data = await response.json()
-      setAccessToken(data.access)
-      if (data.refresh) {
-        setRefreshToken(data.refresh)
-      }
-      return true
-    } catch (error) {
-      console.error("[v0] Token refresh error:", error)
-      return false
-    }
-  }, [])
+  // La renovación vive en `@/lib/refresh-de-sesion` y no acá.
+  //
+  // Antes este hook tenía su propia copia, y `auth-context` otra. Dos copias
+  // significa que una pantalla que dispara requests por los dos caminos podía
+  // mandar dos renovaciones con el mismo refresh token. Mientras el backend no
+  // invalide el token viejo eso pasa desapercibido; en cuanto lo invalide,
+  // expulsa a la persona. El módulo compartido garantiza una sola renovación
+  // en curso.
+  const refreshToken = useCallback((): Promise<boolean> => refrescarSesion(), [])
 
   const apiRequest = useCallback(
     async (url: string, options: ApiRequestOptions = {}) => {

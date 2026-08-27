@@ -18,7 +18,8 @@ import { USER_ENDPOINTS, TOAST_DURATION } from "@/config/api"
 import type { ActiveTempPermission } from "@/types"
 import { formatApiError } from "@/lib/api-error"
 import { LAB_TIME_ZONE } from "@/lib/format-utils"
-import { DEFAULT_IDLE_MINUTES } from "@/lib/idle-config"
+import { DEFAULT_IDLE_MINUTES, type TramoDeInactividad } from "@/lib/idle-config"
+import { TramosDeInactividad } from "@/components/profile/components/tramos-de-inactividad"
 import { getStoredUser, setStoredUser } from "@/lib/auth-storage"
 import { TwoFactorSection } from "@/components/profile/components/two-factor-section"
 
@@ -30,6 +31,7 @@ interface ProfileData {
   last_name: string
   photo?: string
   inactivity_logout_minutes?: number | null
+  tramos_de_inactividad?: TramoDeInactividad[] | null
   active_temp_permissions: ActiveTempPermission[]
 }
 
@@ -476,6 +478,26 @@ export default function ProfilePage() {
                 </p>
               )}
             </div>
+
+            {/* Los horarios se guardan solos, con su propio botón: son una
+                lista y no entran en el `FormData` que lleva la foto. */}
+            <TramosDeInactividad
+              tramos={profileData?.tramos_de_inactividad ?? []}
+              minutosPorDefecto={
+                Number(formData.inactivity_logout_minutes) || DEFAULT_IDLE_MINUTES
+              }
+              onGuardado={(tramos) => {
+                queryClient.setQueryData<ProfileData>(["profile", "me"], (prev) =>
+                  prev ? { ...prev, tramos_de_inactividad: tramos } : prev,
+                )
+                // El temporizador vive en el contexto de auth y lee del usuario
+                // guardado: sin esto los horarios nuevos recién valdrían al
+                // volver a entrar.
+                const actual = getStoredUser<Record<string, unknown>>()
+                if (actual) setStoredUser({ ...actual, tramos_de_inactividad: tramos })
+                void refreshUser()
+              }}
+            />
 
             <Button type="submit" disabled={isSubmitting} className="w-full bg-[#204983] hover:bg-[#1a3d6f] mt-4">
               {isSubmitting ? (

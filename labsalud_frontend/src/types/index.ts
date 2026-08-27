@@ -199,7 +199,13 @@ export interface User {
   first_name: string
   last_name: string
   photo?: string
-  inactivity_logout_minutes?: number | null
+  inactivity_logout_minutes?: number
+  /**
+   * Franjas del día con su propio tiempo de inactividad. Las horas que no cubre
+   * ninguna caen en `inactivity_logout_minutes`: los tramos agregan
+   * excepciones, no reemplazan la configuración.
+   */
+  tramos_de_inactividad?: Array<{ desde: string; hasta: string; minutos: number }> | null
   /**
    * La contraseña la puso otra persona (alta, reset por mail, o el botón de
    * gestión de usuarios). Hasta que la cambie, el servidor contesta 403 a todo

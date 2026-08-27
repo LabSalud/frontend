@@ -8,7 +8,11 @@ import { useSessionNotifications } from "@/hooks/use-session-notifications"
 import { AUTH_ENDPOINTS } from "@/config/api"
 import { formatApiError } from "@/lib/api-error"
 import { getDeviceId } from "@/lib/device-id"
-import { resolveIdleTimeMs, resolveWarningTimeMs } from "@/lib/idle-config"
+import {
+  msDeInactividadAhora,
+  msHastaElProximoBorde,
+  resolveWarningTimeMs,
+} from "@/lib/idle-config"
 import { SESSION_EXPIRED_EVENT, type SessionExpiredDetail } from "@/lib/session-events"
 import type {
   TwoFactorEnrollmentConfirmResponse,
@@ -107,7 +111,15 @@ interface AuthProviderProps {
   children: ReactNode
 }
 
-const getIdleTimeFromUser = (user: User | null) => resolveIdleTimeMs(user?.inactivity_logout_minutes)
+/**
+ * Cuánto dura la inactividad AHORA para este usuario.
+ *
+ * Con tramos horarios el valor cambia a lo largo del día sin que nadie haga
+ * nada: a las 13:30 la sesión puede pasar de cinco minutos a una hora. Las
+ * horas que no cubre ningún tramo caen en `inactivity_logout_minutes`.
+ */
+const getIdleTimeFromUser = (user: User | null, ahora = new Date()) =>
+  msDeInactividadAhora(user?.tramos_de_inactividad, user?.inactivity_logout_minutes, ahora)
 
 /**
  * Detecta si el 400/401 vino porque venció el `ephemeral_token` (5 minutos) en
@@ -165,10 +177,53 @@ export function AuthProvider({ children }: AuthProviderProps) {
     closeActiveNotification,
   } = useSessionNotifications()
 
+  // EL RELOJ TAMBIÉN CAMBIA LA VENTANA
+  //
+  // No alcanza con recalcular cuando cambia el usuario: si tiene tramos, a las
+  // 13:30 en punto la ventana pasa a ser otra sin que nadie toque nada. En vez
+  // de preguntar cada treinta segundos, se programa un recálculo EN el borde
+  // del tramo, que es exacto y no cuesta nada mientras tanto.
+  const [tictac, setTictac] = useState(0)
+
   const idleConfig = useMemo(() => {
+    // `tictac` no se usa adentro: está para que el cálculo se rehaga cuando el
+    // reloj cruza un borde.
+    void tictac
     const idleTime = getIdleTimeFromUser(user)
     return { idleTime, warningTime: resolveWarningTimeMs(idleTime) }
-  }, [user])
+  }, [user, tictac])
+
+  useEffect(() => {
+    const tramos = user?.tramos_de_inactividad
+    if (!tramos?.length) return
+
+    let cancelado = false
+    let id: ReturnType<typeof setTimeout>
+
+    const programarElBorde = () => {
+      const falta = msHastaElProximoBorde(tramos)
+      if (falta === null) return
+      id = setTimeout(() => {
+        if (cancelado) return
+        setTictac((n) => n + 1)
+        programarElBorde()
+      }, falta)
+    }
+    programarElBorde()
+
+    // La máquina puede haber estado suspendida y el `setTimeout` haberse
+    // atrasado horas: al volver a la pantalla se recalcula sin esperar.
+    const alVolver = () => {
+      if (document.visibilityState === "visible") setTictac((n) => n + 1)
+    }
+    document.addEventListener("visibilitychange", alVolver)
+
+    return () => {
+      cancelado = true
+      clearTimeout(id)
+      document.removeEventListener("visibilitychange", alVolver)
+    }
+  }, [user?.tramos_de_inactividad])
 
   const logout = useCallback(
     (showToast = true) => {

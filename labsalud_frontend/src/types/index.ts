@@ -1361,7 +1361,14 @@ export interface MacroDeResultado {
 // BÚSQUEDA GLOBAL
 // ============================================================================
 
-export type GlobalSearchType = "patient" | "protocol" | "result" | "validation" | "ledger"
+export type GlobalSearchType =
+  | "patient"
+  | "protocol"
+  | "result"
+  | "validation"
+  | "ledger"
+  /** El análisis del catálogo en sí, no un protocolo que lo tenga. */
+  | "analysis"
 
 /** Paciente asociado a un resultado de búsqueda. Puede no existir (ej: si algún día se indexan entidades sin paciente). */
 export interface GlobalSearchPatientRef {

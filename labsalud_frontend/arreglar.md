@@ -102,27 +102,14 @@
 
 ##### BUSQUEDA — LO QUE QUEDA POR HACER
 Sale de medir 39 búsquedas realistas contra la base y separar lo que falla por
-falta de datos de lo que falla porque el buscador no sabe hacerlo. Lo que ya
-está hecho: cruce de palabras, códigos, estados, fechas, conceptos de cobro,
-estado de pago, valor y notas del resultado, domicilio del paciente.
+falta de datos de lo que falla porque el buscador no sabe hacerlo. De 20 que
+fallaban quedan 4, y todas están acá abajo.
 
-**Vale la pena**
-- ⭕️ **El catálogo como columna propia.** Hoy un análisis solo aparece si algún
-  protocolo lo tiene: buscar "eab" o "acido base" para ver la ficha, el precio
-  o las determinaciones de una práctica que nadie pidió todavía no devuelve
-  nada. Es un tipo nuevo (`TIPO_ANALISIS`) con su hidratador y su columna.
-- ⭕️ **Cobertura por entidad y no por fila.** "bilirrubina glucemia" no
-  encuentra el protocolo que tiene las dos, porque cada fila de resultado tiene
-  UNA determinación y la cobertura se verifica fila por fila. Se resuelve
-  agrupando por protocolo y exigiendo con `HAVING` que estén todas las
-  palabras.
-- ⭕️ **Anclas de cruce por obra social y por médico.** "alianza debe" o "correa
-  hoy" no encuentran nada: el cruce solo ancla en el paciente, en el catálogo o
-  en el número. Falta el mismo cruce arrancando por `ob` y por `me`.
-- ⭕️ **Importes tolerantes.** `15537` no encuentra el cobro de `15.537,50`: la
-  comparación es exacta. Un rango de un peso, o comparar solo la parte entera.
-- ⭕️ **Teléfono y email por adentro, no solo por prefijo.** Del teléfono uno se
-  acuerda del final ("5075"), y hoy solo se busca por el principio.
+Ya está hecho: cruce de palabras con cobertura de TODAS, códigos, estados,
+fechas, conceptos de cobro, estado de pago, valor y notas del resultado,
+domicilio del paciente, el catálogo como columna propia, la cobertura por
+entidad ("bilirrubina glucemia" trae el protocolo que tiene las dos), anclas
+por obra social y por médico, importes tolerantes y teléfono/mail por adentro.
 
 **Para discutir**
 - ⭕️ **Errores de tipeo.** "bargas" no encuentra a Vargas y nunca lo va a
@@ -133,20 +120,22 @@ estado de pago, valor y notas del resultado, domicilio del paciente.
   comodín va para adelante, no para atrás. Un stemmer mínimo (sacar la "s"
   final en palabras largas) alcanza para el 90%.
 - ⭕️ **Abreviaturas del laboratorio.** "hto" → hematocrito, "gr" →
-  eritrocitos, "eab" → estado ácido base. Es un diccionario que hay que dictar:
-  lo tiene la gente que carga, no el código.
-- ⭕️ **Ranking.** Hoy ordena por relevancia de FULLTEXT a secas: una
-  coincidencia en el domicilio pesa igual que una en el apellido, y un
-  protocolo de 2019 igual que uno de hoy. Ponderar por campo y por recencia
-  mejora la primera fila, que es la que se abre casi siempre.
+  eritrocitos. Es un diccionario que hay que dictar: lo tiene la gente que
+  carga, no el código.
+- ⭕️ **Ranking.** Ordena por relevancia de FULLTEXT a secas: una coincidencia
+  en el domicilio pesa igual que una en el apellido, y un protocolo de 2019
+  igual que uno de hoy. Ponderar por campo y por recencia mejora la primera
+  fila, que es la que se abre casi siempre.
 - ⭕️ **El techo del cruce.** Arranca por los 200 pacientes más relevantes
   (`TOPE_CRUCE`); con un apellido común el que se busca puede quedar afuera.
 - ⭕️ **Valores numéricos.** InnoDB no indexa tokens de menos de tres
   caracteres, así que un resultado que dice "13,4" no se puede buscar por su
   número. Haría falta una rama de igualdad sobre la columna.
-- ⭕️ **Buscar solo "debe"** lista los cobros con deuda, pero no los protocolos
-  que nunca recibieron un pago: esa fila no existe en el libro. Requiere
-  recorrer protocolos, que es la tabla grande.
+- ⭕️ **Filtros sueltos sin nombre.** "sin cargar" o "fuera de rango" solos no
+  devuelven nada (combinados con una persona sí). Anclar por esos flags obliga
+  a recorrer la tabla de resultados, que es la más grande del sistema; para eso
+  están los filtros de la pantalla de resultados. Ídem "debe" solo, que lista
+  los cobros con deuda pero no los protocolos que nunca recibieron un pago.
 
 **En la pantalla**
 - ⭕️ Sin resultados, sugerir sacar la palabra que más restringe ("no hay nada

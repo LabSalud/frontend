@@ -1,5 +1,6 @@
 "use client"
 import { useState, useEffect, useCallback } from "react"
+import { useSearchParams } from "react-router-dom"
 import { useApi } from "@/hooks/use-api"
 import { usePreciosFijos } from "@/hooks/use-precios-fijos"
 import { useToast } from "@/hooks/use-toast"
@@ -44,8 +45,22 @@ export function AnalysisManagement() {
   const [isLoadingMore, setIsLoadingMore] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const [searchTerm, setSearchTerm] = useState("")
+  // La búsqueda global manda acá con el código del análisis en `?buscar=`
+  // (`/configuracion?tab=analisis&buscar=660475`). Es lo más cerca que se
+  // puede llevar sin una ruta por análisis: el catálogo abre con el buscador
+  // ya cargado y la ficha a la vista.
+  const [searchParams, setSearchParams] = useSearchParams()
+  const [searchTerm, setSearchTerm] = useState(() => searchParams.get("buscar") ?? "")
   const debouncedSearchTerm = useDebounce(searchTerm, 500)
+
+  // El parámetro se consume una sola vez: si quedara en la URL, volver atrás
+  // desde otra pantalla recargaría una búsqueda que el usuario ya cambió.
+  useEffect(() => {
+    if (!searchParams.get("buscar")) return
+    const siguientes = new URLSearchParams(searchParams)
+    siguientes.delete("buscar")
+    setSearchParams(siguientes, { replace: true })
+  }, [searchParams, setSearchParams])
 
   const [refreshKey, setRefreshKey] = useState(0)
 

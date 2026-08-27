@@ -10,6 +10,7 @@ import {
   ChevronRight,
   FileText,
   FlaskConical,
+  Microscope,
   Loader2,
   Search,
   ShieldCheck,
@@ -79,6 +80,12 @@ const META: Record<GlobalSearchType, MetaDeTipo> = {
     icon: ShieldCheck,
     chip: "border-emerald-200 bg-emerald-50/90 text-emerald-700",
     vacio: "Ninguna validación",
+  },
+  analysis: {
+    label: "Análisis",
+    icon: Microscope,
+    chip: "border-teal-200 bg-teal-50/90 text-teal-700",
+    vacio: "Ningún análisis",
   },
   ledger: {
     label: "Libro diario",

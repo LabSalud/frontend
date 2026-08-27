@@ -55,6 +55,7 @@ const EMPTY_COUNTS: GlobalSearchCounts = {
   result: 0,
   validation: 0,
   ledger: 0,
+  analysis: 0,
 }
 
 // ---------------------------------------------------------------------------
@@ -67,6 +68,10 @@ export const GLOBAL_SEARCH_TIPOS: GlobalSearchType[] = [
   "protocol",
   "result",
   "validation",
+  // El catálogo va después de lo que le pasa a un paciente y antes de la
+  // plata: buscando un apellido es lo menos probable que se esté buscando,
+  // pero buscando un análisis es lo primero.
+  "analysis",
   "ledger",
 ]
 

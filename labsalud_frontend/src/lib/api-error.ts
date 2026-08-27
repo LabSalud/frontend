@@ -56,9 +56,35 @@ export const getErrorMessage = (error: unknown, fallback = "Ha ocurrido un error
   return formatApiError(error, fallback)
 }
 
+/**
+ * Un cuerpo que NO es un mensaje para nadie: la página de error de Django, el
+ * 502 de nginx, un HTML cualquiera.
+ *
+ * Sin este filtro, `formatApiError` toma el texto crudo como si fuera el
+ * mensaje del error y la pantalla muestra el HTML entero. Además de ilegible
+ * es peligroso: la página de debug de Django trae rutas del servidor, la
+ * configuración y el traceback, y eso terminaba impreso en la cara del
+ * usuario.
+ */
+const esCuerpoIlegible = (texto: string): boolean => {
+  const limpio = texto.trim()
+  if (!limpio) return true
+  if (limpio.startsWith("<")) return true
+  // Un mensaje de error es una frase. Media pantalla de texto es otra cosa.
+  return limpio.length > 300
+}
+
 export const readApiError = async (response: Response, fallback?: string): Promise<string> => {
   const text = await response.text().catch(() => "")
   const parsed = text ? tryParseJson(text) : null
+
+  // `tryParseJson` devuelve el texto tal cual cuando no es JSON.
+  if (typeof parsed === "string" && esCuerpoIlegible(parsed)) {
+    return fallback
+      ? `${fallback} (el servidor respondió ${response.status})`
+      : `Error ${response.status}`
+  }
+
   return formatApiError(parsed, fallback || `Error ${response.status}`)
 }
 

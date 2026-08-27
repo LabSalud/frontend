@@ -100,7 +100,10 @@ const SEARCH_HINTS = [
   { label: "Análisis", example: "hemograma" },
   { label: "Paciente + análisis", example: "perez orina" },
   { label: "Paciente + protocolo", example: "perez 4822" },
+  { label: "Fecha", example: "hoy · ayer · agosto · 26/08" },
+  { label: "Estado", example: "cancelado · urgente · sin cargar" },
   { label: "Estado de pago", example: "perez debe" },
+  { label: "Código", example: "660475" },
   { label: "Cobros", example: "coseguro · efectivo · 18400" },
 ]
 

@@ -1,5 +1,5 @@
 /**
- * Centralized API Configuration for LabSalud Frontend
+ * Centralized API Configuration for Labsalud Frontend
  * Based on Django REST Framework backend documentation
  */
 
@@ -250,6 +250,10 @@ export const ANALYTICS_ENDPOINTS = {
   // El cierre de caja de un día cualquiera, no solo el de hoy: es lo que abre
   // al hacer clic en una barra del gráfico del inicio.
   CAJA: (fecha: string) => buildApiUrl(`/analytics/dashboard/caja/?fecha=${fecha}`),
+  // Las estadísticas de un mes cualquiera, para mirar hacia atrás desde el
+  // inicio. `mes` va como YYYY-MM; sin él contesta el mes actual.
+  MES: (anio: number, mes: number) =>
+    buildApiUrl(`/analytics/dashboard/mes/?mes=${anio}-${String(mes).padStart(2, "0")}`),
   // Cuánta plata hay dando vueltas, en las dos direcciones.
   PENDIENTE: buildApiUrl("/analytics/dashboard/pendiente/"),
   LIBRO_DIARIO: buildApiUrl("/analytics/dashboard/libro-diario/"),

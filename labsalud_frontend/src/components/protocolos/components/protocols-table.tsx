@@ -389,7 +389,7 @@ export function ProtocolsTable({
  * NO SUMA ALTURA
  * ==============
  * Es la misma línea divisoria que ya separaba dos filas, nada más que en el
- * azul de LabSalud y de 2px. El `<div>` mide lo que mide ese borde y la
+ * azul de Labsalud y de 2px. El `<div>` mide lo que mide ese borde y la
  * etiqueta va posicionada encima, con fondo blanco para que la línea se corte
  * detrás del texto. Así las filas quedan igual de juntas que antes: el día se
  * lee sin que la lista se estire ni los protocolos queden separados en cajas.

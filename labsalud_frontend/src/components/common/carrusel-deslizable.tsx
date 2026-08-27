@@ -5,6 +5,11 @@ import { useCallback, useEffect, useRef } from "react"
 
 import { cn } from "@/lib/utils"
 
+/** Si el sistema pidió menos movimiento, no se anima nada. */
+const menosMovimiento = () =>
+  typeof window !== "undefined" &&
+  window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true
+
 /**
  * Una pista de paneles que se recorre deslizando.
  *
@@ -103,20 +108,29 @@ export function CarruselDeslizable({
     return true
   }, [])
 
-  // Al montar, la pista arranca donde diga `activo` y sin animación: el inicio
-  // abre en la semana actual, no en la primera y viajando.
-  //
-  // Con reintento por frame: el efecto puede correr antes de que el navegador
-  // le haya dado ancho a la pista, y `indice * 0` es siempre el principio.
-  const montado = useRef(false)
+  /**
+   * Al montar, la pista VIAJA hasta donde diga `activo`.
+   *
+   * Arranca en el primer panel —el más viejo— y se desplaza hasta el actual.
+   * No es decoración: muestra de un saque que hay semanas para atrás, que es
+   * lo que nadie descubre si la pista aparece ya puesta en la última.
+   *
+   * El viaje tiene que TERMINAR donde le pidieron. Antes se frenaba una antes
+   * porque el bloqueo del movimiento propio se soltaba por tiempo y el último
+   * tramo llegaba como si lo hubiera hecho la persona; ahora el bloqueo espera
+   * al índice objetivo.
+   *
+   * Con reintento por frame: el efecto puede correr antes de que el navegador
+   * le haya dado ancho a la pista, y `indice * 0` es siempre el principio.
+   */
   useEffect(() => {
     let cancelado = false
     const intentar = (restantes: number) => {
       if (cancelado) return
-      if (irA(activo, montado.current)) {
-        montado.current = true
-        return
-      }
+      // Quien pidió menos movimiento en el sistema no ve el viaje: aparece
+      // puesta en la semana actual.
+      const animar = !menosMovimiento()
+      if (irA(activo, animar)) return
       if (restantes > 0) requestAnimationFrame(() => intentar(restantes - 1))
     }
     intentar(10)

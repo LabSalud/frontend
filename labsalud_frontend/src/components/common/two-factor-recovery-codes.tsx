@@ -37,7 +37,7 @@ export function TwoFactorRecoveryCodes({ codes, acknowledged, onAcknowledgedChan
 
   const handleDownload = () => {
     const header = [
-      "LabSalud - Códigos de recuperación del segundo factor",
+      "Labsalud - Códigos de recuperación del segundo factor",
       `Generados: ${new Date().toLocaleString("es-AR")}`,
       "Cada código se usa una sola vez. Guardalos en un lugar seguro.",
       "",

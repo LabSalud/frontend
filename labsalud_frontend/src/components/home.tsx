@@ -10,6 +10,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock3,
+  FileText,
   FileWarning,
   FlaskConical,
   Receipt,
@@ -88,6 +89,42 @@ interface DashboardResponse {
   urgent_pending?: number
   avg_resolution_time_human?: string
   ready_to_bill?: number
+  /** Los meses que ofrece el selector, del primer protocolo hasta hoy. */
+  meses_disponibles?: MesDisponible[]
+}
+
+interface MesDisponible {
+  anio: number
+  mes: number
+}
+
+/**
+ * Las estadísticas de UN mes.
+ *
+ * El inicio mira el día de hoy y el mes en curso, y el 1° arranca de cero. Eso
+ * está bien para operar, pero deja el mes que cerró sin ningún lado donde
+ * mirarse. Esto contesta esa otra pregunta.
+ */
+interface EstadisticasDelMes {
+  anio: number
+  mes: number
+  es_mes_actual: boolean
+  desde: string
+  hasta: string
+  protocolos: number
+  pacientes: number
+  analisis: number
+  completados: number
+  completados_mes_anterior: number
+  /** `null` cuando el mes anterior no tuvo nada: no se inventa un porcentaje. */
+  crecimiento_porcentaje: string | null
+  cobrado: string
+  anonimos: number
+  arca: { billed: number; pending: number; failed: number }
+  obras_sociales: Array<{ insurance_id: number | null; name: string; protocols: number }>
+  pacientes_por_dia: Array<{ date: string; patients_served: number }>
+  caja_por_dia: Array<{ date: string; collected: string }>
+  meses_disponibles: MesDisponible[]
 }
 
 type TrendTone = "emerald" | "rose" | "slate"
@@ -111,6 +148,59 @@ const toneClasses: Record<TrendTone, string> = {
   slate: "bg-slate-50 text-slate-700 border-slate-200",
 }
 
+/**
+ * LA ENTRADA DEL INICIO.
+ *
+ * El inicio es la primera pantalla del día y son diez bloques de números que
+ * aparecen todos juntos: sin nada que los ordene, la vista no sabe por dónde
+ * empezar. Entrando escalonados de arriba hacia abajo, la lectura sigue el
+ * mismo orden en que están puestos.
+ *
+ * `motion-safe` en todas: quien pidió menos movimiento en el sistema las ve
+ * puestas, no cayendo.
+ */
+const ENTRADA = "motion-safe:animate-in motion-safe:fade-in motion-safe:duration-500"
+const ENTRADA_ARRIBA = `${ENTRADA} motion-safe:slide-in-from-top-3`
+const ENTRADA_ABAJO = `${ENTRADA} motion-safe:slide-in-from-bottom-3`
+
+/**
+ * La serie de días partida en semanas, la más reciente primero.
+ *
+ * Corta de a siete desde el final —el último día es siempre el más nuevo— y si
+ * al principio quedan días sueltos los deja como una semana más corta en vez
+ * de tirarlos. Con los 35 días del dashboard nunca sobra nada; con un mes de
+ * 30 sobraban dos días y el gráfico empezaba el 3.
+ */
+function enSemanas<T>(serie: T[]): T[][] {
+  const semanas: T[][] = []
+  let fin = serie.length
+  while (fin > 0) {
+    const inicio = Math.max(0, fin - 7)
+    semanas.push(serie.slice(inicio, fin))
+    fin = inicio
+  }
+  return semanas
+}
+
+const NOMBRES_DE_MES = [
+  "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+  "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
+]
+
+const nombreDelMes = (m: MesDisponible) => `${NOMBRES_DE_MES[m.mes - 1]} ${m.anio}`
+
+const esMesActual = (anio: number, mes: number) => {
+  const hoy = new Date()
+  return anio === hoy.getFullYear() && mes === hoy.getMonth() + 1
+}
+
+/** El retraso de cada bloque, con tope: el último no puede entrar un segundo tarde. */
+const retraso = (posicion: number) => ({
+  animationDelay: `${Math.min(posicion, 8) * 70}ms`,
+  animationFillMode: "both" as const,
+})
+
+
 export default function Home() {
   const { user, hasPermission } = useAuth()
   const { error: showErrorToast } = useToast()
@@ -129,16 +219,74 @@ export default function Home() {
   }, [dashboardQuery.error, showErrorToast])
 
   const dashboard = dashboardQuery.data
-  const loading = dashboardQuery.isLoading
-  const growthValue = parsePercent(dashboard?.protocols_completed_growth_percent)
+
+  // MIRAR UN MES PARA ATRÁS
+  //
+  // El inicio arranca siempre en HOY: es la pantalla con la que se abre el
+  // laboratorio y lo que importa a las ocho de la mañana es lo que hay
+  // pendiente ahora. `mesElegido` en `null` es exactamente eso, la pantalla de
+  // siempre; recién cuando alguien aprieta la flecha se pide otro mes.
+  const [mesElegido, setMesElegido] = useState<MesDisponible | null>(null)
+  const viendoOtroMes = mesElegido !== null
+
+  const mesQuery = useApiQuery<EstadisticasDelMes>({
+    queryKey: ["analytics", "mes", mesElegido?.anio, mesElegido?.mes],
+    url: mesElegido
+      ? ANALYTICS_ENDPOINTS.MES(mesElegido.anio, mesElegido.mes)
+      : ANALYTICS_ENDPOINTS.DASHBOARD,
+    enabled: viendoOtroMes,
+    // Un mes cerrado no cambia: no hace falta volver a pedirlo al rato.
+    staleTime: 5 * 60 * 1000,
+  })
+  const mesData = mesQuery.data
+
+  const loading = viendoOtroMes ? mesQuery.isLoading : dashboardQuery.isLoading
+
+  // Los meses que ofrece el selector. Vienen del dashboard —así el selector
+  // está armado desde el primer render— y si todavía no llegaron, al menos
+  // está el actual: un selector vacío no se puede ni abrir.
+  const mesesOfrecidos: MesDisponible[] = (() => {
+    const hoy = new Date()
+    const actual = { anio: hoy.getFullYear(), mes: hoy.getMonth() + 1 }
+    const lista = dashboard?.meses_disponibles?.length
+      ? [...dashboard.meses_disponibles]
+      : [actual]
+    // Del más nuevo al más viejo: en un selector, "el mes pasado" tiene que
+    // estar arriba y no al final de dos años de historia.
+    return lista.reverse()
+  })()
+
+  const mesVisible: MesDisponible = mesElegido ?? (() => {
+    const hoy = new Date()
+    return { anio: hoy.getFullYear(), mes: hoy.getMonth() + 1 }
+  })()
+
+  const posicionActual = mesesOfrecidos.findIndex(
+    (m) => m.anio === mesVisible.anio && m.mes === mesVisible.mes,
+  )
+  // La lista va del más nuevo al más viejo: "atrás" es avanzar en el índice.
+  const hayMesAnterior = posicionActual >= 0 && posicionActual < mesesOfrecidos.length - 1
+  const hayMesSiguiente = posicionActual > 0
+
+  const moverMes = (direccion: -1 | 1) => {
+    const destino = mesesOfrecidos[posicionActual + (direccion === -1 ? 1 : -1)]
+    if (!destino) return
+    setMesElegido(esMesActual(destino.anio, destino.mes) ? null : destino)
+  }
+
+  // El porcentaje del encabezado sigue al mes que se está mirando.
+  const growthValue = parsePercent(
+    viendoOtroMes
+      ? mesData?.crecimiento_porcentaje ?? undefined
+      : dashboard?.protocols_completed_growth_percent,
+  )
   const growthTone = getTrendTone(growthValue)
   // Gráfico: PACIENTES ATENDIDOS. 35 días (5 semanas de 7) con carrusel por
   // semana. weekIndex 0 = semana actual (más reciente); subir el índice = atrás.
-  const patientsSeries = dashboard?.patients_daily_last_35 || []
-  const weeks: Array<typeof patientsSeries> = []
-  for (let start = patientsSeries.length - 7; start >= 0; start -= 7) {
-    weeks.push(patientsSeries.slice(start, start + 7))
-  }
+  const patientsSeries = viendoOtroMes
+    ? mesData?.pacientes_por_dia || []
+    : dashboard?.patients_daily_last_35 || []
+  const weeks = enSemanas(patientsSeries)
   const [weekIndex, setWeekIndex] = useState(0)
   const activeWeek = weeks[weekIndex] || []
   const goOlderWeek = () => setWeekIndex((prev) => Math.min(Math.max(weeks.length - 1, 0), prev + 1))
@@ -162,19 +310,37 @@ export default function Home() {
   // El día abierto en el detalle de caja. null = ninguno.
   const [cajaDelDia, setCajaDelDia] = useState<string | null>(null)
 
-  const insuranceMix = dashboard?.insurance_mix_month || []
+  // LAS BARRAS CRECEN DESDE ABAJO.
+  //
+  // Se pintan en cero y en el frame siguiente pasan a su altura real; la
+  // transición que ya tenían hace el resto. Además de quedar lindo, el
+  // movimiento dice de un vistazo cuál es la barra más alta de la semana, que
+  // es lo único que se mira en un gráfico de siete días.
+  const [dibujado, setDibujado] = useState(false)
+  useEffect(() => {
+    if (loading) return
+    const id = requestAnimationFrame(() => setDibujado(true))
+    return () => cancelAnimationFrame(id)
+  }, [loading])
+
+  /** La altura de una barra: cero hasta el primer frame después de cargar. */
+  const alto = (px: number) => (dibujado ? `${px}px` : "0px")
+
+  // Estos dos SÍ son del mes, así que siguen al mes que se está mirando.
+  const insuranceMix = viendoOtroMes
+    ? mesData?.obras_sociales || []
+    : dashboard?.insurance_mix_month || []
   const topUrgent = dashboard?.top_urgent_analyses || []
   const missingInfo = dashboard?.missing_info
   const preauth = dashboard?.preauth_breakdown
-  const arca = dashboard?.arca_month
+  const arca = viendoOtroMes ? mesData?.arca : dashboard?.arca_month
   const cash = dashboard?.today_cash_revenue
   const cashBreakdown = cash?.breakdown
   // Caja: cobrado por día (35 días = 5 semanas) con el mismo carrusel de 7.
-  const cashSeries = dashboard?.cash_daily_last_35 || []
-  const cashWeeks: Array<typeof cashSeries> = []
-  for (let start = cashSeries.length - 7; start >= 0; start -= 7) {
-    cashWeeks.push(cashSeries.slice(start, start + 7))
-  }
+  const cashSeries = viendoOtroMes
+    ? mesData?.caja_por_dia || []
+    : dashboard?.cash_daily_last_35 || []
+  const cashWeeks = enSemanas(cashSeries)
   const [cashWeekIndex, setCashWeekIndex] = useState(0)
   const goOlderCashWeek = () => setCashWeekIndex((p) => Math.min(Math.max(cashWeeks.length - 1, 0), p + 1))
   const goNewerCashWeek = () => setCashWeekIndex((p) => Math.max(0, p - 1))
@@ -182,6 +348,43 @@ export default function Home() {
     const n = Number.parseFloat(v || "0")
     return Number.isFinite(n) ? `$${n.toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "$0.00"
   }
+
+  // LAS TARJETAS DE ARRIBA CAMBIAN DE PREGUNTA.
+  //
+  // En el mes en curso son operativas —cuánto tarda una carga, cuántos
+  // urgentes hay sin cerrar—: cosas de AHORA. Mirando un mes cerrado esas
+  // preguntas no tienen respuesta (no existe "urgentes pendientes de junio"),
+  // así que las cuatro pasan a ser el resumen de ese mes.
+  const kpisDelMes = [
+    {
+      label: "Protocolos",
+      value: numberOrZero(mesData?.protocolos).toLocaleString(),
+      detail: mesData ? `${mesData.desde} al ${mesData.hasta}` : "",
+      icon: FileText,
+      className: "border-[#204983]/25 bg-[#204983]/10 text-[#204983]",
+    },
+    {
+      label: "Pacientes atendidos",
+      value: numberOrZero(mesData?.pacientes).toLocaleString(),
+      detail: "Sin repetir: una persona cuenta una vez",
+      icon: Users,
+      className: "border-cyan-200 bg-cyan-50 text-cyan-800",
+    },
+    {
+      label: "Análisis",
+      value: numberOrZero(mesData?.analisis).toLocaleString(),
+      detail: "Sin contar el acto bioquímico",
+      icon: FlaskConical,
+      className: "border-violet-200 bg-violet-50 text-violet-800",
+    },
+    {
+      label: "Cobrado",
+      value: formatMoney(mesData?.cobrado),
+      detail: `${numberOrZero(mesData?.completados).toLocaleString()} protocolos completados`,
+      icon: Receipt,
+      className: "border-emerald-200 bg-emerald-50 text-emerald-800",
+    },
+  ]
 
   const mainKpis = [
     {
@@ -255,7 +458,10 @@ export default function Home() {
 
   return (
     <div className="w-full py-5">
-      <section className="mb-5 rounded-lg border border-slate-200 bg-white/70 p-4 shadow-sm backdrop-blur-sm sm:p-5">
+      <section
+        style={retraso(0)}
+        className={`mb-5 rounded-lg border border-slate-200 bg-white/70 p-4 shadow-sm backdrop-blur-sm sm:p-5 ${ENTRADA_ARRIBA}`}
+      >
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex min-w-0 items-center gap-3">
             <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-md bg-[#204983] text-white">
@@ -277,24 +483,88 @@ export default function Home() {
               )}
             </div>
           </div>
-          <div className={`inline-flex w-fit items-center gap-2 rounded-md border px-3 py-2 text-sm ${toneClasses[growthTone]}`}>
-            <TrendingUp className="h-4 w-4" />
-            <span className="font-semibold">
-              {growthValue > 0 ? "+" : ""}
-              {dashboard?.protocols_completed_growth_percent || "0.0%"}
-            </span>
-            <span>vs. mes anterior</span>
+          <div className="flex flex-wrap items-center gap-2">
+            {/* EL MES QUE SE ESTÁ MIRANDO.
+                El 1° las estadísticas arrancan de cero, que es lo que se
+                quiere para operar; la flecha es para que el mes que cerró no
+                quede sin ningún lado donde mirarse. */}
+            <div className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-1 py-1">
+              <button
+                type="button"
+                onClick={() => moverMes(-1)}
+                disabled={!hayMesAnterior}
+                aria-label="Mes anterior"
+                className="flex h-7 w-7 items-center justify-center rounded text-slate-500 transition hover:bg-slate-100 hover:text-[#204983] disabled:opacity-30"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+
+              <select
+                value={mesElegido ? `${mesElegido.anio}-${mesElegido.mes}` : "actual"}
+                onChange={(e) => {
+                  const valor = e.target.value
+                  if (valor === "actual") return setMesElegido(null)
+                  const [anio, mes] = valor.split("-").map(Number)
+                  setMesElegido(esMesActual(anio, mes) ? null : { anio, mes })
+                }}
+                aria-label="Mes de las estadísticas"
+                className="h-7 min-w-[9.5rem] cursor-pointer rounded bg-transparent px-1 text-sm font-medium text-slate-700 outline-none"
+              >
+                {mesesOfrecidos.map((m) => (
+                  <option key={`${m.anio}-${m.mes}`} value={`${m.anio}-${m.mes}`}>
+                    {nombreDelMes(m)}
+                    {esMesActual(m.anio, m.mes) ? " (en curso)" : ""}
+                  </option>
+                ))}
+              </select>
+
+              <button
+                type="button"
+                onClick={() => moverMes(1)}
+                disabled={!hayMesSiguiente}
+                aria-label="Mes siguiente"
+                className="flex h-7 w-7 items-center justify-center rounded text-slate-500 transition hover:bg-slate-100 hover:text-[#204983] disabled:opacity-30"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className={`inline-flex w-fit items-center gap-2 rounded-md border px-3 py-2 text-sm ${toneClasses[growthTone]}`}>
+              <TrendingUp className="h-4 w-4" />
+              <span className="font-semibold">
+                {growthValue > 0 ? "+" : ""}
+                {(viendoOtroMes
+                  ? mesData?.crecimiento_porcentaje
+                  : dashboard?.protocols_completed_growth_percent) || "0.0%"}
+              </span>
+              <span>vs. mes anterior</span>
+            </div>
           </div>
         </div>
       </section>
 
+      {viendoOtroMes && (
+        <p
+          style={retraso(1)}
+          className={`mb-5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 ${ENTRADA_ARRIBA}`}
+        >
+          Estás viendo <strong>{nombreDelMes(mesVisible)}</strong>, un mes que ya
+          cerró. Lo que es de ahora —pendientes de carga, caja del día, urgentes
+          sin cerrar— no se muestra: no sería de este mes.
+        </p>
+      )}
+
       <section className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {loading
           ? Array.from({ length: 4 }).map((_, index) => <MetricSkeleton key={index} />)
-          : mainKpis.map((item) => {
+          : (viendoOtroMes ? kpisDelMes : mainKpis).map((item, indice) => {
               const Icon = item.icon
               return (
-                <article key={item.label} className={`rounded-lg border p-4 shadow-sm ${item.className}`}>
+                <article
+                  key={item.label}
+                  style={retraso(indice + 1)}
+                  className={`rounded-lg border p-4 shadow-sm ${item.className} ${ENTRADA_ABAJO}`}
+                >
                   <div className="mb-4 flex items-start justify-between gap-3">
                     <div>
                       <p className="text-sm font-medium opacity-80">{item.label}</p>
@@ -309,7 +579,10 @@ export default function Home() {
       </section>
 
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(340px,0.65fr)]">
-        <section className="rounded-lg border border-slate-200 bg-white/70 p-4 shadow-sm backdrop-blur-sm sm:p-5">
+        <section
+          style={retraso(5)}
+          className={`rounded-lg border border-slate-200 bg-white/70 p-4 shadow-sm backdrop-blur-sm sm:p-5 ${ENTRADA_ABAJO}`}
+        >
           <div className="mb-4 flex items-center justify-between gap-3">
             <div className="flex min-w-0 items-center gap-2">
               <Users className="h-5 w-5 flex-shrink-0 text-[#204983]" />
@@ -379,8 +652,8 @@ export default function Home() {
                                   style={{ height: "176px" }}
                                 >
                                   <div
-                                    className={`w-full rounded-t-md transition-all duration-300 ${isToday ? "bg-amber-500" : "bg-[#204983]"}`}
-                                    style={{ height: `${Math.max(6, (value / maxForWeek) * 168)}px` }}
+                                    className={`w-full rounded-t-md motion-safe:transition-all motion-safe:duration-500 ${isToday ? "bg-amber-500" : "bg-[#204983]"}`}
+                                    style={{ height: alto(Math.max(6, (value / maxForWeek) * 168)) }}
                                     title={`${value} paciente${value === 1 ? "" : "s"}${isToday ? " (hoy)" : ""}`}
                                   />
                                 </div>
@@ -425,7 +698,15 @@ export default function Home() {
           )}
         </section>
 
-        <section className="rounded-lg border border-slate-200 bg-white/70 p-4 shadow-sm backdrop-blur-sm sm:p-5">
+        {/* LO QUE ES DE AHORA NO SE MUESTRA DE UN MES CERRADO.
+            "Pendientes de carga" es una foto del momento, no algo que haya
+            pasado en junio: mostrarlo con un mes viejo elegido haría creer que
+            son los pendientes de ese mes. */}
+        {!viendoOtroMes && (
+        <section
+          style={retraso(6)}
+          className={`rounded-lg border border-slate-200 bg-white/70 p-4 shadow-sm backdrop-blur-sm sm:p-5 ${ENTRADA_ABAJO}`}
+        >
           <div className="mb-4 flex items-center gap-2">
             <AlertTriangle className="h-5 w-5 text-amber-600" />
             <h2 className="text-base font-semibold text-slate-900">Pendientes operativos</h2>
@@ -443,17 +724,21 @@ export default function Home() {
                 ))}
           </div>
         </section>
+        )}
       </div>
 
       {/* Lo que quedó sin cerrar de TODAS las fechas: nos deben y tenemos que
           devolver. Va arriba de la caja del día, que cuenta solo lo de hoy. */}
-      {canAccessBilling ? (
+      {canAccessBilling && !viendoOtroMes ? (
         <div className="mt-5">
           <PendienteDelSistema />
         </div>
       ) : null}
 
-      <section className="mt-5 rounded-lg border border-slate-200 bg-white/70 p-4 shadow-sm backdrop-blur-sm sm:p-5">
+      <section
+        style={retraso(7)}
+        className={`mt-5 rounded-lg border border-slate-200 bg-white/70 p-4 shadow-sm backdrop-blur-sm sm:p-5 ${ENTRADA_ABAJO}`}
+      >
         <div className="mb-4 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <Receipt className="h-5 w-5 text-emerald-600" />
@@ -506,8 +791,8 @@ export default function Home() {
                                   title={`${formatMoney(item.collected)}${isToday ? " (hoy)" : ""} — tocá para ver el detalle`}
                                 >
                                   <div
-                                    className={`w-full rounded-t-md transition-all duration-300 ${isToday ? "bg-amber-500" : "bg-emerald-500"} group-hover:brightness-110`}
-                                    style={{ height: `${Math.max(4, (value / maxCash) * 100)}px` }}
+                                    className={`w-full rounded-t-md motion-safe:transition-all motion-safe:duration-500 ${isToday ? "bg-amber-500" : "bg-emerald-500"} group-hover:brightness-110`}
+                                    style={{ height: alto(Math.max(4, (value / maxCash) * 100)) }}
                                   />
                                 </div>
                               </button>
@@ -548,6 +833,7 @@ export default function Home() {
                 El total pendiente de todas las fechas estaba metido en el medio
                 de la caja del día, mezclando dos cosas distintas en la misma
                 fila. Ese número vive arriba, en su propia sección. */}
+            {!viendoOtroMes && (
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3">
                 <p className="text-xs font-medium text-emerald-700">Cobrado hoy</p>
@@ -568,20 +854,30 @@ export default function Home() {
                 </div>
               )}
             </div>
+            )}
           </>
         )}
       </section>
 
       <div className="mt-5 grid gap-5 lg:grid-cols-3">
-        <section className="rounded-lg border border-slate-200 bg-white/70 p-4 shadow-sm backdrop-blur-sm sm:p-5">
+        {!viendoOtroMes && (
+        <section
+          style={retraso(8)}
+          className={`rounded-lg border border-slate-200 bg-white/70 p-4 shadow-sm backdrop-blur-sm sm:p-5 ${ENTRADA_ABAJO}`}
+        >
           <div className="mb-4 flex items-center gap-2">
             <FileWarning className="h-5 w-5 text-amber-600" />
             <h2 className="text-base font-semibold text-slate-900">Información faltante</h2>
           </div>
           <MetricList items={missingItems} loading={loading} />
         </section>
+        )}
 
-        <section className="rounded-lg border border-slate-200 bg-white/70 p-4 shadow-sm backdrop-blur-sm sm:p-5">
+        {!viendoOtroMes && (
+        <section
+          style={retraso(9)}
+          className={`rounded-lg border border-slate-200 bg-white/70 p-4 shadow-sm backdrop-blur-sm sm:p-5 ${ENTRADA_ABAJO}`}
+        >
           <div className="mb-4 flex items-center gap-2">
             <ShieldCheck className="h-5 w-5 text-indigo-600" />
             <h2 className="text-base font-semibold text-slate-900">Preautorizaciones</h2>
@@ -596,8 +892,12 @@ export default function Home() {
             </div>
           )}
         </section>
+        )}
 
-        <section className="rounded-lg border border-slate-200 bg-white/70 p-4 shadow-sm backdrop-blur-sm sm:p-5">
+        <section
+          style={retraso(10)}
+          className={`rounded-lg border border-slate-200 bg-white/70 p-4 shadow-sm backdrop-blur-sm sm:p-5 ${ENTRADA_ABAJO}`}
+        >
           <div className="mb-4 flex items-center gap-2">
             <Receipt className="h-5 w-5 text-sky-600" />
             <h2 className="text-base font-semibold text-slate-900">ARCA del mes</h2>
@@ -615,7 +915,10 @@ export default function Home() {
         </section>
       </div>
 
-      <section className="mt-5 rounded-lg border border-slate-200 bg-white/70 p-4 shadow-sm backdrop-blur-sm sm:p-5">
+      <section
+        style={retraso(11)}
+        className={`mt-5 rounded-lg border border-slate-200 bg-white/70 p-4 shadow-sm backdrop-blur-sm sm:p-5 ${ENTRADA_ABAJO}`}
+      >
         <div className="mb-4 flex items-center gap-2">
           <Building2 className="h-5 w-5 text-teal-600" />
           <h2 className="text-base font-semibold text-slate-900">Obras sociales del mes</h2>
@@ -645,7 +948,11 @@ export default function Home() {
         )}
       </section>
 
-      <section className="mt-5 rounded-lg border border-slate-200 bg-white/70 p-4 shadow-sm backdrop-blur-sm sm:p-5">
+      {!viendoOtroMes && (
+      <section
+        style={retraso(12)}
+        className={`mt-5 rounded-lg border border-slate-200 bg-white/70 p-4 shadow-sm backdrop-blur-sm sm:p-5 ${ENTRADA_ABAJO}`}
+      >
         <div className="mb-4 flex items-center gap-2">
           <AlertTriangle className="h-5 w-5 text-rose-600" />
           <h2 className="text-base font-semibold text-slate-900">Top 3 análisis urgentes</h2>
@@ -677,6 +984,7 @@ export default function Home() {
           </p>
         )}
       </section>
+      )}
 
       {/* El detalle de un día, al tocar su barra en el gráfico de caja. */}
       <CajaDelDia fecha={cajaDelDia} onClose={() => setCajaDelDia(null)} />

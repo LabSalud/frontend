@@ -60,7 +60,7 @@ export function useSessionNotifications() {
     closeActiveNotification()
 
     const notification = new Notification("Sesión por expirar", {
-      body: `Tu sesión de LabSalud expirará en ${secondsLeft} segundos. Volvé a la web y presioná Continuar sesión.`,
+      body: `Tu sesión de Labsalud expirará en ${secondsLeft} segundos. Volvé a la web y presioná Continuar sesión.`,
       icon: "/logo_icono.svg",
       tag: "labsalud-idle-warning",
       requireInteraction: true,
@@ -81,7 +81,7 @@ export function useSessionNotifications() {
     closeActiveNotification()
 
     const notification = new Notification("Sesión expirada", {
-      body: message || "Tu sesión de LabSalud se cerró. Volvé a iniciar sesión para continuar.",
+      body: message || "Tu sesión de Labsalud se cerró. Volvé a iniciar sesión para continuar.",
       icon: "/logo_icono.svg",
       tag: "labsalud-session-expired",
       requireInteraction: true,

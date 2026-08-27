@@ -44,37 +44,101 @@ export function CarruselDeslizable({
   ariaLabel?: string
 }) {
   const pista = useRef<HTMLDivElement>(null)
+
+  // A DÓNDE SE ESTÁ YENDO LA PISTA POR SU CUENTA.
+  //
   // El desplazamiento que dispara el propio componente no tiene que volver
-  // como si lo hubiera hecho la persona: sin esto, `onActivo` se llamaría en
-  // medio de la animación con los índices intermedios.
-  const moviendoSolo = useRef(false)
+  // como si lo hubiera hecho la persona: si volviera, `onActivo` se llamaría
+  // con cada índice INTERMEDIO de la animación y el de afuera creería que el
+  // usuario se paró ahí.
+  //
+  // Se guarda el índice objetivo y no un simple "sí/estoy moviéndome": la
+  // versión anterior liberaba el bloqueo por tiempo (400 ms) y una animación
+  // de cinco semanas tarda más que eso, así que el último tramo del viaje
+  // llegaba como si fuera del usuario, avisaba el índice de esa altura y la
+  // pista terminaba parándose una semana antes de la que le habían pedido.
+  // Ese era el "se queda en el penúltimo".
+  const objetivo = useRef<number | null>(null)
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const indiceVisible = (el: HTMLDivElement) =>
+    el.clientWidth > 0 ? Math.round(el.scrollLeft / el.clientWidth) : 0
 
   const irA = useCallback((indice: number, animado: boolean) => {
     const el = pista.current
-    if (!el) return
-    moviendoSolo.current = true
-    el.scrollTo({ left: indice * el.clientWidth, behavior: animado ? "smooth" : "auto" })
+    if (!el || el.clientWidth === 0) return false
+
+    // Sin paneles todavía, `activo` puede llegar en -1: pedir un scroll
+    // negativo no rompe nada pero deja el objetivo apuntando a un lugar al que
+    // nunca se va a llegar, y con él el bloqueo puesto.
+    const destino = Math.max(0, indice) * el.clientWidth
+    // YA ESTÁ AHÍ: NO SE PIDE UN VIAJE QUE NO VA A PASAR.
+    //
+    // Después de que la persona desliza, el índice de afuera se actualiza y
+    // este efecto vuelve a pedir el MISMO panel. Un `scrollTo` al lugar donde
+    // ya se está no dispara ningún evento de scroll, así que el bloqueo se
+    // quedaría puesto hasta que venciera el temporizador y en esos segundos
+    // los deslizamientos de la persona no se registrarían.
+    if (Math.abs(el.scrollLeft - destino) < 4) {
+      objetivo.current = null
+      if (timer.current) clearTimeout(timer.current)
+      return true
+    }
+
+    objetivo.current = indice
+    el.scrollTo({
+      left: destino,
+      // `auto` NO es "sin animación": es "lo que diga el CSS", y el CSS de
+      // esta pista dice `scroll-smooth`. Para posicionar de entrada hace falta
+      // `instant`, o el inicio abre viajando desde la primera semana.
+      behavior: animado ? "smooth" : "instant",
+    })
+
     if (timer.current) clearTimeout(timer.current)
-    // No hay evento de "terminó el scroll" con soporte parejo todavía
-    // (`scrollend` no está en todos lados), así que se libera por tiempo.
+    // Red por si el scroll nunca llega exactamente al objetivo (un redondeo,
+    // un resize en el medio): sin esto la pista quedaría sorda para siempre.
     timer.current = setTimeout(() => {
-      moviendoSolo.current = false
-    }, 400)
+      objetivo.current = null
+    }, 1500)
+    return true
   }, [])
 
   // Al montar, la pista arranca donde diga `activo` y sin animación: el inicio
   // abre en la semana actual, no en la primera y viajando.
+  //
+  // Con reintento por frame: el efecto puede correr antes de que el navegador
+  // le haya dado ancho a la pista, y `indice * 0` es siempre el principio.
   const montado = useRef(false)
   useEffect(() => {
-    irA(activo, montado.current)
-    montado.current = true
+    let cancelado = false
+    const intentar = (restantes: number) => {
+      if (cancelado) return
+      if (irA(activo, montado.current)) {
+        montado.current = true
+        return
+      }
+      if (restantes > 0) requestAnimationFrame(() => intentar(restantes - 1))
+    }
+    intentar(10)
+    return () => {
+      cancelado = true
+    }
   }, [activo, irA])
 
   const alScrollear = useCallback(() => {
     const el = pista.current
-    if (!el || moviendoSolo.current || el.clientWidth === 0) return
-    const indice = Math.round(el.scrollLeft / el.clientWidth)
+    if (!el || el.clientWidth === 0) return
+    const indice = indiceVisible(el)
+
+    // Viaje propio: se ignora hasta llegar, y ahí se suelta.
+    if (objetivo.current !== null) {
+      if (indice === Math.max(0, objetivo.current)) {
+        objetivo.current = null
+        if (timer.current) clearTimeout(timer.current)
+      }
+      return
+    }
+
     if (indice !== activo) onActivo(indice)
   }, [activo, onActivo])
 

@@ -224,17 +224,21 @@ export const SEARCH_ENDPOINTS = {
     type,
     page,
     pageSize,
+    porTipo,
   }: {
     q: string
     /** `all` | `patient` | `protocol` | `result` | `validation`. */
     type?: string
     page?: number
     pageSize?: number
+    /** Una columna por tipo (`groups`) en vez de la lista mezclada. */
+    porTipo?: boolean
   }) => {
     const params = new URLSearchParams({ q })
     if (type) params.set("type", type)
     if (page) params.set("page", String(page))
     if (pageSize) params.set("page_size", String(pageSize))
+    if (porTipo) params.set("group", "type")
     return buildApiUrl(`/search/?${params.toString()}`)
   },
 } as const

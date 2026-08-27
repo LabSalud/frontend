@@ -1410,6 +1410,15 @@ export interface GlobalSearchResponse {
   counts_cap?: number
   /** Lista PLANA, ya paginada. Sin coincidencias llega `[]`. */
   results: GlobalSearchItem[]
+  /**
+   * Una columna por tipo, con los primeros `page_size` de cada uno. Solo viene
+   * con `?group=type`, que es lo que pide la pantalla de búsqueda para mostrar
+   * los tipos lado a lado. En ese modo `results` llega vacío a propósito:
+   * mandar además la lista mezclada duplicaría el payload.
+   */
+  groups?: Record<GlobalSearchType, GlobalSearchItem[]>
+  /** Si esa columna tiene más resultados de los que entraron. */
+  groups_has_next?: Record<GlobalSearchType, boolean>
 }
 
 // ============================================================================

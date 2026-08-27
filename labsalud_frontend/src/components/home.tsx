@@ -1,7 +1,6 @@
 "use client"
 
-import type React from "react"
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useState } from "react"
 
 import CajaDelDia from "@/components/caja-del-dia"
 import {
@@ -25,6 +24,7 @@ import { ANALYTICS_ENDPOINTS } from "@/config/api"
 import { PERMISSIONS } from "@/config/permissions"
 import { Skeleton } from "@/components/ui/skeleton"
 import PendienteDelSistema from "@/components/pendiente-del-sistema"
+import { CarruselDeslizable } from "@/components/common/carrusel-deslizable"
 
 interface DashboardResponse {
   analysis_today?: number
@@ -143,20 +143,9 @@ export default function Home() {
   const activeWeek = weeks[weekIndex] || []
   const goOlderWeek = () => setWeekIndex((prev) => Math.min(Math.max(weeks.length - 1, 0), prev + 1))
   const goNewerWeek = () => setWeekIndex((prev) => Math.max(0, prev - 1))
-  // Swipe horizontal (mobile) para mover el carrusel entre semanas: arrastrar
-  // hacia la derecha muestra semanas anteriores; hacia la izquierda, más nuevas.
-  const swipeStartX = useRef<number | null>(null)
-  const onCarouselTouchStart = (e: React.TouchEvent) => {
-    swipeStartX.current = e.touches[0]?.clientX ?? null
-  }
-  const onCarouselTouchEnd = (e: React.TouchEvent) => {
-    if (swipeStartX.current == null) return
-    const dx = (e.changedTouches[0]?.clientX ?? swipeStartX.current) - swipeStartX.current
-    swipeStartX.current = null
-    if (Math.abs(dx) < 40) return
-    if (dx > 0) goOlderWeek()
-    else goNewerWeek()
-  }
+  // El gesto de deslizar ya no se detecta a mano: la pista scrollea de verdad
+  // (`CarruselDeslizable`), así que el dedo, el trackpad y la rueda con Shift
+  // hacen lo mismo sin que este componente se entere.
   const weekRangeLabel = (() => {
     if (activeWeek.length === 0) return ""
     const fmt = (iso: string) =>
@@ -170,22 +159,6 @@ export default function Home() {
     const day = String(now.getDate()).padStart(2, "0")
     return `${year}-${month}-${day}`
   })()
-  // Swipe en el carrusel de caja. Es el mismo gesto que en pacientes
-  // atendidos: en el celular las flechas son chicas y nadie las usa, así que
-  // sin esto la mitad del gráfico queda inalcanzable en la pantalla donde más
-  // se lo mira.
-  const cashSwipeStartX = useRef<number | null>(null)
-  const onCashTouchStart = (e: React.TouchEvent) => {
-    cashSwipeStartX.current = e.touches[0]?.clientX ?? null
-  }
-  const onCashTouchEnd = (e: React.TouchEvent) => {
-    if (cashSwipeStartX.current == null) return
-    const dx = (e.changedTouches[0]?.clientX ?? cashSwipeStartX.current) - cashSwipeStartX.current
-    cashSwipeStartX.current = null
-    if (Math.abs(dx) < 40) return
-    if (dx > 0) goOlderCashWeek()
-    else goNewerCashWeek()
-  }
   // El día abierto en el detalle de caja. null = ninguno.
   const [cajaDelDia, setCajaDelDia] = useState<string | null>(null)
 
@@ -377,19 +350,19 @@ export default function Home() {
               >
                 <ChevronLeft className="h-5 w-5" />
               </button>
-              <div
-                className="flex-1 overflow-hidden"
-                onTouchStart={onCarouselTouchStart}
-                onTouchEnd={onCarouselTouchEnd}
+              {/* La pista arranca en la semana más vieja y termina en la
+                  actual, así que el índice del carrusel es el espejo de
+                  `weekIndex` (0 = la actual). */}
+              <CarruselDeslizable
+                ariaLabel="Semanas de pacientes atendidos"
+                activo={weeks.length - 1 - weekIndex}
+                onActivo={(pos) => setWeekIndex(weeks.length - 1 - pos)}
               >
-                <div
-                  className="flex transition-transform duration-300 ease-out"
-                  style={{ transform: `translateX(-${(weeks.length - 1 - weekIndex) * 100}%)` }}
-                >
+                <>
                   {[...weeks].reverse().map((week, revIdx) => {
                     const maxForWeek = Math.max(1, ...week.map((it) => it.patients_served))
                     return (
-                      <div key={revIdx} className="flex h-64 w-full shrink-0 flex-col">
+                      <div key={revIdx} className="flex h-64 w-full shrink-0 snap-center flex-col">
                         <div className="flex flex-1 items-end gap-1.5 sm:gap-3">
                           {week.map((item) => {
                             const isToday = item.date === todayKey
@@ -437,8 +410,8 @@ export default function Home() {
                       </div>
                     )
                   })}
-                </div>
-              </div>
+                </>
+              </CarruselDeslizable>
               <button
                 type="button"
                 onClick={goNewerWeek}
@@ -505,19 +478,16 @@ export default function Home() {
               >
                 <ChevronLeft className="h-5 w-5" />
               </button>
-              <div
-                className="flex-1 overflow-hidden"
-                onTouchStart={onCashTouchStart}
-                onTouchEnd={onCashTouchEnd}
+              <CarruselDeslizable
+                ariaLabel="Semanas de caja"
+                activo={cashWeeks.length - 1 - cashWeekIndex}
+                onActivo={(pos) => setCashWeekIndex(cashWeeks.length - 1 - pos)}
               >
-                <div
-                  className="flex transition-transform duration-300 ease-out"
-                  style={{ transform: `translateX(-${(cashWeeks.length - 1 - cashWeekIndex) * 100}%)` }}
-                >
+                <>
                   {[...cashWeeks].reverse().map((week, revIdx) => {
                     const maxCash = Math.max(1, ...week.map((it) => Number.parseFloat(it.collected || "0")))
                     return (
-                      <div key={revIdx} className="flex h-40 w-full shrink-0 flex-col">
+                      <div key={revIdx} className="flex h-40 w-full shrink-0 snap-center flex-col">
                         <div className="flex flex-1 items-end gap-1.5 sm:gap-3">
                           {week.map((item) => {
                             const value = Number.parseFloat(item.collected || "0")
@@ -562,8 +532,8 @@ export default function Home() {
                       </div>
                     )
                   })}
-                </div>
-              </div>
+                </>
+              </CarruselDeslizable>
               <button
                 type="button"
                 onClick={goNewerCashWeek}

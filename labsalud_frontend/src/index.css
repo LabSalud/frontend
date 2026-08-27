@@ -118,3 +118,18 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* SCROLL SIN BARRA.
+   Para los contenedores que se recorren deslizando o con un botón —el
+   carrusel de la búsqueda y cada una de sus columnas—, donde la barra es una
+   línea gris de más al lado de cada tarjeta y no aporta nada: para eso están
+   los puntitos de abajo y las flechas del costado. El contenido SIGUE
+   scrolleando (rueda, trackpad, dedo y teclado); lo único que se esconde es
+   la barra. */
+@utility sin-barra-de-scroll {
+  scrollbar-width: none;       /* Firefox */
+  -ms-overflow-style: none;    /* Edge viejo */
+  &::-webkit-scrollbar {
+    display: none;             /* Chrome, Safari */
+  }
+}

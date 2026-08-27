@@ -58,7 +58,7 @@ const SECCIONES_FIJAS: Record<string, string> = {
 const SECCIONES_DE_DETALLE: Record<string, string> = {
   "/pacientes": "Paciente",
   "/protocolos": "Protocolo",
-  "/resultados": "Resultados",
+  "/resultados": "Resultado",
   "/validacion": "Validación",
 }
 

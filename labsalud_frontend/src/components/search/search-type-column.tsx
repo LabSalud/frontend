@@ -31,6 +31,7 @@ export function SearchTypeColumn({
   total,
   onAbrir,
   onCargarMas,
+  termino,
 }: {
   columna: ColumnaDeBusqueda
   meta: MetaDeTipo
@@ -40,6 +41,8 @@ export function SearchTypeColumn({
   total: string
   onAbrir: (item: GlobalSearchItem) => void
   onCargarMas: () => void
+  /** Lo que se tipeó, para marcarlo en cada tarjeta. */
+  termino: string
 }) {
   const Icono = meta.icon
 
@@ -100,6 +103,7 @@ export function SearchTypeColumn({
                 key={`${item.type}-${item.id}`}
                 item={item}
                 index={indice}
+                termino={termino}
                 onClick={() => onAbrir(item)}
               />
             ))}

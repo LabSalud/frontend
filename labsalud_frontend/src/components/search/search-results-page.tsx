@@ -161,7 +161,7 @@ export default function SearchResultsPage() {
     setInputValue(urlTerm)
   }, [urlTerm])
 
-  const { state, columnas, counts, countsCapped, countsCap, tookMs, searchedTerm, error, isFetching, refetch, cargarMas } =
+  const { state, columnas, aproximado, counts, countsCapped, countsCap, tookMs, searchedTerm, error, isFetching, refetch, cargarMas } =
     useGlobalSearchPorTipo({ term: urlTerm })
 
   // Un tipo que este usuario no puede ver no se ofrece: el backend ya lo manda
@@ -240,10 +240,42 @@ export default function SearchResultsPage() {
 
   const abrir = (item: GlobalSearchItem) => navigate(item.url)
 
+  /**
+   * EL TECLADO TIENE QUE ALCANZAR.
+   *
+   * Quien carga resultados no suelta el teclado en toda la mañana. Desde el
+   * buscador, la flecha abajo entra a la primera tarjeta; ahí Tab y Enter ya
+   * funcionan solos porque cada tarjeta es un `<button>`. Y con el foco fuera
+   * del input, las flechas laterales mueven el carrusel.
+   */
+  const alApretarTecla = (evento: React.KeyboardEvent<HTMLDivElement>) => {
+    const enElInput = (evento.target as HTMLElement)?.tagName === "INPUT"
+
+    if (evento.key === "ArrowDown" && enElInput) {
+      const primera = pista.current?.querySelector<HTMLButtonElement>("[data-tarjeta]")
+      if (primera) {
+        evento.preventDefault()
+        primera.focus()
+      }
+      return
+    }
+
+    if (enElInput) return
+    if (evento.key === "ArrowRight") {
+      evento.preventDefault()
+      mover(1)
+    } else if (evento.key === "ArrowLeft") {
+      evento.preventDefault()
+      mover(-1)
+    }
+  }
+
+  const palabras = searchedTerm.split(/\s+/).filter(Boolean)
+
   const totalEncontrado = counts.all ?? 0
 
   return (
-    <div className="w-full overflow-x-hidden py-4">
+    <div className="w-full overflow-x-hidden py-4" onKeyDown={alApretarTecla}>
       {/* LA BARRA. Fina y todo en una fila: título, buscador y el resumen de
           lo que se encontró. Es lo único fijo de la pantalla. */}
       <div className="flex items-center gap-3 rounded-2xl bg-white/95 px-3 py-2 shadow-md backdrop-blur-sm md:px-4">
@@ -287,6 +319,17 @@ export default function SearchResultsPage() {
         )}
       </div>
 
+      {/* NO ENCONTRAMOS ESO, PERO ESTO SE LE PARECE.
+          Decirlo es la mitad de la función: una lista de resultados por
+          parecido, presentada como si fuera exacta, hace que alguien abra la
+          ficha de otra persona. */}
+      {aproximado && state === "results" && (
+        <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+          No hay nada que diga exactamente «{searchedTerm}». Esto es lo que más
+          se le parece por cómo suena.
+        </p>
+      )}
+
       <div className="mt-3">
         {state === "idle" && (
           <EstadoVacio
@@ -327,7 +370,35 @@ export default function SearchResultsPage() {
           <EstadoVacio
             icon={Search}
             title={`Sin resultados para «${searchedTerm}»`}
-            description="Probá con el apellido, el DNI sin puntos o el número de protocolo."
+            description={
+              palabras.length > 1 ? (
+                <>
+                  <span>Las {palabras.length} palabras juntas no aparecen en ningún lado.</span>
+                  {/* La palabra que sobra suele ser una: sacarla a mano es
+                      volver a tipear todo. */}
+                  <div className="mt-3 flex flex-wrap items-center justify-center gap-1.5">
+                    {palabras.map((palabra, indice) => (
+                      <button
+                        key={palabra + indice}
+                        type="button"
+                        onClick={() =>
+                          navigate(
+                            buildGlobalSearchPath({
+                              q: palabras.filter((_, i) => i !== indice).join(" "),
+                            }),
+                          )
+                        }
+                        className="rounded-full border border-gray-200 px-3 py-1 text-xs text-gray-600 transition-colors hover:border-[#204983]/40 hover:bg-[#204983]/5 hover:text-[#204983]"
+                      >
+                        Probar sin «{palabra}»
+                      </button>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                "Probá con el apellido, el DNI sin puntos o el número de protocolo."
+              )
+            }
           />
         )}
 
@@ -378,6 +449,7 @@ export default function SearchResultsPage() {
                   meta={META[columna.tipo]}
                   cargando={state === "loading"}
                   total={formatCount(columna.total, countsCap, countsCapped)}
+                  termino={searchedTerm}
                   onAbrir={abrir}
                   onCargarMas={() => void cargarMas(columna.tipo)}
                 />

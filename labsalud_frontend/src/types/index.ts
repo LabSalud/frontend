@@ -1426,6 +1426,12 @@ export interface GlobalSearchResponse {
   groups?: Record<GlobalSearchType, GlobalSearchItem[]>
   /** Si esa columna tiene más resultados de los que entraron. */
   groups_has_next?: Record<GlobalSearchType, boolean>
+  /**
+   * La búsqueda exacta no encontró nada y esto es lo que SUENA parecido. La
+   * pantalla tiene que decirlo: un resultado aproximado presentado como exacto
+   * engaña.
+   */
+  aproximado?: boolean
 }
 
 // ============================================================================

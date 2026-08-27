@@ -1,6 +1,7 @@
 "use client"
 
 import { Badge } from "@/components/ui/badge"
+import { resaltar } from "@/lib/resaltar"
 import { cn } from "@/lib/utils"
 import { formatDniForDisplay } from "@/lib/dni"
 import { formatUtcDate } from "@/lib/format-utils"
@@ -15,15 +16,35 @@ import type { GlobalSearchItem } from "@/types"
  * un resultado del de al lado —quién es, de qué protocolo, en qué estado y de
  * cuándo—, en ese orden.
  */
+/** El texto con lo que se buscó en negrita. Ver `lib/resaltar.ts`. */
+function ConResaltado({ texto, termino }: { texto: string; termino: string }) {
+  return (
+    <>
+      {resaltar(texto, termino).map((trozo, i) =>
+        trozo.resaltado ? (
+          <mark key={i} className="rounded bg-amber-100 px-0.5 text-inherit">
+            {trozo.texto}
+          </mark>
+        ) : (
+          <span key={i}>{trozo.texto}</span>
+        ),
+      )}
+    </>
+  )
+}
+
 export function SearchResultCard({
   item,
   onClick,
   /** Posición dentro de la columna: escalona la animación de entrada. */
   index = 0,
+  /** Lo que se tipeó, para marcarlo en la tarjeta. */
+  termino = "",
 }: {
   item: GlobalSearchItem
   onClick: () => void
   index?: number
+  termino?: string
 }) {
   // El paciente solo cuando agrega algo: en una tarjeta de paciente el nombre
   // ya es el título y repetirlo abajo es ruido.
@@ -36,6 +57,7 @@ export function SearchResultCard({
   return (
     <button
       type="button"
+      data-tarjeta
       onClick={onClick}
       style={{
         // Escalonado y con tope: a partir de la décima tarjeta el retraso deja
@@ -52,11 +74,13 @@ export function SearchResultCard({
         "motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-top-3 motion-safe:duration-300",
       )}
     >
-      <p className="truncate font-semibold text-gray-900">{item.title}</p>
+      <p className="truncate font-semibold text-gray-900">
+        <ConResaltado texto={item.title} termino={termino} />
+      </p>
 
       {(item.subtitle || item.matched_on) && (
         <p className="mt-0.5 line-clamp-2 text-xs text-gray-500">
-          {item.subtitle}
+          <ConResaltado texto={item.subtitle} termino={termino} />
           {item.subtitle && item.matched_on && <span className="text-gray-300"> · </span>}
           {item.matched_on && <span className="text-gray-400">coincide por {item.matched_on}</span>}
         </p>
@@ -64,7 +88,7 @@ export function SearchResultCard({
 
       {muestraPaciente && (
         <p className="mt-1 truncate text-xs text-gray-600">
-          {item.patient?.name}
+          <ConResaltado texto={item.patient?.name ?? ""} termino={termino} />
           {dni && <span className="text-gray-400"> · DNI {dni}</span>}
         </p>
       )}

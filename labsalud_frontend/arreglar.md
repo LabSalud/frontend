@@ -100,48 +100,39 @@
   - Hace falta agregarles `data-tour="..."` (o `id`) a los elementos que se van
     a resaltar; conviene hacerlo en la misma pasada.
 
-##### BUSQUEDA — LO QUE QUEDA POR HACER
-Sale de medir 39 búsquedas realistas contra la base y separar lo que falla por
-falta de datos de lo que falla porque el buscador no sabe hacerlo. De 20 que
-fallaban quedan 4, y todas están acá abajo.
+##### BUSQUEDA — ESTADO
+Se midió con 39 búsquedas realistas contra la base. **Empezaron fallando 20 y
+hoy no falla ninguna por incapacidad**: las que vuelven vacías es porque el
+dato no existe en la base de desarrollo (no hay protocolos de hoy, ni una nota
+cargada, ni un cobro de ese importe).
 
-Ya está hecho: cruce de palabras con cobertura de TODAS, códigos, estados,
-fechas, conceptos de cobro, estado de pago, valor y notas del resultado,
-domicilio del paciente, el catálogo como columna propia, la cobertura por
-entidad ("bilirrubina glucemia" trae el protocolo que tiene las dos), anclas
-por obra social y por médico, importes tolerantes y teléfono/mail por adentro.
+Anda: cruce de palabras exigiendo TODAS, códigos, estados, fechas, conceptos de
+cobro, estado de pago, valor y notas del resultado, valores numéricos,
+domicilio y observaciones del paciente, el catálogo como columna propia,
+cobertura por entidad, anclas por obra social y por médico, importes
+tolerantes, teléfono y mail por adentro, plural/singular, abreviaturas del
+laboratorio, ranking por campo y búsqueda por cómo suena el apellido.
 
-**Para discutir**
-- ⭕️ **Errores de tipeo.** "bargas" no encuentra a Vargas y nunca lo va a
-  encontrar con FULLTEXT, que es exacto por prefijo. La forma sensata es una
-  columna fonética (Soundex castellano) sobre nombre y apellido, usada SOLO
-  cuando la búsqueda exacta volvió vacía.
-- ⭕️ **Plural y singular.** "bilirrubinas" no encuentra "Bilirrubina": el
-  comodín va para adelante, no para atrás. Un stemmer mínimo (sacar la "s"
-  final en palabras largas) alcanza para el 90%.
-- ⭕️ **Abreviaturas del laboratorio.** "hto" → hematocrito, "gr" →
-  eritrocitos. Es un diccionario que hay que dictar: lo tiene la gente que
-  carga, no el código.
-- ⭕️ **Ranking.** Ordena por relevancia de FULLTEXT a secas: una coincidencia
-  en el domicilio pesa igual que una en el apellido, y un protocolo de 2019
-  igual que uno de hoy. Ponderar por campo y por recencia mejora la primera
-  fila, que es la que se abre casi siempre.
+**Decisiones tomadas, no olvidos**
+- Buscar SOLO "sin cargar" o "fuera de rango", sin ningún nombre, no devuelve
+  nada; combinados con una persona sí. Anclar por esos flags obliga a recorrer
+  la tabla de resultados, que es la más grande del sistema, y para eso están
+  los filtros de la pantalla de resultados. Ídem "debe" solo, que lista los
+  cobros con deuda pero no los protocolos que nunca recibieron un pago.
+- La búsqueda por parecido fonético corre SOLO cuando la exacta no encontró
+  nada, y devuelve solo pacientes. Nunca compite con un resultado exacto.
+
+**Lo que queda**
+- ⭕️ **Abreviaturas del laboratorio.** El diccionario está armado
+  (`SINONIMOS` en `global_search/services.py`) con unas veinte; las que faltan
+  las sabe quien carga resultados todos los días. Agregar una es agregar una
+  línea.
+- ⭕️ **Recencia en el ranking.** Ya pesa el campo (el apellido más que el
+  domicilio) pero no la fecha: un protocolo de 2019 compite de igual a igual
+  con uno de hoy cuando el puntaje de texto empata.
 - ⭕️ **El techo del cruce.** Arranca por los 200 pacientes más relevantes
-  (`TOPE_CRUCE`); con un apellido común el que se busca puede quedar afuera.
-- ⭕️ **Valores numéricos.** InnoDB no indexa tokens de menos de tres
-  caracteres, así que un resultado que dice "13,4" no se puede buscar por su
-  número. Haría falta una rama de igualdad sobre la columna.
-- ⭕️ **Filtros sueltos sin nombre.** "sin cargar" o "fuera de rango" solos no
-  devuelven nada (combinados con una persona sí). Anclar por esos flags obliga
-  a recorrer la tabla de resultados, que es la más grande del sistema; para eso
-  están los filtros de la pantalla de resultados. Ídem "debe" solo, que lista
-  los cobros con deuda pero no los protocolos que nunca recibieron un pago.
-
-**En la pantalla**
-- ⭕️ Sin resultados, sugerir sacar la palabra que más restringe ("no hay nada
-  con las 4; probá sin «agosto»").
-- ⭕️ Enter abre el primer resultado, y flechas para moverse entre columnas.
-- ⭕️ Resaltar en la tarjeta la parte que coincidió.
+  (`TOPE_CRUCE`), ahora priorizando a los que matchean el nombre COMPLETO. Con
+  un padrón mucho más grande puede quedar corto igual.
 
 # ACTUALIZACIONES
 

@@ -203,6 +203,8 @@ export function useGlobalSearchPorTipo({
   return {
     state,
     columnas,
+    /** Lo encontrado no coincide exacto: suena parecido. Ver `fonetica.py`. */
+    aproximado: data?.aproximado ?? false,
     counts,
     countsCapped: data?.counts_capped ?? false,
     countsCap: data?.counts_cap,

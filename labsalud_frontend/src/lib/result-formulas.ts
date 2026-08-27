@@ -227,3 +227,50 @@ export const applyFormulaCalculations = <T extends FormulaResult>(
 
   return nextValues
 }
+
+
+export type FormulaGuardable = FormulaResult & {
+  /** Lo que hay guardado en el servidor. */
+  value?: string
+  is_valid?: boolean
+  is_wrong?: boolean
+}
+
+/**
+ * Cuáles de las fórmulas ya calculadas hay que mandar al servidor.
+ *
+ * QUÉ RESUELVE
+ * ============
+ * Una determinación con fórmula muestra su valor apenas están los
+ * componentes, pero ese valor vivía solo en la pantalla: alguien tenía que ir
+ * a la fila y apretar Enter. Son dos o tres por hemograma, todas con el número
+ * ya a la vista, y si nadie las apretaba el resultado quedaba sin cargar de
+ * verdad — no se podía validar ni salía en el informe.
+ *
+ * QUÉ NO SE MANDA
+ * ===============
+ * - Lo que está en carga a mano: la fórmula quedó de lado a propósito.
+ * - Lo ya validado: se invalida primero y recién ahí se toca.
+ * - Lo que todavía no calculó nada.
+ * - Con `soloVacias`, lo que ya tiene un valor guardado. Es el modo de cuando
+ *   se abre el protocolo: completa lo que falta y no pisa lo que alguien
+ *   decidió.
+ */
+export function formulasParaGuardar<T extends FormulaGuardable>(
+  resultados: T[],
+  valores: Record<number, FormulaValue>,
+  { soloVacias = false }: { soloVacias?: boolean } = {},
+): T[] {
+  return resultados.filter((resultado) => {
+    if (!resultado.determination.formula?.trim()) return false
+    if (resultado.carga_manual) return false
+    if (resultado.is_valid && !resultado.is_wrong) return false
+
+    const calculado = valores[resultado.id]?.value ?? ""
+    if (!calculado) return false
+
+    const guardado = resultado.value ?? ""
+    if (soloVacias && guardado !== "") return false
+    return calculado !== guardado
+  })
+}

@@ -6,7 +6,7 @@ import { useApi } from "@/hooks/use-api"
 import { useAuth } from "@/contexts/auth-context"
 import { RESULTS_ENDPOINTS } from "@/config/api"
 import { PERMISSIONS, PERMISSION_MESSAGES } from "@/config/permissions"
-import { applyFormulaCalculations } from "@/lib/result-formulas"
+import { applyFormulaCalculations, formulasParaGuardar } from "@/lib/result-formulas"
 import { formatApiError } from "@/lib/api-error"
 import type { PreviousResult, Result, SubmoduloEvaluado } from "@/types"
 
@@ -47,6 +47,11 @@ function groupByAnalysis(results: Result[]): ResultGroup[] {
  * anteriores del paciente. La navegación por teclado vive en el componente
  * (necesita refs del DOM); acá se expone `orderedIds` y `onSave`.
  */
+/** Un protocolo cancelado se ve pero no se escribe. El backend además lo bloquea. */
+const esCancelado = (protocolo: ResultsProtocolHeader | null | undefined): boolean =>
+  (protocolo?.status?.name || "").trim().toLowerCase() === "cancelado"
+
+
 export function useProtocolResults(protocolId: number) {
   const { apiRequest } = useApi()
   const { hasPermission } = useAuth()
@@ -63,6 +68,110 @@ export function useProtocolResults(protocolId: number) {
   const [error, setError] = useState<string | null>(null)
   const [previousResults, setPreviousResults] = useState<Record<number, PreviousResult[]>>({})
   const [loadingPrevious, setLoadingPrevious] = useState<Set<number>>(new Set())
+
+  // Un protocolo cancelado se ve pero no se escribe —el backend además lo
+  // bloquea—. Se calcula acá porque el guardado automático de las fórmulas
+  // tiene que respetarlo sin que la pantalla se lo tenga que recordar.
+  const cancelado = esCancelado(protocol)
+  // En una ref y no en las dependencias del guardado automático: si entrara
+  // como dependencia, abrir un protocolo cancelado cambiaría la identidad de
+  // `fetchResults` en el medio de la carga y dispararía un segundo fetch.
+  const canceladoRef = useRef(cancelado)
+  canceladoRef.current = cancelado
+
+  /**
+   * Guarda las fórmulas que ya se calcularon solas.
+   *
+   * POR QUÉ
+   * =======
+   * Una determinación con fórmula muestra el valor apenas están sus
+   * componentes, pero hasta acá ese valor vivía solo en la pantalla: alguien
+   * tenía que ir a la fila y apretar Enter para que se guardara. Son dos o
+   * tres por hemograma, todas con el mismo valor que ya estaba a la vista, y
+   * si nadie las apretaba el resultado quedaba sin cargar de verdad — no se
+   * podía validar ni salía en el informe, aunque en la pantalla se viera.
+   *
+   * `soloVacias` es para el momento de abrir el protocolo: ahí se completa lo
+   * que nunca se guardó, pero no se pisa nada que ya tenga un valor. Abrir una
+   * pantalla no puede cambiar un número que alguien decidió.
+   *
+   * Qué filas entran lo decide `formulasParaGuardar`, que está aparte porque
+   * son seis condiciones y conviene poder leerlas —y probarlas— sin el resto
+   * del hook alrededor. Acá se agregan las dos que dependen de la pantalla: no
+   * se escribe un protocolo cancelado ni sin permiso.
+   */
+  const guardarFormulasCalculadas = useCallback(
+    async (
+      resultados: Result[],
+      valores: Record<number, ResultValue>,
+      {
+        soloVacias = false,
+        protocoloCancelado,
+      }: { soloVacias?: boolean; protocoloCancelado?: boolean } = {},
+    ) => {
+      if (!canEditResults || (protocoloCancelado ?? canceladoRef.current)) return
+
+      const pendientes = formulasParaGuardar(resultados, valores, { soloVacias })
+      if (pendientes.length === 0) return
+
+      setSaving((prev) => {
+        const siguiente = { ...prev }
+        pendientes.forEach((r) => {
+          siguiente[r.id] = true
+        })
+        return siguiente
+      })
+
+      const guardados = await Promise.all(
+        pendientes.map(async (r) => {
+          try {
+            const res = await apiRequest(RESULTS_ENDPOINTS.RESULT_DETAIL(r.id), {
+              method: "PATCH",
+              body: { value: valores[r.id].value, notes: valores[r.id].notes ?? "" },
+            })
+            if (!res.ok) return null
+            return (await res.json()) as Result
+          } catch {
+            return null
+          }
+        }),
+      )
+
+      const ok = guardados.filter((r): r is Result => r !== null)
+
+      setSaving((prev) => {
+        const siguiente = { ...prev }
+        pendientes.forEach((r) => {
+          siguiente[r.id] = false
+        })
+        return siguiente
+      })
+
+      if (ok.length > 0) {
+        const porId = new Map(ok.map((r) => [r.id, r]))
+        setResults((prev) => prev.map((r) => porId.get(r.id) ?? r))
+        setValues((prev) => {
+          const siguiente = { ...prev }
+          ok.forEach((r) => {
+            siguiente[r.id] = { value: r.value, notes: r.notes }
+          })
+          return siguiente
+        })
+        const ultimo = ok[ok.length - 1]
+        if (ultimo.protocol_status !== undefined) {
+          setProtocol((prev) => (prev ? { ...prev, status: ultimo.protocol_status ?? null } : prev))
+        }
+      }
+
+      // Callado cuando sale bien —es justamente lo que se pidió: que no haya
+      // que hacer nada—, pero si falló hay que decirlo: si no, la pantalla
+      // muestra un valor que el servidor no tiene.
+      if (ok.length < pendientes.length) {
+        toast.error("No se pudo guardar solo un resultado calculado. Guardalo a mano.")
+      }
+    },
+    [apiRequest, canEditResults],
+  )
 
   const fetchResults = useCallback(async () => {
     setLoading(true)
@@ -84,13 +193,26 @@ export function useProtocolResults(protocolId: number) {
       data.forEach((r) => {
         initial[r.id] = { value: r.value || "", notes: r.notes || "" }
       })
-      setValues(applyFormulaCalculations(data, initial))
+      const calculados = applyFormulaCalculations(data, initial)
+      setValues(calculados)
+
+      // Lo que la fórmula resolvió y nunca se guardó, se guarda ahora. Con
+      // `soloVacias`: abrir una pantalla completa lo que falta, pero no pisa
+      // un número que alguien decidió. El estado del protocolo se toma del
+      // encabezado que acaba de llegar y no del estado de React, que en este
+      // punto todavía es el anterior.
+      void guardarFormulasCalculadas(data, calculados, {
+        soloVacias: true,
+        protocoloCancelado: esCancelado(
+          !Array.isArray(body) ? (body.protocol as ResultsProtocolHeader) : null,
+        ),
+      })
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error al cargar los resultados")
     } finally {
       setLoading(false)
     }
-  }, [apiRequest, protocolId])
+  }, [apiRequest, protocolId, guardarFormulasCalculadas])
 
   useEffect(() => {
     void fetchResults()
@@ -132,11 +254,24 @@ export function useProtocolResults(protocolId: number) {
           throw new Error(formatApiError(err, "Error al guardar el resultado"))
         }
         const updated: Result = await res.json()
-        setResults((prev) => prev.map((r) => (r.id === resultId ? updated : r)))
-        setValues((prev) => ({ ...prev, [resultId]: { value: updated.value, notes: updated.notes } }))
+        const siguientes = results.map((r) => (r.id === resultId ? updated : r))
+        setResults(siguientes)
+        const valores = applyFormulaCalculations(siguientes, {
+          ...values,
+          [resultId]: { value: updated.value, notes: updated.notes },
+        })
+        setValues(valores)
         if (updated.protocol_status !== undefined) {
           setProtocol((prev) => (prev ? { ...prev, status: updated.protocol_status ?? null } : prev))
         }
+
+        // GUARDAR UN COMPONENTE GUARDA LO QUE ESE COMPONENTE CALCULA.
+        //
+        // Es el momento en que la fórmula "se hace": se cargó el último valor
+        // que le faltaba y el resultado apareció solo en la pantalla. Antes
+        // había que ir hasta esa fila y apretar Enter para que existiera de
+        // verdad; ahora sale con el mismo Enter que guardó el componente.
+        void guardarFormulasCalculadas(siguientes, valores)
         return true
       } catch (e) {
         toast.error(e instanceof Error ? e.message : "Error al guardar el resultado")
@@ -145,7 +280,7 @@ export function useProtocolResults(protocolId: number) {
         setSaving((prev) => ({ ...prev, [resultId]: false }))
       }
     },
-    [apiRequest, values, canEditResults],
+    [apiRequest, values, results, canEditResults, guardarFormulasCalculadas],
   )
 
   /**

@@ -88,11 +88,20 @@ const META: Record<GlobalSearchType, MetaDeTipo> = {
   },
 }
 
+/**
+ * Lo que se puede tipear. Están las combinaciones a propósito: la búsqueda
+ * cruza las palabras entre sí —el paciente por un lado y el análisis por
+ * otro— y eso nadie lo descubre solo.
+ */
 const SEARCH_HINTS = [
   { label: "Paciente", example: "Pérez, María" },
   { label: "DNI", example: "30123456" },
   { label: "N° de protocolo", example: "4822" },
   { label: "Análisis", example: "hemograma" },
+  { label: "Paciente + análisis", example: "perez orina" },
+  { label: "Paciente + protocolo", example: "perez 4822" },
+  { label: "Estado de pago", example: "perez debe" },
+  { label: "Cobros", example: "coseguro · efectivo · 18400" },
 ]
 
 /**

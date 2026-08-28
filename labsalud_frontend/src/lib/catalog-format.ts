@@ -29,30 +29,58 @@ export const formatAnalysisCategory = (category?: string): string =>
 /**
  * Los límites de un rango, como se leen.
  *
- * El rango puede ser abierto: con un solo límite es `> 4,5` o `< 5,9`, que es
- * lo que imprime el informe. Mostrarlo como `4,5 - -` decía otra cosa que el
- * papel que se lleva el paciente.
+ * El rango puede ser abierto: con un solo límite es `≥ 4,5` o `≤ 5,9`, y con
+ * el límite destildado, `> 4,5` o `< 5,9`. Mostrarlo como `4,5 - -` decía otra
+ * cosa que el papel que se lleva el paciente.
+ *
+ * Los signos tienen que ser los mismos que usa el backend para EVALUAR: la
+ * regla vive en `laboratory/catalog/rangos.py` y esta es su copia. Antes acá
+ * decía `>` para un rango que allá se evaluaba como `≥`.
  */
-export const formatReferenceBounds = (minValue?: string, maxValue?: string): string => {
+export interface LimitesDelRango {
+  /** El mínimo entra en el rango: `≥` si es true, `>` si es false. */
+  min_inclusive?: boolean
+  /** El máximo entra en el rango: `≤` si es true, `<` si es false. */
+  max_inclusive?: boolean
+}
+
+export const formatReferenceBounds = (
+  minValue?: string,
+  maxValue?: string,
+  limites?: LimitesDelRango,
+): string => {
   const min = (minValue || "").trim()
   const max = (maxValue || "").trim()
-  if (min && max) return `${min} - ${max}`
-  if (min) return `> ${min}`
-  if (max) return `< ${max}`
+  // Por defecto el límite entra, que es como el sistema evaluó siempre: un
+  // rango viejo, sin las banderas, se escribe igual que como se evalúa.
+  const minEntra = limites?.min_inclusive ?? true
+  const maxEntra = limites?.max_inclusive ?? true
+  const signoMin = minEntra ? "≥" : ">"
+  const signoMax = maxEntra ? "≤" : "<"
+
+  if (min && max) {
+    if (min === max) return min
+    if (minEntra && maxEntra) return `${min} - ${max}`
+    // Con una punta afuera se escriben las DOS: `40 - 200` con el 200 excluido
+    // sería mentira, y el signo en una sola punta deja dudando de la otra.
+    return `${signoMin} ${min} - ${signoMax} ${max}`
+  }
+  if (min) return `${signoMin} ${min}`
+  if (max) return `${signoMax} ${max}`
   return ""
 }
 
 export const formatReferenceRange = (range: ReferenceRange): string =>
-  `${formatReferenceGroup(range.group)}: ${formatReferenceBounds(range.min_value, range.max_value) || "-"}`
+  `${formatReferenceGroup(range.group)}: ${formatReferenceBounds(range.min_value, range.max_value, range) || "-"}`
 
 /** Un rango con nombre: el nombre lo puso el laboratorio y va tal cual. */
 export const formatNamedReferenceRange = (range: NamedReferenceRange): string =>
-  `${range.label}: ${formatReferenceBounds(range.min_value, range.max_value) || "-"}`
+  `${range.label}: ${formatReferenceBounds(range.min_value, range.max_value, range) || "-"}`
 
 /** Los rangos con nombre que tengan algún límite, en orden. */
 export const formatNamedReferenceRanges = (ranges?: NamedReferenceRange[]): string[] =>
   (ranges || [])
-    .filter((range) => range.label && formatReferenceBounds(range.min_value, range.max_value))
+    .filter((range) => range.label && formatReferenceBounds(range.min_value, range.max_value, range))
     .map(formatNamedReferenceRange)
 
 export const formatReferenceValues = (values?: ReferenceValues): string[] => {

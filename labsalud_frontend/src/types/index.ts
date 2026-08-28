@@ -500,6 +500,12 @@ export interface ReferenceRange {
   age_group: "adult" | "child" | string
   min_value: string
   max_value: string
+  /**
+   * Si el número del borde cuenta como normal. Por defecto sí, que es como el
+   * sistema evaluó siempre: `≥ 40` acepta el 40, `> 40` lo rechaza.
+   */
+  min_inclusive?: boolean
+  max_inclusive?: boolean
 }
 
 /**
@@ -514,6 +520,12 @@ export interface NamedReferenceRange {
   label: string
   min_value: string
   max_value: string
+  /**
+   * Si el número del borde cuenta como normal. Por defecto sí, que es como el
+   * sistema evaluó siempre: `≥ 40` acepta el 40, `> 40` lo rechaza.
+   */
+  min_inclusive?: boolean
+  max_inclusive?: boolean
   orden?: number
 }
 

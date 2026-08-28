@@ -39,6 +39,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
  * vacío, sin que nada lo dijera, y encima la detección automática ni siquiera
  * lo entendía como abierto. Ahora se elige el modo y lo que se ve es lo que se
  * imprime.
+ *
+ * Y EL BORDE ENTRA O NO ENTRA
+ * ===========================
+ * Los abiertos son cuatro y no dos: `≥ 40` acepta el 40 y `> 40` lo rechaza.
+ * Antes había uno solo por lado, que se evaluaba como "o igual" pero se
+ * imprimía como "mayor" — el papel del paciente y el rojo de la pantalla
+ * decían cosas distintas.
  */
 
 export const REF_GROUPS = [
@@ -48,10 +55,33 @@ export const REF_GROUPS = [
   { key: "nina", label: "Niña", sex: "female", age_group: "child" },
 ] as const
 
-/** Cómo se lee el rango: entre dos números, o abierto de un lado. */
-export type ModoDeRango = "rango" | "menor" | "mayor"
+/**
+ * Cómo se lee el rango: entre dos números, o abierto de un lado.
+ *
+ * Los abiertos vienen de a dos porque el borde importa. "Mayor o igual a 40"
+ * acepta el 40 y "mayor a 40" lo rechaza, y son dos cosas distintas que el
+ * laboratorio decide por análisis. Hasta acá había una sola opción por lado,
+ * que se EVALUABA como "o igual" pero se IMPRIMÍA como "mayor": el papel y el
+ * rojo de la pantalla decían cosas distintas.
+ */
+export type ModoDeRango = "rango" | "menor" | "menor_igual" | "mayor" | "mayor_igual"
 
 export type Rango = { modo: ModoDeRango; min: string; max: string }
+
+/** Si el modo deja el borde adentro. */
+const bordeAdentro = (modo: ModoDeRango) =>
+  modo === "mayor_igual" || modo === "menor_igual" || modo === "rango"
+
+/** Los dos modos que usan el casillero de la izquierda. */
+const esDeMinimo = (modo: ModoDeRango) => modo === "mayor" || modo === "mayor_igual"
+
+const SIGNO: Record<ModoDeRango, string> = {
+  rango: "",
+  mayor_igual: "≥",
+  mayor: ">",
+  menor_igual: "≤",
+  menor: "<",
+}
 
 export type RangeMap = Record<string, Rango>
 
@@ -60,6 +90,8 @@ export type RefRange = {
   age_group?: string
   min_value?: string
   max_value?: string
+  min_inclusive?: boolean
+  max_inclusive?: boolean
 }
 
 /** Un rango con nombre, como se edita en pantalla. */
@@ -71,6 +103,8 @@ export type NamedRange = {
   label: string
   min_value?: string
   max_value?: string
+  min_inclusive?: boolean
+  max_inclusive?: boolean
   orden?: number
 }
 
@@ -89,25 +123,54 @@ export const rangosVacios = (): RangeMap => ({
  * Un rango con un solo límite se imprime `> 4,5` o `< 5,9`, así que abrirlo en
  * modo "rango" con un casillero vacío mostraría otra cosa que el informe.
  */
-const modoSegunLimites = (min: string, max: string): ModoDeRango => {
-  if (min && !max) return "mayor"
-  if (max && !min) return "menor"
+const modoSegunLimites = (
+  min: string,
+  max: string,
+  minEntra: boolean,
+  maxEntra: boolean,
+): ModoDeRango => {
+  if (min && !max) return minEntra ? "mayor_igual" : "mayor"
+  if (max && !min) return maxEntra ? "menor_igual" : "menor"
   return "rango"
 }
 
-const rangoDesde = (min?: string, max?: string): Rango => {
+const rangoDesde = (
+  min?: string,
+  max?: string,
+  minEntra?: boolean,
+  maxEntra?: boolean,
+): Rango => {
   const desdeMin = (min ?? "").trim()
   const hastaMax = (max ?? "").trim()
-  return { modo: modoSegunLimites(desdeMin, hastaMax), min: desdeMin, max: hastaMax }
+  // Sin la bandera se asume que el borde entra, que es como el sistema evaluó
+  // siempre: un rango cargado antes de esto se abre como "≥" y no como ">".
+  return {
+    modo: modoSegunLimites(desdeMin, hastaMax, minEntra ?? true, maxEntra ?? true),
+    min: desdeMin,
+    max: hastaMax,
+  }
 }
 
 /** Los límites que se mandan al backend según el modo: el lado que no va, vacío. */
-const limitesDe = (rango: Rango): { min_value: string; max_value: string } => {
+const limitesDe = (rango: Rango): {
+  min_value: string
+  max_value: string
+  min_inclusive: boolean
+  max_inclusive: boolean
+} => {
   const min = rango.min.trim()
   const max = rango.max.trim()
-  if (rango.modo === "mayor") return { min_value: min, max_value: "" }
-  if (rango.modo === "menor") return { min_value: "", max_value: max }
-  return { min_value: min, max_value: max }
+  const entra = bordeAdentro(rango.modo)
+
+  if (esDeMinimo(rango.modo)) {
+    return { min_value: min, max_value: "", min_inclusive: entra, max_inclusive: true }
+  }
+  if (rango.modo === "menor" || rango.modo === "menor_igual") {
+    return { min_value: "", max_value: max, min_inclusive: true, max_inclusive: entra }
+  }
+  // Un rango de dos puntas va con las dos adentro: es como se leyó siempre y
+  // es lo que se quiere el 99% de las veces.
+  return { min_value: min, max_value: max, min_inclusive: true, max_inclusive: true }
 }
 
 const tieneAlgo = (rango: Rango): boolean => {
@@ -123,7 +186,12 @@ export function rangosDesde(existentes?: RefRange[]): RangeMap {
       (r) => r.sex === grupo.sex && r.age_group === grupo.age_group,
     )
     if (encontrado) {
-      mapa[grupo.key] = rangoDesde(encontrado.min_value, encontrado.max_value)
+      mapa[grupo.key] = rangoDesde(
+        encontrado.min_value,
+        encontrado.max_value,
+        encontrado.min_inclusive,
+        encontrado.max_inclusive,
+      )
     }
   }
   return mapa
@@ -142,7 +210,7 @@ export function rangosParaEnviar(ranges: RangeMap): RefRange[] {
 export function rangosConNombreDesde(existentes?: NamedRange[]): RangoConNombre[] {
   return (existentes || []).map((r) => ({
     label: r.label || "",
-    ...rangoDesde(r.min_value, r.max_value),
+    ...rangoDesde(r.min_value, r.max_value, r.min_inclusive, r.max_inclusive),
   }))
 }
 
@@ -177,8 +245,13 @@ function EditorDeRango({ rango, onChange, disabled }: EditorDeRangoProps) {
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="rango">Rango</SelectItem>
-          <SelectItem value="menor">Menor que</SelectItem>
-          <SelectItem value="mayor">Mayor que</SelectItem>
+          {/* Los cuatro abiertos, con el signo adelante: es como se va a
+              imprimir en el informe, así que no hay que traducir nada
+              mentalmente entre lo que se elige y lo que sale en el papel. */}
+          <SelectItem value="mayor_igual">≥ Mayor o igual</SelectItem>
+          <SelectItem value="mayor">&gt; Mayor</SelectItem>
+          <SelectItem value="menor_igual">≤ Menor o igual</SelectItem>
+          <SelectItem value="menor">&lt; Menor</SelectItem>
         </SelectContent>
       </Select>
       {rango.modo === "rango" ? (
@@ -200,15 +273,15 @@ function EditorDeRango({ rango, onChange, disabled }: EditorDeRangoProps) {
         </>
       ) : (
         <Input
-          value={rango.modo === "mayor" ? rango.min : rango.max}
+          value={esDeMinimo(rango.modo) ? rango.min : rango.max}
           onChange={(e) =>
             onChange(
-              rango.modo === "mayor"
+              esDeMinimo(rango.modo)
                 ? { ...rango, min: e.target.value }
                 : { ...rango, max: e.target.value },
             )
           }
-          placeholder={rango.modo === "mayor" ? "Mayor que…" : "Menor que…"}
+          placeholder={`${SIGNO[rango.modo]} …`}
           disabled={disabled}
           className="col-span-2 h-9 text-sm"
         />

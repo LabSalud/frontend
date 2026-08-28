@@ -44,6 +44,17 @@ export interface LimitesDelRango {
   max_inclusive?: boolean
 }
 
+/**
+ * Un límite contra el que se pueda comparar.
+ *
+ * En el catálogo hay 1294 «límites» que no son números: «No reactivo»,
+ * «Negativo», «Normal». No son un umbral sino el valor de referencia entero, y
+ * ponerles un signo adelante no dice nada — el informe llegó a imprimir
+ * "≤ No reactivo". Misma regla que `es_un_numero` en el backend.
+ */
+const esUnNumero = (valor: string): boolean =>
+  valor !== "" && !Number.isNaN(Number(valor.replace(",", ".")))
+
 export const formatReferenceBounds = (
   minValue?: string,
   maxValue?: string,
@@ -65,8 +76,9 @@ export const formatReferenceBounds = (
     // sería mentira, y el signo en una sola punta deja dudando de la otra.
     return `${signoMin} ${min} - ${signoMax} ${max}`
   }
-  if (min) return `${signoMin} ${min}`
-  if (max) return `${signoMax} ${max}`
+  // Un límite solo que no es número va tal cual, sin signo.
+  if (min) return esUnNumero(min) ? `${signoMin} ${min}` : min
+  if (max) return esUnNumero(max) ? `${signoMax} ${max}` : max
   return ""
 }
 

@@ -401,6 +401,57 @@ export function useProtocolResults(protocolId: number) {
     [apiRequest],
   )
 
+  /**
+   * Valida varios resultados en UNA request.
+   *
+   * "Validar todos" iba de a uno y esperando: treinta determinaciones eran
+   * treinta idas y vueltas, treinta recálculos del estado del protocolo y
+   * treinta avisos apilados en pantalla.
+   *
+   * Devuelve los que NO se pudieron validar, con el motivo. El backend firma
+   * todos los que puede y rebota los otros —una fórmula que no cierra, un
+   * valor vacío— porque el botón dice "todos" pero significa "todos los que
+   * se puedan": un solo error no puede dejar al bioquímico sin avanzar.
+   */
+  const onValidateMany = useCallback(
+    async (resultIds: number[], isValid: boolean): Promise<{ id: number; detail: string }[]> => {
+      if (resultIds.length === 0) return []
+      setSaving((prev) => ({ ...prev, ...Object.fromEntries(resultIds.map((id) => [id, true])) }))
+      try {
+        const res = await apiRequest(RESULTS_ENDPOINTS.VALIDATE_BATCH, {
+          method: "POST",
+          body: { result_ids: resultIds, is_valid: isValid, tipo: "bioquimica" },
+        })
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}))
+          throw new Error(formatApiError(err, "Error al validar los resultados"))
+        }
+        const data: {
+          results: Result[]
+          errors: { id: number; detail: string }[]
+          affected_protocols: { id: number; status: ResultsProtocolHeader["status"] }[]
+        } = await res.json()
+
+        const porId = new Map(data.results.map((r) => [r.id, r]))
+        setResults((prev) => prev.map((r) => porId.get(r.id) ?? r))
+        // Por id y no por posición: todos los resultados son de este
+        // protocolo, pero el endpoint acepta varios y no conviene depender
+        // de que venga uno solo.
+        const propio = data.affected_protocols.find((p) => p.id === protocolId)
+        if (propio) setProtocol((prev) => (prev ? { ...prev, status: propio.status } : prev))
+
+        return data.errors ?? []
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Error al validar los resultados")
+        // La tanda entera falló: ninguno se firmó.
+        return resultIds.map((id) => ({ id, detail: "No se pudo validar" }))
+      } finally {
+        setSaving((prev) => ({ ...prev, ...Object.fromEntries(resultIds.map((id) => [id, false])) }))
+      }
+    },
+    [apiRequest, protocolId],
+  )
+
   const loadPrevious = useCallback(
     async (resultId: number, patientId: number, determinationId: number) => {
       if (previousResults[resultId] || loadingPrevious.has(resultId)) return
@@ -476,6 +527,7 @@ export function useProtocolResults(protocolId: number) {
     onChange,
     onSave,
     onValidate,
+    onValidateMany,
     alternarCargaManual,
     borrarValor,
     previousResults,

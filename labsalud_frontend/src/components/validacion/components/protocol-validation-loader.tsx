@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import type { useProtocolResults } from "@/hooks/use-protocol-results"
+import { toast } from "sonner"
 import { ValidationResultRow } from "./validation-result-row"
 import { ResumenDeResultados } from "@/components/common/resumen-de-resultados"
 
@@ -17,7 +18,7 @@ interface ProtocolValidationLoaderProps {
 /** Validación de un protocolo (presentacional): agrupa por análisis, con
  * "Validar todos" y búsqueda. Los datos vienen por `controller`. */
 export function ProtocolValidationLoader({ controller }: ProtocolValidationLoaderProps) {
-  const { loading, error, protocol, results, groups, saving, onValidate, previousResults, loadingPrevious, loadPrevious } = controller
+  const { loading, error, protocol, results, groups, saving, onValidate, onValidateMany, previousResults, loadingPrevious, loadPrevious } = controller
   const patientId = protocol?.patient?.id ?? 0
   // Protocolo cancelado: solo lectura (hay que descancelarlo para validar).
   const isCancelled = (protocol?.status?.name || "").trim().toLowerCase() === "cancelado"
@@ -49,13 +50,33 @@ export function ProtocolValidationLoader({ controller }: ProtocolValidationLoade
 
   const pendingWithValue = results.filter((r) => !!r.value && !r.is_valid)
 
+  /**
+   * Manda los pendientes en UNA request.
+   *
+   * Antes iba de a uno y esperando la respuesta de cada uno: treinta
+   * determinaciones eran treinta idas y vueltas y treinta avisos apilados.
+   *
+   * El backend firma todos los que puede y devuelve los que no —una fórmula
+   * que no cierra, un valor vacío—, así que un error no frena a los demás. El
+   * aviso dice cuántos entraron y cuántos quedaron, con el motivo del primero:
+   * la fila queda marcada en pantalla para ir a mirarla.
+   */
   const validateAll = async () => {
     setValidatingAll(true)
-    for (const r of pendingWithValue) {
-      // eslint-disable-next-line no-await-in-loop
-      await onValidate(r.id, true)
-    }
+    const total = pendingWithValue.length
+    const errores = await onValidateMany(pendingWithValue.map((r) => r.id), true)
     setValidatingAll(false)
+
+    const firmados = total - errores.length
+    if (errores.length === 0) {
+      toast.success(firmados === 1 ? "1 resultado validado" : `${firmados} resultados validados`)
+    } else if (firmados === 0) {
+      toast.error(`No se validó ninguno: ${errores[0].detail}`)
+    } else {
+      toast.warning(
+        `${firmados} de ${total} validados. ${errores.length} quedaron sin validar: ${errores[0].detail}`,
+      )
+    }
   }
 
   const filteredGroups = useMemo(() => {

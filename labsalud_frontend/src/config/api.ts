@@ -264,6 +264,8 @@ export const RESULTS_ENDPOINTS = {
   BY_PROTOCOL: (id: number) => buildApiUrl(`/results/results/by-protocol/${id}/`),
   RESULT_DETAIL: (id: number) => buildApiUrl(`/results/results/${id}/`),
   VALIDATE: (id: number) => buildApiUrl(`/results/results/${id}/validate/`),
+  /** Validar varios de una: "Validar todos" mandaba una request por resultado. */
+  VALIDATE_BATCH: buildApiUrl("/results/results/validate-batch/"),
   PREVIOUS_RESULTS: (patientId: number, determinationId: number) =>
     buildApiUrl(`/results/results/history/?patient_id=${patientId}&determination_id=${determinationId}`),
   // Cola de resultados: protocolos por estado (incluye los que aún no tienen

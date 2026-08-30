@@ -3,7 +3,7 @@
 Este documento es para pasarle directo al backend. Describe el nuevo modelo de
 facturación acordado con la bioquímica y lo que hace falta implementar para
 que el frontend (ya prototipado con datos mock en
-`labsalud_frontend/src/components/facturacion/`) deje de simular y pase a
+`src/components/facturacion/`) deje de simular y pase a
 pegarle a endpoints reales.
 
 Referencia de lo que existe hoy: `docs/API_BILLING.md`, `docs/SISTEMA_NBU_Y_PRICING.md`.
@@ -459,7 +459,7 @@ hay ese matiz.
 
 ## 6. Referencia: prototipo de frontend ya construido
 
-`labsalud_frontend/src/components/facturacion/` tiene el prototipo
+`src/components/facturacion/` tiene el prototipo
 funcional con datos mock (`mock-data.ts` + `use-facturacion-mock.ts`)
 que ya modela exactamente estas formas de datos. Cuando estos endpoints
 existan, se reemplaza el hook mock por uno que hace fetch real — las

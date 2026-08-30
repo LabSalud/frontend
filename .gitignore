@@ -138,5 +138,21 @@ dist
 .DS_Store
 .god
 
-# graphify knowledge graph output
-graphify-out/
+# --- editores / IDE (venian de labsalud_frontend/.gitignore) ---
+.vscode/*
+!.vscode/extensions.json
+.idea
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# --- build / deps ---
+node_modules
+dist-ssr
+*.local
+pnpm-debug.log*
+
+# --- claves de API ---
+API_*

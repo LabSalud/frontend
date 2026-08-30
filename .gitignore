@@ -156,3 +156,8 @@ pnpm-debug.log*
 
 # --- claves de API ---
 API_*
+
+# graphify: versionamos el grafo, no el caché ni las rutas locales
+graphify-out/cache/
+graphify-out/.graphify_*
+graphify-out/manifest.json

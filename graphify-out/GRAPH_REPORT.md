@@ -1,348 +1,485 @@
-# Graph Report - .  (2026-06-19)
+# Graph Report - .  (2026-08-30)
 
 ## Corpus Check
-- 210 files · ~125,168 words
+- 315 files · ~231,259 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 1170 nodes · 3922 edges · 62 communities (58 shown, 4 thin omitted)
-- Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 31 edges (avg confidence: 0.8)
-- Token cost: 125,014 input · 0 output
+- 1743 nodes · 6130 edges · 88 communities (86 shown, 2 thin omitted)
+- Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 37 edges (avg confidence: 0.86)
+- Token cost: 107,392 input · 0 output
 
 ## Community Hubs (Navigation)
-- [[_COMMUNITY_Entity Creation Dialogs & Forms|Entity Creation Dialogs & Forms]]
-- [[_COMMUNITY_Analysis Catalog & CRUD Dialogs|Analysis Catalog & CRUD Dialogs]]
-- [[_COMMUNITY_History & Deletion Dialogs|History & Deletion Dialogs]]
-- [[_COMMUNITY_Caveman Compress Python Tooling|Caveman Compress Python Tooling]]
-- [[_COMMUNITY_Shared Types & Error Handling|Shared Types & Error Handling]]
-- [[_COMMUNITY_Audit & Result Input UI|Audit & Result Input UI]]
-- [[_COMMUNITY_Radix UI Runtime Dependencies|Radix UI Runtime Dependencies]]
-- [[_COMMUNITY_shadcnui Component Primitives|shadcn/ui Component Primitives]]
-- [[_COMMUNITY_CavemanCavecrew Skill Suite|Caveman/Cavecrew Skill Suite]]
-- [[_COMMUNITY_Protocol Action Dialogs|Protocol Action Dialogs]]
-- [[_COMMUNITY_Protocol Status & Reporting|Protocol Status & Reporting]]
-- [[_COMMUNITY_App TypeScript Config|App TypeScript Config]]
-- [[_COMMUNITY_Auth & Session Storage|Auth & Session Storage]]
-- [[_COMMUNITY_PermissionRole Tables|Permission/Role Tables]]
-- [[_COMMUNITY_Medico & Patient Forms|Medico & Patient Forms]]
-- [[_COMMUNITY_Combobox & Command Components|Combobox & Command Components]]
-- [[_COMMUNITY_App Routing & Protected Routes|App Routing & Protected Routes]]
-- [[_COMMUNITY_Node TypeScript Config|Node TypeScript Config]]
-- [[_COMMUNITY_Protocol Intake (Ingreso)|Protocol Intake (Ingreso)]]
-- [[_COMMUNITY_Patient Creation & CUIL Validation|Patient Creation & CUIL Validation]]
-- [[_COMMUNITY_Layout, Navbar & Notifications|Layout, Navbar & Notifications]]
-- [[_COMMUNITY_User Table & Dropdown Menu|User Table & Dropdown Menu]]
-- [[_COMMUNITY_Result Validation & Reference Formatting|Result Validation & Reference Formatting]]
-- [[_COMMUNITY_shadcn Components Config|shadcn Components Config]]
-- [[_COMMUNITY_Management Pages & Permissions|Management Pages & Permissions]]
-- [[_COMMUNITY_Home Dashboard & Metrics|Home Dashboard & Metrics]]
-- [[_COMMUNITY_Analysis Accordion & Results|Analysis Accordion & Results]]
-- [[_COMMUNITY_Protocol Accordion View|Protocol Accordion View]]
-- [[_COMMUNITY_Auth Context & Session Lifecycle|Auth Context & Session Lifecycle]]
-- [[_COMMUNITY_Report Dialog & Customization|Report Dialog & Customization]]
-- [[_COMMUNITY_Protocol Details & Preauthorization|Protocol Details & Preauthorization]]
-- [[_COMMUNITY_Dev Tooling Dependencies|Dev Tooling Dependencies]]
-- [[_COMMUNITY_Result Formula Calculations|Result Formula Calculations]]
-- [[_COMMUNITY_Protocol Form & Status Buttons|Protocol Form & Status Buttons]]
-- [[_COMMUNITY_Patient Cards & Grid|Patient Cards & Grid]]
-- [[_COMMUNITY_Protocol Header & Payment Status|Protocol Header & Payment Status]]
-- [[_COMMUNITY_Page Components & Auth Hook|Page Components & Auth Hook]]
-- [[_COMMUNITY_Facturacion (Billing) Page|Facturacion (Billing) Page]]
-- [[_COMMUNITY_Package Manifest|Package Manifest]]
-- [[_COMMUNITY_Protocol Order Status (Trajo Orden)|Protocol Order Status (Trajo Orden)]]
-- [[_COMMUNITY_Date Utilities|Date Utilities]]
-- [[_COMMUNITY_Analysis Component Props|Analysis Component Props]]
-- [[_COMMUNITY_Validation Hooks|Validation Hooks]]
-- [[_COMMUNITY_Endpoint Revision & Deploy Tasks|Endpoint Revision & Deploy Tasks]]
-- [[_COMMUNITY_Root TypeScript Config|Root TypeScript Config]]
-- [[_COMMUNITY_Admin Icon Branding|Admin Icon Branding]]
-- [[_COMMUNITY_Protocol Status Color Helpers|Protocol Status Color Helpers]]
-- [[_COMMUNITY_API Error Toast Handling|API Error Toast Handling]]
-- [[_COMMUNITY_Loading State Hooks|Loading State Hooks]]
-- [[_COMMUNITY_Brand Icon (Healthcare)|Brand Icon (Healthcare)]]
-- [[_COMMUNITY_Logo+Icon Branding|Logo+Icon Branding]]
-- [[_COMMUNITY_Alert Component|Alert Component]]
-- [[_COMMUNITY_Determination & Reference Types|Determination & Reference Types]]
-- [[_COMMUNITY_Wordmark Logo Branding|Wordmark Logo Branding]]
-- [[_COMMUNITY_Auth Domain Types|Auth Domain Types]]
-- [[_COMMUNITY_HTML Entrypoint & Vite README|HTML Entrypoint & Vite README]]
-- [[_COMMUNITY_Vercel Config|Vercel Config]]
-- [[_COMMUNITY_Vite Config|Vite Config]]
-- [[_COMMUNITY_Caveman Compress Package|Caveman Compress Package]]
+- [[_COMMUNITY_Diálogos y Tarjetas de Protocolo|Diálogos y Tarjetas de Protocolo]]
+- [[_COMMUNITY_Diálogos de Configuración|Diálogos de Configuración]]
+- [[_COMMUNITY_Documentación de Rediseño|Documentación de Rediseño]]
+- [[_COMMUNITY_Tipos Compartidos de la App|Tipos Compartidos de la App]]
+- [[_COMMUNITY_Forma de Pago y Facturación ARCA|Forma de Pago y Facturación ARCA]]
+- [[_COMMUNITY_Primitivas UI (sheet, accordion)|Primitivas UI (sheet, accordion)]]
+- [[_COMMUNITY_Configuración de Análisis y Precios|Configuración de Análisis y Precios]]
+- [[_COMMUNITY_Manejo de Errores de API|Manejo de Errores de API]]
+- [[_COMMUNITY_Dependencias npm|Dependencias npm]]
+- [[_COMMUNITY_Raíz de la App y Ruteo|Raíz de la App y Ruteo]]
+- [[_COMMUNITY_Configuración de Endpoints|Configuración de Endpoints]]
+- [[_COMMUNITY_Diálogos de Reportes y Roles|Diálogos de Reportes y Roles]]
+- [[_COMMUNITY_Enrolamiento de Segundo Factor|Enrolamiento de Segundo Factor]]
+- [[_COMMUNITY_Campos de Formulario|Campos de Formulario]]
+- [[_COMMUNITY_Valores de Referencia y Determinaciones|Valores de Referencia y Determinaciones]]
+- [[_COMMUNITY_Navbar y Menú de Usuario|Navbar y Menú de Usuario]]
+- [[_COMMUNITY_Presentaciones y Gráficos de Facturación|Presentaciones y Gráficos de Facturación]]
+- [[_COMMUNITY_Tarjetas de Perfil y Paciente|Tarjetas de Perfil y Paciente]]
+- [[_COMMUNITY_Búsqueda Global|Búsqueda Global]]
+- [[_COMMUNITY_Caja del Día y Pendientes|Caja del Día y Pendientes]]
+- [[_COMMUNITY_Selección de Análisis en el Ingreso|Selección de Análisis en el Ingreso]]
+- [[_COMMUNITY_Alta de Paciente y DNI|Alta de Paciente y DNI]]
+- [[_COMMUNITY_Avatares de Auditoría y Tablas|Avatares de Auditoría y Tablas]]
+- [[_COMMUNITY_Título de Pestaña y Cola|Título de Pestaña y Cola]]
+- [[_COMMUNITY_Menús Desplegables y Acciones en Lote|Menús Desplegables y Acciones en Lote]]
+- [[_COMMUNITY_Entidades de Facturación|Entidades de Facturación]]
+- [[_COMMUNITY_Filtros de Estado de Protocolo|Filtros de Estado de Protocolo]]
+- [[_COMMUNITY_Almacenamiento de Sesión|Almacenamiento de Sesión]]
+- [[_COMMUNITY_Configuración TypeScript (app)|Configuración TypeScript (app)]]
+- [[_COMMUNITY_Scroll Infinito e Historial|Scroll Infinito e Historial]]
+- [[_COMMUNITY_Contexts|Contexts]]
+- [[_COMMUNITY_Pantalla de Configuración|Pantalla de Configuración]]
+- [[_COMMUNITY_Utilidades|Utilidades]]
+- [[_COMMUNITY_Pantalla de Protocolos|Pantalla de Protocolos]]
+- [[_COMMUNITY_Componentes de la App|Componentes de la App]]
+- [[_COMMUNITY_Tipos Compartidos|Tipos Compartidos]]
+- [[_COMMUNITY_Utilidades (2)|Utilidades (2)]]
+- [[_COMMUNITY_Componentes de la App (2)|Componentes de la App (2)]]
+- [[_COMMUNITY_Validación de Resultados|Validación de Resultados]]
+- [[_COMMUNITY_Componentes de la App (3)|Componentes de la App (3)]]
+- [[_COMMUNITY_Pantalla de Protocolos (2)|Pantalla de Protocolos (2)]]
+- [[_COMMUNITY_Configuración TypeScript (node)|Configuración TypeScript (node)]]
+- [[_COMMUNITY_Componentes de la App (4)|Componentes de la App (4)]]
+- [[_COMMUNITY_Configuración shadcnui|Configuración shadcn/ui]]
+- [[_COMMUNITY_Pantalla de Configuración (2)|Pantalla de Configuración (2)]]
+- [[_COMMUNITY_Permisos de Configuración de la API|Permisos de Configuración de la API]]
+- [[_COMMUNITY_Componentes Compartidos|Componentes Compartidos]]
+- [[_COMMUNITY_Componentes UI Base|Componentes UI Base]]
+- [[_COMMUNITY_Utilidades (3)|Utilidades (3)]]
+- [[_COMMUNITY_Ingreso de Pacientes|Ingreso de Pacientes]]
+- [[_COMMUNITY_Hooks de Datos|Hooks de Datos]]
+- [[_COMMUNITY_Componentes UI Base (2)|Componentes UI Base (2)]]
+- [[_COMMUNITY_Dependencias npm|Dependencias npm]]
+- [[_COMMUNITY_Utilidades (4)|Utilidades (4)]]
+- [[_COMMUNITY_Componentes UI Base (3)|Componentes UI Base (3)]]
+- [[_COMMUNITY_Utilidades (5)|Utilidades (5)]]
+- [[_COMMUNITY_Utilidades (6)|Utilidades (6)]]
+- [[_COMMUNITY_Pantalla de Configuración (3)|Pantalla de Configuración (3)]]
+- [[_COMMUNITY_Pantalla de Configuración (4)|Pantalla de Configuración (4)]]
+- [[_COMMUNITY_Utilidades (7)|Utilidades (7)]]
+- [[_COMMUNITY_Utilidades (8)|Utilidades (8)]]
+- [[_COMMUNITY_Dependencias npm (2)|Dependencias npm (2)]]
+- [[_COMMUNITY_Hooks de Datos (2)|Hooks de Datos (2)]]
+- [[_COMMUNITY_Pantalla de Facturación|Pantalla de Facturación]]
+- [[_COMMUNITY_Utilidades (9)|Utilidades (9)]]
+- [[_COMMUNITY_Utils|Utils]]
+- [[_COMMUNITY_Pantalla de Protocolos (3)|Pantalla de Protocolos (3)]]
+- [[_COMMUNITY_Pantalla de Protocolos (4)|Pantalla de Protocolos (4)]]
+- [[_COMMUNITY_Pantalla de Protocolos (5)|Pantalla de Protocolos (5)]]
+- [[_COMMUNITY_Utilidades (10)|Utilidades (10)]]
+- [[_COMMUNITY_Componentes Compartidos (2)|Componentes Compartidos (2)]]
+- [[_COMMUNITY_Componentes Compartidos (3)|Componentes Compartidos (3)]]
+- [[_COMMUNITY_Pantalla de Facturación (2)|Pantalla de Facturación (2)]]
+- [[_COMMUNITY_Hooks de Datos (3)|Hooks de Datos (3)]]
+- [[_COMMUNITY_Componentes Compartidos (4)|Componentes Compartidos (4)]]
+- [[_COMMUNITY_Componentes Compartidos (5)|Componentes Compartidos (5)]]
+- [[_COMMUNITY_Utilidades (11)|Utilidades (11)]]
+- [[_COMMUNITY_Configuración TypeScript|Configuración TypeScript]]
+- [[_COMMUNITY_Hooks de Datos (4)|Hooks de Datos (4)]]
+- [[_COMMUNITY_Hooks de Datos (5)|Hooks de Datos (5)]]
+- [[_COMMUNITY_Componentes Compartidos (6)|Componentes Compartidos (6)]]
+- [[_COMMUNITY_Tipos Compartidos (2)|Tipos Compartidos (2)]]
+- [[_COMMUNITY_Configuración Vercel|Configuración Vercel]]
+- [[_COMMUNITY_Configuración Vite|Configuración Vite]]
 
 ## God Nodes (most connected - your core abstractions)
-1. `cn()` - 117 edges
-2. `useApi()` - 104 edges
-3. `Button()` - 80 edges
-4. `formatApiError()` - 65 edges
-5. `Input()` - 52 edges
-6. `useToast()` - 47 edges
-7. `DialogContent()` - 39 edges
-8. `DialogHeader()` - 39 edges
-9. `DialogTitle()` - 39 edges
-10. `Dialog()` - 38 edges
+1. `cn()` - 180 edges
+2. `useApi()` - 158 edges
+3. `Button()` - 124 edges
+4. `Input()` - 86 edges
+5. `useToast()` - 69 edges
+6. `formatApiError()` - 69 edges
+7. `Label()` - 59 edges
+8. `useApiQuery()` - 54 edges
+9. `DialogContent()` - 52 edges
+10. `Dialog()` - 51 edges
 
 ## Surprising Connections (you probably didn't know these)
-- `UserTableProps` --references--> `User`  [EXTRACTED]
-  labsalud_frontend/src/components/admin/components/user-table.tsx → labsalud_frontend/src/types/index.ts
-- `extractErrorMessage()` --calls--> `formatApiError()`  [EXTRACTED]
-  labsalud_frontend/src/components/admin/role-management.tsx → labsalud_frontend/src/lib/api-error.ts
-- `FacturacionPage()` --calls--> `useApi()`  [EXTRACTED]
-  labsalud_frontend/src/components/facturacion/facturacion-page.tsx → labsalud_frontend/src/hooks/use-api.tsx
-- `AnalysisSelector()` --calls--> `useApi()`  [EXTRACTED]
-  labsalud_frontend/src/components/ingreso/components/analysis-selector.tsx → labsalud_frontend/src/hooks/use-api.tsx
-- `extractErrorMessage()` --calls--> `formatApiError()`  [EXTRACTED]
-  labsalud_frontend/src/components/ingreso/components/create-medico-form.tsx → labsalud_frontend/src/lib/api-error.ts
+- `Claude Code resume checkpoint (sesión 72af67d5)` --conceptually_related_to--> `Plan de rediseño de UI: lista + página de detalle`  [AMBIGUOUS]
+  .claude/RESUME.md → doc/ui-redesign-plan.md
+- `Múltiples catálogos según obra social` --semantically_similar_to--> `Insurance.billing_entity`  [INFERRED] [semantically similar]
+  arreglar.md → doc/facturacion-rediseno-backend-prompt.md
+- `Arquitectura de rutas anidadas con Outlet` --conceptually_related_to--> `Montaje de la SPA en #root vía /src/main.tsx`  [INFERRED]
+  doc/ui-redesign-plan.md → index.html
+- `Recorte de los 10 campos ARCA del serializer de protocolos` --conceptually_related_to--> `ProtocolRowSerializer (fila de tabla)`  [INFERRED]
+  REVISION_ENDPOINTS.md → doc/backend-changes-ui-redesign.md
+- `Job diario de recordatorio de cierre por WhatsApp` --shares_data_with--> `Unificación de la familia de endpoints de reporting`  [INFERRED]
+  doc/facturacion-rediseno-backend-prompt.md → REVISION_ENDPOINTS.md
 
 ## Import Cycles
 - None detected.
 
 ## Hyperedges (group relationships)
-- **Caveman skill suite** — caveman_skill, caveman_commit_skill, caveman_review_skill, caveman_compress_skill, caveman_help_skill, caveman_stats_skill [EXTRACTED 1.00]
-- **Cavecrew subagent trio** — cavecrew_investigator, cavecrew_builder, cavecrew_reviewer [EXTRACTED 1.00]
-- **Backend endpoint/payload cleanup plan** — revision_endpoints_api_config, revision_endpoints_arca_fields, revision_endpoints_audit_timeline, revision_endpoints_reporting_unify [EXTRACTED 1.00]
+- **Adelgazamiento del payload del listado de protocolos** — doc_backend_changes_ui_redesign_protocol_row_serializer, doc_backend_changes_ui_redesign_payment_info_memoization, doc_backend_changes_ui_redesign_unplanned_transactions_n1, frontend_revision_endpoints_arca_fields_trim, doc_analisis_stats_endpoints_resultados_view_table_slim, doc_backend_changes_ui_redesign_sparse_fieldsets [INFERRED 0.85]
+- **Ciclo de vida de una presentación de facturación** — doc_facturacion_rediseno_backend_prompt_billing_entity, doc_facturacion_rediseno_backend_prompt_presentation_model, doc_facturacion_rediseno_backend_prompt_papers_checklist, doc_facturacion_rediseno_backend_prompt_close_period, doc_facturacion_rediseno_backend_prompt_set_ub_value, doc_facturacion_rediseno_backend_prompt_set_collected, doc_facturacion_rediseno_backend_prompt_reminder_cron_job [EXTRACTED 1.00]
+- **Cola de resultados con progreso cargados/validados** — doc_endpoint_cola_resultados_results_queue_endpoint, doc_endpoint_cola_resultados_results_queue_serializer, doc_endpoint_cola_resultados_protocols_with_loaded_results, doc_backend_changes_ui_redesign_results_queue_progress_counts, doc_analisis_stats_endpoints_resultados_is_loaded_per_analysis, doc_analisis_stats_endpoints_resultados_results_redesign_plan [INFERRED 0.85]
 
-## Communities (62 total, 4 thin omitted)
+## Communities (88 total, 2 thin omitted)
 
-### Community 0 - "Entity Creation Dialogs & Forms"
-Cohesion: 0.06
-Nodes (103): PermissionManagementProps, UserManagementProps, CreateDeterminationDialogProps, CreateMedicoDialogProps, FormData, ValidationState, CreateObraSocialDialogProps, FormData (+95 more)
+### Community 0 - "Diálogos y Tarjetas de Protocolo"
+Cohesion: 0.05
+Nodes (71): Props, Analysis, DeleteAnalysisCatalogDialogProps, DeleteDeterminationDialogProps, DeterminationItem, DeleteMedicoDialogProps, Medico, ProtocolActions() (+63 more)
 
-### Community 1 - "Analysis Catalog & CRUD Dialogs"
-Cohesion: 0.07
-Nodes (69): AuditAvatars(), AnalysisAccordionView(), AnalysisCatalog, AnalysisList(), AnalysisListProps, AnalysisSearch(), PaginatedResponse, ClearCatalogDialog() (+61 more)
+### Community 1 - "Diálogos de Configuración"
+Cohesion: 0.10
+Nodes (38): DialogHeading(), DialogHeadingProps, HistoryList(), ObjectHistoryDialogProps, Resultado, IdleWarningModalProps, ImportDataDialogProps, PlanDeDerivacion (+30 more)
 
-### Community 2 - "History & Deletion Dialogs"
-Cohesion: 0.06
-Nodes (48): HistoryList(), ObjectHistoryDialog(), ObjectHistoryDialogProps, AnalysisHistoryDialog(), AnalysisHistoryDialogProps, ClearCatalogDialogProps, ClearCatalogResponse, Analysis (+40 more)
+### Community 2 - "Documentación de Rediseño"
+Cohesion: 0.05
+Nodes (64): Claude Code resume checkpoint (sesión 72af67d5), Análisis de estadísticas del inicio, endpoints y rediseño de Resultados, count faltante en InfiniteScrollPagination, Campo is_loaded por análisis en el detalle de protocolo, DNI en search_fields de la lista de pacientes, Rediseño de Resultados: lista + página por protocolo, Listado slim vía ?view=table, Cambios de backend para la UI lista + detalle (+56 more)
 
-### Community 3 - "Caveman Compress Python Tooling"
-Cohesion: 0.08
-Nodes (44): Path, Path, Path, Path, benchmark_pair(), count_tokens(), main(), print_table() (+36 more)
-
-### Community 4 - "Shared Types & Error Handling"
+### Community 3 - "Tipos Compartidos de la App"
 Cohesion: 0.04
-Nodes (45): ErrorState, AnalysisPanel, ApiResponse, AppConfig, AuditActionType, AuditUser, AvailableAnalysis, BaseEntity (+37 more)
+Nodes (58): AnalysisCategory, AnalysisPanel, AppConfig, ApplicationInfo, AuditUser, AvailableAnalysis, BaseEntity, BillingOossControlItem (+50 more)
 
-### Community 5 - "Audit & Result Input UI"
+### Community 4 - "Forma de Pago y Facturación ARCA"
+Cohesion: 0.13
+Nodes (28): Persona, Props, CuentaElegible, FormaDePago(), Props, SelectorDeCuenta(), SelectorDeCuentaProps, useCuentas() (+20 more)
+
+### Community 5 - "Primitivas UI (sheet, accordion)"
+Cohesion: 0.08
+Nodes (25): CarruselDeslizable(), cn(), AccordionContent(), AccordionItem(), AccordionTrigger(), Alert(), AlertDescription(), AlertTitle() (+17 more)
+
+### Community 6 - "Configuración de Análisis y Precios"
+Cohesion: 0.10
+Nodes (32): CorreccionDelCobro(), plata(), AnalysisHistoryDialog(), AnalysisHistoryDialogProps, AnalysisSelector(), CopiarDeterminaciones(), CreateAnalysisCatalogDialog(), CreateDeterminationDialog() (+24 more)
+
+### Community 7 - "Manejo de Errores de API"
 Cohesion: 0.09
-Nodes (30): AuditAvatarsProps, AuditInfo, formatDateTime(), sizeClasses, textSizeClasses, CATEGORY_META, AnalysisInputProps, inputRefs (+22 more)
+Nodes (28): BillingEntitySelect(), CreateMedicoFormProps, extractErrorMessage(), CreateObraSocialDialogProps, FormData, initialFormData, ValidationState, extractErrorMessage() (+20 more)
 
-### Community 6 - "Radix UI Runtime Dependencies"
+### Community 8 - "Dependencias npm"
 Cohesion: 0.06
-Nodes (31): dependencies, class-variance-authority, clsx, cmdk, lucide-react, next-themes, @radix-ui/react-accordion, @radix-ui/react-alert-dialog (+23 more)
+Nodes (36): dependencies, class-variance-authority, clsx, cmdk, @dnd-kit/core, @dnd-kit/modifiers, @dnd-kit/sortable, @dnd-kit/utilities (+28 more)
 
-### Community 7 - "shadcn/ui Component Primitives"
-Cohesion: 0.09
-Nodes (21): cn(), CardAction(), CardDescription(), CardFooter(), FormField(), FormFieldProps, HoverCardContent(), ScrollArea() (+13 more)
+### Community 9 - "Raíz de la App y Ruteo"
+Cohesion: 0.07
+Nodes (25): NotFound(), ProtectedRoute(), ProtectedRouteProps, TituloDePestana(), olvidarLasRecargas(), paginaLazy(), App(), ConfigurationPage (+17 more)
 
-### Community 8 - "Caveman/Cavecrew Skill Suite"
+### Community 10 - "Configuración de Endpoints"
 Cohesion: 0.10
-Nodes (27): cavecrew-builder subagent, Subagent context compression win, cavecrew-investigator subagent, Locate-fix-verify chaining pattern, cavecrew-reviewer subagent, cavecrew decision guide, caveman auto-clarity rule, caveman-commit auto-clarity rule (+19 more)
+Nodes (24): CreateUserDialog(), DeleteUserDialog(), EditUserDialog(), RoleChips(), extractErrorMessage(), TempPermissionDialog(), TempPermissionItem, UserCardAction (+16 more)
 
-### Community 9 - "Protocol Action Dialogs"
+### Community 11 - "Diálogos de Reportes y Roles"
+Cohesion: 0.08
+Nodes (17): extractErrorMessage(), RoleManagementProps, RoleWithDetails, EditObraSocialDialogProps, ObraSocialDetailDialogProps, CambioDeAnalisis, PropagarPreciosDialog(), Props (+9 more)
+
+### Community 12 - "Enrolamiento de Segundo Factor"
 Cohesion: 0.12
-Nodes (21): HistoryListProps, TimelineResponse, ProtocolActions(), EXCLUDED_REPORT_ANALYSIS_CODES, ReportAction, ReportProtocolDetail, UserDetailData, ArcaBillingDialog() (+13 more)
+Nodes (24): groupSecret(), TwoFactorEnrollStep(), TwoFactorEnrollStepProps, TwoFactorRecoveryCodes(), TwoFactorRecoveryCodesProps, Login(), PendingTwoFactor, TwoFactorChallenge() (+16 more)
 
-### Community 10 - "Protocol Status & Reporting"
-Cohesion: 0.10
-Nodes (22): ProtocolCardProps, PROTOCOL_ENDPOINTS, REPORTING_ENDPOINTS, ALLOWED_PROTOCOL_STATUS_FILTERS, fallbackProtocolStatusStyle, getProtocolStatusStyleByName(), normalizeProtocolStatusName(), PROTOCOL_STATUS_ID_BY_NAME (+14 more)
+### Community 13 - "Campos de Formulario"
+Cohesion: 0.15
+Nodes (16): CampoPrecioFijoProps, CreateMedicoDialogProps, FormData, ValidationState, SignatureDetailDialog(), SignatureDetailDialogProps, Props, VACIO (+8 more)
 
-### Community 11 - "App TypeScript Config"
+### Community 14 - "Valores de Referencia y Determinaciones"
+Cohesion: 0.12
+Nodes (22): CreateDeterminationDialogProps, DeterminacionEnEdicion, DeterminacionesDelAlta(), DeterminacionParaEnviar, paraEnviar(), Props, validar(), EditDeterminationDialogProps (+14 more)
+
+### Community 15 - "Navbar y Menú de Usuario"
+Cohesion: 0.11
+Nodes (17): CambioDeContrasenaObligatorio(), Layout(), LayoutProps, Navbar(), NavLinkProps, SessionNotificationToggle(), SessionNotificationToggleProps, UserDropdown() (+9 more)
+
+### Community 16 - "Presentaciones y Gráficos de Facturación"
+Cohesion: 0.13
+Nodes (22): ClosePresentationDialog(), CurrentInvoicesList(), EditableCloseDate(), EditableCloseDateProps, formatCurrency(), PresentationEarningsChart(), RANGE_OPTIONS, RangeFilter (+14 more)
+
+### Community 17 - "Tarjetas de Perfil y Paciente"
+Cohesion: 0.15
+Nodes (21): PaginatedResponse, calculateAge(), formatDate(), PatientInfo(), TWO_FACTOR_STATUS_KEY, TwoFactorSection(), TramoDeInactividad, extractErrorMessage() (+13 more)
+
+### Community 18 - "Búsqueda Global"
+Cohesion: 0.12
+Nodes (22): SEARCH_ENDPOINTS, buildGlobalSearchPath(), ColumnaDeBusqueda, EMPTY_COUNTS, GLOBAL_SEARCH_FILTROS_CON_PERMISO, GLOBAL_SEARCH_TIPOS, GlobalSearchState, SIN_ITEMS (+14 more)
+
+### Community 19 - "Caja del Día y Pendientes"
+Cohesion: 0.12
+Nodes (19): ManagementPage(), PaginatedResponse, PermissionManagement(), RoleManagement(), UserManagement(), MovimientoDeCajaDialog(), CajaDelDia, dia() (+11 more)
+
+### Community 20 - "Selección de Análisis en el Ingreso"
+Cohesion: 0.12
+Nodes (23): AnalysisTableProps, CreateMedicoForm(), CreateObraSocialForm(), CreateObraSocialFormProps, EditMedicoDialog(), EditObraSocialDialog(), ObraSocialComboboxProps, ProtocolSuccessProps (+15 more)
+
+### Community 21 - "Alta de Paciente y DNI"
+Cohesion: 0.16
+Nodes (22): ValidatedField, ValidationResult, CreatePatientForm(), CreatePatientFormProps, ValidatedField, ValidationResult, MergePatientDialogProps, PatientInfoProps (+14 more)
+
+### Community 22 - "Avatares de Auditoría y Tablas"
+Cohesion: 0.14
+Nodes (18): AuditAvatars(), AuditAvatarsProps, AuditInfo, formatDateTime(), sizeClasses, textSizeClasses, Column, DataTable() (+10 more)
+
+### Community 23 - "Título de Pestaña y Cola"
+Cohesion: 0.20
+Nodes (16): NextInQueuePill(), NextInQueuePillProps, ProtocolMiniHeaderSkeleton(), ProtocolDetailSkeleton(), useQueueNav(), useProtocolResults(), useTituloDePestana(), nombreParaLaPestana() (+8 more)
+
+### Community 24 - "Menús Desplegables y Acciones en Lote"
+Cohesion: 0.13
+Nodes (17): BatchAction, BatchActionBar(), BatchActionBarProps, ProtocolCardProps, ReportDialogProps, ReportSignature, DropdownMenu(), DropdownMenuCheckboxItem() (+9 more)
+
+### Community 25 - "Entidades de Facturación"
+Cohesion: 0.13
+Nodes (20): BillingEntityCard(), BillingEntityCardProps, EntityPatch, formatCloseDays(), ClosePresentationDialogProps, CurrentInvoicesListProps, PresentationEarningsChartProps, PresentationHistoryCardProps (+12 more)
+
+### Community 26 - "Filtros de Estado de Protocolo"
+Cohesion: 0.21
+Nodes (19): ResultsQueueTable(), ANALYTICS_ENDPOINTS, RESULTS_ENDPOINTS, usePersistedState(), appendStatusParams(), getStatusFilterState(), hasAnyStatusFilter(), normalizeStatusFilter() (+11 more)
+
+### Community 27 - "Almacenamiento de Sesión"
+Cohesion: 0.17
+Nodes (19): AUTH_ENDPOINTS, buildCookieAttributes(), clearSession(), clearStoredUser(), clearTokens(), deleteCookie(), getAccessToken(), getCookie() (+11 more)
+
+### Community 28 - "Configuración TypeScript (app)"
 Cohesion: 0.08
 Nodes (23): compilerOptions, allowImportingTsExtensions, erasableSyntaxOnly, ignoreDeprecations, jsx, lib, module, moduleDetection (+15 more)
 
-### Community 12 - "Auth & Session Storage"
-Cohesion: 0.16
-Nodes (19): buildCookieAttributes(), clearSession(), clearStoredUser(), clearTokens(), deleteCookie(), getAccessToken(), getCookie(), getRefreshToken() (+11 more)
+### Community 29 - "Scroll Infinito e Historial"
+Cohesion: 0.21
+Nodes (17): ObjectHistoryDialog(), AnalysisList(), MergePatientDialog(), ObraSocialDetailDialog(), ObraSocialHistoryDialog(), ObraSocialHistoryDialogProps, AuditManagement(), MedicosManagement() (+9 more)
 
-### Community 13 - "Permission/Role Tables"
-Cohesion: 0.22
-Nodes (13): extractErrorMessage(), RoleManagementProps, RoleWithDetails, PatientDetailsDialog(), Checkbox(), DialogTrigger(), Separator(), Table() (+5 more)
+### Community 30 - "Contexts"
+Cohesion: 0.10
+Nodes (19): AuthContext, AuthProvider(), AuthProviderProps, ConfirmTwoFactorEnrollmentParams, EXPIRED_TOKEN_CODES, LoginOutcome, looksLikeExpiredToken(), TokenRefreshResponse (+11 more)
 
-### Community 14 - "Medico & Patient Forms"
+### Community 31 - "Pantalla de Configuración"
 Cohesion: 0.17
-Nodes (17): AnalysisSelector(), PaginatedResponse, CreateMedicoForm(), CreateMedicoFormProps, extractErrorMessage(), EditMedicoDialogProps, MedicoComboboxProps, MedicoDetailsDialogProps (+9 more)
+Nodes (15): CATEGORY_META, AuditCard(), AuditCardProps, formatActionName(), getActionBadgeVariant(), getActionBorderColor(), AUDIT_ENDPOINTS, ACTION_TYPE_OPTIONS (+7 more)
 
-### Community 15 - "Combobox & Command Components"
-Cohesion: 0.20
-Nodes (15): PaginatedResponse, PaginatedResponse, MEDICAL_ENDPOINTS, Command(), CommandDialog(), CommandEmpty(), CommandGroup(), CommandInput() (+7 more)
+### Community 32 - "Utilidades"
+Cohesion: 0.13
+Nodes (17): StatusPill(), StatusPillProps, ALLOWED_PROTOCOL_STATUS_FILTERS, fallbackProtocolStatusStyle, getProtocolStatusBadgeClass(), getProtocolStatusButtonClass(), getProtocolStatusStyle(), getProtocolStatusStyleByName() (+9 more)
 
-### Community 16 - "App Routing & Protected Routes"
+### Community 33 - "Pantalla de Protocolos"
+Cohesion: 0.13
+Nodes (17): API_CONFIG, LoteAdelantado, PaginatedPage, UseApiInfiniteQueryParams, guardarOrdenDeLaLista(), leerOrden(), mismaApi(), Orden (+9 more)
+
+### Community 34 - "Componentes de la App"
 Cohesion: 0.12
-Nodes (14): NotFound(), ProtectedRoute(), ProtectedRouteProps, App(), ConfigurationPage, FacturacionPage, IngresoPage, ManagementPage (+6 more)
+Nodes (11): RequestLogPanel(), RequestLogPanelProps, STATUS_FILTERS, SUPERADMIN_ENDPOINTS, formatBytes(), formatMs(), formatUptime(), SuperadminPage() (+3 more)
 
-### Community 17 - "Node TypeScript Config"
+### Community 35 - "Tipos Compartidos"
+Cohesion: 0.14
+Nodes (19): PermissionManagementProps, UserManagementProps, CreateUserDialogProps, DeletePatientDialogProps, DeleteUserDialogProps, EditUserDialogProps, RoleChipsProps, TempPermissionDialogProps (+11 more)
+
+### Community 36 - "Utilidades (2)"
+Cohesion: 0.17
+Nodes (18): AnalysisDetailDialogProps, AnalysisSearch(), AnalysisSearchProps, PaginatedResponse, AnalysisSelectorProps, Props, CreateAnalysisCatalogDialogProps, EditAnalysisCatalogDialogProps (+10 more)
+
+### Community 37 - "Componentes de la App (2)"
+Cohesion: 0.13
+Nodes (14): DashboardResponse, enSemanas(), EstadisticasDelMes, getTrendTone(), Home(), MesDisponible, nombreDelMes(), NOMBRES_DE_MES (+6 more)
+
+### Community 38 - "Validación de Resultados"
+Cohesion: 0.22
+Nodes (15): fmtDateTime(), ResultDeterminationRow(), ResultDeterminationRowProps, fmtDateTime(), ValidationResultRow(), ValidationResultRowProps, ResultValue, formatEvaluatedReference() (+7 more)
+
+### Community 39 - "Componentes de la App (3)"
+Cohesion: 0.13
+Nodes (13): ContingenciaPage(), DIARIO_KEY, ESTADOS, Pendiente, PendientesDelServidor(), classifyApiError(), esCuerpoIlegible(), readApiError() (+5 more)
+
+### Community 40 - "Pantalla de Protocolos (2)"
+Cohesion: 0.15
+Nodes (13): ListaOrdenable(), Props, money(), nonZero(), orderStatusInfo(), ProtocolDetailView(), ProtocolDetailViewData, ProtocolDetailViewProps (+5 more)
+
+### Community 41 - "Configuración TypeScript (node)"
 Cohesion: 0.11
 Nodes (18): compilerOptions, allowImportingTsExtensions, erasableSyntaxOnly, lib, module, moduleDetection, moduleResolution, noEmit (+10 more)
 
-### Community 18 - "Protocol Intake (Ingreso)"
-Cohesion: 0.20
-Nodes (15): CreateObraSocialFormProps, ObraSocialComboboxProps, ProtocolSuccessProps, DoctorInfo(), DoctorInfoProps, InsuranceInfo(), InsuranceInfoProps, EditDialogProps (+7 more)
+### Community 42 - "Componentes de la App (4)"
+Cohesion: 0.13
+Nodes (14): FilaAgrupada, haceDias(), hoyISO(), LibroDiarioPage(), Orden, PagoEnLibro, plata(), Respuesta (+6 more)
 
-### Community 19 - "Patient Creation & CUIL Validation"
-Cohesion: 0.29
-Nodes (14): ValidatedField, ValidationResult, CreatePatientForm(), ValidatedField, ValidationResult, PatientSearch(), PATIENT_ENDPOINTS, CreatePatientDialog() (+6 more)
-
-### Community 20 - "Layout, Navbar & Notifications"
-Cohesion: 0.16
-Nodes (10): Layout(), LayoutProps, Navbar(), NavLinkProps, SessionNotificationToggle(), SessionNotificationToggleProps, UserDropdown(), UserDropdownProps (+2 more)
-
-### Community 21 - "User Table & Dropdown Menu"
-Cohesion: 0.14
-Nodes (12): UserTable(), UserTableProps, DropdownMenu(), DropdownMenuCheckboxItem(), DropdownMenuContent(), DropdownMenuItem(), DropdownMenuRadioItem(), DropdownMenuSeparator() (+4 more)
-
-### Community 22 - "Result Validation & Reference Formatting"
-Cohesion: 0.16
-Nodes (12): extractErrorMessage(), GroupedAnalysis, ValidationProtocolCardProps, RESULTS_ENDPOINTS, formatEvaluatedReference(), formatReferenceGroup(), formatReferenceRange(), formatReferenceValues() (+4 more)
-
-### Community 23 - "shadcn Components Config"
+### Community 43 - "Configuración shadcn/ui"
 Cohesion: 0.11
 Nodes (17): aliases, components, hooks, lib, ui, utils, iconLibrary, rsc (+9 more)
 
-### Community 24 - "Management Pages & Permissions"
-Cohesion: 0.23
-Nodes (8): PermissionManagement(), PermissionKey, PERMISSIONS, PermissionValue, Tabs(), TabsContent(), TabsList(), TabsTrigger()
+### Community 44 - "Pantalla de Configuración (2)"
+Cohesion: 0.16
+Nodes (17): determinacionVacia(), bordeAdentro(), EditorDeRango(), EditorDeRangoProps, esDeMinimo(), limitesDe(), ModoDeRango, modoSegunLimites() (+9 more)
 
-### Community 25 - "Home Dashboard & Metrics"
+### Community 45 - "Permisos de Configuración de la API"
 Cohesion: 0.14
-Nodes (13): DAILY_METRICS, DailyMetricKey, DashboardResponse, getTrendTone(), Home(), numberOrZero(), parsePercent(), ProtocolsToBillResponse (+5 more)
+Nodes (11): PERMISSION_MESSAGES, PermissionDescriptor, PermissionKey, PERMISSIONS, PermissionValue, esCancelado(), ResultGroup, ResultsProtocolHeader (+3 more)
 
-### Community 26 - "Analysis Accordion & Results"
+### Community 46 - "Componentes Compartidos"
 Cohesion: 0.16
-Nodes (15): AnalysisInfo, AvailableAnalysis, extractErrorMessage(), PreviousResultData, ProtocolWithResults, Result, RESULTS_VISIBLE_STATUS_IDS, ResultValue (+7 more)
+Nodes (9): AuditTimelineMini(), AuditTimelineMiniProps, DeletePatientDialog(), PatientDetailSkeleton(), PatientHistoryDialog(), PatientHistoryDialogProps, formatDni(), PatientDetailPage() (+1 more)
 
-### Community 27 - "Protocol Accordion View"
-Cohesion: 0.16
-Nodes (14): extractErrorMessage(), GroupedResults, Patient, PaymentStatus, ProtocolListItem, RESULTS_VISIBLE_STATUS_IDS, ResultValue, Status (+6 more)
+### Community 47 - "Componentes UI Base"
+Cohesion: 0.28
+Nodes (11): alignClass, DataTableProps, SortDirection, Table(), TableBody(), TableCaption(), TableCell(), TableFooter() (+3 more)
 
-### Community 28 - "Auth Context & Session Lifecycle"
-Cohesion: 0.15
-Nodes (12): AUTH_ENDPOINTS, AuthContext, AuthContextType, AuthProvider(), AuthProviderProps, AuthResponse, TokenRefreshResponse, IdleTimeoutProps (+4 more)
+### Community 48 - "Utilidades (3)"
+Cohesion: 0.17
+Nodes (12): buildCodesByNumber(), buildResultCodeMap(), calculateFormulaValue(), evaluateExpression(), formatFormulaNumber(), FormulaAnalysis, FormulaCalculation, FormulaDetermination (+4 more)
 
-### Community 29 - "Report Dialog & Customization"
-Cohesion: 0.16
-Nodes (10): ActionButtonProps, EXCLUDED_ANALYSIS_CODES, getActionColor(), getSendMethodAction(), normalizeText(), ReportCustomizationDrawerProps, ReportDialog(), ReportDialogProps (+2 more)
+### Community 49 - "Ingreso de Pacientes"
+Cohesion: 0.13
+Nodes (12): AnalysisTable(), MedicoCombobox(), CreationPreauthStatus, PREAUTH_OPTIONS, ProtocolForm(), ProtocolFormProps, statusIcons, StatusOption (+4 more)
 
-### Community 30 - "Protocol Details & Preauthorization"
-Cohesion: 0.23
-Nodes (12): ProtocolDetailsSection(), ProtocolDetailsSectionProps, AnalysisDialog(), AnalysisDialogProps, PreauthorizationDialogProps, getPreauthStatusInfo(), PreauthStatus, ProtocolDetail (+4 more)
+### Community 50 - "Hooks de Datos"
+Cohesion: 0.18
+Nodes (11): ImportDataDialog(), ObraSocialCombobox(), CreateMode, emptyCreateForm, NbuManagement(), useEndpointProgress(), getNbusFromResponse(), NbuResponse (+3 more)
 
-### Community 31 - "Dev Tooling Dependencies"
+### Community 51 - "Componentes UI Base (2)"
+Cohesion: 0.20
+Nodes (10): initials(), UserCard(), celdasDelMes(), DateRangePicker(), DIAS, FORMATO_MES, Props, Popover() (+2 more)
+
+### Community 52 - "Dependencias npm"
 Cohesion: 0.13
 Nodes (15): devDependencies, eslint, @eslint/js, eslint-plugin-react-hooks, eslint-plugin-react-refresh, globals, tw-animate-css, @types/node (+7 more)
 
-### Community 32 - "Result Formula Calculations"
-Cohesion: 0.17
-Nodes (11): applyFormulaCalculations(), buildResultCodeMap(), calculateFormulaValue(), evaluateExpression(), formatFormulaNumber(), FormulaAnalysis, FormulaCalculation, FormulaDetermination (+3 more)
-
-### Community 33 - "Protocol Form & Status Buttons"
-Cohesion: 0.14
-Nodes (11): AnalysisTable(), CreationPreauthStatus, PREAUTH_OPTIONS, ProtocolForm(), ProtocolFormProps, statusIcons, StatusOption, StatusTone (+3 more)
-
-### Community 34 - "Patient Cards & Grid"
+### Community 53 - "Utilidades (4)"
 Cohesion: 0.18
-Nodes (11): CreatePatientFormProps, MergePatientDialogProps, PatientCard(), PatientDetailsDialogProps, PatientGrid(), PatientGridProps, PatientSearchProps, PatientTableProps (+3 more)
+Nodes (13): AnalysisDetailDialog(), analysisCategoryLabels, esUnNumero(), formatAnalysisCategory(), formatBioUnitValues(), formatNamedReferenceRange(), formatReferenceBounds(), LimitesDelRango (+5 more)
 
-### Community 35 - "Protocol Header & Payment Status"
+### Community 54 - "Componentes UI Base (3)"
 Cohesion: 0.27
-Nodes (11): ProtocolDetailResponse, getStateColor(), ProtocolHeader(), ProtocolHeaderProps, ProtocolSuccess(), getPaymentStatusInfo(), BillingStatus, CreationAudit (+3 more)
+Nodes (11): PaginatedResponse, PaginatedResponse, Command(), CommandDialog(), CommandEmpty(), CommandGroup(), CommandInput(), CommandItem() (+3 more)
 
-### Community 36 - "Page Components & Auth Hook"
-Cohesion: 0.20
-Nodes (9): ManagementPage(), RoleManagement(), UserManagement(), Login(), ProtocolCard(), RouteChangeListener(), useAuth(), ProfilePage() (+1 more)
+### Community 55 - "Utilidades (5)"
+Cohesion: 0.36
+Nodes (12): NavegadorDeDias(), Props, SeparadorDeDia(), aClaveDeDia(), comoFechaCorta(), correrDias(), deClaveDeDia(), diaDeIso() (+4 more)
 
-### Community 37 - "Facturacion (Billing) Page"
+### Community 56 - "Utilidades (6)"
 Cohesion: 0.24
-Nodes (10): ActiveTab, ClosedPresentation, CurrentTotalResponse, DailyBillingSeries, FacturacionPage(), formatCurrency(), formatExpected(), parseMoney() (+2 more)
+Nodes (10): BuscadorDeUb(), Props, CampoUbPorNomencladorProps, UbPorNbu, resolverUb(), SIN_UB, ubPropio(), UbResuelto (+2 more)
 
-### Community 38 - "Package Manifest"
+### Community 57 - "Pantalla de Configuración (3)"
+Cohesion: 0.29
+Nodes (8): CuentaDeCobro, CuentasDeCobro(), ReminderSettingsPanel(), ReminderSettingsPanelProps, BILLING_ENDPOINTS, PaginatedResponse, ReminderPhone, Switch()
+
+### Community 58 - "Pantalla de Configuración (4)"
+Cohesion: 0.27
+Nodes (8): ProtocolResultsLoader(), ProtocolResultsLoaderProps, Campos, MacrosManagement(), VACIA, teclaDelEvento(), useMacrosDeResultado(), MacroDeResultado
+
+### Community 59 - "Utilidades (7)"
+Cohesion: 0.29
+Nodes (11): TramosDeInactividad(), getIdleTimeFromUser(), minutoDelDia(), minutosDeInactividadAhora(), minutosDeLaHora(), msDeInactividadAhora(), msHastaElProximoBorde(), rangosDe() (+3 more)
+
+### Community 60 - "Utilidades (8)"
+Cohesion: 0.26
+Nodes (10): formatRemaining(), TrustedDeviceRow(), twoFactorQueryKey(), UserTwoFactorPanel(), UserTwoFactorResetDialog(), formatUtcDate(), formatUtcDateTime(), formatUtils (+2 more)
+
+### Community 61 - "Dependencias npm (2)"
 Cohesion: 0.20
 Nodes (9): name, private, scripts, build, dev, lint, preview, type (+1 more)
 
-### Community 39 - "Protocol Order Status (Trajo Orden)"
+### Community 62 - "Hooks de Datos (2)"
 Cohesion: 0.28
-Nodes (8): EditFormData, OrderStatusDialogProps, getTrajoOrdenInfo(), isTrajoOrdenCompleta(), normalizeTrajoOrden(), TRAJO_ORDEN, TRAJO_ORDEN_OPTIONS, TrajoOrdenStatus
+Nodes (6): SortState, PatientsTableProps, ProtocolsTableProps, ResultsQueueTableProps, ListState, PersistedShape
 
-### Community 40 - "Date Utilities"
+### Community 63 - "Pantalla de Facturación"
+Cohesion: 0.25
+Nodes (6): BillingBoard(), BoardRow, BoardState, STATE_TABS, PaperStatusChips(), PaperStatusChipsProps
+
+### Community 64 - "Utilidades (9)"
+Cohesion: 0.50
+Nodes (7): CampoNotacionCientifica(), Props, conSeparadores(), esExponenteValido(), expandirNumero(), superindice(), unidadCompleta()
+
+### Community 65 - "Utils"
 Cohesion: 0.29
 Nodes (5): IdleWarningModal(), formatDateTime(), formatTime(), isValidDate(), parseDate()
 
-### Community 41 - "Analysis Component Props"
-Cohesion: 0.29
-Nodes (7): AnalysisSearchProps, AnalysisSelectorProps, AnalysisTableProps, CreateAnalysisCatalogDialogProps, EditAnalysisCatalogDialogProps, Analysis, SelectedAnalysis
+### Community 66 - "Pantalla de Protocolos (3)"
+Cohesion: 0.25
+Nodes (6): AnalisisDelMensaje, ESTILO, Mensaje, MensajesDeWhatsApp(), Respuesta, REPORTING_ENDPOINTS
 
-### Community 42 - "Validation Hooks"
+### Community 67 - "Pantalla de Protocolos (4)"
+Cohesion: 0.39
+Nodes (7): getStateColor(), ProtocolHeader(), ProtocolHeaderProps, UnplannedTransactionsDialogProps, CreationAudit, LastChangeAudit, ProtocolStatus
+
+### Community 68 - "Pantalla de Protocolos (5)"
+Cohesion: 0.25
+Nodes (3): ActionButton(), Flag(), ProtocolsTable()
+
+### Community 69 - "Utilidades (10)"
+Cohesion: 0.43
+Nodes (6): palabrasDe(), resaltar(), sinTildes(), Trozo, ConResaltado(), SearchResultCard()
+
+### Community 70 - "Componentes Compartidos (2)"
+Cohesion: 0.38
+Nodes (6): colorFor(), getInitials(), InitialsAvatar(), InitialsAvatarProps, PALETTE, sizes
+
+### Community 71 - "Componentes Compartidos (3)"
+Cohesion: 0.29
+Nodes (3): Estado, LimiteDeError, Props
+
+### Community 72 - "Pantalla de Facturación (2)"
+Cohesion: 0.38
+Nodes (6): EditableAmount(), EditableAmountProps, formatCurrency(), OssBreakdownCard(), OssBreakdownCardProps, ClosedOssBreakdown
+
+### Community 73 - "Hooks de Datos (3)"
 Cohesion: 0.38
 Nodes (6): useMedicoValidation(), usePatientValidation(), useValidation(), validators, ValidationResultType, ValidationState
 
-### Community 43 - "Endpoint Revision & Deploy Tasks"
-Cohesion: 0.40
-Nodes (6): ARREGLOS PRE DEPLOY task list, src/config/api.ts endpoint definitions, Unused ARCA fields in protocol serializer, audit-timeline endpoint (supersedes history/cambios/validaciones), Revisión de endpoints y payloads, Unify reporting endpoints to report/report-batch
+### Community 74 - "Componentes Compartidos (4)"
+Cohesion: 0.33
+Nodes (4): Breadcrumb, DetailLayoutProps, DetailSection(), DetailSectionProps
 
-### Community 44 - "Root TypeScript Config"
+### Community 75 - "Componentes Compartidos (5)"
+Cohesion: 0.40
+Nodes (4): Props, ResumenDeResultados(), ProtocolValidationLoader(), ProtocolValidationLoaderProps
+
+### Community 76 - "Utilidades (11)"
+Cohesion: 0.60
+Nodes (5): generateUuid(), getDeviceId(), persistDeviceId(), readStoredDeviceId(), resetDeviceId()
+
+### Community 77 - "Configuración TypeScript"
 Cohesion: 0.33
 Nodes (5): compilerOptions, paths, files, @/*, references
 
-### Community 45 - "Admin Icon Branding"
-Cohesion: 0.47
-Nodes (6): Administration Function, Blue Color Palette (#1d9ae5 / #275a8d / #254b72), Gear / Cog Configuration Motif, LabSalud Admin Icon, LabSalud Brand Identity, Stylized Letter M Mark
-
-### Community 46 - "Protocol Status Color Helpers"
-Cohesion: 0.40
-Nodes (5): getStatusColor(), getStatusColor(), getProtocolStatusBadgeClass(), getProtocolStatusButtonClass(), getProtocolStatusStyle()
-
-### Community 47 - "API Error Toast Handling"
+### Community 78 - "Hooks de Datos (4)"
 Cohesion: 0.50
-Nodes (4): extractResponseError(), classifyApiError(), readApiError(), showApiErrorToast()
+Nodes (3): ErrorState, ApiResponse, FormErrors
 
-### Community 48 - "Loading State Hooks"
+### Community 79 - "Hooks de Datos (5)"
 Cohesion: 0.50
 Nodes (4): LoadingOptions, LoadingState, useCrudLoading(), useLoading()
 
-### Community 49 - "Brand Icon (Healthcare)"
-Cohesion: 0.60
-Nodes (5): Healthcare Blue Color Palette, LabSalud Brand Icon, Stylized Human Figure Silhouette, LabSalud Health Application, Stethoscope / Medical Motif
-
-### Community 50 - "Logo+Icon Branding"
+### Community 80 - "Componentes Compartidos (6)"
 Cohesion: 0.50
-Nodes (5): LabSalud Brand Identity, Healthcare Laboratory Domain, Stylized Medical Icon Mark, LabSalud Logo with Icon, LabSalud Wordmark
+Nodes (4): HistoryListProps, TimelineResponse, ProtocolHistoryDialogProps, HistoryEntry
 
-### Community 51 - "Alert Component"
-Cohesion: 0.50
-Nodes (4): Alert(), AlertDescription(), AlertTitle(), alertVariants
-
-### Community 52 - "Determination & Reference Types"
-Cohesion: 0.67
-Nodes (4): Determination, Determination, ReferenceRange, ReferenceValues
-
-### Community 53 - "Wordmark Logo Branding"
-Cohesion: 0.67
-Nodes (4): LabSalud Healthcare Brand, LabSalud Wordmark Logo, Navy Blue Brand Color (#22457A), Brand Wordmark Text
-
-### Community 54 - "Auth Domain Types"
+### Community 81 - "Tipos Compartidos (2)"
 Cohesion: 0.50
 Nodes (3): User, UserPermission, UserRole
 
+## Ambiguous Edges - Review These
+- `Claude Code resume checkpoint (sesión 72af67d5)` → `Plan de rediseño de UI: lista + página de detalle`  [AMBIGUOUS]
+  .claude/RESUME.md · relation: conceptually_related_to
+
 ## Knowledge Gaps
-- **342 isolated node(s):** `$schema`, `style`, `rsc`, `tsx`, `config` (+337 more)
+- **480 isolated node(s):** `$schema`, `style`, `rsc`, `tsx`, `config` (+475 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **4 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **2 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `cn()` connect `shadcn/ui Component Primitives` to `Entity Creation Dialogs & Forms`, `Analysis Catalog & CRUD Dialogs`, `History & Deletion Dialogs`, `Audit & Result Input UI`, `Protocol Status & Reporting`, `Permission/Role Tables`, `Medico & Patient Forms`, `Combobox & Command Components`, `Alert Component`, `User Table & Dropdown Menu`, `Management Pages & Permissions`, `Protocol Accordion View`, `Protocol Details & Preauthorization`?**
-  _High betweenness centrality (0.062) - this node is a cross-community bridge._
-- **Why does `useApi()` connect `Analysis Catalog & CRUD Dialogs` to `Entity Creation Dialogs & Forms`, `History & Deletion Dialogs`, `Page Components & Auth Hook`, `Facturacion (Billing) Page`, `Protocol Action Dialogs`, `Protocol Status & Reporting`, `Auth & Session Storage`, `Permission/Role Tables`, `Medico & Patient Forms`, `Combobox & Command Components`, `Loading State Hooks`, `Protocol Intake (Ingreso)`, `Patient Creation & CUIL Validation`, `Result Validation & Reference Formatting`, `Management Pages & Permissions`, `Analysis Accordion & Results`, `Protocol Accordion View`?**
-  _High betweenness centrality (0.051) - this node is a cross-community bridge._
-- **Why does `Button()` connect `Entity Creation Dialogs & Forms` to `Analysis Catalog & CRUD Dialogs`, `History & Deletion Dialogs`, `Audit & Result Input UI`, `shadcn/ui Component Primitives`, `Protocol Action Dialogs`, `Protocol Status & Reporting`, `Auth & Session Storage`, `Permission/Role Tables`, `Medico & Patient Forms`, `Combobox & Command Components`, `Protocol Intake (Ingreso)`, `Patient Creation & CUIL Validation`, `User Table & Dropdown Menu`, `Result Validation & Reference Formatting`, `Analysis Accordion & Results`, `Protocol Accordion View`, `Report Dialog & Customization`, `Protocol Details & Preauthorization`, `Protocol Form & Status Buttons`, `Protocol Header & Payment Status`, `Facturacion (Billing) Page`?**
+- **What is the exact relationship between `Claude Code resume checkpoint (sesión 72af67d5)` and `Plan de rediseño de UI: lista + página de detalle`?**
+  _Edge tagged AMBIGUOUS (relation: conceptually_related_to) - confidence is low._
+- **Why does `cn()` connect `Primitivas UI (sheet, accordion)` to `Diálogos y Tarjetas de Protocolo`, `Diálogos de Configuración`, `Forma de Pago y Facturación ARCA`, `Diálogos de Reportes y Roles`, `Enrolamiento de Segundo Factor`, `Campos de Formulario`, `Valores de Referencia y Determinaciones`, `Presentaciones y Gráficos de Facturación`, `Tarjetas de Perfil y Paciente`, `Búsqueda Global`, `Selección de Análisis en el Ingreso`, `Avatares de Auditoría y Tablas`, `Título de Pestaña y Cola`, `Menús Desplegables y Acciones en Lote`, `Filtros de Estado de Protocolo`, `Pantalla de Configuración`, `Utilidades`, `Tipos Compartidos`, `Validación de Resultados`, `Componentes de la App (3)`, `Pantalla de Protocolos (2)`, `Componentes Compartidos`, `Componentes UI Base`, `Componentes UI Base (2)`, `Componentes UI Base (3)`, `Utilidades (5)`, `Pantalla de Configuración (3)`, `Utilidades (7)`, `Pantalla de Protocolos (3)`, `Pantalla de Protocolos (5)`, `Utilidades (10)`, `Componentes Compartidos (2)`, `Pantalla de Facturación (2)`, `Componentes Compartidos (4)`?**
+  _High betweenness centrality (0.084) - this node is a cross-community bridge._
+- **Why does `useApi()` connect `Configuración de Análisis y Precios` to `Diálogos y Tarjetas de Protocolo`, `Diálogos de Configuración`, `Forma de Pago y Facturación ARCA`, `Manejo de Errores de API`, `Configuración de Endpoints`, `Diálogos de Reportes y Roles`, `Campos de Formulario`, `Valores de Referencia y Determinaciones`, `Navbar y Menú de Usuario`, `Presentaciones y Gráficos de Facturación`, `Tarjetas de Perfil y Paciente`, `Búsqueda Global`, `Caja del Día y Pendientes`, `Selección de Análisis en el Ingreso`, `Alta de Paciente y DNI`, `Avatares de Auditoría y Tablas`, `Título de Pestaña y Cola`, `Entidades de Facturación`, `Scroll Infinito e Historial`, `Pantalla de Configuración`, `Pantalla de Protocolos`, `Utilidades (2)`, `Componentes de la App (3)`, `Componentes de la App (4)`, `Permisos de Configuración de la API`, `Componentes Compartidos`, `Componentes UI Base`, `Ingreso de Pacientes`, `Hooks de Datos`, `Componentes UI Base (3)`, `Utilidades (6)`, `Pantalla de Configuración (3)`, `Pantalla de Configuración (4)`, `Utilidades (7)`, `Utilidades (8)`, `Pantalla de Facturación`, `Pantalla de Protocolos (3)`, `Hooks de Datos (5)`?**
+  _High betweenness centrality (0.060) - this node is a cross-community bridge._
+- **Why does `Button()` connect `Diálogos de Configuración` to `Diálogos y Tarjetas de Protocolo`, `Forma de Pago y Facturación ARCA`, `Primitivas UI (sheet, accordion)`, `Configuración de Análisis y Precios`, `Manejo de Errores de API`, `Configuración de Endpoints`, `Diálogos de Reportes y Roles`, `Enrolamiento de Segundo Factor`, `Campos de Formulario`, `Valores de Referencia y Determinaciones`, `Presentaciones y Gráficos de Facturación`, `Tarjetas de Perfil y Paciente`, `Búsqueda Global`, `Selección de Análisis en el Ingreso`, `Alta de Paciente y DNI`, `Avatares de Auditoría y Tablas`, `Título de Pestaña y Cola`, `Menús Desplegables y Acciones en Lote`, `Scroll Infinito e Historial`, `Pantalla de Configuración`, `Pantalla de Protocolos`, `Componentes de la App`, `Utilidades (2)`, `Validación de Resultados`, `Componentes de la App (3)`, `Pantalla de Protocolos (2)`, `Componentes de la App (4)`, `Pantalla de Configuración (2)`, `Componentes Compartidos`, `Componentes UI Base`, `Ingreso de Pacientes`, `Hooks de Datos`, `Componentes UI Base (2)`, `Componentes UI Base (3)`, `Utilidades (5)`, `Utilidades (6)`, `Pantalla de Configuración (3)`, `Pantalla de Configuración (4)`, `Utilidades (8)`, `Pantalla de Facturación`, `Pantalla de Protocolos (3)`, `Pantalla de Protocolos (4)`, `Pantalla de Facturación (2)`, `Componentes Compartidos (5)`?**
   _High betweenness centrality (0.032) - this node is a cross-community bridge._
 - **Are the 2 inferred relationships involving `useApi()` (e.g. with `CreatePatientDialog()` and `EditPatientDialog()`) actually correct?**
   _`useApi()` has 2 INFERRED edges - model-reasoned connections that need verification._
-- **What connects `Caveman compress scripts.  This package provides tools to compress natural langu`, `Heuristic denylist for files that must never be shipped to a third-party API.`, `Strip outer ```markdown ... ``` fence when it wraps the entire output.` to the rest of the system?**
-  _355 weakly-connected nodes found - possible documentation gaps or missing edges._
-- **Should `Entity Creation Dialogs & Forms` be split into smaller, more focused modules?**
-  _Cohesion score 0.06050149528410398 - nodes in this community are weakly interconnected._
-- **Should `Analysis Catalog & CRUD Dialogs` be split into smaller, more focused modules?**
-  _Cohesion score 0.06843718079673136 - nodes in this community are weakly interconnected._
+- **What connects `$schema`, `style`, `rsc` to the rest of the system?**
+  _482 weakly-connected nodes found - possible documentation gaps or missing edges._
+- **Should `Diálogos y Tarjetas de Protocolo` be split into smaller, more focused modules?**
+  _Cohesion score 0.052594670406732116 - nodes in this community are weakly interconnected._

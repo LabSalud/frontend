@@ -164,21 +164,62 @@ const ENTRADA_ARRIBA = `${ENTRADA} motion-safe:slide-in-from-top-3`
 const ENTRADA_ABAJO = `${ENTRADA} motion-safe:slide-in-from-bottom-3`
 
 /**
- * La serie de días partida en semanas, la más reciente primero.
+ * Un día de la grilla del mes.
  *
- * Corta de a siete desde el final —el último día es siempre el más nuevo— y si
- * al principio quedan días sueltos los deja como una semana más corta en vez
- * de tirarlos. Con los 35 días del dashboard nunca sobra nada; con un mes de
- * 30 sobraban dos días y el gráfico empezaba el 3.
+ * `delMes` false = relleno, un día de un mes vecino que sólo está para
+ * completar la fila. `dato` null con `delMes` true = día del mes que todavía
+ * no pasó.
  */
-function enSemanas<T>(serie: T[]): T[][] {
-  const semanas: T[][] = []
-  let fin = serie.length
-  while (fin > 0) {
-    const inicio = Math.max(0, fin - 7)
-    semanas.push(serie.slice(inicio, fin))
-    fin = inicio
+type CeldaDelMes<T> = { date: string; delMes: boolean; dato: T | null }
+
+/**
+ * El mes partido en semanas de calendario, de lunes a domingo.
+ *
+ * Arma la grilla del mes: la primera semana es la que contiene
+ * al día 1 y la última la que contiene al último día. Cada columna cae siempre
+ * bajo el mismo día de la semana, que es lo que permite comparar un lunes
+ * contra otro lunes de un vistazo.
+ *
+ * Todas las semanas salen de siete celdas, incluidas la primera y la última.
+ * Si el mes empieza sábado, esa semana trae cinco celdas de relleno antes del
+ * 1: sin ellas el sábado y el domingo se estirarían a media pantalla y esas
+ * dos barras parecerían un récord.
+ *
+ * Los días del mes sin dato quedan en `null`, no en cero: en el mes en curso
+ * los días que todavía no pasaron no atendieron a nadie, pero eso no es lo
+ * mismo que un día abierto sin pacientes, y pintarlos igual sería mentir.
+ */
+function semanasDelMes<T extends { date: string }>(
+  anio: number,
+  mes: number,
+  serie: T[],
+): Array<Array<CeldaDelMes<T>>> {
+  const porFecha = new Map(serie.map((d) => [d.date, d]))
+  // Día 0 del mes siguiente = último día de este mes.
+  const ultimoDia = new Date(anio, mes, 0).getDate()
+  // getDay() devuelve 0 para domingo; lo corro a 0 = lunes ... 6 = domingo.
+  const offsetLunes = (dia: number) => (new Date(anio, mes - 1, dia).getDay() + 6) % 7
+
+  const iso = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
+
+  // Del lunes de la semana del día 1 al domingo de la semana del último día.
+  const cursor = new Date(anio, mes - 1, 1 - offsetLunes(1))
+  const fin = new Date(anio, mes - 1, ultimoDia + (6 - offsetLunes(ultimoDia)))
+
+  const semanas: Array<Array<CeldaDelMes<T>>> = []
+  let actual: Array<CeldaDelMes<T>> = []
+  while (cursor <= fin) {
+    const fecha = iso(cursor)
+    const delMes = cursor.getFullYear() === anio && cursor.getMonth() === mes - 1
+    actual.push({ date: fecha, delMes, dato: delMes ? porFecha.get(fecha) ?? null : null })
+    if (actual.length === 7) {
+      semanas.push(actual)
+      actual = []
+    }
+    cursor.setDate(cursor.getDate() + 1)
   }
+  if (actual.length > 0) semanas.push(actual)
   return semanas
 }
 
@@ -281,31 +322,52 @@ export default function Home() {
       : dashboard?.protocols_completed_growth_percent,
   )
   const growthTone = getTrendTone(growthValue)
-  // Gráfico: PACIENTES ATENDIDOS. 35 días (5 semanas de 7) con carrusel por
-  // semana. weekIndex 0 = semana actual (más reciente); subir el índice = atrás.
-  const patientsSeries = viendoOtroMes
-    ? mesData?.pacientes_por_dia || []
-    : dashboard?.patients_daily_last_35 || []
-  const weeks = enSemanas(patientsSeries)
-  const [weekIndex, setWeekIndex] = useState(0)
-  const activeWeek = weeks[weekIndex] || []
-  const goOlderWeek = () => setWeekIndex((prev) => Math.min(Math.max(weeks.length - 1, 0), prev + 1))
-  const goNewerWeek = () => setWeekIndex((prev) => Math.max(0, prev - 1))
-  // El gesto de deslizar ya no se detecta a mano: la pista scrollea de verdad
-  // (`CarruselDeslizable`), así que el dedo, el trackpad y la rueda con Shift
-  // hacen lo mismo sin que este componente se entere.
-  const weekRangeLabel = (() => {
-    if (activeWeek.length === 0) return ""
-    const fmt = (iso: string) =>
-      new Date(`${iso}T00:00:00`).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" })
-    return `${fmt(activeWeek[0].date)} – ${fmt(activeWeek[activeWeek.length - 1].date)}`
-  })()
   const todayKey = (() => {
     const now = new Date()
     const year = now.getFullYear()
     const month = String(now.getMonth() + 1).padStart(2, "0")
     const day = String(now.getDate()).padStart(2, "0")
     return `${year}-${month}-${day}`
+  })()
+  // Gráfico: PACIENTES ATENDIDOS. El mes en semanas de calendario (lunes a
+  // domingo) con carrusel. weekIndex va en orden: 0 = la semana del día 1,
+  // el último = la semana que cierra el mes.
+  const patientsSeries = viendoOtroMes
+    ? mesData?.pacientes_por_dia || []
+    : dashboard?.patients_daily_last_35 || []
+  const weeks = semanasDelMes(mesVisible.anio, mesVisible.mes, patientsSeries)
+  // Sólo cuenta si hoy cae en un día del mes que se está mirando: el relleno de
+  // la primera semana puede traer días del mes anterior, y mirando septiembre
+  // un 30 de agosto esa celda no es "la semana en curso" de septiembre.
+  const semanaEnCurso = weeks.findIndex((w) => w.some((c) => c.delMes && c.date === todayKey))
+  const [weekIndex, setWeekIndex] = useState(0)
+  // AL ABRIR EL INICIO, LA SEMANA EN CURSO.
+  //
+  // El inicio se abre para ver cómo viene la semana, no cómo arrancó el mes.
+  // El índice se reacomoda cuando cambia el mes que se mira, y en el mes en
+  // curso cae en la semana de hoy; en un mes cerrado no hay "hoy", así que
+  // muestra la última, que es donde terminó de pasar algo.
+  useEffect(() => {
+    if (weeks.length === 0) return
+    setWeekIndex(semanaEnCurso >= 0 ? semanaEnCurso : weeks.length - 1)
+    // Depende sólo del mes y de la forma de la grilla, no de `weekIndex`: si
+    // dependiera del índice, cada flecha del usuario se desharía sola en el
+    // render siguiente.
+  }, [mesVisible.anio, mesVisible.mes, weeks.length, semanaEnCurso])
+  const activeWeek = weeks[weekIndex] || []
+  const goOlderWeek = () => setWeekIndex((prev) => Math.max(0, prev - 1))
+  const goNewerWeek = () => setWeekIndex((prev) => Math.min(Math.max(weeks.length - 1, 0), prev + 1))
+  // El gesto de deslizar ya no se detecta a mano: la pista scrollea de verdad
+  // (`CarruselDeslizable`), así que el dedo, el trackpad y la rueda con Shift
+  // hacen lo mismo sin que este componente se entere.
+  const weekRangeLabel = (() => {
+    // El rango es el del mes, no el de la fila: si la semana arranca con
+    // relleno de otro mes, el rótulo igual empieza en el día 1.
+    const delMes = activeWeek.filter((c) => c.delMes)
+    if (delMes.length === 0) return ""
+    const fmt = (iso: string) =>
+      new Date(`${iso}T00:00:00`).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" })
+    return `${fmt(delMes[0].date)} – ${fmt(delMes[delMes.length - 1].date)}`
   })()
   // El día abierto en el detalle de caja. null = ninguno.
   const [cajaDelDia, setCajaDelDia] = useState<string | null>(null)
@@ -336,14 +398,29 @@ export default function Home() {
   const arca = viendoOtroMes ? mesData?.arca : dashboard?.arca_month
   const cash = dashboard?.today_cash_revenue
   const cashBreakdown = cash?.breakdown
-  // Caja: cobrado por día (35 días = 5 semanas) con el mismo carrusel de 7.
+  // Caja: cobrado por día, con las mismas semanas de calendario que pacientes.
   const cashSeries = viendoOtroMes
     ? mesData?.caja_por_dia || []
     : dashboard?.cash_daily_last_35 || []
-  const cashWeeks = enSemanas(cashSeries)
+  // Mismo criterio que pacientes: las semanas del calendario del mes, no
+  // ventanas de siete días. Los dos gráficos están uno al lado del otro y una
+  // misma columna tiene que ser el mismo día en los dos.
+  const cashWeeks = semanasDelMes(mesVisible.anio, mesVisible.mes, cashSeries)
+  const semanaEnCursoCaja = cashWeeks.findIndex((w) => w.some((c) => c.delMes && c.date === todayKey))
   const [cashWeekIndex, setCashWeekIndex] = useState(0)
-  const goOlderCashWeek = () => setCashWeekIndex((p) => Math.min(Math.max(cashWeeks.length - 1, 0), p + 1))
-  const goNewerCashWeek = () => setCashWeekIndex((p) => Math.max(0, p - 1))
+  useEffect(() => {
+    if (cashWeeks.length === 0) return
+    setCashWeekIndex(semanaEnCursoCaja >= 0 ? semanaEnCursoCaja : cashWeeks.length - 1)
+  }, [mesVisible.anio, mesVisible.mes, cashWeeks.length, semanaEnCursoCaja])
+  const goOlderCashWeek = () => setCashWeekIndex((p) => Math.max(0, p - 1))
+  const goNewerCashWeek = () => setCashWeekIndex((p) => Math.min(Math.max(cashWeeks.length - 1, 0), p + 1))
+  const cashWeekRangeLabel = (() => {
+    const delMes = (cashWeeks[cashWeekIndex] || []).filter((c) => c.delMes)
+    if (delMes.length === 0) return ""
+    const fmt = (iso: string) =>
+      new Date(`${iso}T00:00:00`).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" })
+    return `${fmt(delMes[0].date)} – ${fmt(delMes[delMes.length - 1].date)}`
+  })()
   const formatMoney = (v?: string) => {
     const n = Number.parseFloat(v || "0")
     return Number.isFinite(n) ? `$${n.toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "$0.00"
@@ -589,26 +666,24 @@ export default function Home() {
               <h2 className="truncate text-base font-semibold text-slate-900">Pacientes atendidos</h2>
             </div>
             <span className="hidden text-xs text-slate-500 sm:inline">
-              {weekIndex === 0 ? "Semana actual" : `Hace ${weekIndex} sem.`}
+              {weekIndex === semanaEnCurso ? "Semana en curso" : `Semana ${weekIndex + 1} de ${weeks.length}`}
               {weekRangeLabel ? ` · ${weekRangeLabel}` : ""}
             </span>
           </div>
           <div className="mb-3 flex items-center justify-center gap-1.5">
-            {weeks.map((_, pos) => {
-              // pos 0 = izquierda = semana más vieja; última = derecha = actual.
-              const wIdx = weeks.length - 1 - pos
-              return (
-                <button
-                  key={pos}
-                  type="button"
-                  onClick={() => setWeekIndex(wIdx)}
-                  aria-label={wIdx === 0 ? "Semana actual" : `Hace ${wIdx} semanas`}
-                  className={`h-1.5 rounded-full transition-all ${
-                    wIdx === weekIndex ? "w-5 bg-[#204983]" : "w-1.5 bg-slate-300 hover:bg-slate-400"
-                  }`}
-                />
-              )
-            })}
+            {/* Los puntitos van en el orden del mes: el primero es la semana
+                del día 1 y el último la que lo cierra. */}
+            {weeks.map((_, pos) => (
+              <button
+                key={pos}
+                type="button"
+                onClick={() => setWeekIndex(pos)}
+                aria-label={pos === semanaEnCurso ? "Semana en curso" : `Semana ${pos + 1} del mes`}
+                className={`h-1.5 rounded-full transition-all ${
+                  pos === weekIndex ? "w-5 bg-[#204983]" : "w-1.5 bg-slate-300 hover:bg-slate-400"
+                }`}
+              />
+            ))}
           </div>
           {loading ? (
             <Skeleton className="h-64 w-full rounded-md" />
@@ -617,31 +692,62 @@ export default function Home() {
               <button
                 type="button"
                 onClick={goOlderWeek}
-                disabled={weekIndex >= weeks.length - 1}
+                disabled={weekIndex === 0}
                 aria-label="Semana anterior"
                 className="flex w-7 shrink-0 items-center justify-center rounded-md border border-slate-200 text-slate-500 transition hover:bg-slate-50 hover:text-[#204983] disabled:opacity-40"
               >
                 <ChevronLeft className="h-5 w-5" />
               </button>
-              {/* La pista arranca en la semana más vieja y termina en la
-                  actual, así que el índice del carrusel es el espejo de
-                  `weekIndex` (0 = la actual). */}
+              {/* La pista va en el orden del mes, igual que `weekIndex`: la
+                  primera semana a la izquierda, la que lo cierra a la derecha. */}
               <CarruselDeslizable
                 ariaLabel="Semanas de pacientes atendidos"
-                activo={weeks.length - 1 - weekIndex}
-                onActivo={(pos) => setWeekIndex(weeks.length - 1 - pos)}
+                activo={weekIndex}
+                onActivo={(pos) => setWeekIndex(pos)}
               >
                 <>
-                  {[...weeks].reverse().map((week, revIdx) => {
-                    const maxForWeek = Math.max(1, ...week.map((it) => it.patients_served))
+                  {weeks.map((week, wIdx) => {
+                    // El máximo sale sólo de los días que ya pasaron: si contara
+                    // los futuros como cero no cambiaría nada, pero deja claro
+                    // que la escala es de lo medido.
+                    const maxForWeek = Math.max(1, ...week.map((c) => c.dato?.patients_served ?? 0))
                     return (
-                      <div key={revIdx} className="flex h-64 w-full shrink-0 snap-center flex-col">
+                      // MEDIO HUECO DE PADDING A CADA LADO.
+                      //
+                      // Los paneles van pegados: sin esto la última barra de una
+                      // semana toca la primera de la siguiente, y como el ancho de
+                      // la pista sale de restar las flechas —casi nunca da entero—
+                      // el redondeo subpíxel deja asomar una tajada de la barra
+                      // vecina en el borde. Con medio hueco de cada lado, la
+                      // separación entre semanas es la misma que entre dos barras.
+                      <div key={wIdx} className="flex h-64 w-full shrink-0 snap-center flex-col px-[3px] sm:px-1.5">
                         <div className="flex flex-1 items-end gap-1.5 sm:gap-3">
-                          {week.map((item) => {
-                            const isToday = item.date === todayKey
-                            const value = item.patients_served
+                          {week.map((celda) => {
+                            const isToday = celda.date === todayKey
+                            const value = celda.dato?.patients_served ?? null
+                            // Relleno de otro mes: ocupa la columna para que el
+                            // ancho de las barras no cambie entre semanas, pero
+                            // no se pinta.
+                            if (!celda.delMes) {
+                              return <div key={celda.date} className="min-w-0 flex-1" aria-hidden="true" />
+                            }
+                            // Día del mes que todavía no pasó: la columna queda
+                            // marcada pero vacía, para que la semana se lea
+                            // completa de lunes a domingo sin inventar un cero.
+                            if (value === null) {
+                              return (
+                                <div key={celda.date} className="flex min-w-0 flex-1 flex-col items-center justify-end">
+                                  <span className="mb-1 text-xs font-semibold text-slate-300">–</span>
+                                  <div
+                                    className="flex w-full items-end rounded-md border border-dashed border-slate-200 px-1 sm:px-1.5"
+                                    style={{ height: "176px" }}
+                                    title="Todavía no pasó"
+                                  />
+                                </div>
+                              )
+                            }
                             return (
-                              <div key={item.date} className="flex min-w-0 flex-1 flex-col items-center justify-end">
+                              <div key={celda.date} className="flex min-w-0 flex-1 flex-col items-center justify-end">
                                 <span className={`mb-1 text-xs font-semibold ${isToday ? "text-[#204983]" : "text-slate-700"}`}>
                                   {value}
                                 </span>
@@ -662,16 +768,20 @@ export default function Home() {
                           })}
                         </div>
                         <div className="mt-2 flex gap-1.5 sm:gap-3">
-                          {week.map((item) => {
-                            const dateObj = new Date(`${item.date}T00:00:00`)
+                          {week.map((celda) => {
+                            const dateObj = new Date(`${celda.date}T00:00:00`)
                             const weekday = dateObj.toLocaleDateString("es-AR", { weekday: "short" }).replace(".", "")
                             const day = dateObj.toLocaleDateString("es-AR", { day: "2-digit" })
-                            const isToday = item.date === todayKey
+                            const isToday = celda.date === todayKey
+                            if (!celda.delMes) {
+                              return <div key={celda.date} className="min-w-0 flex-1" aria-hidden="true" />
+                            }
+                            const futuro = celda.dato === null
                             return (
                               <div
-                                key={item.date}
+                                key={celda.date}
                                 className={`flex min-w-0 flex-1 flex-col items-center leading-tight ${
-                                  isToday ? "font-semibold text-[#204983]" : "text-slate-500"
+                                  isToday ? "font-semibold text-[#204983]" : futuro ? "text-slate-300" : "text-slate-500"
                                 }`}
                               >
                                 <span className="text-[10px] capitalize sm:text-[11px]">{isToday ? "Hoy" : weekday}</span>
@@ -688,7 +798,7 @@ export default function Home() {
               <button
                 type="button"
                 onClick={goNewerWeek}
-                disabled={weekIndex === 0}
+                disabled={weekIndex >= weeks.length - 1}
                 aria-label="Semana siguiente"
                 className="flex w-7 shrink-0 items-center justify-center rounded-md border border-slate-200 text-slate-500 transition hover:bg-slate-50 hover:text-[#204983] disabled:opacity-40"
               >
@@ -745,19 +855,22 @@ export default function Home() {
             <h2 className="text-base font-semibold text-slate-900">Caja (pacientes)</h2>
           </div>
           <span className="hidden text-xs text-slate-500 sm:inline">
-            {cashWeekIndex === 0 ? "Semana actual" : `Hace ${cashWeekIndex} sem.`}
+            {cashWeekIndex === semanaEnCursoCaja
+              ? "Semana en curso"
+              : `Semana ${cashWeekIndex + 1} de ${cashWeeks.length}`}
+            {cashWeekRangeLabel ? ` · ${cashWeekRangeLabel}` : ""}
           </span>
         </div>
         {loading ? (
           <Skeleton className="h-48 w-full rounded-md" />
         ) : (
           <>
-            {/* Cobrado por día (7 días, carrusel por semana) */}
+            {/* Cobrado por día, una semana de calendario por pantalla */}
             <div className="mb-4 flex items-stretch gap-1 sm:gap-2">
               <button
                 type="button"
                 onClick={goOlderCashWeek}
-                disabled={cashWeekIndex >= cashWeeks.length - 1}
+                disabled={cashWeekIndex === 0}
                 aria-label="Semana anterior"
                 className="flex w-7 shrink-0 items-center justify-center rounded-md border border-slate-200 text-slate-500 transition hover:bg-slate-50 hover:text-emerald-600 disabled:opacity-40"
               >
@@ -765,30 +878,54 @@ export default function Home() {
               </button>
               <CarruselDeslizable
                 ariaLabel="Semanas de caja"
-                activo={cashWeeks.length - 1 - cashWeekIndex}
-                onActivo={(pos) => setCashWeekIndex(cashWeeks.length - 1 - pos)}
+                activo={cashWeekIndex}
+                onActivo={(pos) => setCashWeekIndex(pos)}
               >
                 <>
-                  {[...cashWeeks].reverse().map((week, revIdx) => {
-                    const maxCash = Math.max(1, ...week.map((it) => Number.parseFloat(it.collected || "0")))
+                  {cashWeeks.map((week, wIdx) => {
+                    const maxCash = Math.max(
+                      1,
+                      ...week.map((c) => Number.parseFloat(c.dato?.collected || "0")),
+                    )
                     return (
-                      <div key={revIdx} className="flex h-40 w-full shrink-0 snap-center flex-col">
+                      // Medio hueco a cada lado, igual que en pacientes: los
+                      // paneles van pegados y sin esto la barra del borde se
+                      // mezcla con la de la semana vecina.
+                      <div key={wIdx} className="flex h-40 w-full shrink-0 snap-center flex-col px-[3px] sm:px-1.5">
                         <div className="flex flex-1 items-end gap-1.5 sm:gap-3">
-                          {week.map((item) => {
-                            const value = Number.parseFloat(item.collected || "0")
-                            const isToday = item.date === todayKey
+                          {week.map((celda) => {
+                            // Relleno de otro mes: ocupa la columna y no se pinta,
+                            // así el ancho de barra no cambia entre semanas.
+                            if (!celda.delMes) {
+                              return <div key={celda.date} className="min-w-0 flex-1" aria-hidden="true" />
+                            }
+                            const isToday = celda.date === todayKey
+                            // Día que todavía no pasó: no hay caja que abrir, así
+                            // que no es un botón. Queda la columna marcada.
+                            if (celda.dato === null) {
+                              return (
+                                <div key={celda.date} className="flex min-w-0 flex-1 flex-col items-center justify-end">
+                                  <div
+                                    className="w-full rounded-md border border-dashed border-slate-200"
+                                    style={{ height: "104px" }}
+                                    title="Todavía no pasó"
+                                  />
+                                </div>
+                              )
+                            }
+                            const value = Number.parseFloat(celda.dato.collected || "0")
                             return (
                               <button
-                                key={item.date}
+                                key={celda.date}
                                 type="button"
-                                onClick={() => setCajaDelDia(item.date)}
-                                aria-label={`Ver el detalle de la caja del ${item.date}`}
+                                onClick={() => setCajaDelDia(celda.date)}
+                                aria-label={`Ver el detalle de la caja del ${celda.date}`}
                                 className="group flex min-w-0 flex-1 cursor-pointer flex-col items-center justify-end rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2"
                               >
                                 <div
                                   className={`flex w-full items-end rounded-md transition-colors ${isToday ? "bg-amber-100/70 ring-1 ring-amber-300" : "bg-slate-100/80"} group-hover:bg-slate-200/90`}
                                   style={{ height: "104px" }}
-                                  title={`${formatMoney(item.collected)}${isToday ? " (hoy)" : ""} — tocá para ver el detalle`}
+                                  title={`${formatMoney(celda.dato.collected)}${isToday ? " (hoy)" : ""} — tocá para ver el detalle`}
                                 >
                                   <div
                                     className={`w-full rounded-t-md motion-safe:transition-all motion-safe:duration-500 ${isToday ? "bg-amber-500" : "bg-emerald-500"} group-hover:brightness-110`}
@@ -800,16 +937,24 @@ export default function Home() {
                           })}
                         </div>
                         <div className="mt-2 flex gap-1.5 sm:gap-3">
-                          {week.map((item) => {
-                            const dateObj = new Date(`${item.date}T00:00:00`)
+                          {week.map((celda) => {
+                            if (!celda.delMes) {
+                              return <div key={celda.date} className="min-w-0 flex-1" aria-hidden="true" />
+                            }
+                            const dateObj = new Date(`${celda.date}T00:00:00`)
                             const weekday = dateObj.toLocaleDateString("es-AR", { weekday: "short" }).replace(".", "")
-                            const isToday = item.date === todayKey
+                            const day = dateObj.toLocaleDateString("es-AR", { day: "2-digit" })
+                            const isToday = celda.date === todayKey
+                            const futuro = celda.dato === null
                             return (
                               <div
-                                key={item.date}
-                                className={`flex min-w-0 flex-1 flex-col items-center leading-tight ${isToday ? "font-semibold text-emerald-700" : "text-slate-500"}`}
+                                key={celda.date}
+                                className={`flex min-w-0 flex-1 flex-col items-center leading-tight ${
+                                  isToday ? "font-semibold text-emerald-700" : futuro ? "text-slate-300" : "text-slate-500"
+                                }`}
                               >
                                 <span className="text-[10px] capitalize sm:text-[11px]">{isToday ? "Hoy" : weekday}</span>
+                                <span className="text-[10px] sm:text-[11px]">{day}</span>
                               </div>
                             )
                           })}
@@ -822,7 +967,7 @@ export default function Home() {
               <button
                 type="button"
                 onClick={goNewerCashWeek}
-                disabled={cashWeekIndex === 0}
+                disabled={cashWeekIndex >= cashWeeks.length - 1}
                 aria-label="Semana siguiente"
                 className="flex w-7 shrink-0 items-center justify-center rounded-md border border-slate-200 text-slate-500 transition hover:bg-slate-50 hover:text-emerald-600 disabled:opacity-40"
               >

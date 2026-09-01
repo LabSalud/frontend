@@ -114,6 +114,11 @@ export interface ProtocolDetailViewProps {
   canBeCancelled: boolean
   isCancelled: boolean
   canUncancel: boolean
+  /** Hay una cancelación o una reactivación en curso. El botón se apaga hasta
+   *  que el servidor conteste: los dos endpoints tardan —recalculan estado y
+   *  pagos del protocolo entero— y sin esto se puede apretar tres veces. */
+  isCancelling?: boolean
+  isUncancelling?: boolean
   showOrderAction: boolean
   showPreauthAction: boolean
   showCoseguroAction: boolean
@@ -252,6 +257,8 @@ export function ProtocolDetailView(props: ProtocolDetailViewProps) {
     canBeCancelled,
     isCancelled,
     canUncancel,
+    isCancelling = false,
+    isUncancelling = false,
     showOrderAction,
     showPreauthAction,
     showCoseguroAction,
@@ -333,16 +340,32 @@ export function ProtocolDetailView(props: ProtocolDetailViewProps) {
                   )}
                 </span>
               )}
+              {/* MIENTRAS EL SERVIDOR NO CONTESTA, EL BOTÓN NO SE PUEDE APRETAR.
+                  Cancelar y reactivar tardan —los dos recalculan el estado y los
+                  pagos del protocolo entero— y el botón se quedaba igual que
+                  antes: parecía que no había pasado nada, así que se lo apretaba
+                  otra vez. Ahora se apaga y dice qué está haciendo. */}
               {isCancelled
                 ? canUncancel && (
-                    <Button size="sm" variant="outline" onClick={onUncancel}>
-                      <RotateCcw className="mr-1.5 h-4 w-4" />
-                      Reactivar
+                    <Button size="sm" variant="outline" onClick={onUncancel} disabled={isUncancelling}>
+                      {isUncancelling ? (
+                        <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                      ) : (
+                        <RotateCcw className="mr-1.5 h-4 w-4" />
+                      )}
+                      {isUncancelling ? "Reactivando..." : "Reactivar"}
                     </Button>
                   )
                 : canBeCancelled && (
-                    <Button size="sm" variant="outline" className="text-red-600 hover:bg-red-50" onClick={onCancel}>
-                      Cancelar protocolo
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="text-red-600 hover:bg-red-50"
+                      onClick={onCancel}
+                      disabled={isCancelling}
+                    >
+                      {isCancelling && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}
+                      {isCancelling ? "Cancelando..." : "Cancelar protocolo"}
                     </Button>
                   )}
             </div>

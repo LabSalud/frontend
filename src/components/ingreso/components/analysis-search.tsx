@@ -327,14 +327,18 @@ export function AnalysisSearch({ selectedAnalyses, onAnalysisChange }: AnalysisS
               key={`analysis-${analysis.id}`}
               ref={index === orderedResults.length - 1 ? setLastElementRef : null}
               onMouseEnter={() => setHighlightedIndex(index)}
-              className={`flex items-center justify-between p-3 border-b border-gray-100 last:border-b-0 ${
+              // El nombre de un análisis puede ser largo ("Perfil tiroideo
+              // (TSH, T3, T4 libre)"). Sin `min-w-0` el bloque de la izquierda
+              // no achica, y en un teléfono el botón de agregar se iba afuera
+              // del desplegable: el resultado se veía pero no se podía elegir.
+              className={`flex items-center justify-between gap-2 p-3 border-b border-gray-100 last:border-b-0 ${
                 index === highlightedIndex ? "bg-[#204983]/10" : "hover:bg-gray-50"
               }`}
             >
-              <div className="flex items-center gap-3">
-                <Package className="h-4 w-4 text-[#204983]" />
-                <div>
-                  <div className="font-medium text-sm">{analysis.name}</div>
+              <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1">
+                <Package className="h-4 w-4 shrink-0 text-[#204983]" />
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-medium break-words">{analysis.name}</div>
                   <div className="text-xs text-gray-500">
                     Código: {analysis.code || "N/A"} |{" "}
                     {preciosFijosHabilitados && analysis.cobra_precio_fijo
@@ -343,12 +347,12 @@ export function AnalysisSearch({ selectedAnalyses, onAnalysisChange }: AnalysisS
                   </div>
                 </div>
                 {analysis.is_urgent && (
-                  <Badge variant="destructive" className="text-xs">
+                  <Badge variant="destructive" className="shrink-0 text-xs">
                     Urgente
                   </Badge>
                 )}
                 {analysis.is_obsolete && (
-                  <Badge variant="outline" className="bg-amber-50 text-amber-700 text-xs">
+                  <Badge variant="outline" className="shrink-0 bg-amber-50 text-amber-700 text-xs">
                     En desuso
                   </Badge>
                 )}
@@ -357,7 +361,7 @@ export function AnalysisSearch({ selectedAnalyses, onAnalysisChange }: AnalysisS
                 variant="outline"
                 size="sm"
                 onClick={() => handleAddAnalysis(analysis)}
-                className="border-[#204983] text-[#204983] hover:bg-[#204983] hover:text-white"
+                className="shrink-0 border-[#204983] text-[#204983] hover:bg-[#204983] hover:text-white"
               >
                 <Plus className="h-4 w-4" />
               </Button>

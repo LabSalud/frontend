@@ -134,7 +134,10 @@ function orderStatusInfo(s?: string) {
 function Section({ icon: Icon, title, actions, children }: { icon: typeof Shield; title: string; actions?: ReactNode; children: ReactNode }) {
   return (
     <section className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm md:p-5">
-      <div className="mb-3 flex items-center justify-between gap-2">
+      {/* En un teléfono el título y los botones no entran en el mismo renglón:
+          "Análisis (12)" más "Validar" más "Cargar resultados" se pisaban. Abajo
+          de `sm` van apilados, con los botones ocupando el ancho. */}
+      <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-2">
         <h2 className="flex items-center gap-2 text-base font-bold text-gray-800">
           <Icon className="h-5 w-5 text-[#204983]" />
           {title}
@@ -351,14 +354,21 @@ export function ProtocolDetailView(props: ProtocolDetailViewProps) {
           icon={FlaskConical}
           title={`Análisis (${details.length})`}
           actions={
-            <div className="flex gap-2">
+            // Los botones NO se estiran al ancho del teléfono: "Cargar
+            // resultados" partido en dos renglones ocupa más y se lee peor que
+            // el botón entero. Envuelven si de verdad no entran.
+            <div className="flex flex-wrap gap-2">
               {isPendingValidation && (
-                <Button size="sm" variant="outline" onClick={onGoValidation}>
+                <Button size="sm" variant="outline" onClick={onGoValidation} className="whitespace-nowrap">
                   <CheckCircle className="mr-1.5 h-4 w-4" />
                   Validar
                 </Button>
               )}
-              <Button size="sm" className="bg-[#204983] hover:bg-[#1a3d6f]" onClick={onGoResults}>
+              <Button
+                size="sm"
+                className="whitespace-nowrap bg-[#204983] hover:bg-[#1a3d6f]"
+                onClick={onGoResults}
+              >
                 <TestTube className="mr-1.5 h-4 w-4" />
                 Cargar resultados
               </Button>
@@ -378,9 +388,55 @@ export function ProtocolDetailView(props: ProtocolDetailViewProps) {
                 {(d, manija) => {
                 const isBillingAct = isActoBioquimico(d.code)
                 const ub = ubDeLaFila(d, isPrivate)
+                // Las etiquetas del análisis. Se arman una vez y se dibujan en
+                // dos lugares distintos —pegadas al nombre en escritorio, en su
+                // propio renglón en el teléfono— porque no es lo mismo tener
+                // 900 px de ancho que 300.
+                const etiquetas = (
+                  <>
+                    {ub.valor && (
+                      <Badge
+                        variant="outline"
+                        title={ub.detalle}
+                        className="shrink-0 border-slate-200 font-mono text-[11px] text-slate-500"
+                      >
+                        UB {ub.valor}
+                      </Badge>
+                    )}
+                    {isBillingAct && (
+                      <Badge variant="outline" className="shrink-0 border-slate-200 text-slate-500">
+                        Sin resultado
+                      </Badge>
+                    )}
+                    {d.is_urgent && <Badge className="shrink-0 bg-rose-100 text-rose-700">Urgente</Badge>}
+                  </>
+                )
+                // EN UN TELÉFONO LA FILA ES UNA TARJETA DE DOS RENGLONES.
+                //
+                // Todo esto —quitar, manija, código, nombre, la UB, "Sin
+                // resultado", "Urgente", y del otro lado "Cubre OOSS" con su
+                // interruptor— entraba en un renglón solo porque en escritorio
+                // sobra ancho. En 360 px lo fijo ya se come el renglón entero:
+                // el nombre se achicaba hasta desaparecer y las etiquetas
+                // terminaban dibujadas ENCIMA del interruptor.
+                //
+                // Abajo de `sm` es una grilla de dos columnas:
+                //
+                //     [−] [⋮⋮] [880001] Hemograma completo con
+                //                       fórmula
+                //     [UB 5] [Urgente]        Cubre OOSS  (o)
+                //
+                // El nombre entero arriba (hasta dos renglones, después corta),
+                // las etiquetas abajo a la izquierda y la cobertura abajo a la
+                // derecha. Cada fila tiene la misma forma, que es lo que hace
+                // que una lista de doce análisis se lea de un vistazo.
+                //
+                // En `sm` y para arriba el `li` vuelve a ser flex, el bloque de
+                // etiquetas de abajo desaparece con `sm:hidden` y queda
+                // exactamente la fila de siempre.
                 return (
-                <li className="flex items-center justify-between gap-3 py-2.5">
-                  <div className="flex min-w-0 items-center gap-2.5">
+                <li className="grid grid-cols-[1fr_auto] items-center gap-x-3 gap-y-2 py-2.5 sm:flex sm:items-center sm:justify-between sm:gap-3">
+                  <div className="col-span-2 flex min-w-0 items-start gap-2.5 sm:col-span-1 sm:items-center">
                     {/* El menos va primero de todo, como pediste: la acción de
                         sacar tiene que estar en el mismo lugar en cada fila y
                         no perdida entre los datos. */}
@@ -429,27 +485,23 @@ export function ProtocolDetailView(props: ProtocolDetailViewProps) {
                     >
                       {d.code}
                     </span>
-                    <span className="truncate text-sm font-medium text-gray-800">{d.name}</span>
-                    {ub.valor && (
-                      <Badge
-                        variant="outline"
-                        title={ub.detalle}
-                        className="shrink-0 border-slate-200 font-mono text-[11px] text-slate-500"
-                      >
-                        UB {ub.valor}
-                      </Badge>
-                    )}
-                    {isBillingAct && (
-                      <Badge variant="outline" className="shrink-0 border-slate-200 text-slate-500">
-                        Sin resultado
-                      </Badge>
-                    )}
-                    {d.is_urgent && <Badge className="bg-rose-100 text-rose-700">Urgente</Badge>}
+                    {/* `min-w-0`: sin eso un item de flex no achica por debajo de
+                        su contenido y no corta nunca. En el teléfono el nombre
+                        entra en dos renglones antes de cortar —es el dato que se
+                        vino a leer—; en escritorio sigue siendo uno solo, que es
+                        lo que mantiene la lista pareja. */}
+                    <span className="min-w-0 flex-1 text-sm font-medium text-gray-800 max-sm:line-clamp-2 sm:flex-none sm:truncate">
+                      {d.name}
+                    </span>
+                    <span className="hidden shrink-0 items-center gap-2.5 sm:flex">{etiquetas}</span>
                   </div>
+
+                  {/* Las etiquetas, en su propio renglón y solo en el teléfono. */}
+                  <div className="flex flex-wrap items-center gap-1.5 sm:hidden">{etiquetas}</div>
                   {isPrivate ? (
-                    <Badge className="shrink-0 bg-amber-100 text-amber-700">Particular</Badge>
+                    <Badge className="shrink-0 justify-self-end bg-amber-100 text-amber-700">Particular</Badge>
                   ) : (
-                    <div className="flex shrink-0 items-center gap-2">
+                    <div className="flex shrink-0 items-center justify-self-end gap-2">
                       <span className={cn("text-xs", d.is_authorized ? "text-emerald-600" : "text-amber-600")}>
                         {d.is_authorized ? "Cubre OOSS" : "Particular"}
                       </span>

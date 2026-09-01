@@ -61,6 +61,7 @@ import { ProtocolHistoryDialog } from "./dialogs/protocol-history-dialog"
 import { formatApiError, getErrorMessage } from "@/lib/api-error"
 import { useAuth } from "@/contexts/auth-context"
 import { getProtocolStatusStyleByName } from "@/lib/status-styles"
+import { seguirElWhatsApp } from "@/lib/seguimiento-de-whatsapp"
 import { TRAJO_ORDEN, normalizeTrajoOrden, type TrajoOrdenStatus } from "@/lib/protocol-order"
 import { AgregarAnalisisDialog } from "./dialogs/agregar-analisis-dialog"
 import { FormaDePagoDialog } from "./dialogs/forma-de-pago-dialog"
@@ -848,11 +849,20 @@ export function ProtocolCard({
 
       if (response.ok) {
         const data = await response.json()
-        toast.success(data.detail || "WhatsApp enviado exitosamente", { duration: TOAST_DURATION })
+        toast.success(data.detail || "WhatsApp en camino", { duration: TOAST_DURATION })
         if (data.protocol_status !== undefined) setLiveStatus(data.protocol_status)
         setReportDialogOpen(false)
         await refreshProtocolDetail()
         onUpdate()
+
+        // El 200 solo dice que Meta lo aceptó. El desenlace llega por webhook
+        // unos segundos después; hasta entonces no se sabe si llegó.
+        void seguirElWhatsApp(apiRequest, protocol.id, data.wamid, {
+          alFallar: () => {
+            void refreshProtocolDetail()
+            onUpdate()
+          },
+        })
       } else {
         const errorData = await response.json().catch(() => ({}))
         throw new Error(extractErrorMessage(errorData, "Error al enviar el WhatsApp"))

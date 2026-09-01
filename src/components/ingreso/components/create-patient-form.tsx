@@ -305,7 +305,7 @@ export function CreatePatientForm({
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="birth_date_anon_ingreso">
                   Fecha de nacimiento <span className="text-gray-400 font-normal">(opcional)</span>
@@ -334,7 +334,7 @@ export function CreatePatientForm({
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="phone_mobile_anon_ingreso">
                   Teléfono móvil <span className="text-gray-400 font-normal">(opcional)</span>
@@ -375,7 +375,7 @@ export function CreatePatientForm({
               />
             </div>
 
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               <div className="space-y-2">
                 <Label htmlFor="country_anon_ingreso">País</Label>
                 <Input
@@ -420,7 +420,7 @@ export function CreatePatientForm({
           </>
         ) : (
           <>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="first_name">Nombre *</Label>
                 <Input
@@ -465,7 +465,7 @@ export function CreatePatientForm({
               {renderFieldMessage("dni")}
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="birth_date">Fecha de nacimiento *</Label>
                 <Input
@@ -493,7 +493,7 @@ export function CreatePatientForm({
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="phone_mobile">Teléfono móvil</Label>
                 <Input
@@ -530,7 +530,7 @@ export function CreatePatientForm({
               {renderFieldMessage("email")}
             </div>
 
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               <div className="space-y-2">
                 <Label htmlFor="country">País</Label>
                 <Input

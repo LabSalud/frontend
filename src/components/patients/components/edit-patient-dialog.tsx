@@ -403,7 +403,7 @@ export function EditPatientDialog({ isOpen, onClose, patient, setPatients, apiRe
           </div>
 
           {/* Información personal */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="edit-first_name">Nombre *</Label>
               <Input
@@ -432,7 +432,7 @@ export function EditPatientDialog({ isOpen, onClose, patient, setPatients, apiRe
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="edit-birth_date">Fecha de nacimiento {patient?.is_anonymous ? "" : "*"}</Label>
               <Input
@@ -461,7 +461,7 @@ export function EditPatientDialog({ isOpen, onClose, patient, setPatients, apiRe
           </div>
 
           {/* Información de contacto */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="edit-phone_mobile">Teléfono móvil</Label>
               <Input
@@ -503,7 +503,7 @@ export function EditPatientDialog({ isOpen, onClose, patient, setPatients, apiRe
           </div>
 
           {/* Información de ubicación */}
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <div className="space-y-2">
               <Label htmlFor="edit-country">País</Label>
               <Input

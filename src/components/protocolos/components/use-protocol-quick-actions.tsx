@@ -8,6 +8,7 @@ import { useAuth } from "@/contexts/auth-context"
 import { PROTOCOL_ENDPOINTS, TOAST_DURATION } from "@/config/api"
 import { PERMISSIONS, PERMISSION_MESSAGES } from "@/config/permissions"
 import { formatApiError, getErrorMessage } from "@/lib/api-error"
+import { seguirElWhatsApp } from "@/lib/seguimiento-de-whatsapp"
 import { PaymentDialog } from "./dialogs/payment-dialog"
 import type { ProtocolListItem, ProtocolStatus } from "@/types"
 
@@ -102,6 +103,13 @@ export function useProtocolQuickActions(
 
       toast.success(data.detail || "Informe enviado", { duration: TOAST_DURATION })
       onChanged(data.protocol_status !== undefined ? { id: p.id, status: data.protocol_status } : undefined)
+
+      // El 200 solo dice que Meta lo aceptó. Si el mensaje falla —número sin
+      // WhatsApp, paciente que bloqueó al laboratorio— el servidor devuelve el
+      // protocolo a "Pendiente de envío" y el seguimiento avisa acá.
+      if (action === "whatsapp") {
+        void seguirElWhatsApp(apiRequest, p.id, data.wamid, { alFallar: () => onChanged() })
+      }
     } catch (e) {
       toast.error(getErrorMessage(e, "Error al enviar el informe"), { duration: TOAST_DURATION })
     } finally {

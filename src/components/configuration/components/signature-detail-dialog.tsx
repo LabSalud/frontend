@@ -63,7 +63,10 @@ export function SignatureDetailDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="gap-0 overflow-hidden p-0 sm:max-w-md">
+        {/* Cabecera y botonera quietas, el medio scrollea: con el diálogo más
+            alto que la pantalla —un teléfono acostado, o uno chico— los botones
+            de abajo quedaban fuera de la ventana y no había forma de llegar. */}
+      <DialogContent className="flex max-h-[calc(100dvh-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-md">
         <DialogHeader className="space-y-1 border-b border-gray-100 p-5 text-left">
           <DialogTitle className="flex items-center gap-2 text-lg">
             {editing ? "Editar firma" : signature.name}
@@ -84,7 +87,7 @@ export function SignatureDetailDialog({
         </DialogHeader>
 
         {editing ? (
-          <div className="space-y-3 p-5">
+          <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-5">
             <div className="space-y-1.5">
               <Label htmlFor="sig_name">Nombre</Label>
               <Input id="sig_name" value={name} onChange={(e) => setName(e.target.value)} />
@@ -102,7 +105,7 @@ export function SignatureDetailDialog({
             </p>
           </div>
         ) : (
-          <div className="space-y-3 p-5">
+          <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-5">
             <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Vista previa</p>
             <div className="flex h-40 items-center justify-center rounded-lg border border-gray-200 bg-gray-50">
               {signature.image_url ? (
@@ -114,7 +117,7 @@ export function SignatureDetailDialog({
           </div>
         )}
 
-        <div className="space-y-2 border-t border-gray-100 bg-gray-50/60 p-4">
+        <div className="shrink-0 space-y-2 border-t border-gray-100 bg-gray-50/60 p-4">
           {editing ? (
             <div className="flex gap-2">
               <Button variant="outline" size="sm" className="flex-1" onClick={() => setEditing(false)} disabled={saving}>

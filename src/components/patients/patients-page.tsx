@@ -94,7 +94,10 @@ export default function PatientsPage() {
               placeholder="Buscar por DNI o nombre..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="h-11 pl-11 pr-10"
+              // `pr-16` y no `pr-10`: a la derecha puede haber DOS cosas a la vez
+              // —la cruz de limpiar y el spinner de "buscando"—, y con el padding
+              // corto el spinner quedaba encima del texto que se está escribiendo.
+              className="h-11 pl-11 pr-16"
             />
             {searchTerm && (
               <button
@@ -105,7 +108,7 @@ export default function PatientsPage() {
               </button>
             )}
             {patientsQuery.isFetching && !isLoadingMore && (
-              <div className="absolute right-10 top-1/2 -translate-y-1/2">
+              <div className="absolute right-11 top-1/2 -translate-y-1/2">
                 <Loader2 className="h-4 w-4 animate-spin text-[#204983]" />
               </div>
             )}

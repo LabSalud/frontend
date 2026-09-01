@@ -149,7 +149,7 @@ export function EditPatientDialog({ isOpen, onClose, patient, onPatientUpdated }
         </DialogHeader>
 
         <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="first_name">Nombre *</Label>
               <Input
@@ -188,7 +188,7 @@ export function EditPatientDialog({ isOpen, onClose, patient, onPatientUpdated }
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="birth_date">Fecha de nacimiento {patient?.is_anonymous ? "" : "*"}</Label>
               <Input
@@ -214,7 +214,7 @@ export function EditPatientDialog({ isOpen, onClose, patient, onPatientUpdated }
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="phone_mobile">Teléfono móvil</Label>
               <Input
@@ -249,7 +249,7 @@ export function EditPatientDialog({ isOpen, onClose, patient, onPatientUpdated }
             />
           </div>
 
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <div className="space-y-2">
               <Label htmlFor="country">País</Label>
               <Input

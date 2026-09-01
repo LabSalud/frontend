@@ -65,7 +65,10 @@ export function ObraSocialDetailDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="gap-0 overflow-hidden p-0 sm:max-w-md">
+        {/* Cabecera y botonera quietas, el medio scrollea: con el diálogo más
+            alto que la pantalla —un teléfono acostado, o uno chico— los botones
+            de abajo quedaban fuera de la ventana y no había forma de llegar. */}
+      <DialogContent className="flex max-h-[calc(100dvh-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-md">
         <DialogHeader className="space-y-0 border-b border-gray-100 p-5 text-left">
           <div className="flex items-center gap-3">
             <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#204983] text-xs font-bold text-white">
@@ -82,7 +85,7 @@ export function ObraSocialDetailDialog({
           </div>
         </DialogHeader>
 
-        <div className="space-y-5 p-5">
+        <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-5">
           <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50/60 px-3 py-2">
             <span className="text-sm font-medium text-gray-700">Obra social activa</span>
             <div className="flex items-center gap-2">
@@ -150,7 +153,7 @@ export function ObraSocialDetailDialog({
           )}
         </div>
 
-        <div className="space-y-2 border-t border-gray-100 bg-gray-50/60 p-4">
+        <div className="shrink-0 space-y-2 border-t border-gray-100 bg-gray-50/60 p-4">
           <Button variant="outline" size="sm" className="w-full" onClick={() => onShowHistory(obraSocial)}>
             <History className="mr-1.5 h-4 w-4 text-[#204983]" />
             Ver historial de cambios

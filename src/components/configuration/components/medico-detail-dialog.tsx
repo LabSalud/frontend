@@ -40,7 +40,10 @@ export function MedicoDetailDialog({ medico, open, onOpenChange, onEdit, onDelet
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="gap-0 overflow-hidden p-0 sm:max-w-md">
+        {/* Cabecera y botonera quietas, el medio scrollea: con el diálogo más
+            alto que la pantalla —un teléfono acostado, o uno chico— los botones
+            de abajo quedaban fuera de la ventana y no había forma de llegar. */}
+      <DialogContent className="flex max-h-[calc(100dvh-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-md">
         <DialogHeader className="space-y-0 border-b border-gray-100 p-5 text-left">
           <div className="flex items-center gap-3">
             <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#204983]/10 text-[#204983]">
@@ -53,7 +56,7 @@ export function MedicoDetailDialog({ medico, open, onOpenChange, onEdit, onDelet
           </div>
         </DialogHeader>
 
-        <div className="space-y-5 p-5">
+        <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-5">
           <div className="grid grid-cols-2 gap-3">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Nombre</p>
@@ -80,7 +83,7 @@ export function MedicoDetailDialog({ medico, open, onOpenChange, onEdit, onDelet
           )}
         </div>
 
-        <div className="space-y-2 border-t border-gray-100 bg-gray-50/60 p-4">
+        <div className="shrink-0 space-y-2 border-t border-gray-100 bg-gray-50/60 p-4">
           <Button variant="outline" size="sm" className="w-full" onClick={() => setHistoryOpen(true)}>
             <History className="mr-1.5 h-4 w-4 text-[#204983]" />
             Ver historial de cambios

@@ -450,7 +450,7 @@ export function CreatePatientDialog({ isOpen, onClose, addPatient, apiRequest }:
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="birth_date_anon">Fecha de nacimiento <span className="text-gray-400 font-normal">(opcional)</span></Label>
                   <Input
@@ -475,7 +475,7 @@ export function CreatePatientDialog({ isOpen, onClose, addPatient, apiRequest }:
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="phone_mobile_anon">Teléfono móvil <span className="text-gray-400 font-normal">(opcional)</span></Label>
                   <Input
@@ -510,7 +510,7 @@ export function CreatePatientDialog({ isOpen, onClose, addPatient, apiRequest }:
                 />
               </div>
 
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                 <div className="space-y-2">
                   <Label htmlFor="country_anon">País</Label>
                   <Input
@@ -572,7 +572,7 @@ export function CreatePatientDialog({ isOpen, onClose, addPatient, apiRequest }:
               </div>
 
           {/* Información personal */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="first_name">Nombre *</Label>
               <Input
@@ -601,7 +601,7 @@ export function CreatePatientDialog({ isOpen, onClose, addPatient, apiRequest }:
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="birth_date">Fecha de nacimiento *</Label>
               <Input
@@ -630,7 +630,7 @@ export function CreatePatientDialog({ isOpen, onClose, addPatient, apiRequest }:
           </div>
 
           {/* Información de contacto */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="phone_mobile">Teléfono móvil</Label>
               <Input
@@ -672,7 +672,7 @@ export function CreatePatientDialog({ isOpen, onClose, addPatient, apiRequest }:
           </div>
 
           {/* Información de ubicación */}
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <div className="space-y-2">
               <Label htmlFor="country">País</Label>
               <Input

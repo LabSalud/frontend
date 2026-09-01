@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { pedirInforme } from "@/components/contingencia/enviar-informe"
+import { seguirElWhatsApp } from "@/lib/seguimiento-de-whatsapp"
 import { useQueryClient } from "@tanstack/react-query"
 import {
   Search,
@@ -518,6 +519,14 @@ export default function ProtocolosPage() {
           // respuesta trae el estado nuevo de cada uno combinado.
           const statuses = (data.protocol_statuses || []) as Array<{ protocol_id: number; status: ProtocolListItem["status"] | null }>
           applyStatusUpdates(statuses.map((s) => ({ id: s.protocol_id, status: s.status })))
+
+          // El unificado es UN mensaje con varios protocolos adentro: si falla,
+          // fallan todos. Alcanza con seguirlo una vez.
+          if (action === "whatsapp" && statuses.length > 0) {
+            void seguirElWhatsApp(apiRequest, statuses[0].protocol_id, data.wamid, {
+              alFallar: () => { void protocolsQuery.refetch() },
+            })
+          }
         }
         setSelectedProtocols(new Set())
       } else {
@@ -600,18 +609,36 @@ export default function ProtocolosPage() {
               `${successCount} enviados, ${errorCount} con error`,
               { duration: TOAST_DURATION },
             )
+          } else if (action === "whatsapp") {
+            // "Enviados" en un lote de WhatsApp es todavía menos cierto que en
+            // un envío suelto: son N mensajes que Meta aceptó, y cualquiera de
+            // ellos puede fallar después.
+            toast.success(
+              `${successCount} informes en camino por WhatsApp. Avisamos si alguno no llega.`,
+              { duration: TOAST_DURATION },
+            )
           } else {
             toast.success(
-              `${successCount} reportes enviados por ${action === "email" ? "email" : "WhatsApp"}`,
+              `${successCount} reportes enviados por email`,
               { duration: TOAST_DURATION },
             )
           }
           // El envío puede completar el protocolo (pasa a "Completado"): cada
           // item exitoso trae el estado nuevo de ese protocolo.
-          const successes = (data.successes || []) as Array<{ protocol_id: number; status?: ProtocolListItem["status"] | null }>
+          const successes = (data.successes || []) as Array<{ protocol_id: number; status?: ProtocolListItem["status"] | null; wamid?: string | null }>
           applyStatusUpdates(
             successes.filter((s) => s.status !== undefined).map((s) => ({ id: s.protocol_id, status: s.status ?? null })),
           )
+
+          // Cada mensaje del lote se sigue por separado: el que falle vuelve
+          // solo a "Pendiente de envío" y se avisa cuál fue.
+          if (action === "whatsapp") {
+            for (const enviado of successes) {
+              void seguirElWhatsApp(apiRequest, enviado.protocol_id, enviado.wamid, {
+                alFallar: () => { void protocolsQuery.refetch() },
+              })
+            }
+          }
         }
         setSelectedProtocols(new Set())
       } else {

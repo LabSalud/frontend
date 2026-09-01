@@ -59,8 +59,25 @@ function DialogContent({
       <DialogOverlay className={overlayClassName} />
       <DialogPrimitive.Content
         data-slot="dialog-content"
+        // UN DIÁLOGO NUNCA PUEDE SER MÁS ALTO QUE LA PANTALLA.
+        //
+        // Está centrado con `top-50% + translate-y-[-50%]`: si el contenido no
+        // entra, sobra la MITAD para arriba y la mitad para abajo. Lo de arriba
+        // —el título y las primeras filas del formulario— queda arriba del
+        // borde de la ventana, superpuesto con lo que haya detrás y sin forma
+        // de llegar, porque el body no scrollea mientras el diálogo está
+        // abierto. En un teléfono acostado o en un iPhone chico pasa con
+        // cualquier formulario de más de seis campos.
+        //
+        // `100dvh` y no `100vh`: en el navegador del teléfono `vh` cuenta la
+        // barra de direcciones como si no estuviera, así que `100vh` sigue
+        // siendo más alto que lo que se ve.
+        //
+        // Es lo mismo que ya hacía `AlertDialogContent`; acá faltaba. Los
+        // diálogos que traen su propio `max-h` o su propio `overflow` lo
+        // siguen ganando: `cn` resuelve el conflicto a favor del último.
         className={cn(
-          "bg-white text-gray-900 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-xl border border-gray-200 p-6 shadow-lg duration-200 sm:max-w-lg",
+          "bg-white text-gray-900 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] max-h-[calc(100dvh-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 overflow-y-auto rounded-xl border border-gray-200 p-6 shadow-lg duration-200 sm:max-w-lg",
           className
         )}
         {...props}

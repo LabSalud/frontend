@@ -26,7 +26,10 @@ function ProgressBar({ loaded, total, validated }: { loaded: number; total: numb
   const pct = (n: number) => (total > 0 ? Math.round((n / total) * 100) : 0)
   return (
     <div className="min-w-[130px]">
-      <div className="mb-1 flex justify-between text-xs">
+      {/* `flex-wrap`: "12/15 cargados" y "8 validados" no entran juntos en
+          los 130 px que tiene la columna en un teléfono, y con `justify-between`
+          a secas se montaban uno sobre otro. Envueltos van uno abajo del otro. */}
+      <div className="mb-1 flex flex-wrap justify-between gap-x-2 text-xs">
         <span className="text-gray-600">{loaded}/{total} cargados</span>
         <span className="text-emerald-600">{validated} validados</span>
       </div>

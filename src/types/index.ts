@@ -25,6 +25,9 @@ export interface UserReference {
 export interface AuditUser {
   id: number | null
   username: string
+  /** Nombre y apellido de la persona. El historial lo lee gente del
+   *  laboratorio: mostrar "jesica" es mostrar la credencial, no a quién fue. */
+  display_name?: string
   photo: string | null
 }
 
@@ -51,11 +54,14 @@ export type AuditCategory =
   | "result"
   | "validation"
   | "payment"
+  | "billing"
   | "state"
+  | "report"
   | "doctor"
   | "insurance"
   | "analysis"
   | "user"
+  | "security"
   | "patient"
   | "system"
 

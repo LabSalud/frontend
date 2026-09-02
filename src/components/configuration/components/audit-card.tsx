@@ -2,7 +2,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Clock, User, ArrowRight, FileText } from "lucide-react"
-import type { AuditEntry } from "@/types"
+import type { AuditEntry, AuditUser } from "@/types"
 import { CATEGORY_META } from "@/components/common/history-list"
 import { formatUtcDateTime } from "@/lib/format-utils"
 import { getProtocolStatusBadgeClassByName } from "@/lib/status-styles"
@@ -41,10 +41,25 @@ const formatActionName = (name?: string): string => {
   return last.replace(/_/g, " ")
 }
 
+// El valor que manda la API ("creacion", "negocio") sirve para comparar y para
+// elegir el color; escrito así, sin tilde y en minúscula, no sirve para leer.
+const ACTION_LABEL: Record<string, string> = {
+  creacion: "Creación",
+  actualizacion: "Modificación",
+  eliminacion: "Eliminación",
+  negocio: "Acción",
+  autenticacion: "Acceso",
+  sistema: "Sistema",
+}
+
 export function AuditCard({ entry }: AuditCardProps) {
-  const user = entry.user || { username: "Sistema", photo: null }
+  const user: AuditUser = entry.user || { id: null, username: "Sistema", display_name: "Sistema", photo: null }
   const timestamp = entry.date || entry.created_at || null
-  const objectLabel = entry.object_repr || entry.object || entry.object_id || "Evento"
+  // La vista de usuario (HumanAuditEventSerializer) no manda `object_repr` ni
+  // `object_id`: manda el mensaje ya escrito. El fallback "Evento" hacía que
+  // TODAS las filas de esa pantalla mostraran esa palabra en negrita, arriba
+  // del texto que sí dice lo que pasó. Sin dato, no va la línea.
+  const objectLabel = entry.object_repr || entry.object || entry.object_id || ""
   const categoryMeta = entry.category ? CATEGORY_META[entry.category] : undefined
   const hasStateTransition = entry.state_from && entry.state_to
   const borderClassName = categoryMeta?.borderClassName || getActionBorderColor(entry.action || "")
@@ -63,7 +78,7 @@ export function AuditCard({ entry }: AuditCardProps) {
           <div className="flex-1 min-w-0 space-y-2">
             <div className="flex flex-col gap-2 min-w-0 sm:flex-row sm:items-start sm:justify-between">
               <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
-                <span className="font-medium break-all text-sm sm:text-base">{user.username}</span>
+                <span className="font-medium break-all text-sm sm:text-base">{user.display_name || user.username}</span>
                 {entry.version && (
                   <Badge variant="outline" className="text-[10px] sm:text-xs px-2 py-0.5">
                     v{entry.version}
@@ -71,7 +86,7 @@ export function AuditCard({ entry }: AuditCardProps) {
                 )}
                 {entry.action && (
                   <Badge className={`text-[10px] sm:text-xs px-2 py-0.5 ${getActionBadgeVariant(entry.action)}`}>
-                    {entry.action}
+                    {ACTION_LABEL[entry.action] || entry.action}
                   </Badge>
                 )}
                 {categoryMeta && (
@@ -86,23 +101,27 @@ export function AuditCard({ entry }: AuditCardProps) {
               </div>
             </div>
 
-            <div className="flex items-center gap-2 text-sm flex-wrap min-w-0">
-              {entry.model && (
-                <>
-                  <Badge variant="secondary" className="text-xs">
-                    {entry.model.display}
+            {(objectLabel || entry.related_protocol_id) && (
+              <div className="flex items-center gap-2 text-sm flex-wrap min-w-0">
+                {entry.model && (
+                  <>
+                    <Badge variant="secondary" className="text-xs">
+                      {entry.model.display}
+                    </Badge>
+                    <span className="text-muted-foreground shrink-0">→</span>
+                  </>
+                )}
+                {objectLabel && (
+                  <span className="font-medium text-slate-700 break-all min-w-0">{objectLabel}</span>
+                )}
+                {entry.related_protocol_id && (
+                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-sky-700 border-sky-300">
+                    <FileText className="h-2.5 w-2.5 mr-1" />
+                    Protocolo #{entry.related_protocol_id}
                   </Badge>
-                  <span className="text-muted-foreground shrink-0">→</span>
-                </>
-              )}
-              <span className="font-medium text-slate-700 break-all min-w-0">{objectLabel}</span>
-              {entry.related_protocol_id && (
-                <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-sky-700 border-sky-300">
-                  <FileText className="h-2.5 w-2.5 mr-1" />
-                  Protocolo #{entry.related_protocol_id}
-                </Badge>
-              )}
-            </div>
+                )}
+              </div>
+            )}
 
             {entry.action_name && (
               <div className="text-[11px] font-mono text-slate-400 break-all">

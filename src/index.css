@@ -133,3 +133,67 @@
     display: none;             /* Chrome, Safari */
   }
 }
+
+/* ANIMACIONES DE ENTRADA.
+   ======================
+   Dos, y las dos son de entrada: no hay animación de salida. Al navegar, la
+   pantalla vieja se va de golpe —React desmonta y listo— y la nueva entra.
+   Animar la salida obligaría a mantener montada la página anterior mientras
+   se va, y en pantallas que traen tablas de cientos de filas eso es tener dos
+   listas vivas a la vez por medio segundo.
+
+   Los tiempos son cortos a propósito. Esta app se usa todo el día y siempre
+   con apuro: una animación de 400ms que se ve linda la primera vez molesta a
+   la vez cincuenta. 200-300ms alcanza para que el ojo entienda que la
+   pantalla cambió sin que haya que esperarla. */
+
+/* La página que se abre: aparece subiendo apenas. El desplazamiento es de 8px
+   —lo justo para que se lea como "esto es nuevo"— y no de 20 o 30, que a esa
+   distancia se ve como un salto y encima corre el texto justo cuando alguien
+   ya lo está leyendo. */
+@keyframes entrada-de-pagina {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@utility entrada-de-pagina {
+  animation: entrada-de-pagina 220ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Las barras flotantes de abajo (la píldora de saltar entre protocolos, la
+   barra de acciones en lote): entran deslizándose desde abajo del borde de la
+   pantalla, que es de donde vienen.
+
+   `100% + 1rem` es el alto de la barra más el `bottom-4` que la separa del
+   borde: así arranca justo afuera de la pantalla y no se la ve asomar. */
+@keyframes entrada-de-pildora {
+  from {
+    opacity: 0;
+    transform: translateY(calc(100% + 1rem));
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@utility entrada-de-pildora {
+  animation: entrada-de-pildora 300ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Sin animaciones para quien las apagó en el sistema operativo. No es sólo
+   preferencia estética: hay gente a la que el movimiento en pantalla le da
+   mareo. Va sin `@layer` a propósito: el CSS sin capa le gana a las utilidades
+   de Tailwind, así que apaga la animación aunque se la haya puesto con una. */
+@media (prefers-reduced-motion: reduce) {
+  .entrada-de-pagina,
+  .entrada-de-pildora {
+    animation: none;
+  }
+}

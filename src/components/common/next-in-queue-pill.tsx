@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { createPortal } from "react-dom"
 import { useNavigate } from "react-router-dom"
 import { ArrowRight, ArrowLeft } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -87,8 +88,19 @@ export function NextInQueuePill({ prevId, nextId, basePath, maxWidthClass = "max
     </span>
   )
 
-  return (
-    <div className={cn("pointer-events-none fixed inset-x-0 bottom-4 z-40 mx-auto flex justify-center px-3 sm:px-4", maxWidthClass)}>
+  // VA COLGADA DEL BODY, NO DE LA PÁGINA.
+  // Es `position: fixed`, y un `transform` en cualquier padre —la animación de
+  // entrada de la pantalla, sin ir más lejos— le cambia el marco de
+  // referencia: en vez de pegarse al borde de la ventana se pega al borde del
+  // contenido, y mientras dura la animación aparece a mitad de la página. En
+  // el body no hay padre que la mueva.
+  return createPortal(
+    <div
+      className={cn(
+        "entrada-de-pildora pointer-events-none fixed inset-x-0 bottom-4 z-40 mx-auto flex justify-center px-3 sm:px-4",
+        maxWidthClass,
+      )}
+    >
       <div
         className={cn(
           "pointer-events-auto flex items-stretch overflow-hidden rounded-full bg-[#204983]/85 shadow-lg ring-1 ring-white/20 backdrop-blur-md transition-all duration-300 ease-out",
@@ -121,6 +133,7 @@ export function NextInQueuePill({ prevId, nextId, basePath, maxWidthClass = "max
           </button>
         )}
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }

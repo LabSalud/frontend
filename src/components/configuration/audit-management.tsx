@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { useApi } from "@/hooks/use-api"
 import { AUDIT_ENDPOINTS } from "@/config/api"
 import { useInfiniteScroll } from "@/hooks/use-infinite-scroll"
@@ -82,8 +82,26 @@ export function AuditManagement() {
     debouncedDateTo,
   ])
 
+  // EL FILTRO MOSTRABA EVENTOS DE OTRA CATEGORÍA
+  // ============================================
+  // La lista es scroll infinito: `loadMore` pide la página siguiente y APILA lo
+  // que llega. Si en ese momento se cambia la categoría, pasaban dos cosas:
+  //
+  //   1. El pedido en vuelo seguía siendo el de la categoría anterior. Llegaba
+  //      después del reset y se apilaba sobre la lista nueva — el filtro decía
+  //      "Pago" y en la lista había validaciones.
+  //   2. `nextUrl` no se limpiaba, así que el centinela del scroll podía pedir
+  //      la página 2 DE LA CATEGORÍA VIEJA antes de que llegara la nueva.
+  //
+  // Este contador identifica a qué juego de filtros pertenece cada pedido: el
+  // que vuelve con un número viejo se descarta en vez de mostrarse.
+  const pedidoVigente = useRef(0)
+
   const fetchAuditEntries = useCallback(
     async (url?: string, reset = false) => {
+      // Un reset abre una tanda nueva; un "traer más" pertenece a la vigente.
+      const miPedido = reset ? ++pedidoVigente.current : pedidoVigente.current
+
       if (reset) {
         setLoading(true)
       } else {
@@ -94,8 +112,13 @@ export function AuditManagement() {
         const endpoint = url || buildUrl()
         const response = await apiRequest(endpoint)
 
+        // Los filtros cambiaron mientras esto viajaba: lo que trae ya no es lo
+        // que la pantalla está mostrando.
+        if (miPedido !== pedidoVigente.current) return
+
         if (response.ok) {
           const data = await response.json()
+          if (miPedido !== pedidoVigente.current) return
           if (reset) {
             setAuditEntries(data.results || [])
           } else {
@@ -106,14 +129,19 @@ export function AuditManagement() {
       } catch (error) {
         console.error("Error al cargar auditoría:", error)
       } finally {
-        setLoading(false)
-        setIsLoadingMore(false)
+        if (miPedido === pedidoVigente.current) {
+          setLoading(false)
+          setIsLoadingMore(false)
+        }
       }
     },
     [apiRequest, buildUrl],
   )
 
   useEffect(() => {
+    // Antes de pedir: el `next` que había apuntaba a la página 2 del filtro
+    // anterior. Sin limpiarlo, el scroll infinito lo podía usar.
+    setNextUrl(null)
     fetchAuditEntries(undefined, true)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [

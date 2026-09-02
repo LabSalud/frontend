@@ -10,6 +10,8 @@ import type { useProtocolResults } from "@/hooks/use-protocol-results"
 import { toast } from "sonner"
 import { ValidationResultRow } from "./validation-result-row"
 import { ResumenDeResultados } from "@/components/common/resumen-de-resultados"
+import { cn } from "@/lib/utils"
+import { ENTRADA_ABAJO } from "@/lib/entrada"
 
 interface ProtocolValidationLoaderProps {
   controller: ReturnType<typeof useProtocolResults>
@@ -112,8 +114,10 @@ export function ProtocolValidationLoader({ controller }: ProtocolValidationLoade
     return <p className="py-8 text-center text-sm text-gray-400">Este protocolo no tiene resultados para validar.</p>
   }
 
+  // Entra cuando entran los resultados, no cuando se abre la pantalla:
+  // hasta acá lo que había era el esqueleto.
   return (
-    <div className="space-y-4">
+    <div className={cn(ENTRADA_ABAJO, "space-y-4")}>
       {isCancelled && (
         <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
           <AlertCircle className="h-4 w-4 shrink-0" />

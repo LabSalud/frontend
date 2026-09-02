@@ -26,6 +26,7 @@ import { PERMISSIONS } from "@/config/permissions"
 import { Skeleton } from "@/components/ui/skeleton"
 import PendienteDelSistema from "@/components/pendiente-del-sistema"
 import { CarruselDeslizable } from "@/components/common/carrusel-deslizable"
+import { ENTRADA_ABAJO, ENTRADA_ARRIBA } from "@/lib/entrada"
 
 interface DashboardResponse {
   analysis_today?: number
@@ -147,21 +148,6 @@ const toneClasses: Record<TrendTone, string> = {
   rose: "bg-rose-50 text-rose-700 border-rose-200",
   slate: "bg-slate-50 text-slate-700 border-slate-200",
 }
-
-/**
- * LA ENTRADA DEL INICIO.
- *
- * El inicio es la primera pantalla del día y son diez bloques de números que
- * aparecen todos juntos: sin nada que los ordene, la vista no sabe por dónde
- * empezar. Entrando escalonados de arriba hacia abajo, la lectura sigue el
- * mismo orden en que están puestos.
- *
- * `motion-safe` en todas: quien pidió menos movimiento en el sistema las ve
- * puestas, no cayendo.
- */
-const ENTRADA = "motion-safe:animate-in motion-safe:fade-in motion-safe:duration-500"
-const ENTRADA_ARRIBA = `${ENTRADA} motion-safe:slide-in-from-top-3`
-const ENTRADA_ABAJO = `${ENTRADA} motion-safe:slide-in-from-bottom-3`
 
 /**
  * Un día de la grilla del mes.

@@ -11,6 +11,7 @@ import { useProtocolListNav } from "@/hooks/use-protocol-list-nav"
 import { useTituloDePestana } from "@/hooks/use-titulo-de-pestana"
 import { tituloDeDetalle } from "@/lib/titulo-de-pestana"
 import { NextInQueuePill } from "@/components/common/next-in-queue-pill"
+import { ENTRADA_ABAJO } from "@/lib/entrada"
 import { useQueryClient } from "@tanstack/react-query"
 import { PROTOCOL_ENDPOINTS, REPORTING_ENDPOINTS } from "@/config/api"
 import type { Protocol, ProtocolListItem, ReportSignature, SendMethod } from "@/types"
@@ -124,15 +125,29 @@ export default function ProtocolDetailPage() {
   return (
     <div className="w-full py-4 pb-28">
       {Breadcrumb}
-      <ProtocolCard
-        protocol={protocol}
-        onUpdate={handleUpdate}
-        sendMethods={sendMethods}
-        reportSignatures={reportSignatures}
-        pageMode
-        autoOpenReport={autoOpenReport}
-        initialDetail={detail as never}
-      />
+      {/* `key` POR PROTOCOLO: LA CARD SE MONTA DE CERO EN CADA SALTO.
+          La card guarda el detalle en su propio estado (`protocolDetail`,
+          inicializado con `initialDetail`) y carga historial una sola vez, al
+          montarse. Saltando con la píldora el componente NO se desmonta cuando
+          el detalle del vecino ya está en el cache de React Query —no hay
+          skeleton de por medio—, así que cambiaba el número de la cabecera
+          pero el cuerpo seguía mostrando el protocolo anterior hasta recargar
+          la página. Con la key, cada id es una card distinta.
+
+          El mismo div se lleva la animación de entrada: la card se monta
+          recién cuando llegó el detalle, así que animarla acá es animar lo que
+          se estaba esperando y no el esqueleto. */}
+      <div key={id} className={ENTRADA_ABAJO}>
+        <ProtocolCard
+          protocol={protocol}
+          onUpdate={handleUpdate}
+          sendMethods={sendMethods}
+          reportSignatures={reportSignatures}
+          pageMode
+          autoOpenReport={autoOpenReport}
+          initialDetail={detail as never}
+        />
+      </div>
 
       {/* La misma píldora de resultados y validación: ir y volver entre
           protocolos sin pasar por la lista cada vez. */}

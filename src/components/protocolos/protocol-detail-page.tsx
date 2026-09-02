@@ -131,17 +131,22 @@ export default function ProtocolDetailPage() {
           el detalle del vecino ya está en el cache de React Query —no hay
           skeleton de por medio—, así que cambiaba el número de la cabecera
           pero el cuerpo seguía mostrando el protocolo anterior hasta recargar
-          la página. Con la key, cada id es una card distinta. */}
-      <ProtocolCard
-        key={id}
-        protocol={protocol}
-        onUpdate={handleUpdate}
-        sendMethods={sendMethods}
-        reportSignatures={reportSignatures}
-        pageMode
-        autoOpenReport={autoOpenReport}
-        initialDetail={detail as never}
-      />
+          la página. Con la key, cada id es una card distinta.
+
+          El mismo div se lleva la animación de entrada: la card se monta
+          recién cuando llegó el detalle, así que animarla acá es animar lo que
+          se estaba esperando y no el esqueleto. */}
+      <div key={id} className="entrada-de-pagina">
+        <ProtocolCard
+          protocol={protocol}
+          onUpdate={handleUpdate}
+          sendMethods={sendMethods}
+          reportSignatures={reportSignatures}
+          pageMode
+          autoOpenReport={autoOpenReport}
+          initialDetail={detail as never}
+        />
+      </div>
 
       {/* La misma píldora de resultados y validación: ir y volver entre
           protocolos sin pasar por la lista cada vez. */}

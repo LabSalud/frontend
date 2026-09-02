@@ -147,14 +147,13 @@
    la vez cincuenta. 200-300ms alcanza para que el ojo entienda que la
    pantalla cambió sin que haya que esperarla. */
 
-/* La página que se abre: aparece subiendo apenas. El desplazamiento es de 8px
-   —lo justo para que se lea como "esto es nuevo"— y no de 20 o 30, que a esa
-   distancia se ve como un salto y encima corre el texto justo cuando alguien
-   ya lo está leyendo. */
+/* La página que se abre: aparece subiendo. 14px y 320ms: alcanza para verse
+   sin mirar de reojo, y no tanto como para que el texto corra por la pantalla
+   justo cuando alguien ya lo está leyendo. */
 @keyframes entrada-de-pagina {
   from {
     opacity: 0;
-    transform: translateY(8px);
+    transform: translateY(14px);
   }
   to {
     opacity: 1;
@@ -163,7 +162,33 @@
 }
 
 @utility entrada-de-pagina {
-  animation: entrada-de-pagina 220ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: entrada-de-pagina 320ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* LAS FILAS DE LAS TABLAS, UNA ATRÁS DE LA OTRA.
+   ==============================================
+   La animación de la página sola casi no se ve en los listados: la pantalla se
+   monta vacía —esqueleto o nada— y para cuando llegan los datos hace rato que
+   terminó. Lo que se ve entrar es lo que se estaba esperando, así que la
+   entrada va también en las filas, que aparecen cuando aparecen los datos.
+
+   El escalonado lo pone `DataTable` con un `animation-delay` por fila, y lo
+   corta a la décima: veinticinco milisegundos por fila está bien para las
+   primeras, pero en una lista de doscientos protocolos la última entraría
+   cinco segundos después que la primera. */
+@keyframes entrada-de-fila {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@utility entrada-de-fila {
+  animation: entrada-de-fila 260ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 /* Las barras flotantes de abajo (la píldora de saltar entre protocolos, la
@@ -193,7 +218,8 @@
    de Tailwind, así que apaga la animación aunque se la haya puesto con una. */
 @media (prefers-reduced-motion: reduce) {
   .entrada-de-pagina,
-  .entrada-de-pildora {
+  .entrada-de-pildora,
+  .entrada-de-fila {
     animation: none;
   }
 }

@@ -223,12 +223,19 @@ export function DataTable<T>({
                       </TableCell>
                     </TableRow>
                   )}
+                  {/* Cada fila entra un toque después que la anterior. El
+                      retraso se corta a la décima fila: es lo que se ve de una
+                      pantallada, y sin el tope una lista larga terminaría de
+                      entrar varios segundos más tarde. Como la animación
+                      arranca al montarse la fila, esto también corre cuando
+                      llegan las tandas del scroll infinito. */}
                   <TableRow
                     className={cn(
-                      "border-gray-100",
+                      "entrada-de-fila border-gray-100",
                       onRowClick && "cursor-pointer",
                       rowClassName?.(row),
                     )}
+                    style={{ animationDelay: `${Math.min(i, 9) * 25}ms` }}
                     onClick={onRowClick ? () => onRowClick(row) : undefined}
                   >
                     {columns.map((col) => (

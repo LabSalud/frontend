@@ -177,8 +177,10 @@ export function ProtocolResultsLoader({ controller }: ProtocolResultsLoaderProps
     return <p className="py-8 text-center text-sm text-gray-400">Este protocolo no tiene determinaciones para cargar.</p>
   }
 
+  // Entra cuando entran los resultados, no cuando se abre la pantalla:
+  // hasta acá lo que había era el esqueleto.
   return (
-    <div className="space-y-4">
+    <div className="entrada-de-pagina space-y-4">
       {!canEdit && (
         <div className="flex items-start gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
           <Lock className="mt-0.5 h-4 w-4 shrink-0 text-slate-500" />

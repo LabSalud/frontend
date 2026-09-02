@@ -102,6 +102,21 @@ export const CATEGORY_META: Record<string, { label: string; className: string; b
     className: "bg-amber-100 text-amber-900 dark:bg-amber-900 dark:text-amber-200",
     borderClassName: "border-l-amber-500 dark:border-l-amber-600",
   },
+  billing: {
+    label: "Facturación",
+    className: "bg-yellow-100 text-yellow-900 dark:bg-yellow-900 dark:text-yellow-200",
+    borderClassName: "border-l-yellow-500 dark:border-l-yellow-600",
+  },
+  report: {
+    label: "Informes",
+    className: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
+    borderClassName: "border-l-blue-500 dark:border-l-blue-600",
+  },
+  security: {
+    label: "Accesos",
+    className: "bg-stone-200 text-stone-800 dark:bg-stone-800 dark:text-stone-200",
+    borderClassName: "border-l-stone-500 dark:border-l-stone-600",
+  },
   state: {
     label: "Estado",
     className: "bg-rose-100 text-rose-800 dark:bg-rose-900 dark:text-rose-200",

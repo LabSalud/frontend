@@ -124,7 +124,16 @@ export default function ProtocolDetailPage() {
   return (
     <div className="w-full py-4 pb-28">
       {Breadcrumb}
+      {/* `key` POR PROTOCOLO: LA CARD SE MONTA DE CERO EN CADA SALTO.
+          La card guarda el detalle en su propio estado (`protocolDetail`,
+          inicializado con `initialDetail`) y carga historial una sola vez, al
+          montarse. Saltando con la píldora el componente NO se desmonta cuando
+          el detalle del vecino ya está en el cache de React Query —no hay
+          skeleton de por medio—, así que cambiaba el número de la cabecera
+          pero el cuerpo seguía mostrando el protocolo anterior hasta recargar
+          la página. Con la key, cada id es una card distinta. */}
       <ProtocolCard
+        key={id}
         protocol={protocol}
         onUpdate={handleUpdate}
         sendMethods={sendMethods}

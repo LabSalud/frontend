@@ -5,6 +5,7 @@ import { createPortal } from "react-dom"
 import { useNavigate } from "react-router-dom"
 import { ArrowRight, ArrowLeft } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { ENTRADA_ABAJO } from "@/lib/entrada"
 
 interface NextInQueuePillProps {
   prevId: number | null
@@ -97,7 +98,8 @@ export function NextInQueuePill({ prevId, nextId, basePath, maxWidthClass = "max
   return createPortal(
     <div
       className={cn(
-        "entrada-de-pildora pointer-events-none fixed inset-x-0 bottom-4 z-40 mx-auto flex justify-center px-3 sm:px-4",
+        ENTRADA_ABAJO,
+        "pointer-events-none fixed inset-x-0 bottom-4 z-40 mx-auto flex justify-center px-3 sm:px-4",
         maxWidthClass,
       )}
     >

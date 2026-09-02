@@ -5,6 +5,7 @@ import { Navbar } from "./navbar"
 import { Outlet, useLocation } from "react-router-dom"
 import { CambioDeContrasenaObligatorio } from "./cambio-de-contrasena-obligatorio"
 import useAuth from "@/contexts/auth-context"
+import { ENTRADA_DE_PANTALLA } from "@/lib/entrada"
 
 interface LayoutProps {
   children?: React.ReactNode
@@ -58,7 +59,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
             de golpe. Con ella, cada URL es una pantalla nueva, se anima, y de
             paso ninguna se queda con estado de la anterior. */}
         <main className="w-full px-4 pt-4 lg:px-8">
-          <div key={pathname} className="entrada-de-pagina">
+          <div key={pathname} className={ENTRADA_DE_PANTALLA}>
             {children || <Outlet />}
           </div>
         </main>

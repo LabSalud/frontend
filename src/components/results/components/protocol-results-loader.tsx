@@ -13,6 +13,8 @@ import { teclaDelEvento, useMacrosDeResultado } from "@/hooks/use-macros-de-resu
 import { calculateFormulaValue } from "@/lib/result-formulas"
 import { ResultDeterminationRow } from "./result-determination-row"
 import { ResumenDeResultados } from "@/components/common/resumen-de-resultados"
+import { cn } from "@/lib/utils"
+import { ENTRADA_ABAJO } from "@/lib/entrada"
 
 interface ProtocolResultsLoaderProps {
   controller: ReturnType<typeof useProtocolResults>
@@ -180,7 +182,7 @@ export function ProtocolResultsLoader({ controller }: ProtocolResultsLoaderProps
   // Entra cuando entran los resultados, no cuando se abre la pantalla:
   // hasta acá lo que había era el esqueleto.
   return (
-    <div className="entrada-de-pagina space-y-4">
+    <div className={cn(ENTRADA_ABAJO, "space-y-4")}>
       {!canEdit && (
         <div className="flex items-start gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
           <Lock className="mt-0.5 h-4 w-4 shrink-0 text-slate-500" />

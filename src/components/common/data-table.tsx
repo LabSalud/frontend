@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/table"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
+import { ENTRADA_ABAJO } from "@/lib/entrada"
 
 export type SortDirection = "asc" | "desc"
 export type SortState = { field: string; dir: SortDirection } | null
@@ -131,8 +132,23 @@ export function DataTable<T>({
     )
   }
 
+  // LA TABLA ENTRA CUANDO ENTRAN LOS DATOS, NO CUANDO SE ABRE LA PANTALLA.
+  // La `key` es lo que lo hace: al pasar de esqueleto a filas cambia, el
+  // bloque se monta de nuevo y la animación arranca ahí. Sin ella la tabla ya
+  // estaba montada desde el esqueleto y para cuando llegaba la respuesta hacía
+  // rato que había terminado de entrar.
+  //
+  // Entra el bloque entero y no fila por fila: escalonar cincuenta filas —cada
+  // una con su transform— se ve entrecortado justo en las listas largas, que
+  // son las que importan.
   return (
-    <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+    <div
+      key={isLoading ? "esqueleto" : "filas"}
+      className={cn(
+        "overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm",
+        ENTRADA_ABAJO,
+      )}
+    >
       <Table>
         <TableHeader className="bg-gray-50/80">
           <TableRow className="border-gray-200 hover:bg-transparent">
@@ -223,19 +239,12 @@ export function DataTable<T>({
                       </TableCell>
                     </TableRow>
                   )}
-                  {/* Cada fila entra un toque después que la anterior. El
-                      retraso se corta a la décima fila: es lo que se ve de una
-                      pantallada, y sin el tope una lista larga terminaría de
-                      entrar varios segundos más tarde. Como la animación
-                      arranca al montarse la fila, esto también corre cuando
-                      llegan las tandas del scroll infinito. */}
                   <TableRow
                     className={cn(
-                      "entrada-de-fila border-gray-100",
+                      "border-gray-100",
                       onRowClick && "cursor-pointer",
                       rowClassName?.(row),
                     )}
-                    style={{ animationDelay: `${Math.min(i, 9) * 25}ms` }}
                     onClick={onRowClick ? () => onRowClick(row) : undefined}
                   >
                     {columns.map((col) => (

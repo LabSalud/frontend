@@ -11,6 +11,7 @@ import { useProtocolListNav } from "@/hooks/use-protocol-list-nav"
 import { useTituloDePestana } from "@/hooks/use-titulo-de-pestana"
 import { tituloDeDetalle } from "@/lib/titulo-de-pestana"
 import { NextInQueuePill } from "@/components/common/next-in-queue-pill"
+import { ENTRADA_ABAJO } from "@/lib/entrada"
 import { useQueryClient } from "@tanstack/react-query"
 import { PROTOCOL_ENDPOINTS, REPORTING_ENDPOINTS } from "@/config/api"
 import type { Protocol, ProtocolListItem, ReportSignature, SendMethod } from "@/types"
@@ -136,7 +137,7 @@ export default function ProtocolDetailPage() {
           El mismo div se lleva la animación de entrada: la card se monta
           recién cuando llegó el detalle, así que animarla acá es animar lo que
           se estaba esperando y no el esqueleto. */}
-      <div key={id} className="entrada-de-pagina">
+      <div key={id} className={ENTRADA_ABAJO}>
         <ProtocolCard
           protocol={protocol}
           onUpdate={handleUpdate}

@@ -14,6 +14,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
+import { ENTRADA_ABAJO } from "@/lib/entrada"
 import type { ReportSignature } from "@/types"
 
 type BatchAction = "print" | "download" | "email" | "whatsapp"
@@ -106,7 +107,7 @@ export function BatchActionBar({
       {/* El contenedor ocupa el ancho entero para centrar la barra, pero no
           recibe clicks: a los costados de una barra de 3xl hay pantalla libre,
           y ahí abajo hay filas de la lista. */}
-      <div className="entrada-de-pildora pointer-events-none fixed inset-x-0 bottom-4 z-50 flex justify-center px-3">
+      <div className={cn(ENTRADA_ABAJO, "pointer-events-none fixed inset-x-0 bottom-4 z-50 flex justify-center px-3")}>
         <div
           ref={barraRef}
           className="pointer-events-auto max-h-[70vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-gray-200 bg-white/95 p-3 shadow-xl backdrop-blur-sm"

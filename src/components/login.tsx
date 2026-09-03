@@ -233,13 +233,25 @@ export default function Login() {
   const handleTwoFactorSubmit = async (code: string, rememberDevice: boolean): Promise<TwoFactorSubmitResult> => {
     if (!pendingTwoFactor) return { ok: false, expired: true, message: "La verificación venció." }
 
+    // Igual que con la contraseña: el freno se levanta ANTES de esperar, porque
+    // el código correcto abre la sesión durante este await y el efecto que
+    // redirige nos sacaría de la pantalla antes de que se vea nada.
+    reteniendoLaSalida.current = true
+
     const outcome = await verifyTwoFactor({
       ephemeralToken: pendingTwoFactor.ephemeralToken,
       code,
       rememberDevice,
     })
 
-    if (outcome.status === "success") return { ok: true }
+    if (outcome.status === "success") {
+      // El segundo factor vive adentro del mismo panel blanco que el
+      // formulario, así que se va igual que él: se encoge hasta la navbar.
+      salirHaciaLaApp()
+      return { ok: true }
+    }
+
+    reteniendoLaSalida.current = false
     return { ok: false, message: outcome.message, expired: outcome.expired }
   }
 
@@ -271,9 +283,18 @@ export default function Login() {
   }
 
   const finishEnrollment = () => {
-    // Soltar el freno deja que el efecto de arriba redirija a la app.
-    setPendingEnrollment(null)
+    // El alta del segundo factor termina con los códigos de recuperación en
+    // pantalla, y recién cuando la persona los guardó se sale. La salida es la
+    // misma que la del formulario: el panel se encoge hasta la navbar. El freno
+    // pasa de `holdingRecoveryCodes` al de la animación sin soltarse en el
+    // medio, o el efecto redirigiría en ese hueco.
+    reteniendoLaSalida.current = true
     setHoldingRecoveryCodes(false)
+    // `pendingEnrollment` NO se limpia: si se limpiara, el panel volvería a
+    // dibujar el formulario de usuario y contraseña durante el segundo que dura
+    // la animación, como si hubiera que empezar de nuevo. Se queda la pantalla
+    // del alta, desvaneciéndose, hasta que la navegación desmonta todo.
+    salirHaciaLaApp()
   }
 
   const cancelTwoFactor = () => {
@@ -326,6 +347,16 @@ export default function Login() {
             ${isPageLoaded ? "translate-y-0 opacity-100 scale-y-100" : "-translate-y-[110vh] opacity-0 scale-y-75"}
           `}
         >
+          {/* Lo que haya adentro del panel se desvanece antes de que el panel
+              termine de encogerse: si se fuera con él, el contenido quedaría
+              aplastado contra el borde mientras se achica. Envuelve a los tres
+              —el código del segundo factor, su alta y el formulario— porque los
+              tres son el mismo panel y salen igual. */}
+          <div
+            className={`transition-all duration-300 ease-out ${
+              saliendo ? "-translate-y-3 opacity-0" : "translate-y-0 opacity-100"
+            }`}
+          >
           {pendingTwoFactor ? (
             <TwoFactorChallenge
               // El key remonta la pantalla si el usuario cancela y arranca un
@@ -347,14 +378,8 @@ export default function Login() {
               onCancel={cancelTwoFactor}
             />
           ) : (
-            /* Login Form — se desvanece antes de que el panel termine de
-               encogerse: si se fuera con él, el texto quedaría aplastado
-               contra el borde mientras se achica. */
-            <div
-              className={`px-8 py-8 transition-all duration-300 ease-out ${
-                saliendo ? "-translate-y-3 opacity-0" : "translate-y-0 opacity-100"
-              }`}
-            >
+            /* Login Form */
+            <div className="px-8 py-8">
               <div className="text-center mb-8">
                 <h1 className="text-2xl font-bold text-gray-800 mb-2">Bienvenido</h1>
                 <p className="text-gray-600 text-sm">Inicia sesión en tu cuenta</p>
@@ -466,6 +491,7 @@ export default function Login() {
               </div>
             </div>
           )}
+          </div>
         </div>
       </div>
     </div>

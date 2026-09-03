@@ -2,7 +2,7 @@
 
 import type React from "react"
 import { useCallback, useRef, useState } from "react"
-import { AlertCircle, ArrowLeft, KeyRound, ShieldCheck, TimerReset } from "lucide-react"
+import { AlertCircle, ArrowLeft, Check, KeyRound, ShieldCheck, TimerReset } from "lucide-react"
 import { CodeInput } from "@/components/ui/code-input"
 import { formatCountdown, useExpiryCountdown } from "@/hooks/use-expiry-countdown"
 
@@ -31,6 +31,11 @@ export function TwoFactorChallenge({ username, expiresIn, onSubmit, onCancel }: 
   const [rememberDevice, setRememberDevice] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isVerifying, setIsVerifying] = useState(false)
+  // El código era el correcto. La pantalla se queda así —en verde y sin poder
+  // tocar nada— mientras el panel se encoge hasta la navbar: la sesión ya está
+  // abierta y volver a habilitar los campos sería ofrecer algo que ya no hace
+  // falta. Ver `salirHaciaLaApp` en `login.tsx`.
+  const [logrado, setLogrado] = useState(false)
   const { secondsLeft, expired, markExpired } = useExpiryCountdown(expiresIn)
 
   const isVerifyingRef = useRef(false)
@@ -46,7 +51,10 @@ export function TwoFactorChallenge({ username, expiresIn, onSubmit, onCancel }: 
 
       try {
         const result = await onSubmit(trimmed, rememberDevice)
-        if (result.ok) return
+        if (result.ok) {
+          setLogrado(true)
+          return
+        }
 
         if (result.expired) markExpired()
         setError(result.message || "No pudimos verificar el código.")
@@ -143,18 +151,29 @@ export function TwoFactorChallenge({ username, expiresIn, onSubmit, onCancel }: 
                 if (error) setError(null)
               }}
               placeholder="Código de recuperación"
-              disabled={isVerifying}
+              disabled={isVerifying || logrado}
               className={`w-full rounded-lg border bg-gray-100 py-3 pl-10 pr-4 font-mono tracking-wider text-gray-800 placeholder-gray-500 transition-all duration-200 focus:border-transparent focus:outline-none focus:ring-2 ${
                 error ? "border-red-300 focus:ring-red-500" : "border-gray-300 focus:ring-[#204983]"
               }`}
             />
           </div>
+          {/* El botón cuenta el resultado, igual que el de "Iniciar Sesión":
+              verde con un tilde cuando el código era el correcto. */}
           <button
             type="submit"
-            disabled={isVerifying || !recoveryCode.trim()}
-            className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#204983] px-4 py-3 font-medium text-white transition-colors duration-200 hover:bg-[#1a3d6f] focus:outline-none focus:ring-2 focus:ring-[#204983] focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={isVerifying || logrado || !recoveryCode.trim()}
+            className={`flex w-full items-center justify-center gap-2 rounded-lg px-4 py-3 font-medium text-white transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:cursor-not-allowed ${
+              logrado
+                ? "bg-emerald-600 focus:ring-emerald-600"
+                : "bg-[#204983] hover:bg-[#1a3d6f] focus:ring-[#204983] disabled:opacity-50"
+            }`}
           >
-            {isVerifying ? (
+            {logrado ? (
+              <>
+                <Check className="h-4 w-4" />
+                <span>Listo</span>
+              </>
+            ) : isVerifying ? (
               <>
                 <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
                 <span>Verificando...</span>
@@ -174,13 +193,20 @@ export function TwoFactorChallenge({ username, expiresIn, onSubmit, onCancel }: 
             }}
             onComplete={(value) => void submit(value)}
             length={CODE_LENGTH}
-            disabled={isVerifying}
+            disabled={isVerifying || logrado}
             invalid={Boolean(error)}
             autoFocus
             aria-label="Código de verificación de 6 dígitos"
           />
+          {/* El código de 6 dígitos no tiene botón —se manda solo al
+              completarse—, así que el resultado lo cuenta este renglón. */}
           <div className="flex h-6 items-center justify-center text-sm text-gray-600">
-            {isVerifying ? (
+            {logrado ? (
+              <span className="flex items-center gap-2 font-medium text-emerald-600">
+                <Check className="h-4 w-4" />
+                Listo
+              </span>
+            ) : isVerifying ? (
               <span className="flex items-center gap-2">
                 <span className="h-4 w-4 animate-spin rounded-full border-2 border-[#204983] border-t-transparent" />
                 Verificando...
@@ -197,7 +223,7 @@ export function TwoFactorChallenge({ username, expiresIn, onSubmit, onCancel }: 
           type="checkbox"
           checked={rememberDevice}
           onChange={(event) => setRememberDevice(event.target.checked)}
-          disabled={isVerifying}
+          disabled={isVerifying || logrado}
           className="mt-0.5 h-4 w-4 rounded border-gray-300 text-[#204983] focus:ring-[#204983]"
         />
         <span>
@@ -216,7 +242,7 @@ export function TwoFactorChallenge({ username, expiresIn, onSubmit, onCancel }: 
         <button
           type="button"
           onClick={() => switchMode(!useRecovery)}
-          disabled={isVerifying}
+          disabled={isVerifying || logrado}
           className="text-sm text-[#204983] transition-colors duration-200 hover:underline disabled:opacity-50"
         >
           {useRecovery ? "Usar el código de la app" : "No tengo el celular: usar un código de recuperación"}
@@ -224,7 +250,7 @@ export function TwoFactorChallenge({ username, expiresIn, onSubmit, onCancel }: 
         <button
           type="button"
           onClick={onCancel}
-          disabled={isVerifying}
+          disabled={isVerifying || logrado}
           className="flex items-center gap-1 text-sm text-gray-600 transition-colors duration-200 hover:text-gray-800 disabled:opacity-50"
         >
           <ArrowLeft className="h-4 w-4" />

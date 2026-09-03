@@ -5,6 +5,14 @@ import { useState, useCallback, useEffect, useRef } from "react"
 import { Link, useLocation } from "react-router-dom"
 import { Menu, X, LogOut, Search } from "lucide-react"
 import useAuth from "@/contexts/auth-context"
+import {
+  EVENTO_DE_CIERRE,
+  MS_DEL_MENU,
+  MS_DE_LA_SALIDA,
+  cerrarSesionConAnimacion,
+  formaDelPanelDeIngreso,
+  recordarFormaDeLaNavbar,
+} from "@/lib/forma-de-la-navbar"
 import { UserDropdown } from "./user-dropdown"
 import { PERMISSIONS } from "@/config/permissions"
 import { getVisibleUserMenuItems } from "@/config/user-menu-items"
@@ -64,6 +72,17 @@ export const Navbar: React.FC = () => {
   const [isLogoHovered, setIsLogoHovered] = useState(false)
   // Búsqueda abierta a propósito (tap en mobile o Ctrl/⌘+K), no por hover.
   const [isSearchPinned, setIsSearchPinned] = useState(false)
+  // Las dos barras blancas —la de escritorio y la del teléfono—. Solo una está
+  // dibujada a la vez; la que mide 0 es la que está apagada por el breakpoint.
+  const barraDeEscritorio = useRef<HTMLDivElement>(null)
+  const barraMobile = useRef<HTMLDivElement>(null)
+  // La barra convirtiéndose en el panel del login. Ver `forma-de-la-navbar.ts`.
+  const [cerrandoSesion, setCerrandoSesion] = useState(false)
+  const [formaDeSalida, setFormaDeSalida] = useState<{ ancho: number; radio: number } | null>(null)
+  // El mismo dato para el medidor, que corre fuera del render: mientras la
+  // barra se está achicando NO se publica su forma, o el login guardaría como
+  // "forma de la navbar" el panel de login al que la barra estaba yendo.
+  const cerrandoRef = useRef(false)
   const mobileMenuRef = useRef<HTMLDivElement>(null)
   const userMenuRef = useRef<HTMLDivElement>(null)
   const hamburgerRef = useRef<HTMLButtonElement>(null)
@@ -104,6 +123,30 @@ export const Navbar: React.FC = () => {
   }
 
   const closeSearch = useCallback(() => setIsSearchPinned(false), [])
+
+  // La barra yéndose: se angosta hasta el ancho del panel del login y toma su
+  // radio. El alto no se toca: lo termina de estirar el panel ya en el login,
+  // que es el único que sabe cuánto mide su formulario.
+  const estiloDeSalida = formaDeSalida
+    ? {
+        transitionDuration: `${MS_DE_LA_SALIDA}ms`,
+        maxWidth: formaDeSalida.ancho,
+        // El centrado va acá y no en un `mx-auto`: peleando contra el `mx-4` de
+        // la barra, cuál gana lo decide el orden de la hoja de estilos.
+        marginLeft: "auto",
+        marginRight: "auto",
+        borderBottomLeftRadius: formaDeSalida.radio,
+        borderBottomRightRadius: formaDeSalida.radio,
+      }
+    : undefined
+  // El contenido se desvanece antes de que la barra termine de angostarse: si
+  // se fuera con ella, los links quedarían apretados contra el borde.
+  const contenidoQueSeVa = cerrandoSesion
+    ? "pointer-events-none opacity-0 transition-opacity duration-300 ease-out"
+    : ""
+
+  /** Cerrar sesión, pero después de la animación. */
+  const cerrarSesion = () => cerrarSesionConAnimacion(() => logout(true))
 
   const cancelLogoHoverClose = useCallback(() => {
     if (logoHoverTimerRef.current === null) return
@@ -171,12 +214,48 @@ export const Navbar: React.FC = () => {
     const elemento = navRef.current
     if (!elemento) return
 
-    const medir = () => setNavHeight(elemento.getBoundingClientRect().height)
+    const medir = () => {
+      setNavHeight(elemento.getBoundingClientRect().height)
+      // De paso se publica la forma de la barra blanca, que es a lo que
+      // aterriza el panel del login cuando alguien entra. Se mide la de
+      // verdad —esta pantalla, este avatar— en vez de copiar las medidas al
+      // login, que es lo que hacía que en el teléfono no cerrara.
+      const barra = [barraDeEscritorio.current, barraMobile.current]
+        .find((candidata) => candidata && candidata.offsetWidth > 0)
+      if (barra && !cerrandoRef.current) {
+        const caja = barra.getBoundingClientRect()
+        recordarFormaDeLaNavbar({
+          ancho: Math.round(caja.width),
+          alto: Math.round(caja.height),
+          radio: Math.round(
+            Number.parseFloat(getComputedStyle(barra).borderBottomLeftRadius) || 0,
+          ),
+        })
+      }
+    }
     medir()
 
     const observer = new ResizeObserver(medir)
     observer.observe(elemento)
     return () => observer.disconnect()
+  }, [])
+
+  // EL CIERRE DE SESIÓN, DEL LADO DE LA NAVBAR.
+  //
+  // Primero se cierra el menú de usuario —solo, para arriba, con la transición
+  // que ya tiene— y recién después la barra se estira hasta la forma del panel
+  // del login, mientras su contenido se desvanece. Cuando termina, la sesión se
+  // cierra de verdad y la pantalla que aparece es el panel, ya en esa forma.
+  useEffect(() => {
+    const empezar = () => {
+      closeAllMenus()
+      cerrandoRef.current = true
+      setCerrandoSesion(true)
+      // El menú tarda lo suyo en plegarse; la barra arranca después, no encima.
+      window.setTimeout(() => setFormaDeSalida(formaDelPanelDeIngreso()), MS_DEL_MENU)
+    }
+    window.addEventListener(EVENTO_DE_CIERRE, empezar)
+    return () => window.removeEventListener(EVENTO_DE_CIERRE, empezar)
   }, [])
 
   // Si la navbar se va mientras hay un menú abierto, el menú se iría con ella
@@ -260,12 +339,19 @@ export const Navbar: React.FC = () => {
         {/* Desktop Navbar */}
         <div className="hidden lg:block">
           <div
-            className={`bg-white shadow-lg mx-4 px-8 py-4 transition-all duration-200 relative ${
+            ref={barraDeEscritorio}
+            style={estiloDeSalida}
+            className={`bg-white shadow-lg mx-4 px-8 py-4 relative ${
+              cerrandoSesion
+                ? "overflow-hidden transition-all ease-[cubic-bezier(0.65,0,0.35,1)]"
+                : "transition-all duration-200"
+            } ${
               isUserMenuOpen
                 ? "rounded-bl-[25px] rounded-br-none rounded-tl-none rounded-tr-none"
                 : "rounded-bl-[25px] rounded-br-[25px] rounded-tl-none rounded-tr-none"
             }`}
           >
+            <div className={contenidoQueSeVa}>
             <div className="flex items-center justify-between">
               {/* Left Navigation - Centrado entre borde izquierdo y logo */}
               <div className="flex-1 flex items-center justify-center space-x-8">
@@ -315,6 +401,8 @@ export const Navbar: React.FC = () => {
               </div>
             </div>
 
+            </div>
+
             {/* Extensión del menú de usuario para desktop */}
             {isUserMenuOpen && (
               <div
@@ -333,11 +421,17 @@ export const Navbar: React.FC = () => {
         {/* Mobile/Tablet Navbar */}
         <div className="lg:hidden relative">
           <div
+            ref={barraMobile}
+            style={estiloDeSalida}
             className={`
-              bg-white shadow-lg px-4 py-3 w-full transition-all duration-200
+              bg-white shadow-lg px-4 py-3 w-full
+              ${cerrandoSesion
+                ? "overflow-hidden transition-all ease-[cubic-bezier(0.65,0,0.35,1)]"
+                : "transition-all duration-200"}
               ${isMobileMenuOpen || isUserMenuOpen ? "rounded-b-none" : "rounded-b-lg"}
             `}
           >
+            <div className={contenidoQueSeVa}>
             <div className="flex items-center justify-between">
               {/* Left - User Avatar (toggles user menu panel) */}
               {/* El flex-1 va afuera del ref: el ref tiene que envolver SOLO al
@@ -387,6 +481,7 @@ export const Navbar: React.FC = () => {
                   {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
                 </button>
               </div>
+            </div>
             </div>
           </div>
 
@@ -476,10 +571,7 @@ export const Navbar: React.FC = () => {
                 />
 
                 <button
-                  onClick={() => {
-                    logout(true)
-                    closeAllMenus()
-                  }}
+                  onClick={cerrarSesion}
                   className="w-full text-left px-3 py-3 text-sm text-red-600 hover:bg-red-50 flex items-center space-x-3 rounded-lg transition-colors duration-150"
                 >
                   <LogOut className="w-5 h-5" />

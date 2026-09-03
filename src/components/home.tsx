@@ -85,6 +85,9 @@ interface DashboardResponse {
   // Dashboard rework
   patients_daily_last_42?: Array<{ date: string; patients_served: number }>
   cash_daily_last_42?: Array<{ date: string; collected: string }>
+  /** Los nombres viejos de esas dos series. Ver `serieDelDashboard`. */
+  patients_daily_last_35?: Array<{ date: string; patients_served: number }>
+  cash_daily_last_35?: Array<{ date: string; collected: string }>
   cash_pending_total?: string
   top_urgent_analyses?: Array<{ code: string; name: string; protocols: number }>
   urgent_pending?: number
@@ -322,9 +325,22 @@ export default function Home() {
   // Gráfico: PACIENTES ATENDIDOS. El mes en semanas de calendario (lunes a
   // domingo) con carrusel. weekIndex va en orden: 0 = la semana del día 1,
   // el último = la semana que cierra el mes.
+  //
+  // SE LEEN LOS DOS NOMBRES DE LA SERIE, EL NUEVO Y EL VIEJO.
+  //
+  // Las series pasaron de 35 a 42 días y con eso cambiaron de nombre. El
+  // frontend y el backend son dos repositorios que se despliegan por separado,
+  // así que hay una ventana —los minutos que tarda el deploy del backend— en la
+  // que la pantalla nueva le pide `_42` a un servidor que todavía contesta
+  // `_35`. En esa ventana el gráfico se quedó sin datos EN PRODUCCIÓN: no falló
+  // nada, simplemente no venía la clave que se estaba leyendo.
+  //
+  // Aceptar los dos nombres saca el orden de despliegue del medio. Cuando la
+  // versión vieja del backend ya no exista en ningún lado —droplet, PC de
+  // contingencia—, el nombre viejo se puede borrar de acá.
   const patientsSeries = viendoOtroMes
     ? mesData?.pacientes_por_dia || []
-    : dashboard?.patients_daily_last_42 || []
+    : dashboard?.patients_daily_last_42 || dashboard?.patients_daily_last_35 || []
   const weeks = semanasDelMes(mesVisible.anio, mesVisible.mes, patientsSeries)
   // Sólo cuenta si hoy cae en un día del mes que se está mirando: el relleno de
   // la primera semana puede traer días del mes anterior, y mirando septiembre
@@ -391,7 +407,7 @@ export default function Home() {
   // Caja: cobrado por día, con las mismas semanas de calendario que pacientes.
   const cashSeries = viendoOtroMes
     ? mesData?.caja_por_dia || []
-    : dashboard?.cash_daily_last_42 || []
+    : dashboard?.cash_daily_last_42 || dashboard?.cash_daily_last_35 || []
   // Mismo criterio que pacientes: las semanas del calendario del mes, no
   // ventanas de siete días. Los dos gráficos están uno al lado del otro y una
   // misma columna tiene que ser el mismo día en los dos.

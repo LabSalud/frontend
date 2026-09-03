@@ -254,6 +254,11 @@ export const ANALYTICS_ENDPOINTS = {
   // inicio. `mes` va como YYYY-MM; sin él contesta el mes actual.
   MES: (anio: number, mes: number) =>
     buildApiUrl(`/analytics/dashboard/mes/?mes=${anio}-${String(mes).padStart(2, "0")}`),
+  // El acumulado del laboratorio hasta hoy: el número chico de cada tarjeta del
+  // inicio. `meses` en 0 —o sin parámetro— es desde siempre; 3, 6 y 12 son esos
+  // meses enteros contando el actual.
+  HISTORICO: (meses: number) =>
+    buildApiUrl(`/analytics/dashboard/historico/?meses=${meses}`),
   // Cuánta plata hay dando vueltas, en las dos direcciones.
   PENDIENTE: buildApiUrl("/analytics/dashboard/pendiente/"),
   LIBRO_DIARIO: buildApiUrl("/analytics/dashboard/libro-diario/"),

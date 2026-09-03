@@ -10,7 +10,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock3,
-  FileText,
   FileWarning,
   FlaskConical,
   Receipt,
@@ -19,7 +18,9 @@ import {
   Users,
 } from "lucide-react"
 import useAuth from "@/contexts/auth-context"
+import type { LucideIcon } from "lucide-react"
 import { useApiQuery } from "@/hooks/use-api-query"
+import { usePersistedState } from "@/hooks/use-persisted-state"
 import { useToast } from "@/hooks/use-toast"
 import { ANALYTICS_ENDPOINTS } from "@/config/api"
 import { PERMISSIONS } from "@/config/permissions"
@@ -129,6 +130,56 @@ interface EstadisticasDelMes {
   pacientes_por_dia: Array<{ date: string; patients_served: number }>
   caja_por_dia: Array<{ date: string; collected: string }>
   meses_disponibles: MesDisponible[]
+  /** Las cuatro de arriba, contadas sobre los protocolos de este mes. */
+  carga_promedio: string
+  tiempo_de_resolucion: string
+  urgentes_pendientes: number
+  listos_para_facturar: number
+}
+
+/** El acumulado del laboratorio hasta hoy. Ver `get_historico` en el backend. */
+interface Historico {
+  /** 0 = desde siempre; 3, 6 o 12 = esos meses enteros contando el actual. */
+  meses: number
+  /** `null` cuando el alcance es "desde siempre". */
+  desde: string | null
+  hasta: string
+  protocolos: number
+  pacientes: number
+  analisis: number
+  completados: number
+  cobrado: string
+  /** Las mismas cuatro, acumuladas: el número chico de cada tarjeta. */
+  carga_promedio: string
+  tiempo_de_resolucion: string
+  urgentes_pendientes: number
+  listos_para_facturar: number
+}
+
+/**
+ * Los alcances que ofrece el selector del acumulado. La lista es la misma que
+ * acepta el backend: pedir otra cosa cae en "desde siempre".
+ */
+const ALCANCES_DEL_HISTORICO = [
+  { meses: 0, etiqueta: "desde siempre" },
+  { meses: 12, etiqueta: "últimos 12 meses" },
+  { meses: 6, etiqueta: "últimos 6 meses" },
+  { meses: 3, etiqueta: "últimos 3 meses" },
+] as const
+
+/** Una tarjeta de las de arriba. */
+type TarjetaDeMetrica = {
+  label: string
+  value: string
+  detail: string
+  icon: LucideIcon
+  className: string
+  /**
+   * El mismo dato acumulado hasta hoy. `null` mientras se está pidiendo;
+   * ausente en las tarjetas que no acumulan —"urgentes pendientes" es una foto
+   * de ahora, no algo que se sume—.
+   */
+  total?: string | null
 }
 
 type TrendTone = "emerald" | "rose" | "slate"
@@ -263,18 +314,46 @@ export default function Home() {
   const [mesElegido, setMesElegido] = useState<MesDisponible | null>(null)
   const viendoOtroMes = mesElegido !== null
 
+  // El mes que se está mirando: el elegido, o el actual si nadie eligió.
+  const mesVisible: MesDisponible = mesElegido ?? (() => {
+    const hoy = new Date()
+    return { anio: hoy.getFullYear(), mes: hoy.getMonth() + 1 }
+  })()
+
   const mesQuery = useApiQuery<EstadisticasDelMes>({
-    queryKey: ["analytics", "mes", mesElegido?.anio, mesElegido?.mes],
-    url: mesElegido
-      ? ANALYTICS_ENDPOINTS.MES(mesElegido.anio, mesElegido.mes)
-      : ANALYTICS_ENDPOINTS.DASHBOARD,
-    enabled: viendoOtroMes,
-    // Un mes cerrado no cambia: no hace falta volver a pedirlo al rato.
-    staleTime: 5 * 60 * 1000,
+    queryKey: ["analytics", "mes", mesVisible.anio, mesVisible.mes],
+    url: ANALYTICS_ENDPOINTS.MES(mesVisible.anio, mesVisible.mes),
+    // Se pide siempre, también para el mes en curso: las cuatro tarjetas de
+    // arriba son las mismas en los dos casos y su número grande sale de acá.
+    // Un mes cerrado no cambia; el en curso tampoco al segundo.
+    staleTime: viendoOtroMes ? 5 * 60 * 1000 : 60 * 1000,
   })
   const mesData = mesQuery.data
 
-  const loading = viendoOtroMes ? mesQuery.isLoading : dashboardQuery.isLoading
+  // EL ACUMULADO: el número chico de cada tarjeta.
+  //
+  // Un mes solo no dice si está bien o mal; mil doscientos protocolos es mucho
+  // o poco según cuántos venía haciendo el laboratorio. El alcance se recuerda
+  // entre sesiones: quien mira "los últimos 12 meses" lo mira siempre.
+  const [mesesDelHistorico, setMesesDelHistorico] = usePersistedState<number>(
+    "inicio:alcance-del-historico",
+    0,
+  )
+  const historicoQuery = useApiQuery<Historico>({
+    queryKey: ["analytics", "historico", mesesDelHistorico],
+    url: ANALYTICS_ENDPOINTS.HISTORICO(mesesDelHistorico),
+    // Recorre la tabla entera de protocolos y cambia de a poco: no tiene
+    // sentido volver a pedirlo cada vez que la pantalla se enfoca.
+    staleTime: 5 * 60 * 1000,
+  })
+  const historico = historicoQuery.data
+  const alcanceDelHistorico =
+    ALCANCES_DEL_HISTORICO.find((a) => a.meses === mesesDelHistorico) ?? ALCANCES_DEL_HISTORICO[0]
+
+  // Las tarjetas de arriba salen del endpoint del mes en los dos casos, así que
+  // su carga cuenta siempre; la del dashboard, solo cuando se mira el mes en
+  // curso, que es lo único que la sigue usando.
+  const loading = mesQuery.isLoading || (!viendoOtroMes && dashboardQuery.isLoading)
 
   // Los meses que ofrece el selector. Vienen del dashboard —así el selector
   // está armado desde el primer render— y si todavía no llegaron, al menos
@@ -288,11 +367,6 @@ export default function Home() {
     // Del más nuevo al más viejo: en un selector, "el mes pasado" tiene que
     // estar arriba y no al final de dos años de historia.
     return lista.reverse()
-  })()
-
-  const mesVisible: MesDisponible = mesElegido ?? (() => {
-    const hoy = new Date()
-    return { anio: hoy.getFullYear(), mes: hoy.getMonth() + 1 }
   })()
 
   const posicionActual = mesesOfrecidos.findIndex(
@@ -432,62 +506,43 @@ export default function Home() {
     return Number.isFinite(n) ? `$${n.toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "$0.00"
   }
 
-  // LAS TARJETAS DE ARRIBA CAMBIAN DE PREGUNTA.
-  //
-  // En el mes en curso son operativas —cuánto tarda una carga, cuántos
-  // urgentes hay sin cerrar—: cosas de AHORA. Mirando un mes cerrado esas
-  // preguntas no tienen respuesta (no existe "urgentes pendientes de junio"),
-  // así que las cuatro pasan a ser el resumen de ese mes.
-  const kpisDelMes = [
-    {
-      label: "Protocolos",
-      value: numberOrZero(mesData?.protocolos).toLocaleString(),
-      detail: mesData ? `${mesData.desde} al ${mesData.hasta}` : "",
-      icon: FileText,
-      className: "border-[#204983]/25 bg-[#204983]/10 text-[#204983]",
-    },
-    {
-      label: "Pacientes atendidos",
-      value: numberOrZero(mesData?.pacientes).toLocaleString(),
-      detail: "Sin repetir: una persona cuenta una vez",
-      icon: Users,
-      className: "border-cyan-200 bg-cyan-50 text-cyan-800",
-    },
-    {
-      label: "Análisis",
-      value: numberOrZero(mesData?.analisis).toLocaleString(),
-      detail: "Sin contar el acto bioquímico",
-      icon: FlaskConical,
-      className: "border-violet-200 bg-violet-50 text-violet-800",
-    },
-    {
-      label: "Cobrado",
-      value: formatMoney(mesData?.cobrado),
-      detail: `${numberOrZero(mesData?.completados).toLocaleString()} protocolos completados`,
-      icon: Receipt,
-      className: "border-emerald-200 bg-emerald-50 text-emerald-800",
-    },
-  ]
+  /** El número chico: el mismo dato, acumulado hasta hoy. */
+  const acumulado = (valor: string | number | undefined) =>
+    historico === undefined ? null : String(valor ?? "—")
 
-  const mainKpis = [
+  // LAS CUATRO DE ARRIBA SON SIEMPRE LAS MISMAS.
+  //
+  // Antes cambiaban de pregunta: en el mes en curso eran estas cuatro y al
+  // navegar a un mes cerrado se convertían en otras cuatro (protocolos,
+  // pacientes, análisis, cobrado). Dos juegos de tarjetas en el mismo lugar se
+  // comparan mal, porque nunca están los dos a la vez.
+  //
+  // Ahora son estas, siempre, con el número del mes que se está mirando arriba
+  // y el acumulado abajo. Las cuatro se cortan por la fecha del protocolo, así
+  // que el número grande y el chico cuentan lo mismo sobre tramos distintos:
+  // ver `metricas_operativas` en el backend.
+  const kpis: TarjetaDeMetrica[] = [
     {
       label: "Carga promedio",
-      value: dashboard?.avg_result_load_time_human === "N/A" ? "Sin datos" : dashboard?.avg_result_load_time_human || "Sin datos",
-      detail: "Tiempo de carga de resultados",
+      value: mesData?.carga_promedio || "—",
+      detail: "Del ingreso a que se carga el resultado",
+      total: acumulado(historico?.carga_promedio),
       icon: Clock3,
       className: "border-cyan-200 bg-cyan-50 text-cyan-800",
     },
     {
       label: "Tiempo de resolución",
-      value: dashboard?.avg_resolution_time_human || "—",
-      detail: "Promedio ingreso → completado",
+      value: mesData?.tiempo_de_resolucion || "—",
+      detail: "Del ingreso a que el protocolo se cierra",
+      total: acumulado(historico?.tiempo_de_resolucion),
       icon: Clock3,
       className: "border-violet-200 bg-violet-50 text-violet-800",
     },
     {
       label: "Urgentes pendientes",
-      value: numberOrZero(dashboard?.urgent_pending).toLocaleString(),
+      value: numberOrZero(mesData?.urgentes_pendientes).toLocaleString(),
       detail: "Protocolos urgentes sin cerrar",
+      total: acumulado(numberOrZero(historico?.urgentes_pendientes).toLocaleString()),
       icon: AlertTriangle,
       className: "border-rose-200 bg-rose-50 text-rose-800",
     },
@@ -495,8 +550,9 @@ export default function Home() {
       ? [
           {
             label: "Listos para facturar",
-            value: numberOrZero(dashboard?.ready_to_bill).toLocaleString(),
+            value: numberOrZero(mesData?.listos_para_facturar).toLocaleString(),
             detail: "Protocolos con papeles listos",
+            total: acumulado(numberOrZero(historico?.listos_para_facturar).toLocaleString()),
             icon: CheckCircle2,
             className: "border-teal-200 bg-teal-50 text-teal-800",
           },
@@ -612,6 +668,23 @@ export default function Home() {
               </button>
             </div>
 
+            {/* El alcance del acumulado, uno para las cuatro tarjetas. */}
+            <label className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2 py-1 text-xs text-slate-500">
+                Acumulado:
+                <select
+                  value={mesesDelHistorico}
+                  onChange={(e) => setMesesDelHistorico(Number(e.target.value))}
+                  aria-label="Alcance del acumulado"
+                  className="cursor-pointer bg-transparent text-xs font-medium text-slate-700 outline-none"
+                >
+                  {ALCANCES_DEL_HISTORICO.map((a) => (
+                    <option key={a.meses} value={a.meses}>
+                      {a.etiqueta}
+                    </option>
+                  ))}
+              </select>
+            </label>
+
             <div className={`inline-flex w-fit items-center gap-2 rounded-md border px-3 py-2 text-sm ${toneClasses[growthTone]}`}>
               <TrendingUp className="h-4 w-4" />
               <span className="font-semibold">
@@ -632,15 +705,16 @@ export default function Home() {
           className={`mb-5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 ${ENTRADA_ARRIBA}`}
         >
           Estás viendo <strong>{nombreDelMes(mesVisible)}</strong>, un mes que ya
-          cerró. Lo que es de ahora —pendientes de carga, caja del día, urgentes
-          sin cerrar— no se muestra: no sería de este mes.
+          cerró. Las tarjetas de arriba son de ese mes; lo que es de ahora
+          —pendientes de carga, caja del día, lo que falta cargar— no se
+          muestra, porque no sería de este mes.
         </p>
       )}
 
       <section className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {loading
           ? Array.from({ length: 4 }).map((_, index) => <MetricSkeleton key={index} />)
-          : (viendoOtroMes ? kpisDelMes : mainKpis).map((item, indice) => {
+          : kpis.map((item, indice) => {
               const Icon = item.icon
               return (
                 <article
@@ -656,6 +730,25 @@ export default function Home() {
                     <Icon className="h-5 w-5 flex-shrink-0 opacity-80" />
                   </div>
                   <p className="text-xs opacity-75">{item.detail}</p>
+                  {/* EL ACUMULADO, DEBAJO DEL NÚMERO DEL MES.
+                      Es el mismo dato sumado hasta hoy: el número del mes solo
+                      no dice si está bien o mal, y esa referencia había que
+                      armarla abriendo mes por mes. Va separado y más chico
+                      porque es la referencia, no lo que se vino a leer.
+                      Las tarjetas operativas no lo llevan: "urgentes
+                      pendientes" es una foto de ahora, no algo que se acumule. */}
+                  {item.total !== undefined && (
+                    <div className="mt-3 border-t border-current/15 pt-2">
+                      {item.total === null ? (
+                        <Skeleton className="h-4 w-24" />
+                      ) : (
+                        <p className="text-xs opacity-80">
+                          <span className="font-semibold">{item.total}</span>{" "}
+                          {alcanceDelHistorico.etiqueta}
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </article>
               )
             })}

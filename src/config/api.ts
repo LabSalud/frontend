@@ -47,6 +47,9 @@ export const AUTH_ENDPOINTS = {
    *  credencial es el propio refresh que viaja en el body. */
   LOGOUT: buildApiUrl("/auth/logout/"),
   PASSWORD_RESET: buildApiUrl("/users/password-reset/"),
+  // El segundo paso: la pantalla donde cae el link del mail manda acá el token
+  // y la contraseña elegida.
+  PASSWORD_RESET_CONFIRM: buildApiUrl("/users/password-reset/confirm/"),
   // Segundo factor (TOTP). TOKEN_2FA cierra el login en dos pasos y, como el
   // login, va SIN Authorization: todavía no hay access token.
   TOKEN_2FA: buildApiUrl("/auth/token/2fa/"),

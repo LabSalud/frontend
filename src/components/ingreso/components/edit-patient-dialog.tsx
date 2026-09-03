@@ -83,12 +83,12 @@ export function EditPatientDialog({ isOpen, onClose, patient, onPatientUpdated }
     const dniDigits = formData.dni.replace(/\D/g, "")
 
     if (!formData.first_name.trim()) {
-      toast.error(isAnonymous ? "Complete el identificador" : "Complete el nombre")
+      toast.error(isAnonymous ? "Completá el identificador" : "Completá el nombre")
       return
     }
 
     if (!isAnonymous && (!formData.last_name || !dniDigits || !formData.birth_date || !formData.sex)) {
-      toast.error("Complete los campos obligatorios")
+      toast.error("Completá los campos obligatorios")
       return
     }
 
@@ -131,7 +131,7 @@ export function EditPatientDialog({ isOpen, onClose, patient, onPatientUpdated }
     } catch (error) {
       console.error("Error updating patient:", error)
       toast.error("Error al actualizar el paciente", {
-        description: getErrorMessage(error, "Error de conexión con el servidor"),
+        description: getErrorMessage(error, "No se pudo completar la operación."),
       })
     } finally {
       setIsUpdating(false)

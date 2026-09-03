@@ -53,7 +53,7 @@ export function DeleteMedicoDialog({ isOpen, onOpenChange, medico, onSuccess }: 
       }
     } catch (error) {
       toast.error("Error al eliminar el médico", {
-        description: getErrorMessage(error, "Error de conexión con el servidor"),
+        description: getErrorMessage(error, "No se pudo completar la operación."),
       })
     } finally {
       setLoading(false)

@@ -112,7 +112,7 @@ export function CreateMedicoDialog({ isOpen, onOpenChange, onSuccess }: CreateMe
     } catch (error) {
       console.error("Error creating medico:", error)
       toast.error("Error al crear el médico", {
-        description: getErrorMessage(error, "Error de conexión con el servidor"),
+        description: getErrorMessage(error, "No se pudo completar la operación."),
       })
     } finally {
       setLoading(false)

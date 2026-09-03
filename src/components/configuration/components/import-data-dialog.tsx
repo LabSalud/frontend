@@ -112,7 +112,7 @@ export function ImportDataDialog({ open, onOpenChange, onSuccess }: ImportDataDi
         toast.error(errorMessage)
       }
     } catch (err) {
-      const errorMessage = getErrorMessage(err, "Error de conexión al importar el catálogo")
+      const errorMessage = getErrorMessage(err, "No se pudo importar el catálogo.")
       setError(errorMessage)
       toast.error(errorMessage)
     } finally {

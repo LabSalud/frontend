@@ -199,8 +199,9 @@ export function ObrasSocialesManagement() {
         error("Error al actualizar", { description: errorMessage })
       }
     } catch (errorCatch) {
-      const errorMessage = getErrorMessage(errorCatch, "No se pudo conectar con el servidor.")
-      error("Error de red", { description: errorMessage })
+      // El título no afirma que fue la red: lo dice el mensaje, que es el
+      // único que sabe qué pasó de verdad.
+      error("No se pudo cambiar el estado", { description: getErrorMessage(errorCatch) })
       console.error("Error toggling active state:", errorCatch)
     } finally {
       setSwitchLoading(null)

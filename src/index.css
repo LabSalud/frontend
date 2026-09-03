@@ -133,3 +133,16 @@
     display: none;             /* Chrome, Safari */
   }
 }
+
+/* LOS TOASTS SE SACAN DESLIZÁNDOLOS, TAMBIÉN CON EL MOUSE.
+   Sonner cancela el gesto si mientras se arrastra hay texto seleccionado —lo
+   chequea en cada `pointermove`—, y arrastrar con el mouse por arriba de una
+   línea de texto es exactamente cómo se selecciona texto. Resultado: en el
+   teléfono el toast se iba deslizándolo y en la computadora no se iba nunca,
+   que es como estaba y por eso parecía que la función no existía.
+   Sin selección posible adentro del toast, el arrastre queda libre. El texto
+   del error igual queda en la consola para quien lo tenga que copiar. */
+[data-sonner-toast] {
+  user-select: none;
+  -webkit-user-select: none;
+}

@@ -10,10 +10,11 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { toast } from "sonner"
+import { showApiErrorToast } from "@/lib/error-toast"
 import { AlertCircle, CheckCircle, UserCog, Sparkles } from "lucide-react"
 import { PATIENT_ENDPOINTS, TOAST_DURATION } from "@/config/api"
 import type { ApiRequestOptions } from "@/hooks/use-api"
-import { formatApiError, getErrorMessage } from "@/lib/api-error"
+import { getErrorMessage } from "@/lib/api-error"
 import { formatDniForDisplay, normalizeDni } from "@/lib/dni"
 
 interface EditPatientDialogProps {
@@ -292,14 +293,17 @@ export function EditPatientDialog({ isOpen, onClose, patient, setPatients, apiRe
       toast.error("Formulario inválido", {
         description: patient.is_anonymous
           ? "El identificador debe tener al menos 2 caracteres. Revisá DNI, email o teléfonos si los cargaste."
-          : "Por favor, corrige los errores antes de continuar.",
+          : "Corregí los errores marcados antes de continuar.",
         duration: TOAST_DURATION,
       })
       return
     }
 
+    // Ver el comentario del alta: el toast de carga se cierra en el `finally`
+    // o queda girando para siempre cuando el pedido tira.
+    const loadingId = toast.loading("Actualizando paciente...")
+
     try {
-      const loadingId = toast.loading("Actualizando paciente...")
 
       const dataToSend = {
         ...formData,
@@ -312,7 +316,6 @@ export function EditPatientDialog({ isOpen, onClose, patient, setPatients, apiRe
         body: dataToSend,
       })
 
-      toast.dismiss(loadingId)
 
       if (response.ok) {
         const updatedPatient = await response.json()
@@ -323,18 +326,18 @@ export function EditPatientDialog({ isOpen, onClose, patient, setPatients, apiRe
         })
         onClose()
       } else {
-        const errorData = await response.json()
-        toast.error("Error al actualizar paciente", {
-          description: formatApiError(errorData, "Ha ocurrido un error al actualizar el paciente."),
-          duration: TOAST_DURATION,
-        })
+        // Ver el alta: el toast sale del código de estado, así no se confunde
+        // una regla del laboratorio con un problema del servidor.
+        await showApiErrorToast(response, "No se pudo actualizar el paciente")
       }
     } catch (error) {
       console.error("Error al actualizar paciente:", error)
-      toast.error("Error", {
+      toast.error("No se pudo actualizar el paciente", {
         description: getErrorMessage(error, "Ha ocurrido un error al actualizar el paciente."),
         duration: TOAST_DURATION,
       })
+    } finally {
+      toast.dismiss(loadingId)
     }
   }
 

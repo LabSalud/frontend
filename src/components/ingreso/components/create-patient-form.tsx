@@ -151,7 +151,7 @@ export function CreatePatientForm({
 
       if (!fieldsAreValid || !formData.sex) {
         toast.error("Formulario inválido", {
-          description: !formData.sex ? "Seleccione el sexo del paciente." : "Por favor, corrige los errores antes de continuar.",
+          description: !formData.sex ? "Elegí el sexo del paciente." : "Corregí los errores marcados antes de continuar.",
           duration: TOAST_DURATION,
         })
         return
@@ -222,7 +222,7 @@ export function CreatePatientForm({
     } catch (error) {
       console.error("Error creating patient:", error)
       toast.error("Error al crear el paciente", {
-        description: getErrorMessage(error, "Error de conexión con el servidor"),
+        description: getErrorMessage(error, "No se pudo completar la operación."),
         duration: TOAST_DURATION,
       })
     } finally {

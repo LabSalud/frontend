@@ -66,7 +66,7 @@ export const DeleteAnalysisCatalogDialog: React.FC<DeleteAnalysisCatalogDialogPr
     } catch (error) {
       console.error("Error deleting analysis:", error)
       toastActions.error("Error", {
-        description: getErrorMessage(error, "Error de conexión. Inténtalo de nuevo."),
+        description: getErrorMessage(error, "No se pudo completar la operación."),
       })
     } finally {
       setIsDeleting(false)

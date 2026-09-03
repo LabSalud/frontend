@@ -167,7 +167,7 @@ export function CreateObraSocialDialog({ open, onOpenChange, onSuccess }: Create
       }
     } catch (error) {
       toast.error("Error al crear la obra social", {
-        description: getErrorMessage(error, "Error de conexión con el servidor"),
+        description: getErrorMessage(error, "No se pudo completar la operación."),
         duration: TOAST_DURATION,
       })
     } finally {

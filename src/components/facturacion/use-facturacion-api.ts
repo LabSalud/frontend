@@ -4,7 +4,7 @@ import { toast } from "sonner"
 import { useApi } from "@/hooks/use-api"
 import { useApiQuery } from "@/hooks/use-api-query"
 import { BILLING_ENDPOINTS } from "@/config/api"
-import { formatApiError } from "@/lib/api-error"
+import { formatApiError, getErrorMessage } from "@/lib/api-error"
 import type {
   BilledInvoice,
   BillingEntity,
@@ -115,7 +115,7 @@ export function useFacturacionApi(entityId: number | null) {
       invalidateEntity()
       return true
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Error al desmarcar el protocolo")
+      toast.error(getErrorMessage(e, "No se pudo desmarcar el protocolo"))
       return false
     } finally {
       setUnbillingProtocolId(null)
@@ -144,7 +144,7 @@ export function useFacturacionApi(entityId: number | null) {
       invalidateEntity()
       return true
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Error al marcar como facturado")
+      toast.error(getErrorMessage(e, "No se pudo marcar como facturado"))
       return false
     } finally {
       setMarkingProtocolId(null)

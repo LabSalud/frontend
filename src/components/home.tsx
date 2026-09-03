@@ -18,13 +18,13 @@ import {
   Users,
 } from "lucide-react"
 import useAuth from "@/contexts/auth-context"
-import type { LucideIcon } from "lucide-react"
 import { useApiQuery } from "@/hooks/use-api-query"
 import { usePersistedState } from "@/hooks/use-persisted-state"
 import { useToast } from "@/hooks/use-toast"
 import { ANALYTICS_ENDPOINTS } from "@/config/api"
 import { PERMISSIONS } from "@/config/permissions"
 import { Skeleton } from "@/components/ui/skeleton"
+import PendienteDelSistema from "@/components/pendiente-del-sistema"
 import { CarruselDeslizable } from "@/components/common/carrusel-deslizable"
 import { ENTRADA_ABAJO, ENTRADA_ARRIBA } from "@/lib/entrada"
 
@@ -129,7 +129,8 @@ interface EstadisticasDelMes {
   pacientes_por_dia: Array<{ date: string; patients_served: number }>
   caja_por_dia: Array<{ date: string; collected: string }>
   meses_disponibles: MesDisponible[]
-  /** Las métricas del mes. Ver `metricas_del_periodo` en el backend. */
+  /** Todo lo que la pantalla muestra como número, del mes. Ver
+   *  `metricas_del_periodo` en el backend. */
   urgentes_pendientes: number
   resultados_por_cargar: number
   resultados_por_validar: number
@@ -142,13 +143,16 @@ interface EstadisticasDelMes {
   carga_promedio: string
   tiempo_de_resolucion: string
   listos_para_facturar: number
+  top_urgentes: Array<{ code: string; name: string; protocols: number }>
 }
 
-/** El acumulado del laboratorio hasta hoy. Ver `get_historico` en el backend. */
-interface Historico {
-  /** `mes-anterior`, `3`, `6`, `12` o `siempre`. */
+/**
+ * Lo mismo que `EstadisticasDelMes`, pero del tramo con el que se compara: es
+ * el número chico de cada cosa. Sale de la misma función del backend, así que
+ * los dos números de un mismo rótulo miden igual.
+ */
+interface Comparacion {
   alcance: string
-  /** `null` cuando el alcance es "desde siempre". */
   desde: string | null
   hasta: string
   protocolos: number
@@ -156,7 +160,6 @@ interface Historico {
   analisis: number
   completados: number
   cobrado: string
-  /** Las mismas métricas, sobre el tramo elegido: el número chico. */
   urgentes_pendientes: number
   resultados_por_cargar: number
   resultados_por_validar: number
@@ -173,34 +176,18 @@ interface Historico {
 }
 
 /**
- * Los alcances del número chico. La lista es la misma que acepta el backend:
- * pedir otra cosa cae en el default.
- *
- * El default es el mes anterior y no "desde siempre" porque la pregunta de
- * todos los días es si venimos mejor o peor que el mes pasado, y contra un
- * total que crece para siempre eso no se contesta.
+ * Los tramos contra los que se puede comparar. La lista es la misma que acepta
+ * el backend. El default es el mes anterior porque la pregunta de todos los
+ * días es si venimos mejor o peor que el mes pasado, y contra un total que
+ * crece para siempre eso no se contesta.
  */
-const ALCANCES_DEL_HISTORICO = [
+const ALCANCES = [
   { clave: "mes-anterior", etiqueta: "el mes anterior" },
   { clave: "3", etiqueta: "últimos 3 meses" },
   { clave: "6", etiqueta: "últimos 6 meses" },
   { clave: "12", etiqueta: "últimos 12 meses" },
   { clave: "siempre", etiqueta: "desde siempre" },
 ] as const
-
-type TarjetaDeMetrica = {
-  label: string
-  value: string
-  detail: string
-  icon: LucideIcon
-  className: string
-  /**
-   * El mismo dato acumulado hasta hoy. `null` mientras se está pidiendo;
-   * ausente en las tarjetas que no acumulan —"urgentes pendientes" es una foto
-   * de ahora, no algo que se sume—.
-   */
-  total?: string | null
-}
 
 type TrendTone = "emerald" | "rose" | "slate"
 
@@ -340,39 +327,37 @@ export default function Home() {
     return { anio: hoy.getFullYear(), mes: hoy.getMonth() + 1 }
   })()
 
+  // Se pide siempre, también para el mes en curso: los números de la pantalla
+  // pasan a ser del mes, no totales de toda la base.
   const mesQuery = useApiQuery<EstadisticasDelMes>({
     queryKey: ["analytics", "mes", mesVisible.anio, mesVisible.mes],
     url: ANALYTICS_ENDPOINTS.MES(mesVisible.anio, mesVisible.mes),
-    // Se pide siempre, también para el mes en curso: las cuatro tarjetas de
-    // arriba son las mismas en los dos casos y su número grande sale de acá.
     // Un mes cerrado no cambia; el en curso tampoco al segundo.
     staleTime: viendoOtroMes ? 5 * 60 * 1000 : 60 * 1000,
   })
   const mesData = mesQuery.data
 
-  // EL ACUMULADO: el número chico de cada tarjeta.
+  // CONTRA QUÉ SE COMPARA.
   //
-  // Un mes solo no dice si está bien o mal; mil doscientos protocolos es mucho
-  // o poco según cuántos venía haciendo el laboratorio. El alcance se recuerda
-  // entre sesiones: quien mira "los últimos 12 meses" lo mira siempre.
+  // Cada número de la pantalla lleva otro abajo, más chico: el mismo dato sobre
+  // otro tramo. Un número solo no dice si está bien o mal —siete urgentes
+  // pendientes es mucho o poco según cómo veníamos—, y esa referencia había que
+  // armarla abriendo mes por mes. El tramo se elige una vez para toda la
+  // pantalla y se recuerda entre sesiones.
   const [alcance, setAlcance] = usePersistedState<string>(
-    "inicio:alcance-del-historico",
+    "inicio:alcance-de-la-comparacion",
     "mes-anterior",
   )
-  const historicoQuery = useApiQuery<Historico>({
+  const comparacionQuery = useApiQuery<Comparacion>({
     queryKey: ["analytics", "historico", alcance],
     url: ANALYTICS_ENDPOINTS.HISTORICO(alcance),
-    // Recorre la tabla entera de protocolos y cambia de a poco: no tiene
-    // sentido volver a pedirlo cada vez que la pantalla se enfoca.
+    // Recorre protocolos y resultados de un tramo largo: no tiene sentido
+    // volver a pedirlo cada vez que la pantalla se enfoca.
     staleTime: 5 * 60 * 1000,
   })
-  const historico = historicoQuery.data
-  const alcanceElegido =
-    ALCANCES_DEL_HISTORICO.find((a) => a.clave === alcance) ?? ALCANCES_DEL_HISTORICO[0]
+  const comparacion = comparacionQuery.data
+  const alcanceElegido = ALCANCES.find((a) => a.clave === alcance) ?? ALCANCES[0]
 
-  // Las tarjetas de arriba salen del endpoint del mes en los dos casos, así que
-  // su carga cuenta siempre; la del dashboard, solo cuando se mira el mes en
-  // curso, que es lo único que la sigue usando.
   const loading = mesQuery.isLoading || (!viendoOtroMes && dashboardQuery.isLoading)
 
   // Los meses que ofrece el selector. Vienen del dashboard —así el selector
@@ -492,7 +477,9 @@ export default function Home() {
   const insuranceMix = viendoOtroMes
     ? mesData?.obras_sociales || []
     : dashboard?.insurance_mix_month || []
-  const topUrgent = dashboard?.top_urgent_analyses || []
+  // Del mes que se está mirando, no de toda la historia: antes, con un mes
+  // cerrado elegido, se mostraba el top histórico con el rótulo de ese mes.
+  const topUrgent = mesData?.top_urgentes || []
   const missingInfo = dashboard?.missing_info
   const preauth = dashboard?.preauth_breakdown
   const arca = viendoOtroMes ? mesData?.arca : dashboard?.arca_month
@@ -526,131 +513,25 @@ export default function Home() {
     return Number.isFinite(n) ? `$${n.toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "$0.00"
   }
 
-  /** El número chico de una tarjeta: lo mismo, sobre el tramo elegido. */
+  /** El número chico de cualquier cosa: lo mismo, sobre el tramo comparado. */
   const comparado = (valor: string | number | undefined) =>
-    historico === undefined ? null : String(valor ?? "—")
+    comparacion === undefined ? null : String(valor ?? "—")
 
-  const comparadoEnPesos = (valor: string | undefined) =>
-    historico === undefined ? null : formatMoney(valor)
-
-  // DOS FAMILIAS, Y NO SE MEZCLAN.
+  // LAS TARJETAS DE ARRIBA SON LAS DE SIEMPRE, PERO DEL MES.
   //
-  // Las OPERATIVAS contestan "¿qué hay que hacer?": lo que está colgado ahora
-  // mismo. Son del mes en curso y no se muestran mirando un mes cerrado, porque
-  // "resultados por cargar de junio" no es una tarea de junio, es una tarea de
-  // hoy que arrastra un protocolo de junio.
+  // Eran totales de toda la base —"tiempo de resolución" era el promedio
+  // histórico— y cambiaban de identidad al mirar un mes cerrado. Ahora las
+  // cuatro dicen lo del mes que se está mirando, con el tramo comparado abajo.
   //
-  // Las de HISTORIAL contestan "¿cómo venimos trabajando?": promedios y
-  // volúmenes. Esas sí valen para cualquier mes, y son lo único que queda en
-  // pantalla al mirar uno cerrado.
-  //
-  // Las dos familias llevan los mismos dos números: el del mes que se está
-  // mirando y el del tramo con el que se compara. Ver `metricas_del_periodo`.
-  const operativas: TarjetaDeMetrica[] = [
-    {
-      label: "Urgentes pendientes",
-      value: numberOrZero(mesData?.urgentes_pendientes).toLocaleString(),
-      detail: "Protocolos urgentes sin cerrar",
-      total: comparado(numberOrZero(historico?.urgentes_pendientes).toLocaleString()),
-      icon: AlertTriangle,
-      className: "border-rose-200 bg-rose-50 text-rose-800",
-    },
-    {
-      label: "Resultados por cargar",
-      value: numberOrZero(mesData?.resultados_por_cargar).toLocaleString(),
-      detail: "Sin valor todavía",
-      total: comparado(numberOrZero(historico?.resultados_por_cargar).toLocaleString()),
-      icon: FlaskConical,
-      className: "border-amber-200 bg-amber-50 text-amber-800",
-    },
-    {
-      label: "Resultados por validar",
-      value: numberOrZero(mesData?.resultados_por_validar).toLocaleString(),
-      detail: "Cargados y sin firmar",
-      total: comparado(numberOrZero(historico?.resultados_por_validar).toLocaleString()),
-      icon: CheckCircle2,
-      className: "border-sky-200 bg-sky-50 text-sky-800",
-    },
-    {
-      label: "Impresos con pago incompleto",
-      value: numberOrZero(mesData?.impresos_con_pago_incompleto).toLocaleString(),
-      detail: "Se entregó y el paciente debe",
-      total: comparado(numberOrZero(historico?.impresos_con_pago_incompleto).toLocaleString()),
-      icon: Receipt,
-      className: "border-rose-200 bg-rose-50 text-rose-800",
-    },
-    // De acá para abajo es plata y facturación: va solo para quien tiene el
-    // permiso, igual que antes. Sin este corte, el rearmado de las tarjetas le
-    // habría mostrado la deuda de los pacientes a cualquiera que abra el
-    // inicio.
-    ...(canAccessBilling ? [
-    {
-      label: "Nos deben",
-      value: formatMoney(mesData?.nos_deben),
-      detail: "Lo que los pacientes adeudan",
-      total: comparadoEnPesos(historico?.nos_deben),
-      icon: Receipt,
-      className: "border-amber-200 bg-amber-50 text-amber-800",
-    },
-    {
-      label: "Debemos devolver",
-      value: formatMoney(mesData?.debemos_devolver),
-      detail: "Saldos a favor del paciente",
-      total: comparadoEnPesos(historico?.debemos_devolver),
-      icon: Receipt,
-      className: "border-slate-200 bg-slate-50 text-slate-800",
-    },
-    {
-      label: "Neto a favor",
-      value: formatMoney(mesData?.neto_a_favor),
-      detail: "Lo que deben menos lo que hay que devolver",
-      total: comparadoEnPesos(historico?.neto_a_favor),
-      icon: TrendingUp,
-      className: "border-emerald-200 bg-emerald-50 text-emerald-800",
-    },
-    {
-      label: "Cobrado",
-      value: formatMoney(mesData?.cobrado),
-      detail: "Cobrado a pacientes en el mes",
-      total: comparadoEnPesos(historico?.cobrado),
-      icon: Receipt,
-      className: "border-emerald-200 bg-emerald-50 text-emerald-800",
-    },
-    ] : []),
-    {
-      label: "Información faltante",
-      value: numberOrZero(mesData?.informacion_faltante).toLocaleString(),
-      detail: "Protocolos frenados por papeles",
-      total: comparado(numberOrZero(historico?.informacion_faltante).toLocaleString()),
-      icon: AlertTriangle,
-      className: "border-amber-200 bg-amber-50 text-amber-800",
-    },
-    {
-      label: "Preautorización pendiente",
-      value: numberOrZero(mesData?.preautorizacion_pendiente).toLocaleString(),
-      detail: "La OOSS la exige y falta",
-      total: comparado(numberOrZero(historico?.preautorizacion_pendiente).toLocaleString()),
-      icon: AlertTriangle,
-      className: "border-violet-200 bg-violet-50 text-violet-800",
-    },
-    ...(canAccessBilling ? [
-      {
-        label: "ARCA pendiente",
-        value: numberOrZero(mesData?.arca?.pending).toLocaleString(),
-        detail: `${numberOrZero(mesData?.arca?.failed).toLocaleString()} fallidos`,
-        total: comparado(numberOrZero(historico?.arca?.pending).toLocaleString()),
-        icon: Receipt,
-        className: "border-sky-200 bg-sky-50 text-sky-800",
-      },
-    ] : []),
-  ]
-
-  const historialKpis: TarjetaDeMetrica[] = [
+  // "Urgentes pendientes" es la única operativa de la fila y por eso no sale
+  // con un mes viejo elegido: es una foto de ahora, no algo que haya pasado en
+  // junio. Las otras tres son de historial y valen para cualquier mes.
+  const mainKpis = [
     {
       label: "Carga promedio",
       value: mesData?.carga_promedio || "—",
       detail: "Del ingreso a que se carga el resultado",
-      total: comparado(historico?.carga_promedio),
+      total: comparado(comparacion?.carga_promedio),
       icon: Clock3,
       className: "border-cyan-200 bg-cyan-50 text-cyan-800",
     },
@@ -658,45 +539,96 @@ export default function Home() {
       label: "Tiempo de resolución",
       value: mesData?.tiempo_de_resolucion || "—",
       detail: "Del ingreso a que el protocolo se cierra",
-      total: comparado(historico?.tiempo_de_resolucion),
+      total: comparado(comparacion?.tiempo_de_resolucion),
       icon: Clock3,
       className: "border-violet-200 bg-violet-50 text-violet-800",
     },
-    ...(canAccessBilling ? [
-      {
-        label: "Listos para facturar",
-        value: numberOrZero(mesData?.listos_para_facturar).toLocaleString(),
-        detail: "Protocolos con papeles listos",
-        total: comparado(numberOrZero(historico?.listos_para_facturar).toLocaleString()),
-        icon: CheckCircle2,
-        className: "border-teal-200 bg-teal-50 text-teal-800",
-      },
-    ] : []),
+    ...(viendoOtroMes
+      ? []
+      : [
+          {
+            label: "Urgentes pendientes",
+            value: numberOrZero(mesData?.urgentes_pendientes).toLocaleString(),
+            detail: "Protocolos urgentes sin cerrar",
+            total: comparado(numberOrZero(comparacion?.urgentes_pendientes).toLocaleString()),
+            icon: AlertTriangle,
+            className: "border-rose-200 bg-rose-50 text-rose-800",
+          },
+        ]),
+    ...(canAccessBilling
+      ? [
+          {
+            label: "Listos para facturar",
+            value: numberOrZero(mesData?.listos_para_facturar).toLocaleString(),
+            detail: "Protocolos con papeles listos",
+            total: comparado(numberOrZero(comparacion?.listos_para_facturar).toLocaleString()),
+            icon: CheckCircle2,
+            className: "border-teal-200 bg-teal-50 text-teal-800",
+          },
+        ]
+      : []),
+  ]
+
+  const operationalItems = [
     {
-      label: "Pacientes atendidos",
-      value: numberOrZero(mesData?.pacientes).toLocaleString(),
-      detail: "Sin repetir: una persona cuenta una vez",
-      total: comparado(numberOrZero(historico?.pacientes).toLocaleString()),
-      icon: Users,
-      className: "border-[#204983]/25 bg-[#204983]/10 text-[#204983]",
+      label: "Resultados por cargar",
+      value: numberOrZero(mesData?.resultados_por_cargar),
+      total: comparado(numberOrZero(comparacion?.resultados_por_cargar).toLocaleString()),
+      className: "border-amber-200 bg-amber-50 text-amber-800",
+    },
+    {
+      label: "Resultados por validar",
+      value: numberOrZero(mesData?.resultados_por_validar),
+      total: comparado(numberOrZero(comparacion?.resultados_por_validar).toLocaleString()),
+      className: "border-sky-200 bg-sky-50 text-sky-800",
+    },
+    {
+      label: "Impresos con pago incompleto",
+      value: numberOrZero(mesData?.impresos_con_pago_incompleto),
+      total: comparado(numberOrZero(comparacion?.impresos_con_pago_incompleto).toLocaleString()),
+      className: "border-rose-200 bg-rose-50 text-rose-800",
     },
   ]
 
   const missingItems = [
-    { label: "En estado Información faltante", value: numberOrZero(missingInfo?.protocols_blocked) },
+    {
+      label: "En estado Información faltante",
+      value: numberOrZero(mesData?.informacion_faltante),
+      total: comparado(numberOrZero(comparacion?.informacion_faltante).toLocaleString()),
+    },
     { label: "Orden no presentada", value: numberOrZero(missingInfo?.orden_no_trajo) },
     { label: "Orden incompleta", value: numberOrZero(missingInfo?.orden_incompleta) },
-    { label: "Preautorización pendiente", value: numberOrZero(missingInfo?.preauth_pending_details) },
+    {
+      label: "Preautorización pendiente",
+      value: numberOrZero(mesData?.preautorizacion_pendiente),
+      total: comparado(numberOrZero(comparacion?.preautorizacion_pendiente).toLocaleString()),
+    },
     { label: "Pacientes anónimos mes", value: numberOrZero(missingInfo?.anonymous_patients_month) },
   ]
 
   const preauthTotal =
     numberOrZero(preauth?.completa) + numberOrZero(preauth?.incompleta) + numberOrZero(preauth?.no_trajo)
 
+  // ARCA del mes, con el tramo comparado en cada estado.
   const arcaItems = [
-    { label: "Facturado", value: numberOrZero(arca?.billed), className: "bg-emerald-50 text-emerald-700" },
-    { label: "Pendiente", value: numberOrZero(arca?.pending), className: "bg-amber-50 text-amber-700" },
-    { label: "Fallido", value: numberOrZero(arca?.failed), className: "bg-rose-50 text-rose-700" },
+    {
+      label: "Facturado",
+      value: numberOrZero(arca?.billed),
+      total: comparado(numberOrZero(comparacion?.arca?.billed).toLocaleString()),
+      className: "bg-emerald-50 text-emerald-700",
+    },
+    {
+      label: "Pendiente",
+      value: numberOrZero(arca?.pending),
+      total: comparado(numberOrZero(comparacion?.arca?.pending).toLocaleString()),
+      className: "bg-amber-50 text-amber-700",
+    },
+    {
+      label: "Fallido",
+      value: numberOrZero(arca?.failed),
+      total: comparado(numberOrZero(comparacion?.arca?.failed).toLocaleString()),
+      className: "bg-rose-50 text-rose-700",
+    },
   ]
 
   return (
@@ -772,17 +704,17 @@ export default function Home() {
               </button>
             </div>
 
-            {/* Con qué se compara: define el número chico de TODAS las
-                tarjetas, no el de una. */}
+            {/* Contra qué se compara. Define el número chico de TODA la
+                pantalla, no el de una tarjeta. */}
             <label className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2 py-1 text-xs text-slate-500">
               Comparar con:
               <select
                 value={alcance}
                 onChange={(e) => setAlcance(e.target.value)}
-                aria-label="Con qué se comparan las tarjetas"
+                aria-label="Con qué se comparan los números de la pantalla"
                 className="cursor-pointer bg-transparent text-xs font-medium text-slate-700 outline-none"
               >
-                {ALCANCES_DEL_HISTORICO.map((a) => (
+                {ALCANCES.map((a) => (
                   <option key={a.clave} value={a.clave}>
                     {a.etiqueta}
                   </option>
@@ -810,67 +742,45 @@ export default function Home() {
           className={`mb-5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 ${ENTRADA_ARRIBA}`}
         >
           Estás viendo <strong>{nombreDelMes(mesVisible)}</strong>, un mes que ya
-          cerró. Las tarjetas de arriba son de ese mes; lo que es de ahora
-          —pendientes de carga, caja del día, lo que falta cargar— no se
-          muestra, porque no sería de este mes.
+          cerró. Lo que es de ahora —pendientes de carga, caja del día, urgentes
+          sin cerrar— no se muestra: no sería de este mes.
         </p>
       )}
 
-      {/* Las tarjetas: el número del mes arriba y el del tramo con el que se
-          compara abajo. La forma es la misma para las dos familias, así que se
-          dibuja una sola vez. */}
-      {(() => {
-        const fila = (titulo: string, items: TarjetaDeMetrica[], desde: number) => (
-          <section className="mb-5">
-            <h2 className="mb-2 text-sm font-semibold text-slate-700">{titulo}</h2>
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              {loading
-                ? Array.from({ length: 4 }).map((_, index) => <MetricSkeleton key={index} />)
-                : items.map((item, indice) => {
-                    const Icon = item.icon
-                    return (
-                      <article
-                        key={item.label}
-                        style={retraso(desde + indice)}
-                        className={`rounded-lg border p-4 shadow-sm ${item.className} ${ENTRADA_ABAJO}`}
-                      >
-                        <div className="mb-4 flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <p className="text-sm font-medium opacity-80">{item.label}</p>
-                            <p className="mt-2 text-3xl font-bold leading-none">{item.value}</p>
-                          </div>
-                          <Icon className="h-5 w-5 flex-shrink-0 opacity-80" />
-                        </div>
-                        <p className="text-xs opacity-75">{item.detail}</p>
-                        {/* El número chico: lo mismo, sobre el tramo elegido.
-                            El de arriba solo no dice si está bien o mal, y esa
-                            referencia había que armarla mes por mes. */}
-                        <div className="mt-3 border-t border-current/15 pt-2">
-                          {item.total === null || item.total === undefined ? (
-                            <Skeleton className="h-4 w-24" />
-                          ) : (
-                            <p className="text-xs opacity-80">
-                              <span className="font-semibold">{item.total}</span>{" "}
-                              {alcanceElegido.etiqueta}
-                            </p>
-                          )}
-                        </div>
-                      </article>
-                    )
-                  })}
-            </div>
-          </section>
-        )
-        return (
-          <>
-            {fila("Cómo venimos trabajando", historialKpis, 1)}
-            {/* Las operativas son de AHORA: no se muestran mirando un mes
-                cerrado, porque "resultados por cargar de junio" no es una tarea
-                de junio, es una de hoy que arrastra un protocolo de junio. */}
-            {!viendoOtroMes && fila("Qué hay para hacer", operativas, 5)}
-          </>
-        )
-      })()}
+      <section className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {loading
+          ? Array.from({ length: 4 }).map((_, index) => <MetricSkeleton key={index} />)
+          : mainKpis.map((item, indice) => {
+              const Icon = item.icon
+              return (
+                <article
+                  key={item.label}
+                  style={retraso(indice + 1)}
+                  className={`rounded-lg border p-4 shadow-sm ${item.className} ${ENTRADA_ABAJO}`}
+                >
+                  <div className="mb-4 flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-medium opacity-80">{item.label}</p>
+                      <p className="mt-2 text-3xl font-bold leading-none">{item.value}</p>
+                    </div>
+                    <Icon className="h-5 w-5 flex-shrink-0 opacity-80" />
+                  </div>
+                  <p className="text-xs opacity-75">{item.detail}</p>
+                  {/* El número chico: lo mismo, sobre el tramo comparado. El de
+                      arriba solo no dice si está bien o mal. */}
+                  <div className="mt-3 border-t border-current/15 pt-2">
+                    {item.total === null ? (
+                      <Skeleton className="h-4 w-24" />
+                    ) : (
+                      <p className="text-xs opacity-80">
+                        <span className="font-semibold">{item.total}</span> {alcanceElegido.etiqueta}
+                      </p>
+                    )}
+                  </div>
+                </article>
+              )
+            })}
+      </section>
 
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(340px,0.65fr)]">
         <section
@@ -881,6 +791,16 @@ export default function Home() {
             <div className="flex min-w-0 items-center gap-2">
               <Users className="h-5 w-5 flex-shrink-0 text-[#204983]" />
               <h2 className="truncate text-base font-semibold text-slate-900">Pacientes atendidos</h2>
+              <span className="whitespace-nowrap text-sm text-slate-500">
+                <span className="font-semibold text-slate-900">
+                  {numberOrZero(mesData?.pacientes).toLocaleString()}
+                </span>
+                {comparacion && (
+                  <span className="ml-1.5 text-xs">
+                    · {numberOrZero(comparacion.pacientes).toLocaleString()} {alcanceElegido.etiqueta}
+                  </span>
+                )}
+              </span>
             </div>
             <span className="hidden text-xs text-slate-500 sm:inline">
               {weekIndex === semanaEnCurso ? "Semana en curso" : `Semana ${weekIndex + 1} de ${weeks.length}`}
@@ -1032,20 +952,45 @@ export default function Home() {
           )}
         </section>
 
-        {/* Acá estaba el panel "Pendientes operativos", con resultados por
-            cargar, por validar e impresos con pago incompleto. Los tres son
-            ahora tarjetas de "Qué hay para hacer", con su comparación: dejarlo
-            además acá mostraba los mismos tres rótulos con otros números —los
-            globales— justo arriba de los del mes, que es la forma más rápida
-            de que alguien lea el número equivocado. */}
+        {/* LO QUE ES DE AHORA NO SE MUESTRA DE UN MES CERRADO.
+            "Pendientes de carga" es una foto del momento, no algo que haya
+            pasado en junio: mostrarlo con un mes viejo elegido haría creer que
+            son los pendientes de ese mes. */}
+        {!viendoOtroMes && (
+        <section
+          style={retraso(6)}
+          className={`rounded-lg border border-slate-200 bg-white/70 p-4 shadow-sm backdrop-blur-sm sm:p-5 ${ENTRADA_ABAJO}`}
+        >
+          <div className="mb-4 flex items-center gap-2">
+            <AlertTriangle className="h-5 w-5 text-amber-600" />
+            <h2 className="text-base font-semibold text-slate-900">Pendientes operativos</h2>
+          </div>
+          <div className="grid gap-3">
+            {loading
+              ? Array.from({ length: canAccessBilling ? 4 : 3 }).map((_, index) => (
+                  <Skeleton key={index} className="h-16 w-full rounded-md" />
+                ))
+              : operationalItems.map((item) => (
+                  <div key={item.label} className={`rounded-md border px-4 py-3 ${item.className}`}>
+                    <p className="text-2xl font-bold leading-none">{item.value.toLocaleString()}</p>
+                    <p className="mt-1 text-sm font-medium">{item.label}</p>
+                    <p className="mt-1 text-xs opacity-75">
+                      {item.total === null ? "…" : `${item.total} ${alcanceElegido.etiqueta}`}
+                    </p>
+                  </div>
+                ))}
+          </div>
+        </section>
+        )}
       </div>
 
-      {/* Acá estaba el panel "Pendiente del sistema", con nos deben, debemos
-          devolver y el neto. Los tres son ahora tarjetas de "Qué hay para
-          hacer" y con comparación; el panel repetía los mismos tres rótulos con
-          los totales globales, y dos números distintos bajo el mismo nombre en
-          la misma pantalla es la forma más rápida de leer el equivocado. La
-          pantalla completa de deuda sigue estando en Facturación. */}
+      {/* Lo que quedó sin cerrar de TODAS las fechas: nos deben y tenemos que
+          devolver. Va arriba de la caja del día, que cuenta solo lo de hoy. */}
+      {canAccessBilling && !viendoOtroMes ? (
+        <div className="mt-5">
+          <PendienteDelSistema comparacion={comparacion} alcance={alcanceElegido.etiqueta} />
+        </div>
+      ) : null}
 
       <section
         style={retraso(7)}
@@ -1062,6 +1007,18 @@ export default function Home() {
               : `Semana ${cashWeekIndex + 1} de ${cashWeeks.length}`}
             {cashWeekRangeLabel ? ` · ${cashWeekRangeLabel}` : ""}
           </span>
+        </div>
+        {/* Lo cobrado en el mes, con su comparación. Las dos tarjetas de abajo
+            cuentan lo de HOY, que es otra pregunta: esta línea es la del mes
+            que se está mirando. */}
+        <div className="mb-3 rounded-md bg-slate-50 px-3 py-2 text-sm">
+          <span className="text-slate-600">Cobrado en el mes: </span>
+          <span className="font-semibold text-slate-900">{formatMoney(mesData?.cobrado)}</span>
+          {comparacion && (
+            <span className="ml-2 text-xs text-slate-500">
+              {formatMoney(comparacion.cobrado)} {alcanceElegido.etiqueta}
+            </span>
+          )}
         </div>
         {loading ? (
           <Skeleton className="h-48 w-full rounded-md" />
@@ -1219,7 +1176,7 @@ export default function Home() {
             <FileWarning className="h-5 w-5 text-amber-600" />
             <h2 className="text-base font-semibold text-slate-900">Información faltante</h2>
           </div>
-          <MetricList items={missingItems} loading={loading} />
+          <MetricList items={missingItems} loading={loading} alcance={alcanceElegido.etiqueta} />
         </section>
         )}
 
@@ -1244,6 +1201,9 @@ export default function Home() {
         </section>
         )}
 
+        {/* ARCA es operativa: lo que falta facturar es de ahora, así que no
+            sale con un mes viejo elegido. */}
+        {!viendoOtroMes && (
         <section
           style={retraso(10)}
           className={`rounded-lg border border-slate-200 bg-white/70 p-4 shadow-sm backdrop-blur-sm sm:p-5 ${ENTRADA_ABAJO}`}
@@ -1258,11 +1218,17 @@ export default function Home() {
               : arcaItems.map((item) => (
                   <div key={item.label} className={`flex items-center justify-between rounded-md px-3 py-2 ${item.className}`}>
                     <span className="text-sm font-medium">{item.label}</span>
-                    <span className="text-xl font-bold">{item.value.toLocaleString()}</span>
+                    <span className="text-right">
+                      <span className="text-xl font-bold">{item.value.toLocaleString()}</span>
+                      <span className="ml-2 text-xs opacity-70">
+                        {item.total === null ? "…" : `${item.total} ${alcanceElegido.etiqueta}`}
+                      </span>
+                    </span>
                   </div>
                 ))}
           </div>
         </section>
+        )}
       </div>
 
       <section
@@ -1298,7 +1264,8 @@ export default function Home() {
         )}
       </section>
 
-      {!viendoOtroMes && (
+      {/* Los urgentes que más se repitieron: es de historial, así que vale para
+          cualquier mes y se muestra también con uno cerrado elegido. */}
       <section
         style={retraso(12)}
         className={`mt-5 rounded-lg border border-slate-200 bg-white/70 p-4 shadow-sm backdrop-blur-sm sm:p-5 ${ENTRADA_ABAJO}`}
@@ -1334,7 +1301,7 @@ export default function Home() {
           </p>
         )}
       </section>
-      )}
+
 
       {/* El detalle de un día, al tocar su barra en el gráfico de caja. */}
       <CajaDelDia fecha={cajaDelDia} onClose={() => setCajaDelDia(null)} />
@@ -1368,7 +1335,16 @@ function MetricSkeleton() {
   )
 }
 
-function MetricList({ items, loading }: { items: Array<{ label: string; value: number }>; loading: boolean }) {
+function MetricList({
+  items,
+  loading,
+  alcance,
+}: {
+  /** `total` es el mismo dato sobre el tramo comparado; sin él, la fila va sola. */
+  items: Array<{ label: string; value: number; total?: string | null }>
+  loading: boolean
+  alcance?: string
+}) {
   if (loading) {
     return (
       <div className="space-y-2">
@@ -1384,7 +1360,14 @@ function MetricList({ items, loading }: { items: Array<{ label: string; value: n
       {items.map((item) => (
         <div key={item.label} className="flex items-center justify-between gap-3 rounded-md bg-slate-50 px-3 py-2">
           <span className="text-sm text-slate-600">{item.label}</span>
-          <span className="text-sm font-bold text-slate-900">{item.value.toLocaleString()}</span>
+          <span className="text-right">
+            <span className="text-sm font-bold text-slate-900">{item.value.toLocaleString()}</span>
+            {item.total !== undefined && (
+              <span className="ml-2 text-xs text-slate-500">
+                {item.total === null ? "…" : `${item.total} ${alcance ?? ""}`}
+              </span>
+            )}
+          </span>
         </div>
       ))}
     </div>

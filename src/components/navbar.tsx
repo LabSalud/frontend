@@ -5,6 +5,8 @@ import { useState, useCallback, useEffect, useRef } from "react"
 import { Link, useLocation } from "react-router-dom"
 import { Menu, X, LogOut, Search } from "lucide-react"
 import useAuth from "@/contexts/auth-context"
+import { cerrarSesionConAnimacion, recordarFormaDeLaNavbar } from "@/lib/forma-de-la-navbar"
+import { useCierreDeSesion } from "@/hooks/use-cierre-de-sesion"
 import { UserDropdown } from "./user-dropdown"
 import { PERMISSIONS } from "@/config/permissions"
 import { getVisibleUserMenuItems } from "@/config/user-menu-items"
@@ -64,6 +66,12 @@ export const Navbar: React.FC = () => {
   const [isLogoHovered, setIsLogoHovered] = useState(false)
   // Búsqueda abierta a propósito (tap en mobile o Ctrl/⌘+K), no por hover.
   const [isSearchPinned, setIsSearchPinned] = useState(false)
+  // Las dos barras blancas —la de escritorio y la del teléfono—. Solo una está
+  // dibujada a la vez; la que mide 0 es la que está apagada por el breakpoint.
+  const barraDeEscritorio = useRef<HTMLDivElement>(null)
+  const barraMobile = useRef<HTMLDivElement>(null)
+  // Cerrando sesión: la navbar se va para arriba y se lleva sus menús.
+  const cerrandoSesion = useCierreDeSesion()
   const mobileMenuRef = useRef<HTMLDivElement>(null)
   const userMenuRef = useRef<HTMLDivElement>(null)
   const hamburgerRef = useRef<HTMLButtonElement>(null)
@@ -104,6 +112,9 @@ export const Navbar: React.FC = () => {
   }
 
   const closeSearch = useCallback(() => setIsSearchPinned(false), [])
+
+  /** Cerrar sesión, pero recién cuando la pantalla quedó limpia. */
+  const cerrarSesion = () => cerrarSesionConAnimacion(() => logout(true))
 
   const cancelLogoHoverClose = useCallback(() => {
     if (logoHoverTimerRef.current === null) return
@@ -171,13 +182,38 @@ export const Navbar: React.FC = () => {
     const elemento = navRef.current
     if (!elemento) return
 
-    const medir = () => setNavHeight(elemento.getBoundingClientRect().height)
+    const medir = () => {
+      setNavHeight(elemento.getBoundingClientRect().height)
+      // De paso se publica la forma de la barra blanca, que es a lo que
+      // aterriza el panel del login cuando alguien entra. Se mide la de
+      // verdad —esta pantalla, este avatar— en vez de copiar las medidas al
+      // login, que es lo que hacía que en el teléfono no cerrara.
+      const barra = [barraDeEscritorio.current, barraMobile.current]
+        .find((candidata) => candidata && candidata.offsetWidth > 0)
+      if (barra) {
+        const caja = barra.getBoundingClientRect()
+        recordarFormaDeLaNavbar({
+          ancho: Math.round(caja.width),
+          alto: Math.round(caja.height),
+          radio: Math.round(
+            Number.parseFloat(getComputedStyle(barra).borderBottomLeftRadius) || 0,
+          ),
+        })
+      }
+    }
     medir()
 
     const observer = new ResizeObserver(medir)
     observer.observe(elemento)
     return () => observer.disconnect()
   }, [])
+
+  // Cerrando sesión: los menús se pliegan solos —para arriba, con su propia
+  // transición— y después la navbar entera se va por arriba. Ver
+  // `cerrarSesionConAnimacion`.
+  useEffect(() => {
+    if (cerrandoSesion) closeAllMenus()
+  }, [cerrandoSesion])
 
   // Si la navbar se va mientras hay un menú abierto, el menú se iría con ella
   // (o peor, quedaría flotando). Al ocultarse se cierra todo.
@@ -253,14 +289,25 @@ export const Navbar: React.FC = () => {
         // gana lo decide el ORDEN DE LA HOJA DE ESTILOS, no el orden en el
         // atributo — y `.relative` está después de `.fixed`, así que ganaría
         // siempre y la navbar nunca se despegaría.
-        className={`w-full px-0 lg:px-4 transition-[top] duration-300 ease-out ${
-          isAtTop ? "relative" : "fixed inset-x-0 z-50"
-        }`}
+        // Cerrando sesión la navbar se va por arriba, entera, después de los
+        // 200ms que tarda el menú de usuario en plegarse (`MS_DEL_MENU`): el
+        // menú se cierra primero y la barra se va después, no las dos encima.
+        // El `transform`
+        // que la mueve es justamente lo que el comentario de acá arriba evita
+        // el resto del tiempo, y acá no molesta: los menús y el buscador ya se
+        // cerraron, así que no queda ningún `position: fixed` adentro al que
+        // cambiarle el marco de referencia.
+        className={`w-full px-0 lg:px-4 ${
+          cerrandoSesion
+            ? "pointer-events-none -translate-y-full opacity-0 transition-all duration-500 delay-200 ease-in"
+            : "transition-[top] duration-300 ease-out"
+        } ${isAtTop ? "relative" : "fixed inset-x-0 z-50"}`}
       >
         {/* Desktop Navbar */}
         <div className="hidden lg:block">
           <div
-            className={`bg-white shadow-lg mx-4 px-8 py-4 transition-all duration-200 relative ${
+            ref={barraDeEscritorio}
+            className={`bg-white shadow-lg mx-4 px-8 py-4 relative transition-all duration-200 ${
               isUserMenuOpen
                 ? "rounded-bl-[25px] rounded-br-none rounded-tl-none rounded-tr-none"
                 : "rounded-bl-[25px] rounded-br-[25px] rounded-tl-none rounded-tr-none"
@@ -315,6 +362,7 @@ export const Navbar: React.FC = () => {
               </div>
             </div>
 
+
             {/* Extensión del menú de usuario para desktop */}
             {isUserMenuOpen && (
               <div
@@ -333,6 +381,7 @@ export const Navbar: React.FC = () => {
         {/* Mobile/Tablet Navbar */}
         <div className="lg:hidden relative">
           <div
+            ref={barraMobile}
             className={`
               bg-white shadow-lg px-4 py-3 w-full transition-all duration-200
               ${isMobileMenuOpen || isUserMenuOpen ? "rounded-b-none" : "rounded-b-lg"}
@@ -476,10 +525,7 @@ export const Navbar: React.FC = () => {
                 />
 
                 <button
-                  onClick={() => {
-                    logout(true)
-                    closeAllMenus()
-                  }}
+                  onClick={cerrarSesion}
                   className="w-full text-left px-3 py-3 text-sm text-red-600 hover:bg-red-50 flex items-center space-x-3 rounded-lg transition-colors duration-150"
                 >
                   <LogOut className="w-5 h-5" />

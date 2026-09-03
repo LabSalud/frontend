@@ -6,8 +6,9 @@ import { IdleWarningModal } from "@/components/idle-warning-modal"
 import useIdleTimeout from "@/hooks/use-idle-timeout"
 import { useSessionNotifications } from "@/hooks/use-session-notifications"
 import { AUTH_ENDPOINTS } from "@/config/api"
-import { formatApiError } from "@/lib/api-error"
+import { formatApiError, getErrorMessage } from "@/lib/api-error"
 import { getDeviceId } from "@/lib/device-id"
+import { cerrarSesionConAnimacion } from "@/lib/forma-de-la-navbar"
 import {
   msDeInactividadAhora,
   msHastaElProximoBorde,
@@ -164,6 +165,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [isInitialized, setIsInitialized] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  // El aviso de inactividad cerrando la sesión: primero se va el modal, después
+  // la pantalla. Ver `cerrarSesionDesdeElAviso`.
+  const [cerrandoSesion, setCerrandoSesion] = useState(false)
   const { success, error } = useToast()
   const initializationRef = useRef(false)
   const warningNotificationSentRef = useRef(false)
@@ -425,9 +429,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
         completeSession(data as AuthResponse, username)
         return { status: "success" }
-      } catch {
-        error("Error de conexión", {
-          description: "No se pudo conectar con el servidor",
+      } catch (fallo) {
+        // No se asume la red: un bug de la aplicación acá también cae en este
+        // `catch`, y decirle a alguien que revise su conexión cuando el
+        // problema es nuestro le hace perder el rato buscando donde no es.
+        error("No se pudo iniciar sesión", {
+          description: getErrorMessage(fallo, "No se pudo completar el inicio de sesión."),
         })
         return { status: "error" }
       } finally {
@@ -673,6 +680,25 @@ export function AuthProvider({ children }: AuthProviderProps) {
     ],
   )
 
+  /**
+   * "Cerrar sesión" desde el aviso de inactividad.
+   *
+   * Sale por el mismo camino que el botón de la navbar y no por `logout()` a
+   * secas, que era lo que hacía antes: la pantalla se vaciaba de golpe y sin
+   * avisar, y era el único lugar de la app donde cerrar sesión se sentía
+   * distinto. Lo primero que pasa es que el modal se cierra —de eso se ocupa
+   * `cerrandoSesion`, que le baja el `open`—, y recién después arranca la
+   * coreografía: si el modal siguiera en pantalla taparía justamente lo que la
+   * animación tiene para mostrar.
+   */
+  const cerrarSesionDesdeElAviso = () => {
+    setCerrandoSesion(true)
+    cerrarSesionConAnimacion(() => {
+      setCerrandoSesion(false)
+      logout(true)
+    })
+  }
+
   if (!isInitialized) {
     return null
   }
@@ -680,12 +706,20 @@ export function AuthProvider({ children }: AuthProviderProps) {
   return (
     <AuthContext.Provider value={value}>
       {children}
-      {isAuthenticated && showWarning && (
+      {/* EL MODAL SE MONTA SIEMPRE Y SE ABRE CON `isOpen`.
+          Antes se montaba y desmontaba con `showWarning`, así que la animación
+          de cierre no existía: el componente se iba del árbol de una y el
+          diálogo desaparecía de golpe, con telón y todo. Radix necesita que
+          siga montado para poder animar la salida, y para eso lo que cambia es
+          `open`, no si el componente está o no.
+
+          `isAuthenticated` sí sigue afuera: sin sesión no hay nada que avisar. */}
+      {isAuthenticated && (
         <IdleWarningModal
-          isOpen={true}
+          isOpen={showWarning && !cerrandoSesion}
           timeLeft={timeLeft}
           onExtend={extendSession}
-          onLogout={() => logout(false)}
+          onLogout={cerrarSesionDesdeElAviso}
           notificationsAvailable={notificationsSupported}
           notificationsEnabled={notificationsEnabled}
           onEnableNotifications={requestNotificationPermission}

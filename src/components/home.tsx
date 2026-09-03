@@ -83,8 +83,8 @@ interface DashboardResponse {
     }
   }
   // Dashboard rework
-  patients_daily_last_35?: Array<{ date: string; patients_served: number }>
-  cash_daily_last_35?: Array<{ date: string; collected: string }>
+  patients_daily_last_42?: Array<{ date: string; patients_served: number }>
+  cash_daily_last_42?: Array<{ date: string; collected: string }>
   cash_pending_total?: string
   top_urgent_analyses?: Array<{ code: string; name: string; protocols: number }>
   urgent_pending?: number
@@ -152,28 +152,32 @@ const toneClasses: Record<TrendTone, string> = {
 /**
  * Un día de la grilla del mes.
  *
- * `delMes` false = relleno, un día de un mes vecino que sólo está para
- * completar la fila. `dato` null con `delMes` true = día del mes que todavía
- * no pasó.
+ * `delMes` false = un día de un mes vecino, de los que completan la primera y
+ * la última fila. Trae su dato igual que cualquier otro: la fila es una semana
+ * y una semana se mira entera. `dato` null = día que todavía no pasó.
  */
 type CeldaDelMes<T> = { date: string; delMes: boolean; dato: T | null }
 
 /**
  * El mes partido en semanas de calendario, de lunes a domingo.
  *
- * Arma la grilla del mes: la primera semana es la que contiene
- * al día 1 y la última la que contiene al último día. Cada columna cae siempre
- * bajo el mismo día de la semana, que es lo que permite comparar un lunes
- * contra otro lunes de un vistazo.
+ * Arma la grilla del mes: la primera semana es la que contiene al día 1 y la
+ * última la que contiene al último día. Cada columna cae siempre bajo el mismo
+ * día de la semana, que es lo que permite comparar un lunes contra otro lunes
+ * de un vistazo.
  *
- * Todas las semanas salen de siete celdas, incluidas la primera y la última.
- * Si el mes empieza sábado, esa semana trae cinco celdas de relleno antes del
- * 1: sin ellas el sábado y el domingo se estirarían a media pantalla y esas
- * dos barras parecerían un récord.
+ * LOS DÍAS DEL MES VECINO SE DIBUJAN
+ * ==================================
+ * Las dos filas de las puntas se completan con días del mes anterior y del
+ * siguiente, y esos días traen sus números de verdad. Antes ocupaban la
+ * columna vacíos, así que la semana que abre el mes se leía como una semana
+ * flojísima cuando lo que pasaba era que la mitad estaba en el otro mes —y es
+ * justo la semana que se está trabajando cuando arranca uno nuevo—. Van en un
+ * gris más apagado: son parte de la semana, no del mes.
  *
- * Los días del mes sin dato quedan en `null`, no en cero: en el mes en curso
- * los días que todavía no pasaron no atendieron a nadie, pero eso no es lo
- * mismo que un día abierto sin pacientes, y pintarlos igual sería mentir.
+ * Los días sin dato quedan en `null`, no en cero: los que todavía no pasaron
+ * no atendieron a nadie, pero eso no es lo mismo que un día abierto sin
+ * pacientes, y pintarlos igual sería mentir.
  */
 function semanasDelMes<T extends { date: string }>(
   anio: number,
@@ -198,7 +202,7 @@ function semanasDelMes<T extends { date: string }>(
   while (cursor <= fin) {
     const fecha = iso(cursor)
     const delMes = cursor.getFullYear() === anio && cursor.getMonth() === mes - 1
-    actual.push({ date: fecha, delMes, dato: delMes ? porFecha.get(fecha) ?? null : null })
+    actual.push({ date: fecha, delMes, dato: porFecha.get(fecha) ?? null })
     if (actual.length === 7) {
       semanas.push(actual)
       actual = []
@@ -320,7 +324,7 @@ export default function Home() {
   // el último = la semana que cierra el mes.
   const patientsSeries = viendoOtroMes
     ? mesData?.pacientes_por_dia || []
-    : dashboard?.patients_daily_last_35 || []
+    : dashboard?.patients_daily_last_42 || []
   const weeks = semanasDelMes(mesVisible.anio, mesVisible.mes, patientsSeries)
   // Sólo cuenta si hoy cae en un día del mes que se está mirando: el relleno de
   // la primera semana puede traer días del mes anterior, y mirando septiembre
@@ -347,13 +351,13 @@ export default function Home() {
   // (`CarruselDeslizable`), así que el dedo, el trackpad y la rueda con Shift
   // hacen lo mismo sin que este componente se entere.
   const weekRangeLabel = (() => {
-    // El rango es el del mes, no el de la fila: si la semana arranca con
-    // relleno de otro mes, el rótulo igual empieza en el día 1.
-    const delMes = activeWeek.filter((c) => c.delMes)
-    if (delMes.length === 0) return ""
+    // El rango es el de la FILA, de lunes a domingo, no el pedazo que cae
+    // dentro del mes: la fila muestra la semana entera —con los días del mes
+    // vecino incluidos— y el rótulo tiene que decir lo que se está viendo.
+    if (activeWeek.length === 0) return ""
     const fmt = (iso: string) =>
       new Date(`${iso}T00:00:00`).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" })
-    return `${fmt(delMes[0].date)} – ${fmt(delMes[delMes.length - 1].date)}`
+    return `${fmt(activeWeek[0].date)} – ${fmt(activeWeek[activeWeek.length - 1].date)}`
   })()
   // El día abierto en el detalle de caja. null = ninguno.
   const [cajaDelDia, setCajaDelDia] = useState<string | null>(null)
@@ -387,7 +391,7 @@ export default function Home() {
   // Caja: cobrado por día, con las mismas semanas de calendario que pacientes.
   const cashSeries = viendoOtroMes
     ? mesData?.caja_por_dia || []
-    : dashboard?.cash_daily_last_35 || []
+    : dashboard?.cash_daily_last_42 || []
   // Mismo criterio que pacientes: las semanas del calendario del mes, no
   // ventanas de siete días. Los dos gráficos están uno al lado del otro y una
   // misma columna tiene que ser el mismo día en los dos.
@@ -401,11 +405,11 @@ export default function Home() {
   const goOlderCashWeek = () => setCashWeekIndex((p) => Math.max(0, p - 1))
   const goNewerCashWeek = () => setCashWeekIndex((p) => Math.min(Math.max(cashWeeks.length - 1, 0), p + 1))
   const cashWeekRangeLabel = (() => {
-    const delMes = (cashWeeks[cashWeekIndex] || []).filter((c) => c.delMes)
-    if (delMes.length === 0) return ""
+    const semana = cashWeeks[cashWeekIndex] || []
+    if (semana.length === 0) return ""
     const fmt = (iso: string) =>
       new Date(`${iso}T00:00:00`).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" })
-    return `${fmt(delMes[0].date)} – ${fmt(delMes[delMes.length - 1].date)}`
+    return `${fmt(semana[0].date)} – ${fmt(semana[semana.length - 1].date)}`
   })()
   const formatMoney = (v?: string) => {
     const n = Number.parseFloat(v || "0")
@@ -711,15 +715,13 @@ export default function Home() {
                           {week.map((celda) => {
                             const isToday = celda.date === todayKey
                             const value = celda.dato?.patients_served ?? null
-                            // Relleno de otro mes: ocupa la columna para que el
-                            // ancho de las barras no cambie entre semanas, pero
-                            // no se pinta.
-                            if (!celda.delMes) {
-                              return <div key={celda.date} className="min-w-0 flex-1" aria-hidden="true" />
-                            }
-                            // Día del mes que todavía no pasó: la columna queda
-                            // marcada pero vacía, para que la semana se lea
-                            // completa de lunes a domingo sin inventar un cero.
+                            // Día de un mes vecino: se dibuja, porque la fila
+                            // es una semana y la semana se mira entera, pero en
+                            // gris para que se vea que no es del mes.
+                            const deOtroMes = !celda.delMes
+                            // Día que todavía no pasó: la columna queda marcada
+                            // pero vacía, para que la semana se lea completa de
+                            // lunes a domingo sin inventar un cero.
                             if (value === null) {
                               return (
                                 <div key={celda.date} className="flex min-w-0 flex-1 flex-col items-center justify-end">
@@ -734,7 +736,11 @@ export default function Home() {
                             }
                             return (
                               <div key={celda.date} className="flex min-w-0 flex-1 flex-col items-center justify-end">
-                                <span className={`mb-1 text-xs font-semibold ${isToday ? "text-[#204983]" : "text-slate-700"}`}>
+                                <span
+                                  className={`mb-1 text-xs font-semibold ${
+                                    isToday ? "text-[#204983]" : deOtroMes ? "text-slate-400" : "text-slate-700"
+                                  }`}
+                                >
                                   {value}
                                 </span>
                                 <div
@@ -744,9 +750,13 @@ export default function Home() {
                                   style={{ height: "176px" }}
                                 >
                                   <div
-                                    className={`w-full rounded-t-md motion-safe:transition-all motion-safe:duration-500 ${isToday ? "bg-amber-500" : "bg-[#204983]"}`}
+                                    className={`w-full rounded-t-md motion-safe:transition-all motion-safe:duration-500 ${
+                                      isToday ? "bg-amber-500" : deOtroMes ? "bg-slate-300" : "bg-[#204983]"
+                                    }`}
                                     style={{ height: alto(Math.max(6, (value / maxForWeek) * 168)) }}
-                                    title={`${value} paciente${value === 1 ? "" : "s"}${isToday ? " (hoy)" : ""}`}
+                                    title={`${value} paciente${value === 1 ? "" : "s"}${
+                                      isToday ? " (hoy)" : deOtroMes ? " (del mes vecino)" : ""
+                                    }`}
                                   />
                                 </div>
                               </div>
@@ -759,15 +769,16 @@ export default function Home() {
                             const weekday = dateObj.toLocaleDateString("es-AR", { weekday: "short" }).replace(".", "")
                             const day = dateObj.toLocaleDateString("es-AR", { day: "2-digit" })
                             const isToday = celda.date === todayKey
-                            if (!celda.delMes) {
-                              return <div key={celda.date} className="min-w-0 flex-1" aria-hidden="true" />
-                            }
                             const futuro = celda.dato === null
                             return (
                               <div
                                 key={celda.date}
                                 className={`flex min-w-0 flex-1 flex-col items-center leading-tight ${
-                                  isToday ? "font-semibold text-[#204983]" : futuro ? "text-slate-300" : "text-slate-500"
+                                  isToday
+                                    ? "font-semibold text-[#204983]"
+                                    : futuro || !celda.delMes
+                                      ? "text-slate-300"
+                                      : "text-slate-500"
                                 }`}
                               >
                                 <span className="text-[10px] capitalize sm:text-[11px]">{isToday ? "Hoy" : weekday}</span>
@@ -880,11 +891,9 @@ export default function Home() {
                       <div key={wIdx} className="flex h-40 w-full shrink-0 snap-center flex-col px-[3px] sm:px-1.5">
                         <div className="flex flex-1 items-end gap-1.5 sm:gap-3">
                           {week.map((celda) => {
-                            // Relleno de otro mes: ocupa la columna y no se pinta,
-                            // así el ancho de barra no cambia entre semanas.
-                            if (!celda.delMes) {
-                              return <div key={celda.date} className="min-w-0 flex-1" aria-hidden="true" />
-                            }
+                            // Igual que en pacientes: los días del mes vecino
+                            // que completan la semana se dibujan, apagados.
+                            const deOtroMes = !celda.delMes
                             const isToday = celda.date === todayKey
                             // Día que todavía no pasó: no hay caja que abrir, así
                             // que no es un botón. Queda la columna marcada.
@@ -911,10 +920,14 @@ export default function Home() {
                                 <div
                                   className={`flex w-full items-end rounded-md transition-colors ${isToday ? "bg-amber-100/70 ring-1 ring-amber-300" : "bg-slate-100/80"} group-hover:bg-slate-200/90`}
                                   style={{ height: "104px" }}
-                                  title={`${formatMoney(celda.dato.collected)}${isToday ? " (hoy)" : ""} — tocá para ver el detalle`}
+                                  title={`${formatMoney(celda.dato.collected)}${
+                                    isToday ? " (hoy)" : deOtroMes ? " (del mes vecino)" : ""
+                                  } — tocá para ver el detalle`}
                                 >
                                   <div
-                                    className={`w-full rounded-t-md motion-safe:transition-all motion-safe:duration-500 ${isToday ? "bg-amber-500" : "bg-emerald-500"} group-hover:brightness-110`}
+                                    className={`w-full rounded-t-md motion-safe:transition-all motion-safe:duration-500 ${
+                                      isToday ? "bg-amber-500" : deOtroMes ? "bg-emerald-200" : "bg-emerald-500"
+                                    } group-hover:brightness-110`}
                                     style={{ height: alto(Math.max(4, (value / maxCash) * 100)) }}
                                   />
                                 </div>
@@ -924,9 +937,6 @@ export default function Home() {
                         </div>
                         <div className="mt-2 flex gap-1.5 sm:gap-3">
                           {week.map((celda) => {
-                            if (!celda.delMes) {
-                              return <div key={celda.date} className="min-w-0 flex-1" aria-hidden="true" />
-                            }
                             const dateObj = new Date(`${celda.date}T00:00:00`)
                             const weekday = dateObj.toLocaleDateString("es-AR", { weekday: "short" }).replace(".", "")
                             const day = dateObj.toLocaleDateString("es-AR", { day: "2-digit" })
@@ -936,7 +946,11 @@ export default function Home() {
                               <div
                                 key={celda.date}
                                 className={`flex min-w-0 flex-1 flex-col items-center leading-tight ${
-                                  isToday ? "font-semibold text-emerald-700" : futuro ? "text-slate-300" : "text-slate-500"
+                                  isToday
+                                    ? "font-semibold text-emerald-700"
+                                    : futuro || !celda.delMes
+                                      ? "text-slate-300"
+                                      : "text-slate-500"
                                 }`}
                               >
                                 <span className="text-[10px] capitalize sm:text-[11px]">{isToday ? "Hoy" : weekday}</span>

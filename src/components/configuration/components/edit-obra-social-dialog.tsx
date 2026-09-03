@@ -230,7 +230,7 @@ export function EditObraSocialDialog({ open, onOpenChange, obraSocial, onSuccess
     } catch (error) {
       console.error("Error updating obra social:", error)
       toast.error("Error al actualizar la obra social", {
-        description: getErrorMessage(error, "Error de conexión con el servidor"),
+        description: getErrorMessage(error, "No se pudo completar la operación."),
         duration: TOAST_DURATION,
       })
     } finally {

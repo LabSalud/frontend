@@ -8,7 +8,7 @@ import { LockOpen, RefreshCw, ShieldCheck } from "lucide-react"
 import { useApi } from "@/hooks/use-api"
 import { useApiQuery } from "@/hooks/use-api-query"
 import { SUPERADMIN_ENDPOINTS } from "@/config/api"
-import { readApiError } from "@/lib/api-error"
+import { getErrorMessage, readApiError } from "@/lib/api-error"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -96,7 +96,7 @@ export function SecurityBlocksPanel({ onManualRefresh }: SecurityBlocksPanelProp
       })
       await queryClient.invalidateQueries({ queryKey: ["superadmin"] })
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "No se pudo desbloquear")
+      toast.error(getErrorMessage(error, "No se pudo desbloquear"))
     } finally {
       setReleasingId(null)
       setPendingRelease(null)

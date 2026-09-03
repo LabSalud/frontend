@@ -7,7 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { CONTINGENCY_ENDPOINTS } from "@/config/api"
 import { useApi } from "@/hooks/use-api"
 import { useApiQuery } from "@/hooks/use-api-query"
-import { readApiError } from "@/lib/api-error"
+import { getErrorMessage, readApiError } from "@/lib/api-error"
 
 /**
  * Lo que quedó de una caída y necesita que alguien decida.
@@ -86,7 +86,7 @@ export default function PendientesDelServidor() {
       )
       void refrescar()
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "No se pudo resolver")
+      toast.error(getErrorMessage(error, "No se pudo resolver el pendiente"))
     } finally {
       setOperando(null)
     }

@@ -479,7 +479,7 @@ export default function IngresoPage() {
       })
     } catch (error) {
       toast.error("No se pudo deshacer el protocolo", {
-        description: getErrorMessage(error, "Error de conexión con el servidor"),
+        description: getErrorMessage(error, "No se pudo completar la operación."),
       })
     } finally {
       setIsRollingBack(false)
@@ -760,7 +760,7 @@ export default function IngresoPage() {
       handleReset()
     } catch (error) {
       console.error("Error creating protocol:", error)
-      toast.error("Error al crear el protocolo", { description: getErrorMessage(error, "Error de conexión con el servidor") })
+      toast.error("Error al crear el protocolo", { description: getErrorMessage(error, "No se pudo completar la operación.") })
       createProgress.finish()
     }
   }

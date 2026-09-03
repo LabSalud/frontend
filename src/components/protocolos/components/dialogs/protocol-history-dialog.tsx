@@ -68,7 +68,7 @@ export function ProtocolHistoryDialog({
         } else {
           const errorData = await response.json().catch(() => ({}))
           toast.error("No se pudo cargar el timeline", {
-            description: errorData.detail || "Intenta nuevamente.",
+            description: errorData.detail || "Volvé a intentar.",
             duration: TOAST_DURATION,
           })
         }

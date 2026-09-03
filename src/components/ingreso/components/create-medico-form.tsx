@@ -12,7 +12,7 @@ import { useApi } from "../../../hooks/use-api"
 import { toast } from "sonner"
 import type { Medico } from "../../../types"
 import { MEDICAL_ENDPOINTS } from "@/config/api"
-import { formatApiError } from "@/lib/api-error"
+import { formatApiError, getErrorMessage } from "@/lib/api-error"
 
 interface CreateMedicoFormProps {
   onMedicoCreated: (medico: Medico) => void
@@ -42,7 +42,7 @@ export function CreateMedicoForm({ onMedicoCreated, onCancel }: CreateMedicoForm
 
   const handleCreateMedico = async () => {
     if (!formData.first_name || !formData.last_name || !formData.license) {
-      toast.error("Complete los campos obligatorios")
+      toast.error("Completá los campos obligatorios")
       return
     }
 
@@ -69,7 +69,7 @@ export function CreateMedicoForm({ onMedicoCreated, onCancel }: CreateMedicoForm
       }
     } catch (error) {
       console.error("Error creating medico:", error)
-      toast.error("Error al crear el médico", { description: "Error de conexión con el servidor" })
+      toast.error("No se pudo crear el médico", { description: getErrorMessage(error) })
     } finally {
       setIsCreating(false)
     }

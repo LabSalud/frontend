@@ -51,7 +51,87 @@ export const formatApiError = (errorData: unknown, fallback = "Ha ocurrido un er
   return messages.length > 0 ? Array.from(new Set(messages)).join("\n") : fallback
 }
 
+/**
+ * TRES COSAS DISTINTAS QUE LA PANTALLA LLAMA "ERROR"
+ * ==================================================
+ * 1. **El negocio dijo que no.** El protocolo ya está facturado, el DNI ya
+ *    existe, falta la preautorización. El mensaje lo escribió el backend
+ *    pensando en quien lo va a leer, así que ese mensaje es el que va, tal cual.
+ * 2. **No se pudo hablar con el servidor.** Se cayó la red, el server no
+ *    responde. No hay nada mal en lo que la persona cargó, y lo que tiene que
+ *    saber es que puede volver a intentar.
+ * 3. **Se rompió la aplicación.** Un bug nuestro: un `undefined` donde iba un
+ *    objeto, un JSON que no era JSON. El navegador tira un `TypeError` y su
+ *    texto —"undefined is not an object (evaluating 'x.y')"— terminaba impreso
+ *    en el toast, en inglés y sin nada que la persona pueda hacer al respecto.
+ *
+ * Los tres salían mezclados: `getErrorMessage` devolvía el `.message` de
+ * cualquier excepción, así que un corte de red se leía igual que una regla del
+ * laboratorio, y un bug nuestro se leía como si el usuario hubiera cargado algo
+ * mal. Peor todavía: media docena de pantallas ponían "Error de conexión con el
+ * servidor" a mano en el `catch`, o sea que le echaban la culpa a la red
+ * pasara lo que pasara.
+ *
+ * Acá se separan. Lo que gana el llamador es que puede seguir escribiendo
+ * `getErrorMessage(error, "No se pudo guardar")` sin pensar: si fue un corte de
+ * red o un bug nuestro, el texto lo pone esta capa.
+ */
+
+/**
+ * Cómo dice cada navegador que no pudo salir a la red. `fetch` rechaza con un
+ * `TypeError` y el texto cambia entre Chrome, Firefox y Safari.
+ */
+const MENSAJES_DE_RED = [
+  "failed to fetch",
+  "networkerror",
+  "network request failed",
+  "load failed",
+  "the internet connection appears to be offline",
+]
+
+/** El servidor no contestó: se cayó la red o está caído él. */
+export const esFalloDeConexion = (error: unknown): boolean =>
+  error instanceof TypeError &&
+  MENSAJES_DE_RED.some((texto) => error.message.toLowerCase().includes(texto))
+
+/** La operación se canceló (se desmontó la pantalla, se abortó el pedido). */
+export const esCancelacion = (error: unknown): boolean =>
+  Boolean(error) && typeof error === "object" && (error as { name?: string }).name === "AbortError"
+
+/**
+ * Un bug de la aplicación. Estos tipos de error los tira el motor de
+ * JavaScript, nunca el backend ni una regla del laboratorio: si llegó uno acá,
+ * el problema es del código y no de lo que la persona cargó.
+ */
+const ERRORES_DEL_PROGRAMA = [TypeError, ReferenceError, RangeError, SyntaxError, EvalError, URIError]
+
+export const esErrorDeLaAplicacion = (error: unknown): boolean =>
+  !esFalloDeConexion(error) && ERRORES_DEL_PROGRAMA.some((tipo) => error instanceof tipo)
+
+export const MENSAJE_SIN_CONEXION =
+  "No se pudo conectar con el servidor. Revisá la conexión y volvé a intentar."
+
+export const MENSAJE_DE_LA_APLICACION =
+  "Se rompió algo de la aplicación, no lo que cargaste. Volvé a intentar; si sigue pasando, avisale a sistemas."
+
+export const MENSAJE_CANCELADO = "La operación se canceló antes de terminar."
+
+/**
+ * El texto que le va a aparecer a la persona cuando algo falló en un `catch`.
+ *
+ * El `fallback` sólo se usa para el caso 1 —un error con mensaje vacío—; los
+ * otros dos tienen su propio texto y le ganan a lo que pase el llamador, que
+ * es justamente lo que evita las pantallas que decían "revisá tu conexión"
+ * cuando lo que había fallado era otra cosa.
+ */
 export const getErrorMessage = (error: unknown, fallback = "Ha ocurrido un error inesperado"): string => {
+  if (esCancelacion(error)) return MENSAJE_CANCELADO
+  if (esFalloDeConexion(error)) return MENSAJE_SIN_CONEXION
+  if (esErrorDeLaAplicacion(error)) {
+    // A la consola sí va entero: es lo que necesita quien lo tenga que arreglar.
+    console.error("Error de la aplicación:", error)
+    return MENSAJE_DE_LA_APLICACION
+  }
   if (error instanceof Error) return formatApiError(error.message, error.message || fallback)
   return formatApiError(error, fallback)
 }

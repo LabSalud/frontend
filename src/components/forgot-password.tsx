@@ -50,12 +50,12 @@ export default function ForgotPassword() {
         if (response.status === 404) {
           setError("No se encontró una cuenta con este email")
         } else {
-          setError(formatApiError(errorData, "Error al procesar la solicitud. Intenta nuevamente."))
+          setError(formatApiError(errorData, "No se pudo procesar el pedido. Volvé a intentar."))
         }
       }
     } catch (err) {
       console.error("[v0] Password reset error:", err)
-      setError(getErrorMessage(err, "Error de conexión. Por favor, verifica tu conexión e intenta nuevamente."))
+      setError(getErrorMessage(err, "No se pudo completar la operación."))
     } finally {
       setIsSubmitting(false)
     }

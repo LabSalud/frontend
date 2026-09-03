@@ -14,7 +14,7 @@ import { useApi } from "../../../hooks/use-api"
 import { toast } from "sonner"
 import type { Insurance } from "../../../types"
 import { MEDICAL_ENDPOINTS } from "@/config/api"
-import { formatApiError } from "@/lib/api-error"
+import { formatApiError, getErrorMessage } from "@/lib/api-error"
 import { NbuSelect } from "@/components/configuration/components/nbu-select"
 import { BillingEntitySelect } from "@/components/configuration/components/billing-entity-select"
 
@@ -52,12 +52,12 @@ export function CreateObraSocialForm({ onObraSocialCreated, onCancel }: CreateOb
 
   const handleCreateObraSocial = async () => {
     if (!formData.name) {
-      toast.error("Complete el nombre de la obra social")
+      toast.error("Completá el nombre de la obra social")
       return
     }
 
     if (!formData.ub_value || Number.parseFloat(formData.ub_value) <= 0) {
-      toast.error("Ingrese un valor de UB válido")
+      toast.error("Ingresá un valor de UB válido")
       return
     }
 
@@ -97,7 +97,7 @@ export function CreateObraSocialForm({ onObraSocialCreated, onCancel }: CreateOb
       }
     } catch (error) {
       console.error("Error creating obra social:", error)
-      toast.error("Error al crear la obra social", { description: "Error de conexión con el servidor" })
+      toast.error("No se pudo crear la obra social", { description: getErrorMessage(error) })
     } finally {
       setIsCreating(false)
     }

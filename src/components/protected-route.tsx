@@ -25,16 +25,12 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   const { user, isLoading, isInitialized, hasPermission } = useAuth()
   const location = useLocation()
 
-  // Mostrar loading mientras se inicializa la autenticación
+  // Mientras se resuelve la sesión no se dibuja NADA. Antes acá había un
+  // cartel de "Verificando sesión...", y era una pantalla de por medio entre
+  // la app y el login: para cuando el usuario alcanzaba a leerla ya no estaba.
+  // Sin ella, o entra o ve el formulario, sin escala intermedia.
   if (!isInitialized || isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Verificando sesión...</p>
-        </div>
-      </div>
-    )
+    return null
   }
 
   // Solo redirigir al login si ya terminó la inicialización y no hay usuario.

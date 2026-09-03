@@ -6,6 +6,7 @@ import { User, LogOut } from "lucide-react"
 import useAuth from "@/contexts/auth-context"
 import { Link } from "react-router-dom"
 import { getVisibleUserMenuItems } from "@/config/user-menu-items"
+import { cerrarSesionConAnimacion } from "@/lib/forma-de-la-navbar"
 import { SessionNotificationToggle } from "@/components/session-notification-toggle"
 
 interface UserDropdownProps {
@@ -48,8 +49,11 @@ export const UserDropdown: React.FC<UserDropdownProps> = ({ isMobile = false, on
   }
 
   const handleLogout = () => {
-    logout(true)
+    // El menú se cierra primero —plegándose hacia arriba, con su propia
+    // transición— y recién cuando la barra terminó de convertirse en el panel
+    // del login se cierra la sesión de verdad. Ver `forma-de-la-navbar.ts`.
     setIsOpen(false)
+    cerrarSesionConAnimacion(() => logout(true))
   }
 
   if (!user) return null

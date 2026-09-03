@@ -6,6 +6,7 @@ import { Outlet, useLocation } from "react-router-dom"
 import { CambioDeContrasenaObligatorio } from "./cambio-de-contrasena-obligatorio"
 import useAuth from "@/contexts/auth-context"
 import { ENTRADA_DE_PANTALLA } from "@/lib/entrada"
+import { useCierreDeSesion } from "@/hooks/use-cierre-de-sesion"
 
 interface LayoutProps {
   children?: React.ReactNode
@@ -14,6 +15,10 @@ interface LayoutProps {
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const { user } = useAuth()
   const { pathname } = useLocation()
+  // Cerrando sesión: la navbar se va por arriba y esto manda el contenido para
+  // los costados. Cuando la pantalla queda limpia recién ahí se cierra la
+  // sesión y aparece el login. Ver `cerrarSesionConAnimacion`.
+  const cerrandoSesion = useCierreDeSesion()
 
   // Con la contraseña prestada, el servidor contesta 403 a todo lo que no sea
   // el propio perfil. La página NO se monta: si se montara detrás del diálogo,
@@ -58,8 +63,32 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
             mismo y se queda montado: sin la key, la pantalla nueva aparecería
             de golpe. Con ella, cada URL es una pantalla nueva, se anima, y de
             paso ninguna se queda con estado de la anterior. */}
+        {/* LA SALIDA AL CERRAR SESIÓN.
+            Los bloques de la pantalla se van para los costados, alternados:
+            los impares por la izquierda y los pares por la derecha. Se aplica
+            a los hijos del contenedor raíz de la página —`[&>*>*]`, o sea un
+            nivel más adentro que este div— porque ese es el nivel donde una
+            pantalla tiene sus tarjetas, su encabezado y su tabla; el contenedor
+            de más afuera es uno solo y se iría entero para un lado.
+
+            Encima va el fundido del contenedor, que es el que garantiza que la
+            pantalla quede limpia aunque una página tenga otra forma adentro:
+            el desplazamiento es el efecto, el fundido es la garantía.
+
+            El `overflow-x-hidden` del div de más afuera es lo que evita que
+            todo esto agregue scroll horizontal mientras dura. */}
         <main className="w-full px-4 pt-4 lg:px-8">
-          <div key={pathname} className={ENTRADA_DE_PANTALLA}>
+          <div
+            key={pathname}
+            className={`${ENTRADA_DE_PANTALLA} ${
+              cerrandoSesion
+                ? "pointer-events-none opacity-0 transition-opacity duration-500 delay-200 ease-in" +
+                  " [&>*>*]:transition-transform [&>*>*]:duration-500 [&>*>*]:delay-200 [&>*>*]:ease-in" +
+                  " [&>*>*:nth-child(odd)]:-translate-x-[110vw]" +
+                  " [&>*>*:nth-child(even)]:translate-x-[110vw]"
+                : ""
+            }`}
+          >
             {children || <Outlet />}
           </div>
         </main>

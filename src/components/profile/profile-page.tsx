@@ -16,7 +16,7 @@ import { User, Mail, Lock, Camera, AlertCircle, CheckCircle, Eye, EyeOff, Clock,
 import { toast } from "sonner"
 import { USER_ENDPOINTS, TOAST_DURATION } from "@/config/api"
 import type { ActiveTempPermission } from "@/types"
-import { formatApiError } from "@/lib/api-error"
+import { formatApiError, getErrorMessage } from "@/lib/api-error"
 import { LAB_TIME_ZONE } from "@/lib/format-utils"
 import { DEFAULT_IDLE_MINUTES, type TramoDeInactividad } from "@/lib/idle-config"
 import { TramosDeInactividad } from "@/components/profile/components/tramos-de-inactividad"
@@ -238,7 +238,7 @@ export default function ProfilePage() {
       }
     } catch (error) {
       console.error("Error al actualizar perfil:", error)
-      toast.error("Error de conexión. Intenta nuevamente.", {
+      toast.error(getErrorMessage(error, "No se pudo guardar el perfil."), {
         duration: TOAST_DURATION,
       })
     } finally {

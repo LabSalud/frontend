@@ -259,7 +259,21 @@ function App() {
               </Suspense>
               </LimiteDeError>
             </Router>
-            <Toaster position="bottom-right" richColors />
+            {/* Los toasts se sacan de encima deslizándolos: hacia la derecha
+                —que es el borde más cercano, están abajo a la derecha— o hacia
+                abajo. Va explícito y no por el default de sonner para que se
+                lea acá qué gesto los cierra, y porque de la posición depende
+                cuál es el gesto natural: si algún día los toasts se mudan de
+                esquina, esta línea es la que hay que mover con ellos.
+
+                `closeButton` es el mismo gesto para quien no arrastra: en una
+                pantalla táctil el deslizamiento sale solo, con mouse no tanto. */}
+            <Toaster
+              position="bottom-right"
+              richColors
+              closeButton
+              swipeDirections={["right", "bottom"]}
+            />
           </div>
         </div>
       </AuthProvider>

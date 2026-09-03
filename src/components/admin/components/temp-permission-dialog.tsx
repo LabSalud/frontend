@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
 import type { ApiRequestOptions } from "@/hooks/use-api"
-import { formatApiError } from "@/lib/api-error"
+import { formatApiError, getErrorMessage } from "@/lib/api-error"
 import { Shield, ShieldX } from "lucide-react"
 
 const extractErrorMessage = (errorData: unknown): string => formatApiError(errorData, "Error desconocido")
@@ -160,7 +160,7 @@ export function TempPermissionDialog({
       }
     } catch (err) {
       console.error("Error asignando permiso temporal:", err)
-      showError("Error de red al asignar permiso")
+      showError("No se pudo asignar el permiso", { description: getErrorMessage(err) })
     } finally {
       setIsSubmitting(false)
     }
@@ -168,7 +168,7 @@ export function TempPermissionDialog({
 
   const handleRevoke = async () => {
     if (!selectedTempPermId) {
-      showError("Por favor selecciona un permiso temporal")
+      showError("Elegí un permiso temporal")
       return
     }
 
@@ -188,7 +188,7 @@ export function TempPermissionDialog({
       }
     } catch (err) {
       console.error("Error revocando permiso temporal:", err)
-      showError("Error de red al revocar permiso")
+      showError("No se pudo revocar el permiso", { description: getErrorMessage(err) })
     } finally {
       setIsSubmitting(false)
     }

@@ -508,12 +508,20 @@ export function ProtocolDetailView(props: ProtocolDetailViewProps) {
                     >
                       {d.code}
                     </span>
-                    {/* `min-w-0`: sin eso un item de flex no achica por debajo de
-                        su contenido y no corta nunca. En el teléfono el nombre
-                        entra en dos renglones antes de cortar —es el dato que se
-                        vino a leer—; en escritorio sigue siendo uno solo, que es
-                        lo que mantiene la lista pareja. */}
-                    <span className="min-w-0 flex-1 text-sm font-medium text-gray-800 max-sm:line-clamp-2 sm:flex-none sm:truncate">
+                    {/* EL NOMBRE LARGO SE PARTE, NO DESBORDA.
+                        `min-w-0` es lo que deja que achique: sin eso un item de
+                        flex nunca baja del ancho de su contenido. En escritorio
+                        esto era `sm:flex-none sm:truncate`, que es la
+                        combinación que no corta nada —`flex-none` no achica, y
+                        sin ancho al que achicar el `truncate` no tiene dónde
+                        poner los puntos suspensivos—, así que un análisis de
+                        nombre largo empujaba la fila y se salía de la tarjeta.
+                        Ahora se comporta igual que en el teléfono: dos
+                        renglones y recién ahí corta. */}
+                    <span
+                      title={d.name}
+                      className="min-w-0 flex-1 text-sm font-medium text-gray-800 line-clamp-2"
+                    >
                       {d.name}
                     </span>
                     <span className="hidden shrink-0 items-center gap-2.5 sm:flex">{etiquetas}</span>

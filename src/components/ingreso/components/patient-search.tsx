@@ -67,12 +67,12 @@ export function PatientSearch({ onPatientFound, onPatientNotFound, onReset, onCr
 
   const handleSearch = async () => {
     if (!searchSex) {
-      toast.error("Seleccione el sexo", { description: "Elegí M o F antes de buscar (la identidad es DNI + sexo)." })
+      toast.error("Elegí el sexo", { description: "Elegí M o F antes de buscar (la identidad es DNI + sexo)." })
       maleBtnRef.current?.focus()
       return
     }
     if (!searchDni.trim()) {
-      toast.error("Ingrese un DNI para buscar")
+      toast.error("Ingresá un DNI para buscar")
       return
     }
     if (!isValidDni(searchDni)) {
@@ -96,7 +96,7 @@ export function PatientSearch({ onPatientFound, onPatientNotFound, onReset, onCr
         } else {
           setFound(false)
           onPatientNotFound(dniDigits, searchSex)
-          toast.info("Paciente no encontrado. Puede crear uno nuevo.")
+          toast.info("No hay ningún paciente con ese DNI. Podés crearlo.")
         }
       } else {
         const errorData = await response.json()
@@ -108,7 +108,7 @@ export function PatientSearch({ onPatientFound, onPatientNotFound, onReset, onCr
     } catch (error) {
       console.error("Error searching patient:", error)
       toast.error("Error al buscar paciente", {
-        description: getErrorMessage(error, "Error de conexión con el servidor"),
+        description: getErrorMessage(error, "No se pudo completar la operación."),
       })
     } finally {
       setIsSearching(false)

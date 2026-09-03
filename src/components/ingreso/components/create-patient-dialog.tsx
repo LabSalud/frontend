@@ -114,7 +114,7 @@ export function CreatePatientDialog({ initialDni = "", onPatientCreated, onCance
       const fieldsToValidate: ValidatedField[] = ["dni", "first_name", "last_name", "birth_date", "email"]
       setTouched((prev) => ({ ...prev, ...Object.fromEntries(fieldsToValidate.map((field) => [field, true])) }))
       toast.error("Formulario inválido", {
-        description: !formData.sex ? "Seleccione el sexo del paciente." : "Complete los campos obligatorios.",
+        description: !formData.sex ? "Elegí el sexo del paciente." : "Completá los campos obligatorios.",
       })
       return
     }
@@ -123,7 +123,7 @@ export function CreatePatientDialog({ initialDni = "", onPatientCreated, onCance
     setTouched((prev) => ({ ...prev, ...Object.fromEntries(fieldsToValidate.map((field) => [field, true])) }))
     if (!fieldsToValidate.every((field) => getFieldValidation(field).isValid)) {
       toast.error("Formulario inválido", {
-        description: "Por favor, corrige los errores antes de continuar.",
+        description: "Corregí los errores marcados antes de continuar.",
       })
       return
     }
@@ -162,7 +162,7 @@ export function CreatePatientDialog({ initialDni = "", onPatientCreated, onCance
     } catch (error) {
       console.error("Error creating patient:", error)
       toast.error("Error al crear paciente", {
-        description: getErrorMessage(error, "Error de conexión con el servidor"),
+        description: getErrorMessage(error, "No se pudo completar la operación."),
       })
     } finally {
       setIsCreating(false)

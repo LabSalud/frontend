@@ -10,10 +10,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
 import { toast } from "sonner"
+import { showApiErrorToast } from "@/lib/error-toast"
 import { AlertCircle, CheckCircle, UserCog } from "lucide-react"
 import { PATIENT_ENDPOINTS, TOAST_DURATION } from "@/config/api"
 import type { ApiRequestOptions } from "@/hooks/use-api"
-import { formatApiError, getErrorMessage } from "@/lib/api-error"
+import { getErrorMessage } from "@/lib/api-error"
 import { formatDniForDisplay, normalizeDni } from "@/lib/dni"
 import type { Patient } from "@/types"
 
@@ -282,15 +283,20 @@ export function CreatePatientDialog({ isOpen, onClose, addPatient, apiRequest }:
 
       if (!isFormValid() || !formData.sex) {
         toast.error("Formulario inválido", {
-          description: "Por favor, corrige los errores antes de continuar.",
+          description: "Corregí los errores marcados antes de continuar.",
           duration: TOAST_DURATION,
         })
         return
       }
     }
 
+    // El toast de carga se abre ANTES del try y se cierra en el `finally`: los
+    // toasts de carga de sonner no vencen solos, así que si el pedido tiraba una
+    // excepción el "Creando paciente..." quedaba girando en pantalla para
+    // siempre, tapando el error que sí decía qué pasó.
+    const loadingId = toast.loading(isAnonymous ? "Creando paciente anónimo..." : "Creando paciente...")
+
     try {
-      const loadingId = toast.loading(isAnonymous ? "Creando paciente anónimo..." : "Creando paciente...")
 
       // Para anónimo: enviamos lo disponible. El backend desactiva is_anonymous
       // automáticamente si llegan los datos requeridos (dni, last_name, birth_date, sex).
@@ -328,7 +334,6 @@ export function CreatePatientDialog({ isOpen, onClose, addPatient, apiRequest }:
         body: dataToSend,
       })
 
-      toast.dismiss(loadingId)
 
       if (response.ok) {
         const newPatient = await response.json()
@@ -340,18 +345,21 @@ export function CreatePatientDialog({ isOpen, onClose, addPatient, apiRequest }:
         resetForm()
         onClose()
       } else {
-        const errorData = await response.json()
-        toast.error("Error al crear paciente", {
-          description: formatApiError(errorData, "Ha ocurrido un error al crear el paciente."),
-          duration: TOAST_DURATION,
-        })
+        // El toast lo arma `showApiErrorToast`, que mira el código de estado:
+        // un 400 es una regla del laboratorio y se muestra el mensaje del
+        // backend; un 403 es un permiso que falta; un 500 es un problema del
+        // servidor y se dice como tal, para que nadie se quede buscando qué
+        // cargó mal.
+        await showApiErrorToast(response, "No se pudo crear el paciente")
       }
     } catch (error) {
       console.error("Error al crear paciente:", error)
-      toast.error("Error", {
+      toast.error("No se pudo crear el paciente", {
         description: getErrorMessage(error, "Ha ocurrido un error al crear el paciente."),
         duration: TOAST_DURATION,
       })
+    } finally {
+      toast.dismiss(loadingId)
     }
   }
 

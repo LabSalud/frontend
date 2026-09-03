@@ -35,7 +35,7 @@ import {
 import { useApi } from "@/hooks/use-api"
 import { useApiQuery } from "@/hooks/use-api-query"
 import { CONTINGENCY_ENDPOINTS } from "@/config/api"
-import { readApiError } from "@/lib/api-error"
+import { getErrorMessage, readApiError } from "@/lib/api-error"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -181,7 +181,7 @@ export default function ContingenciaPage() {
       toast.success(`Operación #${operacion.id}`, { description: mensajes[accion] })
       await refrescar()
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "No se pudo actualizar")
+      toast.error(getErrorMessage(error, "No se pudo actualizar la operación"))
     } finally {
       setOperando(null)
     }

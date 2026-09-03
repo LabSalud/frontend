@@ -7,7 +7,7 @@ import { useAuth } from "@/contexts/auth-context"
 import { RESULTS_ENDPOINTS } from "@/config/api"
 import { PERMISSIONS, PERMISSION_MESSAGES } from "@/config/permissions"
 import { applyFormulaCalculations, formulasParaGuardar } from "@/lib/result-formulas"
-import { formatApiError } from "@/lib/api-error"
+import { formatApiError, getErrorMessage } from "@/lib/api-error"
 import type { PreviousResult, Result, SubmoduloEvaluado } from "@/types"
 
 export interface ResultValue {
@@ -208,7 +208,7 @@ export function useProtocolResults(protocolId: number) {
         ),
       })
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Error al cargar los resultados")
+      setError(getErrorMessage(e, "No se pudieron cargar los resultados"))
     } finally {
       setLoading(false)
     }
@@ -274,7 +274,7 @@ export function useProtocolResults(protocolId: number) {
         void guardarFormulasCalculadas(siguientes, valores)
         return true
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Error al guardar el resultado")
+        toast.error(getErrorMessage(e, "No se pudo guardar el resultado"))
         return false
       } finally {
         setSaving((prev) => ({ ...prev, [resultId]: false }))
@@ -319,7 +319,7 @@ export function useProtocolResults(protocolId: number) {
         setValues((prev) => applyFormulaCalculations(siguientes, prev))
         return true
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : "No se pudo cambiar el modo de carga")
+        toast.error(getErrorMessage(e, "No se pudo cambiar el modo de carga"))
         return false
       } finally {
         setSaving((prev) => ({ ...prev, [resultId]: false }))
@@ -362,7 +362,7 @@ export function useProtocolResults(protocolId: number) {
         }
         return true
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : "No se pudo borrar el valor")
+        toast.error(getErrorMessage(e, "No se pudo borrar el valor"))
         return false
       } finally {
         setSaving((prev) => ({ ...prev, [resultId]: false }))
@@ -392,7 +392,7 @@ export function useProtocolResults(protocolId: number) {
         toast.success(isValid ? "Resultado validado" : "Resultado rechazado")
         return true
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Error al validar el resultado")
+        toast.error(getErrorMessage(e, "No se pudo validar el resultado"))
         return false
       } finally {
         setSaving((prev) => ({ ...prev, [resultId]: false }))
@@ -442,7 +442,7 @@ export function useProtocolResults(protocolId: number) {
 
         return data.errors ?? []
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Error al validar los resultados")
+        toast.error(getErrorMessage(e, "No se pudieron validar los resultados"))
         // La tanda entera falló: ninguno se firmó.
         return resultIds.map((id) => ({ id, detail: "No se pudo validar" }))
       } finally {

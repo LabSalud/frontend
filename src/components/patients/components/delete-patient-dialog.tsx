@@ -12,9 +12,10 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { toast } from "sonner"
+import { showApiErrorToast } from "@/lib/error-toast"
 import { PATIENT_ENDPOINTS, TOAST_DURATION } from "@/config/api"
 import type { ApiRequestOptions } from "@/hooks/use-api"
-import { formatApiError, getErrorMessage } from "@/lib/api-error"
+import { getErrorMessage } from "@/lib/api-error"
 
 interface DeletePatientDialogProps {
   isOpen: boolean
@@ -35,14 +36,16 @@ export default function DeletePatientDialog({
   const handleDeletePatient = async () => {
     if (!patient) return
 
+    // Ver el comentario del alta: el toast de carga se cierra en el `finally`
+    // o queda girando para siempre cuando el pedido tira.
+    const loadingId = toast.loading("Eliminando paciente...")
+
     try {
-      const loadingId = toast.loading("Eliminando paciente...")
 
       const response = await apiRequest(PATIENT_ENDPOINTS.PATIENT_DETAIL(patient.id), {
         method: "DELETE",
       })
 
-      toast.dismiss(loadingId)
 
       if (response.ok) {
         setPatients(patient)
@@ -52,18 +55,19 @@ export default function DeletePatientDialog({
         })
         onClose()
       } else {
-        const errorData = await response.json()
-        toast.error("Error al eliminar paciente", {
-          description: formatApiError(errorData, "Ha ocurrido un error al eliminar el paciente."),
-          duration: TOAST_DURATION,
-        })
+        // Ver el alta: el toast sale del código de estado. Acá importa el 409,
+        // que es el caso real —el paciente tiene protocolos y no se puede
+        // borrar— y no es lo mismo que un error del servidor.
+        await showApiErrorToast(response, "No se pudo eliminar el paciente")
       }
     } catch (error) {
       console.error("Error al eliminar paciente:", error)
-      toast.error("Error", {
+      toast.error("No se pudo eliminar el paciente", {
         description: getErrorMessage(error, "Ha ocurrido un error al eliminar el paciente."),
         duration: TOAST_DURATION,
       })
+    } finally {
+      toast.dismiss(loadingId)
     }
   }
 

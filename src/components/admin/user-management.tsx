@@ -6,7 +6,7 @@ import { toast } from "sonner"
 import useAuth from "@/contexts/auth-context"
 import { useApi } from "@/hooks/use-api"
 import { AC_ENDPOINTS, USER_ENDPOINTS } from "@/config/api"
-import { formatApiError } from "@/lib/api-error"
+import { formatApiError, getErrorMessage } from "@/lib/api-error"
 import type { User, Role, Permission, Group } from "@/types"
 import { UserCard, type UserCardAction } from "./components/user-card"
 import { CreateUserDialog } from "./components/create-user-dialog"
@@ -86,8 +86,8 @@ export function UserManagement({ users, roles, permissions, setUsers, refreshDat
           ? `${user.username} va a tener que cambiar su contraseña al entrar.`
           : `${user.username} ya no tiene que cambiar su contraseña.`,
       )
-    } catch {
-      toast.error("Error de red al cambiar la exigencia de contraseña")
+    } catch (fallo) {
+      toast.error("No se pudo cambiar la exigencia de contraseña", { description: getErrorMessage(fallo) })
     }
   }
 
@@ -120,8 +120,8 @@ export function UserManagement({ users, roles, permissions, setUsers, refreshDat
       }
       const data = await response.json()
       setUsers((prev) => prev.map((u) => (u.id === user.id ? { ...u, groups: data.assigned_roles || [] } : u)))
-    } catch {
-      toast.error("Error de red al actualizar el rol")
+    } catch (fallo) {
+      toast.error("No se pudo actualizar el rol", { description: getErrorMessage(fallo) })
     }
   }
 

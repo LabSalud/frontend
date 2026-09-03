@@ -31,7 +31,17 @@ const plata = (valor?: string) =>
     maximumFractionDigits: 0,
   }).format(Number.parseFloat(valor || "0"))
 
-export default function PendienteDelSistema() {
+export default function PendienteDelSistema({
+  comparacion,
+  alcance,
+}: {
+  /** Los mismos tres números sobre el tramo comparado, o `undefined` mientras
+   *  se piden. El panel no los busca solo: los recibe del inicio, que ya los
+   *  tiene, para que el número de arriba y el de abajo salgan de la misma
+   *  lectura. */
+  comparacion?: { nos_deben: string; debemos_devolver: string; neto_a_favor: string }
+  alcance?: string
+} = {}) {
   const consulta = useApiQuery<Pendiente>({
     queryKey: ["analytics", "pendiente"],
     url: ANALYTICS_ENDPOINTS.PENDIENTE,
@@ -69,6 +79,7 @@ export default function PendienteDelSistema() {
             titulo="Nos deben"
             valor={plata(datos?.pacientes_deben)}
             nota={`${datos?.protocolos_con_deuda ?? 0} protocolo${datos?.protocolos_con_deuda === 1 ? "" : "s"}`}
+            comparado={comparacion ? `${plata(comparacion.nos_deben)} ${alcance ?? ""}` : undefined}
             tono="entra"
           />
           {/*
@@ -80,12 +91,14 @@ export default function PendienteDelSistema() {
             titulo="Debemos devolver"
             valor={plata(datos?.lab_debe_devolver)}
             nota={`${datos?.protocolos_con_devolucion ?? 0} protocolo${datos?.protocolos_con_devolucion === 1 ? "" : "s"}`}
+            comparado={comparacion ? `${plata(comparacion.debemos_devolver)} ${alcance ?? ""}` : undefined}
             tono="sale"
           />
           <Cifra
             titulo="Neto a favor"
             valor={plata(datos?.neto_a_favor)}
             nota="La diferencia entre las dos"
+            comparado={comparacion ? `${plata(comparacion.neto_a_favor)} ${alcance ?? ""}` : undefined}
             tono="neto"
           />
         </div>
@@ -98,11 +111,14 @@ function Cifra({
   titulo,
   valor,
   nota,
+  comparado,
   tono,
 }: {
   titulo: string
   valor: string
   nota: string
+  /** El mismo número sobre el tramo comparado, ya escrito. */
+  comparado?: string
   tono: "entra" | "sale" | "neto"
 }) {
   const estilo = {
@@ -116,6 +132,9 @@ function Cifra({
       <div className="text-xs font-medium uppercase tracking-wide opacity-80">{titulo}</div>
       <div className="mt-0.5 text-xl font-semibold tabular-nums sm:text-2xl">{valor}</div>
       <div className="text-xs opacity-70">{nota}</div>
+      {comparado && (
+        <div className="mt-1 border-t border-current/15 pt-1 text-xs opacity-80">{comparado}</div>
+      )}
     </div>
   )
 }

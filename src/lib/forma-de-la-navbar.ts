@@ -3,11 +3,16 @@
  *
  * PARA QUÉ
  * ========
- * El ingreso y el cierre de sesión son la misma animación al derecho y al
- * revés: al entrar, el panel del login se encoge hasta la barra de la navbar;
- * al salir, la barra se estira hasta el panel del login. Para que el
- * aterrizaje caiga justo, el que anima tiene que saber a qué forma va, y las
- * dos pantallas nunca están montadas al mismo tiempo.
+ * Al iniciar sesión, el panel del login se encoge hasta quedar exactamente del
+ * tamaño de la barra de la navbar, que es lo primero que se ve adentro. Para
+ * que el aterrizaje caiga justo, el login tiene que saber a qué forma va, y
+ * cuando la animación corre la navbar todavía no existe: no hay a quién
+ * medirle en ese momento.
+ *
+ * El cierre de sesión NO es esta animación al revés. Ahí la navbar se va para
+ * arriba, el contenido de la pantalla se va para los costados y, con la
+ * pantalla limpia, el panel del login baja desde arriba como siempre. La
+ * coreografía de esa salida también se dispara desde acá.
  *
  * POR QUÉ MEDIDA Y NO ESCRITA
  * ===========================
@@ -38,20 +43,14 @@ export type FormaDeLaNavbar = {
 }
 
 const CLAVE_DE_LA_FORMA = "labsalud:forma-de-la-navbar"
-const CLAVE_DE_LA_ENTRADA = "labsalud:entrada-desde-la-navbar"
 
 /** El breakpoint `lg` de Tailwind, donde la navbar cambia de forma. */
 const ANCHO_DE_ESCRITORIO = 1024
 
-/** El ancho máximo del panel del login: `max-w-md` = 28rem. */
-export const ANCHO_DEL_PANEL_DE_INGRESO = 448
-/** Su radio de abajo: `rounded-b-3xl` = 1.5rem. */
-export const RADIO_DEL_PANEL_DE_INGRESO = 24
-
 /** Cuánto tarda el menú de usuario en cerrarse. Es su propia transición. */
 export const MS_DEL_MENU = 200
-/** Cuánto tarda la barra en volverse panel de login. */
-export const MS_DE_LA_SALIDA = 600
+/** Cuánto tardan la navbar y el contenido en irse de la pantalla. */
+export const MS_DE_LA_SALIDA = 500
 
 /**
  * El ancho de la ventana sin la barra de scroll. `innerWidth` la incluye, así
@@ -105,65 +104,20 @@ export function formaDeLaNavbar(): FormaDeLaNavbar {
   }
 }
 
-/** La forma del panel del login, que es adonde va la barra al cerrar sesión. */
-export function formaDelPanelDeIngreso(): { ancho: number; radio: number } {
-  return {
-    ancho: Math.min(ANCHO_DEL_PANEL_DE_INGRESO, anchoDeLaVentana()),
-    radio: RADIO_DEL_PANEL_DE_INGRESO,
-  }
-}
-
-/**
- * Avisa que la pantalla de login se abre porque la navbar se acaba de
- * convertir en ella, y no porque alguien llegó de afuera: el panel tiene que
- * seguir desde donde quedó la barra en vez de caer otra vez desde arriba.
- */
-export function anunciarEntradaDesdeLaNavbar(): void {
-  try {
-    sessionStorage.setItem(CLAVE_DE_LA_ENTRADA, "1")
-  } catch {
-    // Sin aviso, el login entra con su animación de siempre.
-  }
-}
-
-/**
- * Lo lee el login al montarse. No borra el aviso: lo borra
- * `olvidarEntradaDesdeLaNavbar` cuando la animación terminó. Si se borrara acá,
- * en desarrollo —donde StrictMode monta la pantalla dos veces— el segundo
- * montaje ya no lo encontraría y la animación se vería sólo la mitad de las
- * veces, que es peor que no verla nunca: parece intermitente.
- */
-export function hayEntradaDesdeLaNavbar(): boolean {
-  try {
-    return sessionStorage.getItem(CLAVE_DE_LA_ENTRADA) === "1"
-  } catch {
-    return false
-  }
-}
-
-/** El login ya entró: el próximo que llegue lo hace de la forma normal. */
-export function olvidarEntradaDesdeLaNavbar(): void {
-  try {
-    sessionStorage.removeItem(CLAVE_DE_LA_ENTRADA)
-  } catch {
-    // Nada que olvidar.
-  }
-}
-
-/** Lo que tarda el panel en desplegarse desde la forma de la barra. */
-export const MS_DE_LA_ENTRADA = 600
-
 /** El aviso de que empezó un cierre de sesión con animación. */
 export const EVENTO_DE_CIERRE = "labsalud:cerrando-sesion"
 
 /**
- * Cierra la sesión, pero recién después de la animación: primero se cierra el
- * menú de usuario —para arriba, con su propia transición— y después la barra
- * se estira hasta ser el panel del login. La sesión sigue abierta mientras
- * tanto, que es lo que deja la navbar en pantalla para poder animarla.
+ * Cierra la sesión, pero recién cuando la pantalla quedó limpia: primero se
+ * pliega el menú de usuario —para arriba, con su propia transición—, después
+ * la navbar se va para arriba y el contenido para los costados, y con eso
+ * afuera se cierra la sesión de verdad. El login llega a una pantalla vacía y
+ * baja desde arriba como siempre.
+ *
+ * La sesión sigue abierta mientras dura: es lo que mantiene la navbar y la
+ * pantalla montadas para poder animarlas.
  */
 export function cerrarSesionConAnimacion(cerrar: () => void): void {
-  anunciarEntradaDesdeLaNavbar()
   window.dispatchEvent(new Event(EVENTO_DE_CIERRE))
   window.setTimeout(cerrar, MS_DEL_MENU + MS_DE_LA_SALIDA)
 }

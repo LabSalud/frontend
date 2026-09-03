@@ -5,13 +5,7 @@ import { useState, useEffect, useRef } from "react"
 import { useNavigate, useLocation, Link, type Location } from "react-router-dom"
 import { User, Lock, AlertCircle, Check, X } from "lucide-react"
 import useAuth from "@/contexts/auth-context"
-import {
-  MS_DE_LA_ENTRADA,
-  formaDeLaNavbar,
-  hayEntradaDesdeLaNavbar,
-  olvidarEntradaDesdeLaNavbar,
-  type FormaDeLaNavbar,
-} from "@/lib/forma-de-la-navbar"
+import { formaDeLaNavbar, type FormaDeLaNavbar } from "@/lib/forma-de-la-navbar"
 import { TwoFactorChallenge, type TwoFactorSubmitResult } from "@/components/two-factor-challenge"
 import {
   TwoFactorEnrollment,
@@ -35,14 +29,10 @@ import {
  * blanco se encoge hasta la forma que va a tener la navbar de la app, así lo
  * último que se ve del login es lo primero que se ve adentro.
  *
- * Y AL REVÉS AL SALIR
- * ===================
- * Cerrando sesión pasa lo mismo dado vuelta: la navbar se angosta hasta el
- * ancho de este panel y, cuando el login aparece, el panel sigue desde ese
- * alto y se estira hasta el suyo, en vez de caer otra vez desde arriba.
- *
- * La forma a la que se va —y desde la que se vuelve— no está escrita acá: la
- * mide la navbar y la publica. Ver `lib/forma-de-la-navbar.ts`.
+ * La forma a la que se va no está escrita acá: la mide la navbar y la publica.
+ * Ver `lib/forma-de-la-navbar.ts`. Al entrar el panel baja desde arriba, venga
+ * de donde venga —incluso de cerrar sesión, que primero deja la pantalla
+ * limpia—: es la entrada de siempre.
  */
 
 /**
@@ -76,16 +66,6 @@ export default function Login() {
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
   const [fase, setFase] = useState<FaseDelIngreso>("escribiendo")
-  // Se viene de cerrar sesión: la barra de la navbar ya tomó la forma de este
-  // panel y lo que falta es desplegarlo. No cae desde arriba, sigue desde ahí.
-  const [desdeLaNavbar] = useState<FormaDeLaNavbar | null>(() =>
-    hayEntradaDesdeLaNavbar() ? formaDeLaNavbar() : null,
-  )
-  // El alto al que se despliega, medido del contenido. null = todavía plegado.
-  const [altoDesplegado, setAltoDesplegado] = useState<number | null>(null)
-  // Terminó de desplegarse: se sueltan las medidas y el panel vuelve a crecer
-  // solo, que es lo que necesita cuando aparece el cartel de error.
-  const [yaEntro, setYaEntro] = useState(false)
   const [isPageLoaded, setIsPageLoaded] = useState(false)
   // La forma a la que se encoge el panel al salir. Se mide al empezar la
   // animación y no antes: entre que se abre la pantalla y alguien se loguea,
@@ -139,12 +119,24 @@ export default function Login() {
     }
   }, [])
 
+  // LA CAÍDA DESDE ARRIBA.
+  //
+  // El panel se dibuja arriba de la pantalla y en el frame siguiente pasa a su
+  // lugar; la transición hace el resto. Van DOS frames y no un `setTimeout(0)`
+  // como antes: el timeout podía llegar antes de que el navegador pintara la
+  // posición inicial, y entonces veía un solo estado —el de llegada— y no
+  // tenía desde dónde animar. Se notó al sacar la pantalla de "Verificando
+  // sesión...": mientras estaba, era ella la que se comía el primer frame y
+  // tapaba el problema; sin ella, el panel aparecía puesto, sin caer.
   useEffect(() => {
-    const entranceTimeout = setTimeout(() => {
-      setIsPageLoaded(true)
-    }, 0)
-
-    return () => clearTimeout(entranceTimeout)
+    let interno = 0
+    const externo = requestAnimationFrame(() => {
+      interno = requestAnimationFrame(() => setIsPageLoaded(true))
+    })
+    return () => {
+      cancelAnimationFrame(externo)
+      cancelAnimationFrame(interno)
+    }
   }, [])
 
   useEffect(() => {
@@ -153,26 +145,6 @@ export default function Login() {
       pendientes.current.forEach((id) => clearTimeout(id))
     }
   }, [])
-
-  // EL DESPLIEGUE, CUANDO SE LLEGA DESDE LA NAVBAR.
-  //
-  // El panel arranca con el alto de la barra y el contenido invisible; dos
-  // frames después toma el alto de su contenido —medido, porque a `auto` no se
-  // anima— y el formulario aparece. Al terminar se sueltan las medidas.
-  useEffect(() => {
-    if (!desdeLaNavbar) return
-    const frame = requestAnimationFrame(() =>
-      requestAnimationFrame(() => setAltoDesplegado(panel.current?.scrollHeight ?? null)),
-    )
-    const listo = window.setTimeout(() => {
-      setYaEntro(true)
-      olvidarEntradaDesdeLaNavbar()
-    }, MS_DE_LA_ENTRADA)
-    return () => {
-      cancelAnimationFrame(frame)
-      clearTimeout(listo)
-    }
-  }, [desdeLaNavbar])
 
   /**
    * La despedida: el botón se queda en verde un momento, después el panel se
@@ -319,12 +291,6 @@ export default function Login() {
     return null
   }
 
-  // El panel viniendo de la navbar: plegado al alto de la barra hasta que se
-  // mide el contenido, y libre de medidas una vez desplegado.
-  const desplegandose = Boolean(desdeLaNavbar) && !yaEntro
-  // Cuando se llega desde la navbar no hay caída desde arriba: el panel ya
-  // está en su lugar —era la barra— y lo único que hace es abrirse.
-  const entradaHecha = isPageLoaded || Boolean(desdeLaNavbar)
   const estiloDelPanel = (() => {
     if (saliendo && formaFinal) {
       return {
@@ -335,18 +301,6 @@ export default function Login() {
       }
     }
     if (altoFijado !== null) return { height: altoFijado }
-    if (desdeLaNavbar && !yaEntro) {
-      const plegado = altoDesplegado === null
-      return {
-        transitionDuration: `${MS_DE_LA_ENTRADA}ms`,
-        // Ya desplegado se suelta el ancho: lo vuelve a poner `max-w-md` y la
-        // transición lo acompaña. El radio no se toca en ningún momento: la
-        // barra terminó su parte con el radio de este panel, así que arrancar
-        // con el suyo sería un salto justo en el empalme.
-        maxWidth: plegado ? desdeLaNavbar.ancho : undefined,
-        height: plegado ? desdeLaNavbar.alto : altoDesplegado,
-      }
-    }
     return undefined
   })()
 
@@ -368,10 +322,8 @@ export default function Login() {
             origin-top transform-gpu will-change-transform
             ${saliendo
               ? "transition-all duration-700 ease-[cubic-bezier(0.65,0,0.35,1)]"
-              : desplegandose
-                ? "transition-all ease-[cubic-bezier(0.65,0,0.35,1)]"
-                : "transition-all duration-[2000ms] ease-[cubic-bezier(0.16,1,0.3,1)]"}
-            ${entradaHecha ? "translate-y-0 opacity-100 scale-y-100" : "-translate-y-[110vh] opacity-0 scale-y-75"}
+              : "transition-all duration-[2000ms] ease-[cubic-bezier(0.16,1,0.3,1)]"}
+            ${isPageLoaded ? "translate-y-0 opacity-100 scale-y-100" : "-translate-y-[110vh] opacity-0 scale-y-75"}
           `}
         >
           {pendingTwoFactor ? (
@@ -400,9 +352,7 @@ export default function Login() {
                contra el borde mientras se achica. */
             <div
               className={`px-8 py-8 transition-all duration-300 ease-out ${
-                saliendo || (desplegandose && altoDesplegado === null)
-                  ? "-translate-y-3 opacity-0"
-                  : "translate-y-0 opacity-100"
+                saliendo ? "-translate-y-3 opacity-0" : "translate-y-0 opacity-100"
               }`}
             >
               <div className="text-center mb-8">

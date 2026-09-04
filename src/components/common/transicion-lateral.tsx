@@ -3,8 +3,16 @@
 import { useEffect, useRef, useState, type ReactNode } from "react"
 
 /**
- * El cambio de panel adentro de un mismo contenedor: lo que estaba se va para
- * la izquierda y lo nuevo entra desde la derecha.
+ * El cambio de panel adentro de un mismo contenedor: uno se va de costado y el
+ * otro entra por el lado contrario.
+ *
+ * EL SENTIDO LO ELIGE QUIEN LO USA
+ * ================================
+ * Ir de un panel al siguiente y volver no son el mismo movimiento: si los dos
+ * corrieran para el mismo lado, volver se sentiría como seguir avanzando. Por
+ * eso el sentido es un dato de cada cruce y no una constante del componente:
+ * entrar a un panel manda el actual para la derecha, y volver lo manda para la
+ * izquierda, que es el gesto de deshacer.
  *
  * SE VA DESLIZÁNDOSE, NO DESVANECIÉNDOSE
  * ======================================
@@ -34,12 +42,19 @@ export const MS_DE_LA_TRANSICION = 320
 export function TransicionLateral({
   /** Cambiar esto es lo que dispara el cruce. */
   claveDelPanel,
+  /** Para dónde se va el que estaba. El que llega entra por el lado opuesto. */
+  haciaDonde = "izquierda",
   children,
 }: {
   claveDelPanel: string
+  haciaDonde?: "izquierda" | "derecha"
   children: ReactNode
 }) {
-  const [saliente, setSaliente] = useState<{ clave: string; contenido: ReactNode } | null>(null)
+  const [saliente, setSaliente] = useState<{
+    clave: string
+    contenido: ReactNode
+    hacia: "izquierda" | "derecha"
+  } | null>(null)
   const anterior = useRef<{ clave: string; contenido: ReactNode }>({
     clave: claveDelPanel,
     contenido: children,
@@ -50,7 +65,7 @@ export function TransicionLateral({
       anterior.current = { clave: claveDelPanel, contenido: children }
       return
     }
-    setSaliente(anterior.current)
+    setSaliente({ ...anterior.current, hacia: haciaDonde })
     anterior.current = { clave: claveDelPanel, contenido: children }
     const id = window.setTimeout(() => setSaliente(null), MS_DE_LA_TRANSICION)
     return () => window.clearTimeout(id)
@@ -65,18 +80,24 @@ export function TransicionLateral({
         <div
           key={saliente.clave}
           aria-hidden="true"
-          className="col-start-1 row-start-1 motion-safe:animate-out
-            motion-safe:slide-out-to-left-[110%] motion-safe:duration-300
-            motion-safe:ease-in-out motion-safe:fill-mode-forwards pointer-events-none"
+          className={`col-start-1 row-start-1 motion-safe:animate-out motion-safe:duration-300
+            motion-safe:ease-in-out motion-safe:fill-mode-forwards pointer-events-none ${
+              saliente.hacia === "derecha"
+                ? "motion-safe:slide-out-to-right-[110%]"
+                : "motion-safe:slide-out-to-left-[110%]"
+            }`}
         >
           {saliente.contenido}
         </div>
       )}
       <div
         key={claveDelPanel}
-        className="col-start-1 row-start-1 motion-safe:animate-in
-          motion-safe:slide-in-from-right-[110%] motion-safe:duration-300
-          motion-safe:ease-in-out"
+        className={`col-start-1 row-start-1 motion-safe:animate-in motion-safe:duration-300
+          motion-safe:ease-in-out ${
+            haciaDonde === "derecha"
+              ? "motion-safe:slide-in-from-left-[110%]"
+              : "motion-safe:slide-in-from-right-[110%]"
+          }`}
       >
         {children}
       </div>

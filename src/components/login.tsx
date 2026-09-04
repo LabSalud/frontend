@@ -430,7 +430,15 @@ export default function Login() {
                 antes cada uno vivía en su propia pantalla o en un diálogo
                 aparte. Ahora se cruzan adentro del mismo panel blanco: el que
                 se va sale por la izquierda y el que llega entra por la derecha. */}
-            <TransicionLateral claveDelPanel={panelVisible}>
+            {/* Entrar a un panel manda el que estaba para la DERECHA y trae el
+                nuevo desde la izquierda; volver al ingreso hace lo contrario.
+                Los dos gestos son opuestos a propósito: si volver corriera
+                para el mismo lado que entrar, se sentiría como seguir
+                avanzando en vez de como deshacer. */}
+            <TransicionLateral
+              claveDelPanel={panelVisible}
+              haciaDonde={panelVisible === "ingreso" ? "izquierda" : "derecha"}
+            >
               {panelVisible === "codigo" && pendingTwoFactor ? (
                 <TwoFactorChallenge
                   // El key remonta la pantalla si el usuario cancela y arranca

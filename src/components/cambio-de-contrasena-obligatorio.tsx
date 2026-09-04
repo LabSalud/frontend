@@ -14,16 +14,21 @@ import { useToast } from "@/hooks/use-toast"
 import { formatApiError, getErrorMessage } from "@/lib/api-error"
 
 /**
- * El cartel de bienvenida cuando la contraseña la puso otra persona.
+ * El cartel de cambio obligatorio, para quien YA está adentro.
  *
- * Aparece después de un alta, de un reset por mail o del botón de gestión de
- * usuarios. No se puede cerrar, y no es un capricho de la pantalla: mientras
- * la marca esté puesta, el servidor contesta 403 a todo lo que no sea el
- * propio perfil. Dejar navegar sería mostrar una pantalla de errores.
+ * Queda para un solo caso: que a alguien lo marquen mientras trabaja —un alta
+ * que le redefine la contraseña, el botón de gestión de usuarios—. El camino
+ * normal, el del ingreso, ya no pasa por acá: es un panel más del contenedor
+ * del login, así que la contraseña se elige antes de entrar en vez de aparecer
+ * un diálogo bloqueante encima de una app que no se puede usar. Ver
+ * `login.tsx` y `common/panel-de-contrasena-nueva.tsx`.
  *
- * Va acá y no en el login porque el login puede pasar por el segundo factor:
- * poniéndolo en el layout, se muestra igual por los dos caminos y también
- * cuando a alguien lo marcan con la sesión ya abierta.
+ * El reset por mail tampoco lo dispara: dejó de mandar una contraseña temporal
+ * y ahora la elige la persona desde el link, así que no hay nada prestado.
+ *
+ * No se puede cerrar, y no es un capricho de la pantalla: mientras la marca
+ * esté puesta, el servidor contesta 403 a todo lo que no sea el propio perfil.
+ * Dejar navegar sería mostrar una pantalla de errores.
  */
 
 // Solo para atajar el error de tipeo —el Enter de más, las dos letras—, no

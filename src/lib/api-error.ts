@@ -1,4 +1,17 @@
-const MESSAGE_KEYS = ["detail", "message", "error", "non_field_errors", "nonFieldErrors", "errors"]
+// Las claves cuyo mensaje se muestra tal cual, sin anteponerle el nombre del
+// campo. `password` está acá porque su nombre no agrega nada y encima está en
+// inglés: el backend contesta {"password": ["Esa es la contraseña que te
+// dieron..."]} y la pantalla mostraba "Password: Esa es la contraseña que te
+// dieron...", que se lee como un error del sistema y no como lo que es.
+const MESSAGE_KEYS = [
+  "detail",
+  "message",
+  "error",
+  "non_field_errors",
+  "nonFieldErrors",
+  "errors",
+  "password",
+]
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   Boolean(value) && typeof value === "object" && !Array.isArray(value)

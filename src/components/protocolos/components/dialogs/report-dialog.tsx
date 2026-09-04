@@ -78,6 +78,19 @@ interface ActionButtonProps {
   isPatientMethod?: boolean
 }
 
+/**
+ * Una acción del informe: un botón chico, solo el ícono.
+ *
+ * Eran tarjetas anchas con título y descripción, dos por fila. Con cinco
+ * acciones —mirar, imprimir, descargar, mail, WhatsApp— eso se comía media
+ * pantalla del diálogo y empujaba el resto abajo del scroll, justo donde está
+ * lo que hay que revisar antes de mandar: la fecha, la firma y los análisis
+ * elegidos.
+ *
+ * El texto no se pierde, cambia de lugar: va al tooltip y al `aria-label`, así
+ * que sigue estando para el mouse y para un lector de pantalla. Un ícono solo
+ * es reconocible cuando son pocos y distintos entre sí, que es el caso.
+ */
 function ActionButton({
   onClick,
   disabled,
@@ -95,38 +108,37 @@ function ActionButton({
       type="button"
       onClick={onClick}
       disabled={disabled}
+      // El nombre va acá porque en pantalla ya no está escrito: sin esto, un
+      // lector de pantalla lee "botón" cinco veces.
+      aria-label={isLoading ? loadingLabel : label}
       className={`
-        relative flex items-center gap-3 w-full rounded-lg border px-4 py-3
-        text-left transition-colors
-        disabled:opacity-50 disabled:cursor-not-allowed
+        relative flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border
+        transition-colors disabled:opacity-50 disabled:cursor-not-allowed
         ${isPatientMethod ? "ring-2 ring-[#204983] ring-offset-2" : ""}
         ${colorClass}
       `}
     >
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-white/20">
-        {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : icon}
-      </span>
-      <span className="flex flex-col min-w-0">
-        <span className="text-sm font-semibold leading-tight">{isLoading ? loadingLabel : label}</span>
-        {!isLoading && <span className="text-xs opacity-75 leading-tight mt-0.5 truncate">{description}</span>}
-      </span>
-      {isPatientMethod && (
-        <span className="ml-auto shrink-0 rounded-full bg-white px-2 py-0.5 text-[10px] font-bold text-[#204983] shadow-sm">
-          Método del paciente
-        </span>
+      {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : icon}
+      {/* El método que eligió el paciente se marca con un punto y no con una
+          etiqueta: en un botón de este tamaño no entra una palabra. */}
+      {isPatientMethod && !isLoading && (
+        <span className="absolute -right-1 -top-1 h-3 w-3 rounded-full border-2 border-white bg-[#204983]" />
       )}
     </button>
   )
 
-  if (!disabledReason) return button
-
+  // El tooltip explica qué hace, y por qué no se puede cuando está apagado.
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <span className="block">{button}</span>
+        <span className="inline-block">{button}</span>
       </TooltipTrigger>
       <TooltipContent className="max-w-[260px] bg-slate-900 text-white">
-        <p>{disabledReason}</p>
+        <p className="font-semibold">
+          {label}
+          {isPatientMethod ? " · método del paciente" : ""}
+        </p>
+        <p className="opacity-80">{disabledReason || description}</p>
       </TooltipContent>
     </Tooltip>
   )
@@ -677,7 +689,7 @@ export function ReportDialog({
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Acciones</p>
               {envioDeResultados}
 
-              <div className="grid grid-cols-2 gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 {/* Primero mirar, después sacar. Esta no marca nada: ni los
                     análisis como enviados ni el protocolo como impreso, así
                     que se puede abrir las veces que haga falta. */}

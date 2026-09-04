@@ -49,14 +49,18 @@ export interface AuthResponse {
  * las credenciales estaban bien, falta el código del celular.
  */
 export type LoginOutcome =
-  | { status: "success" }
+  /** `mustChangePassword`: la contraseña la puso otra persona y hay que
+   *  elegir una antes de entrar. Viaja en el resultado y no se lee del
+   *  contexto porque el login lo necesita en el mismo tick: para cuando
+   *  `user` se actualiza, la pantalla ya decidió qué animar. */
+  | { status: "success"; mustChangePassword: boolean }
   | { status: "two_factor_required"; ephemeralToken: string; expiresIn: number }
   /** Está obligada a tener segundo factor y todavía no se enroló: falta el alta. */
   | { status: "two_factor_enrollment_required"; ephemeralToken: string; expiresIn: number }
   | { status: "error" }
 
 export type TwoFactorOutcome =
-  | { status: "success" }
+  | { status: "success"; mustChangePassword: boolean }
   /** `expired` distingue "el token de 5 minutos venció" de "el código está mal". */
   | { status: "error"; message: string; expired?: boolean }
 
@@ -66,7 +70,7 @@ export type TwoFactorEnrollmentStartOutcome =
 
 export type TwoFactorEnrollmentConfirmOutcome =
   /** Los códigos se muestran una única vez; la sesión ya quedó abierta. */
-  | { status: "success"; recoveryCodes: string[] }
+  | { status: "success"; recoveryCodes: string[]; mustChangePassword: boolean }
   | { status: "error"; message: string; expired?: boolean }
 
 export interface VerifyTwoFactorParams {
@@ -427,8 +431,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
           }
         }
 
-        completeSession(data as AuthResponse, username)
-        return { status: "success" }
+        const sesion = data as AuthResponse
+        completeSession(sesion, username)
+        return {
+          status: "success",
+          mustChangePassword: Boolean(sesion.user?.must_change_password),
+        }
       } catch (fallo) {
         // No se asume la red: un bug de la aplicación acá también cae en este
         // `catch`, y decirle a alguien que revise su conexión cuando el
@@ -490,7 +498,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
         const data: AuthResponse = await response.json()
         completeSession(data)
-        return { status: "success" }
+        return {
+          status: "success",
+          mustChangePassword: Boolean(data.user?.must_change_password),
+        }
       } catch {
         return { status: "error", message: "No se pudo conectar con el servidor. Revisá la conexión." }
       } finally {
@@ -591,6 +602,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         return {
           status: "success",
           recoveryCodes: Array.isArray(data.recovery_codes) ? data.recovery_codes : [],
+          mustChangePassword: Boolean(data.user?.must_change_password),
         }
       } catch {
         return { status: "error", message: "No se pudo conectar con el servidor. Revisá la conexión." }

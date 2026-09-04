@@ -1,5 +1,5 @@
 import { Suspense, useEffect } from "react"
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom"
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 
 import ConfirmarEnvio from "./components/contingencia/confirmar-envio"
@@ -15,7 +15,7 @@ import { olvidarLasRecargas, paginaLazy } from "./lib/carga-de-pagina"
 
 // Login no se lazy-loadea: es la primera pantalla y bloquea el resto.
 import Login from "./components/login"
-import ForgotPassword from "./components/forgot-password"
+import RestablecerContrasena from "./components/restablecer-contrasena"
 import Home from "./components/home"
 import NotFound from "./components/not-found"
 
@@ -102,7 +102,14 @@ function App() {
               <Suspense fallback={<RouteFallback />}>
                 <Routes>
                   <Route path="/login" element={<Login />} />
-                  <Route path="/forgot-password" element={<ForgotPassword />} />
+                  {/* Donde cae el link del mail de recuperación. Público: lo
+                      abre justamente quien no puede entrar.
+
+                      `/forgot-password` ya no existe como pantalla: pedir el
+                      link es un panel del login. Se deja redirigiendo para que
+                      un link viejo —o un favorito— no termine en un 404. */}
+                  <Route path="/restablecer/:uid/:token" element={<RestablecerContrasena />} />
+                  <Route path="/forgot-password" element={<Navigate to="/login" replace />} />
                   <Route
                     path="/"
                     element={

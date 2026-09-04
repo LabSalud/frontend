@@ -152,6 +152,15 @@
   h4 {
     font-family: "KoHo", "Segoe UI", system-ui, -apple-system, sans-serif;
     font-weight: 700;
+    /* En mayúscula, como la marca. Va con `text-transform` y no cambiando los
+       textos: así el título sigue escrito en castellano normal en el código
+       —que es lo que se lee al buscarlo, al traducirlo o al mandarlo a un
+       lector de pantalla— y la mayúscula es una decisión de cómo se ve, que
+       vive en un solo lugar y se puede cambiar de una. */
+    text-transform: uppercase;
+    /* La mayúscula corrida se lee peor: sin aire entre letras, las palabras
+       largas se vuelven un bloque. Es el mismo ajuste que ya usa la marca. */
+    letter-spacing: 0.02em;
   }
 }
 

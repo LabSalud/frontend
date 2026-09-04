@@ -1,6 +1,25 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+/* LA TIPOGRAFÍA DE LOS TÍTULOS.
+   KoHo, la del laboratorio. Los archivos están servidos por la propia app y no
+   por Google Fonts, y eso no es purismo: el sistema tiene que andar durante una
+   caída de internet —para eso existe la PC de contingencia—, y una fuente
+   traída de un CDN ahí no carga y los títulos cambiarían de cara justo el día
+   que todo el mundo está nervioso. De paso, no le avisa a un tercero cada vez
+   que alguien del laboratorio abre una pantalla.
+   Va un solo peso, el 700, porque es el único que se usa: la regla de abajo
+   fija los títulos en negrita, así que un archivo con el semibold sería peso
+   muerto en el repositorio. `swap` para que el texto se lea desde el primer
+   frame con la fuente del sistema y cambie cuando la propia esté lista. */
+@font-face {
+  font-family: "KoHo";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/fonts/koho-700.woff2") format("woff2");
+}
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
@@ -116,6 +135,32 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+
+  /* TODOS LOS TÍTULOS, EN KOHO NEGRITA.
+     Va como regla de elemento y no clase por clase: los títulos de esta app
+     son `h1`–`h4` —incluidos los de los diálogos, que Radix renderiza como
+     `h2`—, así que una pantalla nueva los hereda sin que nadie se acuerde de
+     ponerle nada. El peso queda fijo en 700: si lo decidiera cada pantalla,
+     el mismo título saldría más flaco en una que en otra.
+     Lo que NO alcanza esta regla son los "títulos" que no son un heading —un
+     `<p>` en negrita, el rótulo de una tarjeta—. Esos siguen con la tipografía
+     del sistema, que es lo que corresponde: son etiquetas, no títulos. */
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: "KoHo", "Segoe UI", system-ui, -apple-system, sans-serif;
+    font-weight: 700;
+    /* En mayúscula, como la marca. Va con `text-transform` y no cambiando los
+       textos: así el título sigue escrito en castellano normal en el código
+       —que es lo que se lee al buscarlo, al traducirlo o al mandarlo a un
+       lector de pantalla— y la mayúscula es una decisión de cómo se ve, que
+       vive en un solo lugar y se puede cambiar de una. */
+    text-transform: uppercase;
+    /* La mayúscula corrida se lee peor: sin aire entre letras, las palabras
+       largas se vuelven un bloque. Es el mismo ajuste que ya usa la marca. */
+    letter-spacing: 0.02em;
   }
 }
 

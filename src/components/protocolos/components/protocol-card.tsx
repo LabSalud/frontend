@@ -7,6 +7,7 @@ import { Card, CardContent } from "../../ui/card"
 import { Skeleton } from "../../ui/skeleton"
 import { useApi } from "../../../hooks/use-api"
 import { toast } from "sonner"
+import { abrirVistaPrevia } from "@/lib/ventana-de-vista-previa"
 import { PROTOCOL_ENDPOINTS, TOAST_DURATION } from "@/config/api"
 import { PERMISSIONS, PERMISSION_MESSAGES } from "@/config/permissions"
 import { ACTO_BIOQUIMICO_CODES } from "@/lib/codigos-analisis"
@@ -746,6 +747,46 @@ export function ProtocolCard({
     if (reportType !== "full") return false
     const metodo = getSendMethodAction(metodoDeEnvioDelPaciente)
     return metodo === "whatsapp" || metodo === "email"
+  }
+
+  const [isPreviewingReport, setIsPreviewingReport] = useState(false)
+
+  /**
+   * Ver el informe sin sacarlo.
+   *
+   * Usa la acción `preview` del backend, que arma EL MISMO PDF que se
+   * entregaría pero no marca nada: ni los análisis como enviados, ni el
+   * protocolo como impreso, ni queda un evento de entrega en la auditoría. Por
+   * eso tampoco pregunta si el paciente lo recibe —no lo recibió— y no refresca
+   * el detalle: no hay nada que haya cambiado.
+   */
+  const handlePreviewReport = async () => {
+    if (!ensureCanPrintReports()) return
+    setIsPreviewingReport(true)
+
+    try {
+      const response = await executeSingleReportRequest("preview")
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(extractErrorMessage(errorData, "No se pudo generar la vista previa"))
+      }
+
+      const abrio = abrirVistaPrevia(
+        await response.blob(),
+        `Vista previa · Protocolo #${protocol.id}`,
+      )
+      if (!abrio) {
+        toast.error("El navegador bloqueó la ventana. Permití pop-ups para ver la vista previa.", {
+          duration: TOAST_DURATION,
+        })
+      }
+    } catch (error) {
+      toast.error(getErrorMessage(error, "No se pudo generar la vista previa"), {
+        duration: TOAST_DURATION,
+      })
+    } finally {
+      setIsPreviewingReport(false)
+    }
   }
 
   const handleGenerateReport = async (marcarComoEnviado?: boolean) => {
@@ -1874,6 +1915,7 @@ export function ProtocolCard({
         // Envueltos a propósito: pasados pelados, el `onClick` de adentro les
         // mete el evento del click como `marcarComoEnviado`, y con eso deja de
         // ser `undefined` — no se pregunta nada y se manda un MouseEvent.
+        onPreviewReport={() => handlePreviewReport()}
         onGenerateReport={() => handleGenerateReport()}
         onDownloadReport={() => handleDownloadReport()}
         onSendEmail={handleSendEmail}
@@ -1885,6 +1927,7 @@ export function ProtocolCard({
         savingSendMethod={guardandoEnvio}
         emailDisabledReason={emailDisabledReason}
         whatsappDisabledReason={whatsappDisabledReason}
+        isPreviewing={isPreviewingReport}
         isGenerating={isGeneratingReport}
         isDownloading={isDownloadingReport}
         isSending={isSendingEmail}

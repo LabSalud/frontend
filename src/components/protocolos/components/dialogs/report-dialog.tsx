@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { Loader2, FileText, Printer, Mail, MessageCircle, Download, ChevronRight, ArrowRightLeft, X, PenLine } from "lucide-react"
+import { Loader2, FileText, Printer, Mail, MessageCircle, Download, ChevronRight, ArrowRightLeft, X, PenLine, Eye } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "../../../ui/dialog"
 import { Button } from "../../../ui/button"
 import { Input } from "../../../ui/input"
@@ -44,6 +44,8 @@ interface ReportDialogProps {
   onDeselectAllAnalyses: () => void
   customizationOpen: boolean
   onToggleCustomizationOpen: (open: boolean) => void
+  /** Mirar el informe sin sacarlo: no marca nada. */
+  onPreviewReport: () => void
   onGenerateReport: () => void
   onDownloadReport: () => void
   onSendEmail: () => void
@@ -56,6 +58,7 @@ interface ReportDialogProps {
   savingSendMethod?: boolean
   emailDisabledReason?: string
   whatsappDisabledReason?: string
+  isPreviewing: boolean
   isGenerating: boolean
   isDownloading: boolean
   isSending: boolean
@@ -392,6 +395,7 @@ export function ReportDialog({
   onDeselectAllAnalyses,
   customizationOpen,
   onToggleCustomizationOpen,
+  onPreviewReport,
   onGenerateReport,
   onDownloadReport,
   onSendEmail,
@@ -403,6 +407,7 @@ export function ReportDialog({
   savingSendMethod = false,
   emailDisabledReason,
   whatsappDisabledReason,
+  isPreviewing,
   isGenerating,
   isDownloading,
   isSending,
@@ -673,6 +678,20 @@ export function ReportDialog({
               {envioDeResultados}
 
               <div className="grid grid-cols-2 gap-2">
+                {/* Primero mirar, después sacar. Esta no marca nada: ni los
+                    análisis como enviados ni el protocolo como impreso, así
+                    que se puede abrir las veces que haga falta. */}
+                <ActionButton
+                  onClick={onPreviewReport}
+                  disabled={Boolean(printDisabledReason)}
+                  disabledReason={printDisabledReason}
+                  isLoading={isPreviewing}
+                  loadingLabel="Abriendo..."
+                  icon={<Eye className="h-5 w-5" />}
+                  label="Ver vista previa"
+                  description="Solo para mirarlo: no lo marca como enviado"
+                  colorClass="border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
+                />
                 <ActionButton
                   onClick={onGenerateReport}
                   disabled={Boolean(printDisabledReason)}
